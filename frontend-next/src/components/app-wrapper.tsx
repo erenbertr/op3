@@ -7,6 +7,7 @@ import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { WorkspaceManagementPanel } from '@/components/workspace/workspace-management-panel';
 import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
+import { StandardChatLayout } from '@/components/workspace/chat/standard-chat-layout';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -25,6 +26,7 @@ export function AppWrapper() {
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
+    const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
     const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection'>('workspace');
     const [refreshWorkspaces, setRefreshWorkspaces] = useState<(() => void) | null>(null);
 
@@ -101,6 +103,7 @@ export function AppWrapper() {
         // Set the current workspace
         if (workspace) {
             setCurrentWorkspaceId(workspace.id);
+            setCurrentWorkspace(workspace);
         }
 
         // Update user state to reflect completed workspace setup
@@ -114,9 +117,26 @@ export function AppWrapper() {
         }
     };
 
+    const loadWorkspaceDetails = async (workspaceId: string) => {
+        if (!currentUser) return;
+
+        try {
+            const result = await apiClient.getUserWorkspaces(currentUser.id);
+            if (result.success) {
+                const workspace = result.workspaces.find(w => w.id === workspaceId);
+                if (workspace) {
+                    setCurrentWorkspace(workspace);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading workspace details:', error);
+        }
+    };
+
     const handleWorkspaceChange = (workspaceId: string) => {
         setCurrentWorkspaceId(workspaceId);
         setCurrentView('workspace');
+        loadWorkspaceDetails(workspaceId);
     };
 
     const handleShowSettings = () => {
@@ -233,9 +253,9 @@ export function AppWrapper() {
     // If user is logged in and has completed workspace setup
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-background flex flex-col">
                 {/* Header with theme toggle and language selector */}
-                <header className="border-b">
+                <header className="border-b flex-shrink-0">
                     <div className="container mx-auto px-4 py-4 flex justify-between items-center">
                         <div className="flex items-center gap-2">
                             <h1 className="text-xl font-bold">OP3</h1>
@@ -260,32 +280,46 @@ export function AppWrapper() {
                 </header>
 
                 {/* Workspace Tab Bar */}
-                <WorkspaceTabBar
-                    userId={currentUser.id}
-                    currentView={currentView}
-                    onWorkspaceChange={handleWorkspaceChange}
-                    onShowSettings={handleShowSettings}
-                    onShowCreateWorkspace={handleShowCreateWorkspace}
-                    onShowWorkspaceSelection={handleShowWorkspaceSelection}
-                    onRefresh={setRefreshWorkspaces}
-                />
+                <div className="flex-shrink-0">
+                    <WorkspaceTabBar
+                        userId={currentUser.id}
+                        currentView={currentView}
+                        onWorkspaceChange={handleWorkspaceChange}
+                        onShowSettings={handleShowSettings}
+                        onShowCreateWorkspace={handleShowCreateWorkspace}
+                        onShowWorkspaceSelection={handleShowWorkspaceSelection}
+                        onRefresh={setRefreshWorkspaces}
+                    />
+                </div>
 
                 {/* Main content based on current view */}
-                <main>
+                <main className="flex-1 overflow-hidden">
                     {currentView === 'workspace' && (
-                        <div className="container mx-auto px-4 py-8">
-                            <div className="text-center space-y-4">
-                                <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
-                                <p className="text-muted-foreground">
-                                    Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.
-                                </p>
-                                {currentWorkspaceId && (
-                                    <p className="text-sm text-muted-foreground">
-                                        Current workspace ID: {currentWorkspaceId}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
+                        <>
+                            {currentWorkspace?.templateType === 'standard-chat' ? (
+                                <StandardChatLayout
+                                    workspaceId={currentWorkspaceId || undefined}
+                                    className="h-full"
+                                />
+                            ) : (
+                                <div className="container mx-auto px-4 py-8">
+                                    <div className="text-center space-y-4">
+                                        <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
+                                        <p className="text-muted-foreground">
+                                            {currentWorkspace?.templateType
+                                                ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
+                                                : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
+                                            }
+                                        </p>
+                                        {currentWorkspaceId && (
+                                            <p className="text-sm text-muted-foreground">
+                                                Current workspace ID: {currentWorkspaceId}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
 
                     {currentView === 'settings' && (
@@ -312,6 +346,7 @@ export function AppWrapper() {
                                     currentWorkspaceId={currentWorkspaceId}
                                     onWorkspaceSelect={(workspaceId) => {
                                         setCurrentWorkspaceId(workspaceId);
+                                        loadWorkspaceDetails(workspaceId);
                                         handleBackToWorkspace();
                                     }}
                                 />
@@ -328,6 +363,7 @@ export function AppWrapper() {
                                     onComplete={(workspace) => {
                                         if (workspace) {
                                             setCurrentWorkspaceId(workspace.id);
+                                            setCurrentWorkspace(workspace);
                                         }
                                         // Refresh workspace tabs
                                         if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
