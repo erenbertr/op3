@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Edit2, Trash2, MessageSquare, Kanban, Network, Settings, Bot } from 'lucide-react';
+import { Edit2, Trash2, MessageSquare, Kanban, Network, Settings, Bot, Plus } from 'lucide-react';
 import { apiClient, UpdateWorkspaceRequest } from '@/lib/api';
 import { WorkspaceRulesModal } from './workspace-rules-modal';
 import { AIProviderManagement } from './ai-provider-management';
@@ -69,6 +69,7 @@ export function WorkspaceManagementPanel({
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [aiProviderManagementRef, setAiProviderManagementRef] = useState<{ handleAddProvider: () => void } | null>(null);
 
 
 
@@ -341,54 +342,64 @@ export function WorkspaceManagementPanel({
                     </div>
                 );
             case 'ai-providers':
-                return <AIProviderManagement />;
+                return <AIProviderManagement ref={setAiProviderManagementRef} />;
             default:
                 return null;
         }
     };
 
     return (
-        <div className="flex h-full">
-            {/* Vertical Tabs Sidebar */}
-            <div className="w-64 border-r bg-muted/30 p-4">
-                <div className="space-y-2">
-                    {SETTINGS_TABS.map((tab) => (
-                        <Button
-                            key={tab.id}
-                            variant={activeTab === tab.id ? "default" : "ghost"}
-                            className={`w-full justify-start h-auto p-3 ${activeTab === tab.id
+        <div className="h-full flex">
+            <div className="container mx-auto h-full flex">
+                {/* Vertical Tabs Sidebar */}
+                <div className="w-96 h-full overflow-y-auto">
+                    <div className="py-6 space-y-2">
+                        {SETTINGS_TABS.map((tab) => (
+                            <Button
+                                key={tab.id}
+                                variant={activeTab === tab.id ? "default" : "ghost"}
+                                className={`w-full justify-start h-auto p-3 ${activeTab === tab.id
                                     ? "bg-primary text-primary-foreground"
                                     : "hover:bg-muted"
-                                }`}
-                            onClick={() => setActiveTab(tab.id)}
-                        >
-                            <div className="flex items-center gap-3">
-                                {tab.icon}
-                                <div className="text-left">
-                                    <div className="font-medium">{tab.label}</div>
-                                    <div className="text-xs opacity-70">{tab.description}</div>
+                                    }`}
+                                onClick={() => setActiveTab(tab.id)}
+                            >
+                                <div className="flex items-center gap-3">
+                                    {tab.icon}
+                                    <div className="text-left">
+                                        <div className="font-medium">{tab.label}</div>
+                                        <div className="text-xs opacity-70">{tab.description}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        </Button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 p-6">
-                <div className="max-w-4xl">
-                    {/* Tab Header */}
-                    <div className="mb-6">
-                        <h2 className="text-2xl font-bold">
-                            {SETTINGS_TABS.find(tab => tab.id === activeTab)?.label}
-                        </h2>
-                        <p className="text-muted-foreground">
-                            {SETTINGS_TABS.find(tab => tab.id === activeTab)?.description}
-                        </p>
+                            </Button>
+                        ))}
                     </div>
+                </div>
 
-                    {/* Tab Content */}
-                    {renderTabContent()}
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="pl-8 pr-4 py-6">
+                        {/* Tab Header */}
+                        <div className="mb-6 flex items-start justify-between">
+                            <div>
+                                <h2 className="text-2xl font-bold">
+                                    {SETTINGS_TABS.find(tab => tab.id === activeTab)?.label}
+                                </h2>
+                                <p className="text-muted-foreground">
+                                    {SETTINGS_TABS.find(tab => tab.id === activeTab)?.description}
+                                </p>
+                            </div>
+                            {activeTab === 'ai-providers' && (
+                                <Button onClick={() => aiProviderManagementRef?.handleAddProvider()} className="ml-4">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Provider
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Tab Content */}
+                        {renderTabContent()}
+                    </div>
                 </div>
             </div>
         </div>

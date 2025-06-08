@@ -15,6 +15,7 @@ interface WorkspaceTabBarProps {
     onShowWorkspaceSelection?: () => void;
     onShowPersonalities?: () => void;
     onRefresh?: (refreshFn: () => void) => void;
+    onOpenWorkspace?: (openWorkspaceFn: (workspaceId: string) => void) => void;
 }
 
 interface Workspace {
@@ -26,10 +27,36 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onShowPersonalities, onRefresh }: WorkspaceTabBarProps) {
+// Key for storing open workspace tabs in localStorage
+const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
+
+export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onShowPersonalities, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+    const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // Save open workspace tabs to localStorage
+    const saveOpenTabs = useCallback((tabs: string[]) => {
+        try {
+            localStorage.setItem(OPEN_WORKSPACE_TABS_KEY, JSON.stringify(tabs));
+        } catch (error) {
+            console.error('Error saving open tabs to localStorage:', error);
+        }
+    }, []);
+
+    // Load open workspace tabs from localStorage
+    const loadOpenTabs = useCallback(() => {
+        try {
+            const savedTabs = localStorage.getItem(OPEN_WORKSPACE_TABS_KEY);
+            if (savedTabs) {
+                return JSON.parse(savedTabs);
+            }
+        } catch (error) {
+            console.error('Error loading open tabs from localStorage:', error);
+        }
+        return [];
+    }, []);
 
     const loadWorkspaces = useCallback(async () => {
         try {
@@ -40,6 +67,23 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
             if (result.success) {
                 setWorkspaces(result.workspaces);
+
+                // Initialize open tabs from localStorage or with all workspaces if not already set
+                if (openWorkspaceTabs.length === 0 && result.workspaces.length > 0) {
+                    const savedTabs = loadOpenTabs();
+                    const validSavedTabs = savedTabs.filter((tabId: string) =>
+                        result.workspaces.some(w => w.id === tabId)
+                    );
+
+                    if (validSavedTabs.length > 0) {
+                        setOpenWorkspaceTabs(validSavedTabs);
+                    } else {
+                        // If no valid saved tabs, open all workspaces
+                        const allWorkspaceIds = result.workspaces.map(w => w.id);
+                        setOpenWorkspaceTabs(allWorkspaceIds);
+                        saveOpenTabs(allWorkspaceIds);
+                    }
+                }
             } else {
                 setError('Failed to load workspaces');
             }
@@ -49,7 +93,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         } finally {
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, openWorkspaceTabs.length, loadOpenTabs, saveOpenTabs]);
 
     // Load workspaces on component mount
     useEffect(() => {
@@ -73,7 +117,25 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         }
     }, [onRefresh, loadWorkspaces]);
 
-    const handleTabClick = async (workspaceId: string) => {
+    const handleOpenWorkspace = useCallback((workspaceId: string) => {
+        // Add workspace to open tabs if not already open
+        if (!openWorkspaceTabs.includes(workspaceId)) {
+            const newTabs = [...openWorkspaceTabs, workspaceId];
+            setOpenWorkspaceTabs(newTabs);
+            saveOpenTabs(newTabs);
+        }
+        // Switch to the workspace
+        handleTabClick(workspaceId);
+    }, [openWorkspaceTabs, handleTabClick, saveOpenTabs]);
+
+    // Expose open workspace function to parent
+    useEffect(() => {
+        if (onOpenWorkspace) {
+            onOpenWorkspace(handleOpenWorkspace);
+        }
+    }, [onOpenWorkspace, handleOpenWorkspace]);
+
+    const handleTabClick = useCallback(async (workspaceId: string) => {
         // Always allow the click to go through - let the parent decide if action is needed
         // This fixes the issue where clicking on a newly created workspace doesn't work
         try {
@@ -94,47 +156,40 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             console.error('Error switching workspace:', error);
             setError('Failed to switch workspace');
         }
-    };
+    }, [userId, onWorkspaceChange]);
 
-    const handleCloseTab = async (workspaceId: string, e: React.MouseEvent) => {
+    const handleCloseTab = useCallback(async (workspaceId: string, e: React.MouseEvent) => {
         e.stopPropagation();
 
-        if (workspaces.length <= 1) {
-            setError('Cannot close the last workspace. Users must have at least one workspace.');
+        const openTabs = openWorkspaceTabs.filter(id => id !== workspaceId);
+
+        if (openTabs.length === 0) {
+            setError('Cannot close the last workspace tab. At least one workspace must remain open.');
             return;
         }
 
         try {
-            // If this is the active workspace, switch to another one first
+            // If this is the active workspace, switch to another open tab first
             if (workspaceId === currentWorkspaceId) {
-                const otherWorkspace = workspaces.find(w => w.id !== workspaceId);
-                if (otherWorkspace) {
-                    await handleTabClick(otherWorkspace.id);
+                const otherOpenWorkspace = workspaces.find(w =>
+                    openTabs.includes(w.id) && w.id !== workspaceId
+                );
+                if (otherOpenWorkspace) {
+                    await handleTabClick(otherOpenWorkspace.id);
                 }
             }
 
-            // Delete the workspace
-            const result = await apiClient.deleteWorkspace(workspaceId, userId);
+            // Remove from open tabs (but keep the workspace in the database and workspace list)
+            setOpenWorkspaceTabs(openTabs);
+            saveOpenTabs(openTabs);
 
-            if (result.success) {
-                // Remove from local state
-                setWorkspaces(prev => prev.filter(w => w.id !== workspaceId));
-
-                // If we deleted the active workspace, make sure another one is active
-                if (workspaceId === currentWorkspaceId) {
-                    const remainingWorkspaces = workspaces.filter(w => w.id !== workspaceId);
-                    if (remainingWorkspaces.length > 0) {
-                        await onWorkspaceChange?.(remainingWorkspaces[0].id);
-                    }
-                }
-            } else {
-                setError(result.message || 'Failed to close workspace');
-            }
         } catch (error) {
-            console.error('Error closing workspace:', error);
-            setError('Failed to close workspace');
+            console.error('Error closing workspace tab:', error);
+            setError('Failed to close workspace tab');
         }
-    };
+    }, [openWorkspaceTabs, currentWorkspaceId, workspaces, handleTabClick, saveOpenTabs]);
+
+
 
 
 
@@ -196,32 +251,34 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         <User className="h-4 w-4" />
                     </Button>
 
-                    {/* Workspace Tabs */}
-                    {workspaces.map((workspace) => (
-                        <div
-                            key={workspace.id}
-                            className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.id === currentWorkspaceId && currentView === 'workspace'
-                                ? 'bg-primary/10 border-primary text-primary'
-                                : 'hover:bg-muted border-transparent hover:border-primary/50'
-                                }`}
-                            onClick={() => handleTabClick(workspace.id)}
-                        >
-                            <span className="text-sm font-medium truncate max-w-32">
-                                {workspace.name}
-                            </span>
-                            {workspaces.length > 1 && workspace.id === currentWorkspaceId && currentView === 'workspace' && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => handleCloseTab(workspace.id, e)}
-                                    className="h-5 w-5 p-0 ml-2 hover:bg-destructive/20 hover:text-destructive"
-                                    title="Close workspace tab"
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            )}
-                        </div>
-                    ))}
+                    {/* Workspace Tabs - Only show workspaces that are in openWorkspaceTabs */}
+                    {workspaces
+                        .filter(workspace => openWorkspaceTabs.includes(workspace.id))
+                        .map((workspace) => (
+                            <div
+                                key={workspace.id}
+                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                    ? 'bg-primary/10 border-primary text-primary'
+                                    : 'hover:bg-muted border-transparent hover:border-primary/50'
+                                    }`}
+                                onClick={() => handleTabClick(workspace.id)}
+                            >
+                                <span className="text-sm font-medium truncate max-w-32">
+                                    {workspace.name}
+                                </span>
+                                {openWorkspaceTabs.length > 1 && workspace.id === currentWorkspaceId && currentView === 'workspace' && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => handleCloseTab(workspace.id, e)}
+                                        className="h-5 w-5 p-0 ml-2 hover:bg-destructive/20 hover:text-destructive"
+                                        title="Close workspace tab"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                )}
+                            </div>
+                        ))}
 
                     {/* Add Workspace Tab */}
                     <Button

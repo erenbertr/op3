@@ -9,6 +9,7 @@ interface WorkspaceSelectionProps {
     userId: string;
     onWorkspaceSelect: (workspaceId: string) => void;
     currentWorkspaceId?: string | null;
+    openWorkspace?: ((workspaceId: string) => void) | null;
 }
 
 interface Workspace {
@@ -20,7 +21,7 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspaceId }: WorkspaceSelectionProps) {
+export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspaceId, openWorkspace }: WorkspaceSelectionProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -82,11 +83,17 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
         }
 
         try {
-            const result = await apiClient.setActiveWorkspace(workspaceId, userId);
-            if (result.success) {
+            // Use openWorkspace function if available (to add to tabs) or fallback to regular selection
+            if (openWorkspace) {
+                openWorkspace(workspaceId);
                 onWorkspaceSelect(workspaceId);
             } else {
-                setError(result.message || 'Failed to switch workspace');
+                const result = await apiClient.setActiveWorkspace(workspaceId, userId);
+                if (result.success) {
+                    onWorkspaceSelect(workspaceId);
+                } else {
+                    setError(result.message || 'Failed to switch workspace');
+                }
             }
         } catch (error) {
             console.error('Error switching workspace:', error);

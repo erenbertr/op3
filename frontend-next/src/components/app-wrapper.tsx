@@ -30,6 +30,7 @@ export function AppWrapper() {
     const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
     const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection' | 'personalities'>('workspace');
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
+    const [openWorkspace, setOpenWorkspace] = useState<((workspaceId: string) => void) | null>(null);
 
 
 
@@ -326,6 +327,7 @@ export function AppWrapper() {
                         onShowWorkspaceSelection={handleShowWorkspaceSelection}
                         onShowPersonalities={handleShowPersonalities}
                         onRefresh={setRefreshWorkspaces}
+                        onOpenWorkspace={setOpenWorkspace}
                     />
                 </div>
 
@@ -361,17 +363,14 @@ export function AppWrapper() {
                     )}
 
                     {currentView === 'settings' && (
-                        <div className="container mx-auto px-4 py-6">
-                            <div className="max-w-4xl mx-auto">
-                                <h1 className="text-2xl font-bold mb-6">Workspace Settings</h1>
-                                <WorkspaceManagementPanel
-                                    userId={currentUser.id}
-                                    workspaces={[]} // Will be loaded by the component
-                                    onClose={handleBackToWorkspace}
-                                    onWorkspaceUpdated={() => { }}
-                                    onWorkspaceDeleted={() => { }}
-                                />
-                            </div>
+                        <div className="h-full">
+                            <WorkspaceManagementPanel
+                                userId={currentUser.id}
+                                workspaces={[]} // Will be loaded by the component
+                                onClose={handleBackToWorkspace}
+                                onWorkspaceUpdated={() => { }}
+                                onWorkspaceDeleted={() => { }}
+                            />
                         </div>
                     )}
 
@@ -382,6 +381,7 @@ export function AppWrapper() {
                                 <WorkspaceSelection
                                     userId={currentUser.id}
                                     currentWorkspaceId={currentWorkspaceId}
+                                    openWorkspace={openWorkspace}
                                     onWorkspaceSelect={async (workspaceId) => {
                                         setCurrentWorkspaceId(workspaceId);
                                         await loadWorkspaceDetails(workspaceId);

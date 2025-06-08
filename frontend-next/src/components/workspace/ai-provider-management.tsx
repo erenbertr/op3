@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,7 +43,7 @@ const DEFAULT_MODELS: Record<AIProviderType, string> = {
     custom: ''
 };
 
-export function AIProviderManagement({ className }: AIProviderManagementProps) {
+export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }, AIProviderManagementProps>(({ className }, ref) => {
     const [providers, setProviders] = useState<AIProviderConfig[]>([]);
     const [editingProvider, setEditingProvider] = useState<EditingProvider | null>(null);
     const [deletingProviderId, setDeletingProviderId] = useState<string | null>(null);
@@ -73,6 +73,10 @@ export function AIProviderManagement({ className }: AIProviderManagementProps) {
     useEffect(() => {
         loadProviders();
     }, [loadProviders]);
+
+    useImperativeHandle(ref, () => ({
+        handleAddProvider
+    }));
 
     const handleAddProvider = () => {
         setEditingProvider({
@@ -254,19 +258,6 @@ export function AIProviderManagement({ className }: AIProviderManagementProps) {
 
     return (
         <div className={className}>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h2 className="text-xl font-semibold">AI Provider Management</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Configure and manage AI providers for your workspace
-                    </p>
-                </div>
-                <Button onClick={handleAddProvider} disabled={isLoading}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Provider
-                </Button>
-            </div>
 
             {/* Error Display */}
             {error && (
@@ -501,4 +492,6 @@ export function AIProviderManagement({ className }: AIProviderManagementProps) {
             )}
         </div>
     );
-}
+});
+
+AIProviderManagement.displayName = 'AIProviderManagement';
