@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -69,7 +69,7 @@ export function WorkspaceManagementPanel({
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [aiProviderManagementRef, setAiProviderManagementRef] = useState<{ handleAddProvider: () => void } | null>(null);
+    const aiProviderManagementRef = useRef<{ handleAddProvider: () => void } | null>(null);
 
 
 
@@ -342,7 +342,7 @@ export function WorkspaceManagementPanel({
                     </div>
                 );
             case 'ai-providers':
-                return <AIProviderManagement ref={setAiProviderManagementRef} />;
+                return <AIProviderManagement ref={aiProviderManagementRef} />;
             default:
                 return null;
         }
@@ -390,7 +390,7 @@ export function WorkspaceManagementPanel({
                                 </p>
                             </div>
                             {activeTab === 'ai-providers' && (
-                                <Button onClick={() => aiProviderManagementRef?.handleAddProvider()} className="ml-4">
+                                <Button onClick={() => aiProviderManagementRef.current?.handleAddProvider()} className="ml-4">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Add Provider
                                 </Button>

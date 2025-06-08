@@ -117,24 +117,6 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         }
     }, [onRefresh, loadWorkspaces]);
 
-    const handleOpenWorkspace = useCallback((workspaceId: string) => {
-        // Add workspace to open tabs if not already open
-        if (!openWorkspaceTabs.includes(workspaceId)) {
-            const newTabs = [...openWorkspaceTabs, workspaceId];
-            setOpenWorkspaceTabs(newTabs);
-            saveOpenTabs(newTabs);
-        }
-        // Switch to the workspace
-        handleTabClick(workspaceId);
-    }, [openWorkspaceTabs, handleTabClick, saveOpenTabs]);
-
-    // Expose open workspace function to parent
-    useEffect(() => {
-        if (onOpenWorkspace) {
-            onOpenWorkspace(handleOpenWorkspace);
-        }
-    }, [onOpenWorkspace, handleOpenWorkspace]);
-
     const handleTabClick = useCallback(async (workspaceId: string) => {
         // Always allow the click to go through - let the parent decide if action is needed
         // This fixes the issue where clicking on a newly created workspace doesn't work
@@ -157,6 +139,24 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             setError('Failed to switch workspace');
         }
     }, [userId, onWorkspaceChange]);
+
+    const handleOpenWorkspace = useCallback((workspaceId: string) => {
+        // Add workspace to open tabs if not already open
+        if (!openWorkspaceTabs.includes(workspaceId)) {
+            const newTabs = [...openWorkspaceTabs, workspaceId];
+            setOpenWorkspaceTabs(newTabs);
+            saveOpenTabs(newTabs);
+        }
+        // Switch to the workspace
+        handleTabClick(workspaceId);
+    }, [openWorkspaceTabs, handleTabClick, saveOpenTabs]);
+
+    // Expose open workspace function to parent
+    useEffect(() => {
+        if (onOpenWorkspace) {
+            onOpenWorkspace(handleOpenWorkspace);
+        }
+    }, [onOpenWorkspace, handleOpenWorkspace]);
 
     const handleCloseTab = useCallback(async (workspaceId: string, e: React.MouseEvent) => {
         e.stopPropagation();
