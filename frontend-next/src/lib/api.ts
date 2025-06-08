@@ -361,6 +361,11 @@ class ApiClient {
         });
     }
 
+    // Get all configured AI providers
+    async getAIProviders(): Promise<{ success: boolean; message: string; providers: AIProviderConfig[] }> {
+        return this.request<{ success: boolean; message: string; providers: AIProviderConfig[] }>('/ai-providers');
+    }
+
     // Workspace-related methods
     async createWorkspace(userId: string, name: string, templateType: string, workspaceRules: string): Promise<CreateWorkspaceResponse> {
         return this.request<CreateWorkspaceResponse>('/workspace/create', {

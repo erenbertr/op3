@@ -3,6 +3,7 @@ import setupRouter from './setup';
 import workspaceRouter from './workspace';
 import personalitiesRouter from './personalities';
 import chatRouter from './chat';
+import aiProvidersRouter from './ai-providers';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -20,6 +21,9 @@ export const setupRoutes = (app: Express): void => {
     // Chat routes
     app.use(`${API_PREFIX}/chat`, chatRouter);
 
+    // AI Providers routes
+    app.use(`${API_PREFIX}/ai-providers`, aiProvidersRouter);
+
     // API info endpoint
     app.get(`${API_PREFIX}`, (req, res) => {
         res.json({
@@ -31,6 +35,7 @@ export const setupRoutes = (app: Express): void => {
                 workspace: `${API_PREFIX}/workspace`,
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,
+                aiProviders: `${API_PREFIX}/ai-providers`,
                 health: '/health'
             }
         });
