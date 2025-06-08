@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
@@ -30,7 +30,7 @@ export function AppWrapper() {
     const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
     const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection' | 'personalities'>('workspace');
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
-    const [openWorkspace, setOpenWorkspace] = useState<((workspaceId: string) => void) | null>(null);
+    const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
 
 
 
@@ -327,7 +327,7 @@ export function AppWrapper() {
                         onShowWorkspaceSelection={handleShowWorkspaceSelection}
                         onShowPersonalities={handleShowPersonalities}
                         onRefresh={setRefreshWorkspaces}
-                        onOpenWorkspace={setOpenWorkspace}
+                        onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
                     />
                 </div>
 
@@ -381,7 +381,7 @@ export function AppWrapper() {
                                 <WorkspaceSelection
                                     userId={currentUser.id}
                                     currentWorkspaceId={currentWorkspaceId}
-                                    openWorkspace={openWorkspace}
+                                    openWorkspace={openWorkspaceRef.current}
                                     onWorkspaceSelect={async (workspaceId) => {
                                         setCurrentWorkspaceId(workspaceId);
                                         await loadWorkspaceDetails(workspaceId);
