@@ -2,6 +2,7 @@ import { AIProviderConfig, AIProviderType } from '../types/ai-provider';
 import { ChatMessage } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { PersonalityService } from './personalityService';
+import { ChatService } from './chatService';
 
 export interface StreamingChatRequest {
     content: string;
@@ -25,14 +26,21 @@ export interface AIStreamChunk {
     error?: string;
 }
 
+export interface ConversationMessage {
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+}
+
 export class AIChatService {
     private static instance: AIChatService;
     private aiProviderService: AIProviderService;
     private personalityService: PersonalityService;
+    private chatService: ChatService;
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
         this.personalityService = new PersonalityService();
+        this.chatService = ChatService.getInstance();
     }
 
     public static getInstance(): AIChatService {
@@ -84,11 +92,14 @@ export class AIChatService {
                 }
             }
 
+            // Get conversation history
+            const conversationHistory = await this.buildConversationHistory(request.sessionId, systemPrompt);
+
             // Generate streaming response based on provider type
             const result = await this.streamFromProvider(
                 selectedProvider,
                 request.content,
-                systemPrompt,
+                conversationHistory,
                 onChunk
             );
 
@@ -107,12 +118,46 @@ export class AIChatService {
     }
 
     /**
+     * Build conversation history from chat messages
+     */
+    private async buildConversationHistory(sessionId: string, systemPrompt: string): Promise<ConversationMessage[]> {
+        const messages: ConversationMessage[] = [];
+
+        // Add system prompt if provided
+        if (systemPrompt) {
+            messages.push({
+                role: 'system',
+                content: systemPrompt
+            });
+        }
+
+        // Get chat messages for the session
+        const chatMessagesResult = await this.chatService.getChatMessages(sessionId);
+        if (chatMessagesResult.success && chatMessagesResult.messages) {
+            // Sort messages by creation date to ensure proper order
+            const sortedMessages = chatMessagesResult.messages.sort((a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+
+            // Convert chat messages to conversation format
+            for (const chatMessage of sortedMessages) {
+                messages.push({
+                    role: chatMessage.role as 'user' | 'assistant',
+                    content: chatMessage.content
+                });
+            }
+        }
+
+        return messages;
+    }
+
+    /**
      * Stream response from specific AI provider
      */
     private async streamFromProvider(
         provider: AIProviderConfig,
         userMessage: string,
-        systemPrompt: string,
+        conversationHistory: ConversationMessage[],
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
         const messageId = crypto.randomUUID();
@@ -122,18 +167,21 @@ export class AIChatService {
             messageId
         });
 
+        // Add the current user message to conversation history
+        const fullConversation = [...conversationHistory, { role: 'user' as const, content: userMessage }];
+
         try {
             switch (provider.type) {
                 case 'openai':
-                    return await this.streamFromOpenAI(provider, userMessage, systemPrompt, messageId, onChunk);
+                    return await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk);
                 case 'anthropic':
-                    return await this.streamFromAnthropic(provider, userMessage, systemPrompt, messageId, onChunk);
+                    return await this.streamFromAnthropic(provider, fullConversation, messageId, onChunk);
                 case 'google':
-                    return await this.streamFromGoogle(provider, userMessage, systemPrompt, messageId, onChunk);
+                    return await this.streamFromGoogle(provider, fullConversation, messageId, onChunk);
                 case 'replicate':
-                    return await this.streamFromReplicate(provider, userMessage, systemPrompt, messageId, onChunk);
+                    return await this.streamFromReplicate(provider, fullConversation, messageId, onChunk);
                 case 'custom':
-                    return await this.streamFromCustom(provider, userMessage, systemPrompt, messageId, onChunk);
+                    return await this.streamFromCustom(provider, fullConversation, messageId, onChunk);
                 default:
                     throw new Error(`Unsupported provider type: ${provider.type}`);
             }
@@ -155,19 +203,18 @@ export class AIChatService {
      */
     private async streamFromOpenAI(
         provider: AIProviderConfig,
-        userMessage: string,
-        systemPrompt: string,
+        conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
-        const messages = [];
-        if (systemPrompt) {
-            messages.push({ role: 'system', content: systemPrompt });
-        }
-        messages.push({ role: 'user', content: userMessage });
+        // Use the full conversation history
+        const messages = conversationHistory.map(msg => ({
+            role: msg.role,
+            content: msg.content
+        }));
 
         const response = await fetch(`${endpoint}/chat/completions`, {
             method: 'POST',
@@ -269,23 +316,30 @@ export class AIChatService {
      */
     private async streamFromAnthropic(
         provider: AIProviderConfig,
-        userMessage: string,
-        systemPrompt: string,
+        conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
         const endpoint = provider.endpoint || 'https://api.anthropic.com';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
+        // Separate system messages from user/assistant messages for Anthropic
+        const systemMessages = conversationHistory.filter(msg => msg.role === 'system');
+        const chatMessages = conversationHistory.filter(msg => msg.role !== 'system');
+
         const requestBody: any = {
             model: provider.model,
             max_tokens: 2000,
-            messages: [{ role: 'user', content: userMessage }],
+            messages: chatMessages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            })),
             stream: true
         };
 
-        if (systemPrompt) {
-            requestBody.system = systemPrompt;
+        // Combine all system messages into one system prompt for Anthropic
+        if (systemMessages.length > 0) {
+            requestBody.system = systemMessages.map(msg => msg.content).join('\n\n');
         }
 
         const response = await fetch(`${endpoint}/v1/messages`, {
@@ -385,8 +439,7 @@ export class AIChatService {
      */
     private async streamFromGoogle(
         provider: AIProviderConfig,
-        userMessage: string,
-        systemPrompt: string,
+        conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
@@ -395,7 +448,13 @@ export class AIChatService {
         const endpoint = provider.endpoint || 'https://generativelanguage.googleapis.com';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
-        const prompt = systemPrompt ? `${systemPrompt}\n\nUser: ${userMessage}` : userMessage;
+        // Build prompt from conversation history
+        const prompt = conversationHistory.map(msg => {
+            if (msg.role === 'system') return msg.content;
+            if (msg.role === 'user') return `User: ${msg.content}`;
+            if (msg.role === 'assistant') return `Assistant: ${msg.content}`;
+            return msg.content;
+        }).join('\n\n');
 
         const response = await fetch(`${endpoint}/v1beta/models/${provider.model}:generateContent?key=${apiKey}`, {
             method: 'POST',
@@ -446,8 +505,7 @@ export class AIChatService {
      */
     private async streamFromReplicate(
         provider: AIProviderConfig,
-        userMessage: string,
-        systemPrompt: string,
+        conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
@@ -455,7 +513,13 @@ export class AIChatService {
         const endpoint = provider.endpoint || 'https://api.replicate.com';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
-        const prompt = systemPrompt ? `${systemPrompt}\n\nUser: ${userMessage}` : userMessage;
+        // Build prompt from conversation history
+        const prompt = conversationHistory.map(msg => {
+            if (msg.role === 'system') return msg.content;
+            if (msg.role === 'user') return `User: ${msg.content}`;
+            if (msg.role === 'assistant') return `Assistant: ${msg.content}`;
+            return msg.content;
+        }).join('\n\n');
 
         const response = await fetch(`${endpoint}/v1/predictions`, {
             method: 'POST',
@@ -563,8 +627,7 @@ export class AIChatService {
      */
     private async streamFromCustom(
         provider: AIProviderConfig,
-        userMessage: string,
-        systemPrompt: string,
+        conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
@@ -575,11 +638,11 @@ export class AIChatService {
 
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
-        const messages = [];
-        if (systemPrompt) {
-            messages.push({ role: 'system', content: systemPrompt });
-        }
-        messages.push({ role: 'user', content: userMessage });
+        // Use the full conversation history (assuming OpenAI-compatible format)
+        const messages = conversationHistory.map(msg => ({
+            role: msg.role,
+            content: msg.content
+        }));
 
         const response = await fetch(`${provider.endpoint}/chat/completions`, {
             method: 'POST',
