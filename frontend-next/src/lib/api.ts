@@ -62,6 +62,43 @@ export interface ApiResponse<T = unknown> {
     error?: string;
 }
 
+// Personality types
+export interface Personality {
+    id: string;
+    userId: string;
+    title: string;
+    prompt: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreatePersonalityRequest {
+    title: string;
+    prompt: string;
+}
+
+export interface UpdatePersonalityRequest {
+    title?: string;
+    prompt?: string;
+}
+
+export interface PersonalityResponse {
+    success: boolean;
+    message: string;
+    personality?: Personality;
+}
+
+export interface PersonalitiesListResponse {
+    success: boolean;
+    message: string;
+    personalities: Personality[];
+}
+
+export interface DeletePersonalityResponse {
+    success: boolean;
+    message: string;
+}
+
 export interface SetupStatusResponse {
     success: boolean;
     message?: string;
@@ -288,6 +325,32 @@ class ApiClient {
 
     async deleteWorkspace(workspaceId: string, userId: string): Promise<WorkspaceDeleteResponse> {
         return this.request<WorkspaceDeleteResponse>(`/workspace/${workspaceId}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ userId }),
+        });
+    }
+
+    // Personality-related methods
+    async getPersonalities(userId: string): Promise<PersonalitiesListResponse> {
+        return this.request<PersonalitiesListResponse>(`/personalities/${userId}`);
+    }
+
+    async createPersonality(userId: string, request: CreatePersonalityRequest): Promise<PersonalityResponse> {
+        return this.request<PersonalityResponse>('/personalities', {
+            method: 'POST',
+            body: JSON.stringify({ userId, ...request }),
+        });
+    }
+
+    async updatePersonality(personalityId: string, userId: string, request: UpdatePersonalityRequest): Promise<PersonalityResponse> {
+        return this.request<PersonalityResponse>(`/personalities/${personalityId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ userId, ...request }),
+        });
+    }
+
+    async deletePersonality(personalityId: string, userId: string): Promise<DeletePersonalityResponse> {
+        return this.request<DeletePersonalityResponse>(`/personalities/${personalityId}`, {
             method: 'DELETE',
             body: JSON.stringify({ userId }),
         });

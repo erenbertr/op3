@@ -8,6 +8,7 @@ import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { WorkspaceManagementPanel } from '@/components/workspace/workspace-management-panel';
 import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
 import { StandardChatLayout } from '@/components/workspace/chat/standard-chat-layout';
+import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -27,7 +28,7 @@ export function AppWrapper() {
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
     const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
-    const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection'>('workspace');
+    const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection' | 'personalities'>('workspace');
     const [refreshWorkspaces, setRefreshWorkspaces] = useState<(() => void) | null>(null);
 
     useEffect(() => {
@@ -176,6 +177,10 @@ export function AppWrapper() {
         setCurrentView('selection');
     };
 
+    const handleShowPersonalities = () => {
+        setCurrentView('personalities');
+    };
+
     const handleBackToWorkspace = () => {
         setCurrentView('workspace');
     };
@@ -313,6 +318,7 @@ export function AppWrapper() {
                         onShowSettings={handleShowSettings}
                         onShowCreateWorkspace={handleShowCreateWorkspace}
                         onShowWorkspaceSelection={handleShowWorkspaceSelection}
+                        onShowPersonalities={handleShowPersonalities}
                         onRefresh={setRefreshWorkspaces}
                     />
                 </div>
@@ -403,6 +409,15 @@ export function AppWrapper() {
                                         handleBackToWorkspace();
                                     }}
                                 />
+                            </div>
+                        </div>
+                    )}
+
+                    {currentView === 'personalities' && (
+                        <div className="container mx-auto px-4 py-6">
+                            <div className="max-w-6xl mx-auto">
+                                <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
+                                <PersonalitiesManagement userId={currentUser.id} />
                             </div>
                         </div>
                     )}

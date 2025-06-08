@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X, FolderOpen } from 'lucide-react';
+import { Settings, Plus, X, FolderOpen, User } from 'lucide-react';
 import { apiClient, WorkspaceListResponse } from '@/lib/api';
 
 interface WorkspaceTabBarProps {
     userId: string;
-    currentView?: 'workspace' | 'settings' | 'create' | 'selection';
+    currentView?: 'workspace' | 'settings' | 'create' | 'selection' | 'personalities';
     onWorkspaceChange?: (workspaceId: string) => void;
     onShowSettings?: () => void;
     onShowCreateWorkspace?: () => void;
     onShowWorkspaceSelection?: () => void;
+    onShowPersonalities?: () => void;
     onRefresh?: (refreshFn: () => void) => void;
 }
 
@@ -24,7 +25,7 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onRefresh }: WorkspaceTabBarProps) {
+export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onShowPersonalities, onRefresh }: WorkspaceTabBarProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -173,6 +174,20 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
                         title="Select Workspace"
                     >
                         <FolderOpen className="h-4 w-4" />
+                    </Button>
+
+                    {/* Personalities Tab */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onShowPersonalities}
+                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'personalities'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : 'border-transparent hover:border-primary/50'
+                            }`}
+                        title="AI Personalities"
+                    >
+                        <User className="h-4 w-4" />
                     </Button>
 
                     {/* Workspace Tabs */}
