@@ -124,6 +124,20 @@ export function ChatSessionComponent({
         }
     }, [session?.id, addToast]);
 
+    // Get the last used AI provider for this session
+    const getLastUsedAIProvider = useCallback(() => {
+        if (!messages || messages.length === 0) return undefined;
+
+        // Find the most recent user message with an AI provider
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const message = messages[i];
+            if (message.role === 'user' && message.aiProviderId) {
+                return message.aiProviderId;
+            }
+        }
+        return undefined;
+    }, [messages]);
+
     // Load messages when session changes
     useEffect(() => {
         if (session?.id) {
@@ -293,6 +307,7 @@ export function ChatSessionComponent({
                         aiProviders={aiProviders}
                         isLoading={isLoading}
                         placeholder={messages.length === 0 ? "Start your conversation..." : "Type your message here..."}
+                        defaultAIProviderId={getLastUsedAIProvider()}
                     />
                 </div>
             </div>

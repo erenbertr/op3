@@ -16,6 +16,7 @@ interface ChatInputProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
+    defaultAIProviderId?: string;
 }
 
 export function ChatInput({
@@ -25,7 +26,8 @@ export function ChatInput({
     isLoading = false,
     placeholder = "Type your message here...",
     className,
-    disabled = false
+    disabled = false,
+    defaultAIProviderId
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -57,25 +59,39 @@ export function ChatInput({
     // Load saved selections from localStorage on mount
     useEffect(() => {
         try {
-            const savedProvider = localStorage.getItem(LAST_AI_PROVIDER_KEY);
             const savedPersonality = localStorage.getItem(LAST_PERSONALITY_KEY);
 
-            if (savedProvider) {
-                setSelectedProvider(savedProvider);
+            // For AI provider, prioritize session default over localStorage
+            if (defaultAIProviderId) {
+                setSelectedProvider(defaultAIProviderId);
+            } else {
+                const savedProvider = localStorage.getItem(LAST_AI_PROVIDER_KEY);
+                if (savedProvider) {
+                    setSelectedProvider(savedProvider);
+                }
             }
+
             if (savedPersonality) {
                 setSelectedPersonality(savedPersonality);
             }
         } catch (error) {
             console.error('Error loading saved selections from localStorage:', error);
         }
-    }, []);
+    }, [defaultAIProviderId]);
 
     // Set default AI provider if none selected and none saved
     useEffect(() => {
         if (aiProviders && aiProviders.length > 0 && !selectedProvider) {
-            const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
-            const providerId = activeProvider?.id || '';
+            let providerId = '';
+
+            // Priority: 1. Session-specific default, 2. Active provider, 3. First provider
+            if (defaultAIProviderId && aiProviders.find(p => p?.id === defaultAIProviderId)) {
+                providerId = defaultAIProviderId;
+            } else {
+                const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
+                providerId = activeProvider?.id || '';
+            }
+
             setSelectedProvider(providerId);
 
             // Save as default for future sessions
@@ -85,7 +101,7 @@ export function ChatInput({
                 console.error('Error saving default AI provider to localStorage:', error);
             }
         }
-    }, [aiProviders, selectedProvider]);
+    }, [aiProviders, selectedProvider, defaultAIProviderId]);
 
     // Validate saved provider still exists in current providers
     useEffect(() => {

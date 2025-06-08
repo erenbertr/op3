@@ -1,10 +1,9 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, Bot, Brain, Copy, RotateCcw } from 'lucide-react';
+import { Brain, Copy, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
 
@@ -19,7 +18,6 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message, personality, aiProvider, className, onRetry }: ChatMessageProps) {
-    const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
 
@@ -69,28 +67,16 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
 
     return (
         <div
-            className={cn("flex gap-3 relative group border-b border-border pb-4 mb-4 last:border-b-0 last:mb-0", className)}
+            className={cn("relative group pb-4 mb-4 last:mb-0 last:border-b-0 border-b border-border", className)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Avatar */}
-            <Avatar className="h-8 w-8 flex-shrink-0">
-                <AvatarFallback className={cn(
-                    isUser ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-                )}>
-                    {isUser ? (
-                        <User className="h-4 w-4" />
-                    ) : (
-                        <Bot className="h-4 w-4" />
-                    )}
-                </AvatarFallback>
-            </Avatar>
 
             {/* Message content */}
-            <div className="flex-1 space-y-2">
+            <div className="space-y-2">
                 {/* Message header - only show for AI messages with provider/personality info */}
                 {isAssistant && (aiProvider || personality) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                         {/* AI Provider badge */}
                         {aiProvider && (
                             <Badge variant="outline" className="text-xs">
@@ -108,40 +94,36 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                     </div>
                 )}
 
-                {/* Message content with conditional background */}
-                <div
-                    className={cn(
-                        "p-3 rounded-lg relative",
-                        isUser ? "max-w-[80%]" : "max-w-full"
-                    )}
-                >
+                {/* Message content */}
+                <div className="p-3 rounded-lg">
                     {renderContent()}
-
-                    {/* Hover actions */}
-                    {isHovered && (
-                        <div className="absolute top-2 right-2 flex gap-1 bg-background border rounded-md shadow-sm">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={handleCopy}
-                                title="Copy message"
-                            >
-                                <Copy className="h-3 w-3" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={handleRetry}
-                                title="Retry message"
-                            >
-                                <RotateCcw className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
                 </div>
+
             </div>
+
+            {/* Hover actions - positioned at top-right of container */}
+            {isHovered && (
+                <div className="absolute top-2 right-2 flex gap-1 bg-background border rounded-md shadow-sm p-1">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={handleCopy}
+                        title="Copy message"
+                    >
+                        <Copy className="h-3 w-3" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={handleRetry}
+                        title="Retry message"
+                    >
+                        <RotateCcw className="h-3 w-3" />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
@@ -231,26 +213,20 @@ export function ChatMessageList({
 
             {/* Streaming message */}
             {isStreaming && streamingMessage && (
-                <div className="flex gap-3 relative border-b border-border pb-4 mb-4">
-                    {/* Avatar */}
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback className="bg-secondary text-secondary-foreground">
-                            <Bot className="h-4 w-4" />
-                        </AvatarFallback>
-                    </Avatar>
+                <div className="relative pb-4 mb-4 border-b border-border">
 
                     {/* Message content */}
-                    <div className="flex-1 space-y-2">
+                    <div className="space-y-2">
                         {/* Typing indicator */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                             <div className="flex items-center gap-1">
                                 <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
                                 <span>typing...</span>
                             </div>
                         </div>
 
-                        {/* Message content with transparent background */}
-                        <div className="p-3 rounded-lg max-w-full">
+                        {/* Message content */}
+                        <div className="p-3 rounded-lg">
                             <div className="prose prose-sm max-w-none dark:prose-invert">
                                 <div className="whitespace-pre-wrap break-words">
                                     {streamingMessage}
