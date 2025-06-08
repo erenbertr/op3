@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
@@ -29,17 +29,15 @@ export function AppWrapper() {
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
     const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
     const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection' | 'personalities'>('workspace');
-    const [refreshWorkspaces, setRefreshWorkspaces] = useState<(() => void) | null>(null);
-
-    useEffect(() => {
-        initializeApp();
-    }, []);
+    const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
 
 
 
 
 
-    const initializeApp = async () => {
+
+
+    const initializeApp = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -73,7 +71,11 @@ export function AppWrapper() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        initializeApp();
+    }, [initializeApp]);
 
     const handleLogin = async (credentials: { email: string; password: string }) => {
         try {
@@ -334,7 +336,8 @@ export function AppWrapper() {
                             {currentWorkspace?.templateType === 'standard-chat' ? (
                                 <div className="container mx-auto px-4 h-full">
                                     <StandardChatLayout
-                                        workspaceId={currentWorkspaceId || undefined}
+                                        workspaceId={currentWorkspaceId || ''}
+                                        userId={currentUser?.id || ''}
                                         className="h-full"
                                     />
                                 </div>

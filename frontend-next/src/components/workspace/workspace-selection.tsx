@@ -1,8 +1,7 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
@@ -26,11 +25,9 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        loadWorkspaces();
-    }, [userId]);
 
-    const loadWorkspaces = async () => {
+
+    const loadWorkspaces = useCallback(async () => {
         try {
             setIsLoading(true);
             const result = await apiClient.getUserWorkspaces(userId);
@@ -45,7 +42,11 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [userId]);
+
+    useEffect(() => {
+        loadWorkspaces();
+    }, [userId, loadWorkspaces]);
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {

@@ -1,88 +1,123 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Plus, MessageSquare } from 'lucide-react';
+import { Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface ChatItem {
-    id: string;
-    title: string;
-}
+import { apiClient, ChatSession } from '@/lib/api';
+import { useToast } from '@/components/ui/toast';
 
 interface ChatSidebarProps {
     className?: string;
-    onNewChat?: () => void;
-    onChatSelect?: (chatId: string) => void;
+    userId: string;
+    workspaceId: string;
+    onNewChat?: (session: ChatSession) => void;
+    onChatSelect?: (session: ChatSession) => void;
     activeChatId?: string;
 }
 
-// Mock data for demonstration - this will be replaced with real data later
-const mockChats: ChatItem[] = [
-    {
-        id: '1',
-        title: 'Project Planning Discussion',
-    },
-    {
-        id: '2',
-        title: 'Code Review Session',
-    },
-    {
-        id: '3',
-        title: 'API Design Meeting',
-    },
-    {
-        id: '4',
-        title: 'Bug Investigation',
-    },
-    {
-        id: '5',
-        title: 'Feature Requirements',
-    },
-    {
-        id: '6',
-        title: 'Database Schema Updates',
-    },
-    {
-        id: '7',
-        title: 'User Interface Improvements',
-    },
-    {
-        id: '8',
-        title: 'Performance Optimization',
-    },
-    {
-        id: '9',
-        title: 'Security Audit Discussion',
-    },
-    {
-        id: '10',
-        title: 'Mobile App Development',
-    },
-];
-
 export function ChatSidebar({
     className,
+    userId,
+    workspaceId,
     onNewChat,
     onChatSelect,
     activeChatId
 }: ChatSidebarProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [chats] = useState<ChatItem[]>(mockChats);
+    const [chats, setChats] = useState<ChatSession[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isCreatingChat, setIsCreatingChat] = useState(false);
+    const { addToast } = useToast();
+
+
+
+    const loadChatSessions = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const result = await apiClient.getChatSessions(userId);
+            if (result.success) {
+                setChats(result.sessions);
+            } else {
+                addToast({
+                    title: "Error",
+                    description: result.message || "Failed to load chat sessions",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chat sessions:', error);
+            addToast({
+                title: "Error",
+                description: "Failed to load chat sessions",
+                variant: "destructive"
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [userId, addToast]);
+
+    // Load chat sessions when component mounts or userId changes
+    useEffect(() => {
+        if (userId) {
+            loadChatSessions();
+        }
+    }, [userId, loadChatSessions]);
 
     // Filter chats based on search query
     const filteredChats = chats.filter(chat =>
         chat.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleChatClick = (chatId: string) => {
-        onChatSelect?.(chatId);
+    const handleChatClick = (chat: ChatSession) => {
+        onChatSelect?.(chat);
     };
 
-    const handleNewChatClick = () => {
-        onNewChat?.();
+    const handleNewChatClick = async () => {
+        setIsCreatingChat(true);
+        try {
+            const result = await apiClient.createChatSession({
+                userId,
+                workspaceId,
+                title: 'New Chat'
+            });
+
+            if (result.success && result.session) {
+                setChats(prev => [result.session!, ...prev]);
+                onNewChat?.(result.session);
+            } else {
+                addToast({
+                    title: "Error",
+                    description: result.message || "Failed to create new chat",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            console.error('Error creating new chat:', error);
+            addToast({
+                title: "Error",
+                description: "Failed to create new chat",
+                variant: "destructive"
+            });
+        } finally {
+            setIsCreatingChat(false);
+        }
+    };
+
+    const formatChatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+        if (diffInHours < 24) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (diffInHours < 24 * 7) {
+            return date.toLocaleDateString([], { weekday: 'short' });
+        } else {
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
     };
 
     return (
@@ -105,19 +140,29 @@ export function ChatSidebar({
                 {/* New Chat Button */}
                 <Button
                     onClick={handleNewChatClick}
+                    disabled={isCreatingChat}
                     className="w-full"
                     size="sm"
                 >
-                    <Plus className="h-4 w-4 mr-2" />
+                    {isCreatingChat ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                    )}
                     New Chat
                 </Button>
             </div>
 
             {/* Chat List - Scrollable */}
             <ScrollArea className="flex-1">
-                <div>
-                    {filteredChats.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground px-4">
+                <div className="px-4 py-2 space-y-1">
+                    {isLoading ? (
+                        <div className="text-center py-8">
+                            <Loader2 className="h-6 w-6 mx-auto text-muted-foreground mb-2 animate-spin" />
+                            <p className="text-sm text-muted-foreground">Loading chats...</p>
+                        </div>
+                    ) : filteredChats.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
                             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">
                                 {searchQuery ? 'No chats found' : 'No chats yet'}
@@ -129,22 +174,34 @@ export function ChatSidebar({
                             )}
                         </div>
                     ) : (
-                        <div className="divide-y divide-border">
+                        <div className="space-y-1">
                             {filteredChats.map((chat) => (
-                                <div
+                                <button
                                     key={chat.id}
                                     className={cn(
-                                        "cursor-pointer transition-colors duration-200 py-3 px-4 hover:bg-muted/50",
+                                        "w-full text-left px-3 py-3 rounded-md transition-colors",
+                                        "hover:bg-accent hover:text-accent-foreground",
+                                        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                                         activeChatId === chat.id
-                                            ? "bg-primary/10 text-primary"
-                                            : "text-muted-foreground hover:text-foreground"
+                                            ? "bg-accent text-accent-foreground"
+                                            : "text-foreground"
                                     )}
-                                    onClick={() => handleChatClick(chat.id)}
+                                    onClick={() => handleChatClick(chat)}
                                 >
-                                    <h4 className="text-sm font-medium truncate">
-                                        {chat.title}
-                                    </h4>
-                                </div>
+                                    <div className="flex items-start gap-3">
+                                        <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-medium truncate">
+                                                    {chat.title}
+                                                </p>
+                                                <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                                                    {formatChatTime(chat.updatedAt)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
                             ))}
                         </div>
                     )}

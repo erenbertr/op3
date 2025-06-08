@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User } from 'lucide-react';
-import { apiClient, WorkspaceListResponse } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 interface WorkspaceTabBarProps {
     userId: string;
@@ -64,7 +64,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                 loadWorkspaces();
             }
         }
-    }, [currentWorkspaceId, loadWorkspaces]);
+    }, [currentWorkspaceId, loadWorkspaces, workspaces]);
 
     // Expose refresh function to parent
     useEffect(() => {

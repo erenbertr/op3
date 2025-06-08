@@ -18,11 +18,11 @@ interface PersonalityFormProps {
     submitLabel?: string;
 }
 
-export function PersonalityForm({ 
-    initialData, 
-    onSubmit, 
-    onCancel, 
-    submitLabel = "Create Personality" 
+export function PersonalityForm({
+    initialData,
+    onSubmit,
+    onCancel,
+    submitLabel = "Create Personality"
 }: PersonalityFormProps) {
     const [title, setTitle] = useState(initialData?.title || '');
     const [prompt, setPrompt] = useState(initialData?.prompt || '');
@@ -128,7 +128,7 @@ export function PersonalityForm({
                     )}
                     <div className="flex justify-between items-center">
                         <p className="text-xs text-muted-foreground">
-                            Define the AI's behavior, role, and instructions (10-5000 characters)
+                            Define the AI&apos;s behavior, role, and instructions (10-5000 characters)
                         </p>
                         <p className="text-xs text-muted-foreground">
                             {prompt.length}/5000
@@ -141,13 +141,13 @@ export function PersonalityForm({
                     <h4 className="text-sm font-medium">Example Personalities:</h4>
                     <div className="space-y-2 text-xs text-muted-foreground">
                         <div>
-                            <strong>Translator:</strong> "You are a professional translator. Translate the following text from German to English only."
+                            <strong>Translator:</strong> &quot;You are a professional translator. Translate the following text from German to English only.&quot;
                         </div>
                         <div>
-                            <strong>Code Reviewer:</strong> "You are an expert code reviewer. Analyze code for bugs, performance issues, and best practices."
+                            <strong>Code Reviewer:</strong> &quot;You are an expert code reviewer. Analyze code for bugs, performance issues, and best practices.&quot;
                         </div>
                         <div>
-                            <strong>Creative Writer:</strong> "You are a creative writing assistant. Help with storytelling, character development, and narrative structure."
+                            <strong>Creative Writer:</strong> &quot;You are a creative writing assistant. Help with storytelling, character development, and narrative structure.&quot;
                         </div>
                     </div>
                 </div>

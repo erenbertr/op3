@@ -1,18 +1,18 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogDescription, 
-    DialogHeader, 
-    DialogTitle, 
-    DialogTrigger 
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger
 } from '@/components/ui/dialog';
-import { 
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -39,16 +39,14 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
     const [editingPersonality, setEditingPersonality] = useState<Personality | null>(null);
     const [deletingPersonality, setDeletingPersonality] = useState<Personality | null>(null);
 
-    useEffect(() => {
-        loadPersonalities();
-    }, [userId]);
 
-    const loadPersonalities = async () => {
+
+    const loadPersonalities = useCallback(async () => {
         try {
             setIsLoading(true);
             setError('');
             const result = await apiClient.getPersonalities(userId);
-            
+
             if (result.success) {
                 setPersonalities(result.personalities);
             } else {
@@ -60,12 +58,16 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [userId]);
+
+    useEffect(() => {
+        loadPersonalities();
+    }, [userId, loadPersonalities]);
 
     const handleCreatePersonality = async (data: { title: string; prompt: string }) => {
         try {
             const result = await apiClient.createPersonality(userId, data);
-            
+
             if (result.success && result.personality) {
                 setPersonalities(prev => [result.personality!, ...prev]);
                 setIsCreateDialogOpen(false);
@@ -83,9 +85,9 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
 
         try {
             const result = await apiClient.updatePersonality(editingPersonality.id, userId, data);
-            
+
             if (result.success && result.personality) {
-                setPersonalities(prev => 
+                setPersonalities(prev =>
                     prev.map(p => p.id === editingPersonality.id ? result.personality! : p)
                 );
                 setEditingPersonality(null);
@@ -103,7 +105,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
 
         try {
             const result = await apiClient.deletePersonality(deletingPersonality.id, userId);
-            
+
             if (result.success) {
                 setPersonalities(prev => prev.filter(p => p.id !== deletingPersonality.id));
                 setDeletingPersonality(null);
@@ -224,8 +226,8 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                                     </p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Dialog 
-                                        open={editingPersonality?.id === personality.id} 
+                                    <Dialog
+                                        open={editingPersonality?.id === personality.id}
                                         onOpenChange={(open) => !open && setEditingPersonality(null)}
                                     >
                                         <DialogTrigger asChild>
@@ -243,7 +245,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                                             <DialogHeader>
                                                 <DialogTitle>Edit Personality</DialogTitle>
                                                 <DialogDescription>
-                                                    Update the personality's title and prompt.
+                                                    Update the personality&apos;s title and prompt.
                                                 </DialogDescription>
                                             </DialogHeader>
                                             <PersonalityForm
@@ -258,7 +260,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                                         </DialogContent>
                                     </Dialog>
 
-                                    <AlertDialog 
+                                    <AlertDialog
                                         open={deletingPersonality?.id === personality.id}
                                         onOpenChange={(open) => !open && setDeletingPersonality(null)}
                                     >
@@ -276,7 +278,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Delete Personality</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    Are you sure you want to delete "{personality.title}"? 
+                                                    Are you sure you want to delete &quot;{personality.title}&quot;?
                                                     This action cannot be undone.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>

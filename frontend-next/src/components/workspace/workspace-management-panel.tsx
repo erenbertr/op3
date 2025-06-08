@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { X, Edit2, Trash2, MessageSquare, Kanban, Network } from 'lucide-react';
+import { Edit2, Trash2, MessageSquare, Kanban, Network } from 'lucide-react';
 import { apiClient, UpdateWorkspaceRequest } from '@/lib/api';
 import { WorkspaceRulesModal } from './workspace-rules-modal';
 
@@ -35,7 +35,6 @@ interface EditingWorkspace {
 export function WorkspaceManagementPanel({
     userId,
     workspaces: initialWorkspaces,
-    onClose,
     onWorkspaceUpdated,
     onWorkspaceDeleted
 }: WorkspaceManagementPanelProps) {
@@ -45,12 +44,9 @@ export function WorkspaceManagementPanel({
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Load workspaces on component mount
-    useEffect(() => {
-        loadWorkspaces();
-    }, [userId]);
 
-    const loadWorkspaces = async () => {
+
+    const loadWorkspaces = useCallback(async () => {
         try {
             setIsLoading(true);
             const result = await apiClient.getUserWorkspaces(userId);
@@ -65,7 +61,12 @@ export function WorkspaceManagementPanel({
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [userId]);
+
+    // Load workspaces on component mount
+    useEffect(() => {
+        loadWorkspaces();
+    }, [userId, loadWorkspaces]);
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {
@@ -93,7 +94,7 @@ export function WorkspaceManagementPanel({
         }
     };
 
-    const handleEditWorkspace = (workspace: any) => {
+    const handleEditWorkspace = (workspace: typeof workspaces[0]) => {
         setEditingWorkspace({
             id: workspace.id,
             name: workspace.name,

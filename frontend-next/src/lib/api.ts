@@ -99,6 +99,78 @@ export interface DeletePersonalityResponse {
     message: string;
 }
 
+// Chat types
+export interface ChatSession {
+    id: string;
+    userId: string;
+    workspaceId: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    sessionId: string;
+    content: string;
+    role: 'user' | 'assistant';
+    personalityId?: string;
+    aiProviderId?: string;
+    createdAt: string;
+}
+
+export interface CreateChatSessionRequest {
+    userId: string;
+    workspaceId: string;
+    title?: string;
+}
+
+export interface CreateChatSessionResponse {
+    success: boolean;
+    message: string;
+    session?: ChatSession;
+}
+
+export interface SendMessageRequest {
+    content: string;
+    personalityId?: string;
+    aiProviderId?: string;
+}
+
+export interface SendMessageResponse {
+    success: boolean;
+    message: string;
+    userMessage?: ChatMessage;
+    aiResponse?: ChatMessage;
+}
+
+export interface ChatSessionsListResponse {
+    success: boolean;
+    message: string;
+    sessions: ChatSession[];
+}
+
+export interface ChatMessagesResponse {
+    success: boolean;
+    message: string;
+    messages: ChatMessage[];
+}
+
+export interface UpdateChatSessionRequest {
+    title?: string;
+}
+
+export interface UpdateChatSessionResponse {
+    success: boolean;
+    message: string;
+    session?: ChatSession;
+}
+
+export interface DeleteChatSessionResponse {
+    success: boolean;
+    message: string;
+}
+
 export interface SetupStatusResponse {
     success: boolean;
     message?: string;
@@ -353,6 +425,42 @@ class ApiClient {
         return this.request<DeletePersonalityResponse>(`/personalities/${personalityId}`, {
             method: 'DELETE',
             body: JSON.stringify({ userId }),
+        });
+    }
+
+    // Chat-related methods
+    async createChatSession(request: CreateChatSessionRequest): Promise<CreateChatSessionResponse> {
+        return this.request<CreateChatSessionResponse>('/chat/sessions', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async getChatSessions(userId: string): Promise<ChatSessionsListResponse> {
+        return this.request<ChatSessionsListResponse>(`/chat/sessions/${userId}`);
+    }
+
+    async getChatMessages(sessionId: string): Promise<ChatMessagesResponse> {
+        return this.request<ChatMessagesResponse>(`/chat/sessions/${sessionId}/messages`);
+    }
+
+    async sendMessage(sessionId: string, request: SendMessageRequest): Promise<SendMessageResponse> {
+        return this.request<SendMessageResponse>(`/chat/sessions/${sessionId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async updateChatSession(sessionId: string, request: UpdateChatSessionRequest): Promise<UpdateChatSessionResponse> {
+        return this.request<UpdateChatSessionResponse>(`/chat/sessions/${sessionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async deleteChatSession(sessionId: string): Promise<DeleteChatSessionResponse> {
+        return this.request<DeleteChatSessionResponse>(`/chat/sessions/${sessionId}`, {
+            method: 'DELETE',
         });
     }
 }
