@@ -104,7 +104,8 @@ export class ChatService {
     }
 
     /**
-     * Send a message to a chat session
+     * Send a user message to a chat session (without AI response)
+     * Note: AI responses should be handled via the streaming endpoint
      */
     public async sendMessage(sessionId: string, request: SendMessageRequest): Promise<SendMessageResponse> {
         try {
@@ -121,28 +122,14 @@ export class ChatService {
 
             await this.saveChatMessageInternal(userMessage);
 
-            // TODO: Integrate with AI providers to generate response
-            // For now, create a simple echo response
-            const aiResponse: ChatMessage = {
-                id: uuidv4(),
-                sessionId,
-                content: `Echo: ${request.content}`,
-                role: 'assistant',
-                personalityId: request.personalityId,
-                aiProviderId: request.aiProviderId,
-                createdAt: new Date()
-            };
-
-            await this.saveChatMessageInternal(aiResponse);
-
             // Update session timestamp
             await this.updateSessionTimestamp(sessionId);
 
             return {
                 success: true,
-                message: 'Message sent successfully',
-                userMessage,
-                aiResponse
+                message: 'User message sent successfully',
+                userMessage
+                // Note: aiResponse removed - AI responses handled via streaming endpoint
             };
         } catch (error) {
             console.error('Error sending message:', error);
