@@ -165,7 +165,7 @@ interface EmptyChatStateProps {
 
 export function EmptyChatState({ className }: EmptyChatStateProps) {
     return (
-        <div className={`flex-1 flex items-center justify-center min-h-0 ${className || ''}`}>
+        <div className={`h-full flex items-center justify-center ${className || ''}`}>
             <div className="text-center space-y-6 max-w-md">
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
                     <svg
