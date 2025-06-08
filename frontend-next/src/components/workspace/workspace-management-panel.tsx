@@ -186,7 +186,7 @@ export function WorkspaceManagementPanel({
             {/* Workspace List */}
             <div className="space-y-4">
                 {workspaces.map((workspace) => (
-                    <Card key={workspace.id} className={workspace.isActive ? 'ring-2 ring-primary' : ''}>
+                    <Card key={workspace.id}>
                         <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">

@@ -262,6 +262,7 @@ export function AppWrapper() {
                 {/* Workspace Tab Bar */}
                 <WorkspaceTabBar
                     userId={currentUser.id}
+                    currentView={currentView}
                     onWorkspaceChange={handleWorkspaceChange}
                     onShowSettings={handleShowSettings}
                     onShowCreateWorkspace={handleShowCreateWorkspace}

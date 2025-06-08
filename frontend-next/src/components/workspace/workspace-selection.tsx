@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 import { apiClient } from '@/lib/api';
-import { WorkspaceRulesModal } from './workspace-rules-modal';
 
 interface WorkspaceSelectionProps {
     userId: string;
@@ -115,40 +114,34 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
             )}
 
             {/* Workspace Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {workspaces.map((workspace) => (
                     <Card
                         key={workspace.id}
                         className={`cursor-pointer transition-all duration-200 hover:shadow-md ${workspace.id === currentWorkspaceId
-                            ? 'ring-2 ring-primary border-primary bg-primary/5'
+                            ? 'border-primary'
                             : 'hover:border-primary/50'
                             }`}
                         onClick={() => handleWorkspaceSelect(workspace.id)}
                     >
-                        <CardHeader className="text-center pb-4">
-                            <div className="flex justify-center mb-3">
-                                <div className={`p-3 rounded-full ${workspace.id === currentWorkspaceId
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-full ${workspace.id === currentWorkspaceId
                                     ? 'bg-primary text-primary-foreground'
                                     : 'bg-muted text-muted-foreground'
                                     }`}>
                                     {getTemplateIcon(workspace.templateType)}
                                 </div>
+                                <div className="text-left">
+                                    <CardTitle className="text-base">
+                                        {workspace.name}
+                                    </CardTitle>
+                                    <CardDescription className="text-sm">
+                                        {getTemplateLabel(workspace.templateType)}
+                                    </CardDescription>
+                                </div>
                             </div>
-                            <CardTitle className="text-lg">
-                                {workspace.name}
-                            </CardTitle>
-                            <CardDescription>
-                                {getTemplateLabel(workspace.templateType)}
-                            </CardDescription>
                         </CardHeader>
-                        {workspace.workspaceRules && (
-                            <CardContent className="pt-0 text-center">
-                                <WorkspaceRulesModal
-                                    rules={workspace.workspaceRules}
-                                    workspaceName={workspace.name}
-                                />
-                            </CardContent>
-                        )}
                     </Card>
                 ))}
             </div>

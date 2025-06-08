@@ -7,6 +7,7 @@ import { apiClient, WorkspaceListResponse } from '@/lib/api';
 
 interface WorkspaceTabBarProps {
     userId: string;
+    currentView?: 'workspace' | 'settings' | 'create' | 'selection';
     onWorkspaceChange?: (workspaceId: string) => void;
     onShowSettings?: () => void;
     onShowCreateWorkspace?: () => void;
@@ -23,7 +24,7 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onRefresh }: WorkspaceTabBarProps) {
+export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onRefresh }: WorkspaceTabBarProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -154,7 +155,10 @@ export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onS
                         variant="ghost"
                         size="sm"
                         onClick={onShowSettings}
-                        className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
+                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'settings'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : 'border-transparent hover:border-primary/50'
+                            }`}
                         title="Workspace Settings"
                     >
                         <Settings className="h-4 w-4" />
@@ -165,7 +169,10 @@ export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onS
                         variant="ghost"
                         size="sm"
                         onClick={onShowWorkspaceSelection}
-                        className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
+                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'selection'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : 'border-transparent hover:border-primary/50'
+                            }`}
                         title="Select Workspace"
                     >
                         <FolderOpen className="h-4 w-4" />
@@ -175,9 +182,9 @@ export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onS
                     {workspaces.map((workspace) => (
                         <div
                             key={workspace.id}
-                            className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.isActive
-                                ? 'bg-primary/10 border-primary text-primary'
-                                : 'hover:bg-muted border-transparent hover:border-primary/50'
+                            className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.isActive && currentView === 'workspace'
+                                    ? 'bg-primary/10 border-primary text-primary'
+                                    : 'hover:bg-muted border-transparent hover:border-primary/50'
                                 }`}
                             onClick={() => handleTabClick(workspace.id)}
                         >
