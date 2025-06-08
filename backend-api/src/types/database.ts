@@ -93,6 +93,11 @@ export interface TursoConfig extends DatabaseConfig {
 
 export interface SetupData {
     database: DatabaseConfig;
+    admin?: {
+        email: string;
+        username?: string;
+        password: string;
+    };
     // Future setup steps will add more properties here
 }
 

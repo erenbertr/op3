@@ -1,10 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { DatabaseManager } from '../config/database';
 import { DatabaseConfig, SetupData, SetupResponse } from '../types/database';
+import { AdminConfig } from '../types/user';
+import { UserService } from '../services/userService';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 
 const router = Router();
 const dbManager = DatabaseManager.getInstance();
+const userService = UserService.getInstance();
 
 // Test database connection
 router.post('/test-connection', asyncHandler(async (req: Request, res: Response) => {
@@ -66,9 +69,45 @@ router.post('/database', asyncHandler(async (req: Request, res: Response) => {
     res.json(response);
 }));
 
+// Save admin configuration (Step 2 of setup)
+router.post('/admin', asyncHandler(async (req: Request, res: Response) => {
+    const { admin }: { admin: AdminConfig } = req.body;
+
+    if (!admin) {
+        throw createError('Admin configuration is required', 400);
+    }
+
+    // Validate admin configuration
+    const validationErrors = userService.validateAdminConfig(admin);
+    if (validationErrors.length > 0) {
+        throw createError(validationErrors[0].message, 400);
+    }
+
+    // Create admin user
+    const result = await userService.createAdminUser(admin);
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    const response: SetupResponse = {
+        success: true,
+        message: 'Admin user created successfully',
+        step: 'admin',
+        data: {
+            adminId: result.user?.id,
+            email: result.user?.email,
+            role: result.user?.role
+        }
+    };
+
+    res.json(response);
+}));
+
 // Get current setup status
 router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     const currentConfig = dbManager.getCurrentConfig();
+    // TODO: Check if admin user exists in database
+    const adminExists = false; // This will be implemented when we have database integration
 
     res.json({
         success: true,
@@ -76,6 +115,9 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
             database: {
                 configured: !!currentConfig,
                 type: currentConfig?.type || null
+            },
+            admin: {
+                configured: adminExists
             }
         }
     });

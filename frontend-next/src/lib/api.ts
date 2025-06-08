@@ -17,6 +17,13 @@ export interface DatabaseConfig {
     url?: string;
 }
 
+export interface AdminConfig {
+    email: string;
+    username?: string;
+    password: string;
+    confirmPassword: string;
+}
+
 export interface ApiResponse<T = unknown> {
     success: boolean;
     message: string;
@@ -84,6 +91,14 @@ class ApiClient {
         return this.request<ApiResponse>('/setup/database', {
             method: 'POST',
             body: JSON.stringify({ database: config }),
+        });
+    }
+
+    // Save admin configuration
+    async saveAdminConfig(config: AdminConfig): Promise<ApiResponse> {
+        return this.request<ApiResponse>('/setup/admin', {
+            method: 'POST',
+            body: JSON.stringify({ admin: config }),
         });
     }
 

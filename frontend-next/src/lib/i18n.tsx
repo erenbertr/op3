@@ -229,6 +229,134 @@ const translations: Translations = {
         fr: 'Connecté à la base de données {type}: {name}',
         de: 'Verbunden mit {type}-Datenbank: {name}'
     },
+
+    // Admin setup
+    'setup.admin.title': {
+        en: 'Admin Account Setup',
+        tr: 'Yönetici Hesabı Kurulumu',
+        es: 'Configuración de Cuenta de Administrador',
+        fr: 'Configuration du Compte Administrateur',
+        de: 'Administrator-Konto-Einrichtung'
+    },
+    'setup.admin.description': {
+        en: 'Create your administrator account to manage the application',
+        tr: 'Uygulamayı yönetmek için yönetici hesabınızı oluşturun',
+        es: 'Cree su cuenta de administrador para gestionar la aplicación',
+        fr: 'Créez votre compte administrateur pour gérer l\'application',
+        de: 'Erstellen Sie Ihr Administrator-Konto zur Verwaltung der Anwendung'
+    },
+    'setup.admin.email.label': {
+        en: 'Email Address',
+        tr: 'E-posta Adresi',
+        es: 'Dirección de Correo Electrónico',
+        fr: 'Adresse E-mail',
+        de: 'E-Mail-Adresse'
+    },
+    'setup.admin.email.placeholder': {
+        en: 'admin@example.com',
+        tr: 'admin@ornek.com',
+        es: 'admin@ejemplo.com',
+        fr: 'admin@exemple.com',
+        de: 'admin@beispiel.com'
+    },
+    'setup.admin.username.label': {
+        en: 'Username (Optional)',
+        tr: 'Kullanıcı Adı (İsteğe Bağlı)',
+        es: 'Nombre de Usuario (Opcional)',
+        fr: 'Nom d\'Utilisateur (Optionnel)',
+        de: 'Benutzername (Optional)'
+    },
+    'setup.admin.username.placeholder': {
+        en: 'admin',
+        tr: 'admin',
+        es: 'admin',
+        fr: 'admin',
+        de: 'admin'
+    },
+    'setup.admin.password.label': {
+        en: 'Password',
+        tr: 'Şifre',
+        es: 'Contraseña',
+        fr: 'Mot de Passe',
+        de: 'Passwort'
+    },
+    'setup.admin.password.placeholder': {
+        en: 'Enter a strong password',
+        tr: 'Güçlü bir şifre girin',
+        es: 'Ingrese una contraseña fuerte',
+        fr: 'Entrez un mot de passe fort',
+        de: 'Geben Sie ein starkes Passwort ein'
+    },
+    'setup.admin.confirmPassword.label': {
+        en: 'Confirm Password',
+        tr: 'Şifreyi Onayla',
+        es: 'Confirmar Contraseña',
+        fr: 'Confirmer le Mot de Passe',
+        de: 'Passwort Bestätigen'
+    },
+    'setup.admin.confirmPassword.placeholder': {
+        en: 'Re-enter your password',
+        tr: 'Şifrenizi tekrar girin',
+        es: 'Vuelva a ingresar su contraseña',
+        fr: 'Ressaisissez votre mot de passe',
+        de: 'Geben Sie Ihr Passwort erneut ein'
+    },
+    'setup.admin.requirements.title': {
+        en: 'Password Requirements:',
+        tr: 'Şifre Gereksinimleri:',
+        es: 'Requisitos de Contraseña:',
+        fr: 'Exigences du Mot de Passe:',
+        de: 'Passwort-Anforderungen:'
+    },
+    'setup.admin.requirements.length': {
+        en: 'At least 8 characters',
+        tr: 'En az 8 karakter',
+        es: 'Al menos 8 caracteres',
+        fr: 'Au moins 8 caractères',
+        de: 'Mindestens 8 Zeichen'
+    },
+    'setup.admin.requirements.uppercase': {
+        en: 'One uppercase letter',
+        tr: 'Bir büyük harf',
+        es: 'Una letra mayúscula',
+        fr: 'Une lettre majuscule',
+        de: 'Ein Großbuchstabe'
+    },
+    'setup.admin.requirements.lowercase': {
+        en: 'One lowercase letter',
+        tr: 'Bir küçük harf',
+        es: 'Una letra minúscula',
+        fr: 'Une lettre minuscule',
+        de: 'Ein Kleinbuchstabe'
+    },
+    'setup.admin.requirements.number': {
+        en: 'One number',
+        tr: 'Bir rakam',
+        es: 'Un número',
+        fr: 'Un chiffre',
+        de: 'Eine Zahl'
+    },
+    'setup.admin.requirements.special': {
+        en: 'One special character',
+        tr: 'Bir özel karakter',
+        es: 'Un carácter especial',
+        fr: 'Un caractère spécial',
+        de: 'Ein Sonderzeichen'
+    },
+    'setup.admin.button.create': {
+        en: 'Create Admin Account',
+        tr: 'Yönetici Hesabı Oluştur',
+        es: 'Crear Cuenta de Administrador',
+        fr: 'Créer un Compte Administrateur',
+        de: 'Administrator-Konto Erstellen'
+    },
+    'setup.admin.success': {
+        en: 'Admin account created successfully!',
+        tr: 'Yönetici hesabı başarıyla oluşturuldu!',
+        es: '¡Cuenta de administrador creada exitosamente!',
+        fr: 'Compte administrateur créé avec succès!',
+        de: 'Administrator-Konto erfolgreich erstellt!'
+    },
     'setup.complete.final.message': {
         en: 'You can now start using your application. Additional configuration steps will be available in future updates.',
         tr: 'Artık uygulamanızı kullanmaya başlayabilirsiniz. Gelecek güncellemelerde ek yapılandırma adımları mevcut olacaktır.',
@@ -404,6 +532,71 @@ const translations: Translations = {
         es: 'El Token de Autenticación es requerido',
         fr: 'Le Jeton d\'Authentification est requis',
         de: 'Authentifizierungs-Token ist erforderlich'
+    },
+
+    // Admin validation messages
+    'validation.admin.email.required': {
+        en: 'Email is required',
+        tr: 'E-posta gereklidir',
+        es: 'El correo electrónico es requerido',
+        fr: 'L\'e-mail est requis',
+        de: 'E-Mail ist erforderlich'
+    },
+    'validation.admin.email.invalid': {
+        en: 'Please enter a valid email address',
+        tr: 'Lütfen geçerli bir e-posta adresi girin',
+        es: 'Por favor ingrese una dirección de correo válida',
+        fr: 'Veuillez entrer une adresse e-mail valide',
+        de: 'Bitte geben Sie eine gültige E-Mail-Adresse ein'
+    },
+    'validation.admin.password.minLength': {
+        en: 'Password must be at least 8 characters long',
+        tr: 'Şifre en az 8 karakter uzunluğunda olmalıdır',
+        es: 'La contraseña debe tener al menos 8 caracteres',
+        fr: 'Le mot de passe doit contenir au moins 8 caractères',
+        de: 'Das Passwort muss mindestens 8 Zeichen lang sein'
+    },
+    'validation.admin.password.uppercase': {
+        en: 'Password must contain at least one uppercase letter',
+        tr: 'Şifre en az bir büyük harf içermelidir',
+        es: 'La contraseña debe contener al menos una letra mayúscula',
+        fr: 'Le mot de passe doit contenir au moins une lettre majuscule',
+        de: 'Das Passwort muss mindestens einen Großbuchstaben enthalten'
+    },
+    'validation.admin.password.lowercase': {
+        en: 'Password must contain at least one lowercase letter',
+        tr: 'Şifre en az bir küçük harf içermelidir',
+        es: 'La contraseña debe contener al menos una letra minúscula',
+        fr: 'Le mot de passe doit contenir au moins une lettre minuscule',
+        de: 'Das Passwort muss mindestens einen Kleinbuchstaben enthalten'
+    },
+    'validation.admin.password.number': {
+        en: 'Password must contain at least one number',
+        tr: 'Şifre en az bir rakam içermelidir',
+        es: 'La contraseña debe contener al menos un número',
+        fr: 'Le mot de passe doit contenir au moins un chiffre',
+        de: 'Das Passwort muss mindestens eine Zahl enthalten'
+    },
+    'validation.admin.password.special': {
+        en: 'Password must contain at least one special character',
+        tr: 'Şifre en az bir özel karakter içermelidir',
+        es: 'La contraseña debe contener al menos un carácter especial',
+        fr: 'Le mot de passe doit contenir au moins un caractère spécial',
+        de: 'Das Passwort muss mindestens ein Sonderzeichen enthalten'
+    },
+    'validation.admin.confirmPassword.mismatch': {
+        en: 'Passwords do not match',
+        tr: 'Şifreler eşleşmiyor',
+        es: 'Las contraseñas no coinciden',
+        fr: 'Les mots de passe ne correspondent pas',
+        de: 'Passwörter stimmen nicht überein'
+    },
+    'validation.admin.username.minLength': {
+        en: 'Username must be at least 3 characters long',
+        tr: 'Kullanıcı adı en az 3 karakter uzunluğunda olmalıdır',
+        es: 'El nombre de usuario debe tener al menos 3 caracteres',
+        fr: 'Le nom d\'utilisateur doit contenir au moins 3 caractères',
+        de: 'Der Benutzername muss mindestens 3 Zeichen lang sein'
     }
 };
 

@@ -5,9 +5,10 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatabaseConfigForm } from './database-config';
+import { AdminConfigForm } from './admin-config';
 import { useI18n } from '@/lib/i18n';
-import { DatabaseConfig, apiClient } from '@/lib/api';
-import { CheckCircle, Database } from 'lucide-react';
+import { DatabaseConfig, AdminConfig, apiClient } from '@/lib/api';
+import { CheckCircle, Database, Shield } from 'lucide-react';
 
 interface SetupStep {
     id: string;
@@ -21,6 +22,7 @@ export function SetupWizard() {
     const { t } = useI18n();
     const [currentStep, setCurrentStep] = useState(0);
     const [databaseConfig, setDatabaseConfig] = useState<DatabaseConfig | null>(null);
+    const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
 
     const steps: SetupStep[] = [
         {
@@ -30,7 +32,13 @@ export function SetupWizard() {
             icon: <Database className="h-5 w-5" />,
             completed: !!databaseConfig,
         },
-        // Future steps will be added here
+        {
+            id: 'admin',
+            title: t('setup.admin.title'),
+            description: t('setup.admin.description'),
+            icon: <Shield className="h-5 w-5" />,
+            completed: !!adminConfig,
+        },
         {
             id: 'complete',
             title: t('setup.complete.title'),
@@ -49,7 +57,7 @@ export function SetupWizard() {
 
             if (result.success) {
                 setDatabaseConfig(config);
-                setCurrentStep(1); // Move to next step
+                setCurrentStep(1); // Move to admin step
             } else {
                 console.error('Failed to save database configuration:', result.message);
             }
@@ -58,11 +66,29 @@ export function SetupWizard() {
         }
     };
 
+    const handleAdminConfig = async (config: AdminConfig) => {
+        try {
+            // Save the admin configuration to the backend
+            const result = await apiClient.saveAdminConfig(config);
+
+            if (result.success) {
+                setAdminConfig(config);
+                setCurrentStep(2); // Move to complete step
+            } else {
+                console.error('Failed to save admin configuration:', result.message);
+            }
+        } catch (error) {
+            console.error('Error saving admin configuration:', error);
+        }
+    };
+
     const renderCurrentStep = () => {
         switch (currentStep) {
             case 0:
                 return <DatabaseConfigForm onNext={handleDatabaseConfig} />;
             case 1:
+                return <AdminConfigForm onNext={handleAdminConfig} />;
+            case 2:
                 return (
                     <Card className="w-full max-w-2xl mx-auto">
                         <CardHeader>
@@ -84,6 +110,15 @@ export function SetupWizard() {
                                         {t('setup.complete.database.connected')
                                             .replace('{type}', databaseConfig?.type || '')
                                             .replace('{name}', databaseConfig?.database || '')}
+                                    </p>
+                                </div>
+
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                    <h3 className="font-medium text-blue-900 dark:text-blue-100">
+                                        {t('setup.admin.success')}
+                                    </h3>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                                        Admin account created for: {adminConfig?.email}
                                     </p>
                                 </div>
 
