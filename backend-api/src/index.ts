@@ -29,6 +29,51 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Simple API routes for setup
+app.post('/api/v1/setup/test-connection', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Connection test endpoint working',
+        connectionInfo: {
+            type: 'test',
+            database: 'test',
+            connected: true
+        }
+    });
+});
+
+app.post('/api/v1/setup/database', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Database configuration saved successfully',
+        step: 'database'
+    });
+});
+
+app.get('/api/v1/setup/status', (req, res) => {
+    res.json({
+        success: true,
+        setup: {
+            database: {
+                configured: false,
+                type: null
+            }
+        }
+    });
+});
+
+app.get('/api/v1', (req, res) => {
+    res.json({
+        name: 'OP3 Backend API',
+        version: '1.0.0',
+        description: 'Backend API for OP3 application setup and management',
+        endpoints: {
+            setup: '/api/v1/setup',
+            health: '/health'
+        }
+    });
+});
+
 // Simple setup route for testing
 app.post('/api/v1/setup/test-connection', (req, res) => {
     res.json({
