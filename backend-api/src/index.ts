@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import { setupRoutes } from './routes';
+import { errorHandler } from './middleware/errorHandler';
 
 // Load environment variables
 dotenv.config();
@@ -29,95 +31,8 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Simple API routes for setup
-app.post('/api/v1/setup/test-connection', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Connection test endpoint working',
-        connectionInfo: {
-            type: 'test',
-            database: 'test',
-            connected: true
-        }
-    });
-});
-
-app.post('/api/v1/setup/database', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Database configuration saved successfully',
-        step: 'database'
-    });
-});
-
-app.get('/api/v1/setup/status', (req, res) => {
-    res.json({
-        success: true,
-        setup: {
-            database: {
-                configured: false,
-                type: null
-            }
-        }
-    });
-});
-
-app.get('/api/v1', (req, res) => {
-    res.json({
-        name: 'OP3 Backend API',
-        version: '1.0.0',
-        description: 'Backend API for OP3 application setup and management',
-        endpoints: {
-            setup: '/api/v1/setup',
-            health: '/health'
-        }
-    });
-});
-
-// Simple setup route for testing
-app.post('/api/v1/setup/test-connection', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Connection test endpoint working',
-        connectionInfo: {
-            type: 'test',
-            database: 'test',
-            connected: true
-        }
-    });
-});
-
-app.post('/api/v1/setup/database', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Database configuration saved successfully',
-        step: 'database'
-    });
-});
-
-app.get('/api/v1/setup/status', (req, res) => {
-    res.json({
-        success: true,
-        setup: {
-            database: {
-                configured: false,
-                type: null
-            }
-        }
-    });
-});
-
-app.get('/api/v1', (req, res) => {
-    res.json({
-        name: 'OP3 Backend API',
-        version: '1.0.0',
-        description: 'Backend API for OP3 application setup and management',
-        endpoints: {
-            setup: '/api/v1/setup',
-            health: '/health'
-        }
-    });
-});
+// Setup all API routes
+setupRoutes(app);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -127,10 +42,14 @@ app.use('*', (req, res) => {
     });
 });
 
+// Global error handler
+app.use(errorHandler);
+
 // Start server
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 OP3 Backend API running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔗 API endpoints: http://localhost:${PORT}/api/v1`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

@@ -6,7 +6,7 @@
     "ignore": [
         "src/**/*.spec.ts"
     ],
-    "exec": "ts-node src/simple-server.ts",
+    "exec": "ts-node src/index.ts",
     "env": {
         "NODE_ENV": "development"
     }
