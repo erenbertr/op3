@@ -67,9 +67,17 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
     ];
 
     const onSubmit = async (data: AdminFormData) => {
+        // Prevent double submission
+        if (isCreating) {
+            console.log('Form submission already in progress, ignoring...');
+            return;
+        }
+
         setIsCreating(true);
         try {
+            console.log('Submitting admin config:', { email: data.email, username: data.username });
             const result = await apiClient.saveAdminConfig(data);
+            console.log('Admin config result:', result);
 
             if (result.success) {
                 addToast({
@@ -77,6 +85,7 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
                     description: "Admin account created successfully.",
                     variant: "success"
                 });
+                console.log('Calling onNext with data:', data);
                 onNext(data);
             } else {
                 console.error('Failed to create admin account:', result.message);

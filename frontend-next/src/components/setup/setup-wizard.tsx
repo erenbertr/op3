@@ -63,20 +63,12 @@ export function SetupWizard() {
         }
     };
 
-    const handleAdminConfig = async (config: AdminConfig) => {
-        try {
-            // Save the admin configuration to the backend
-            const result = await apiClient.saveAdminConfig(config);
-
-            if (result.success) {
-                setAdminConfig(config);
-                setCurrentStep(2); // Move to complete step
-            } else {
-                console.error('Failed to save admin configuration:', result.message);
-            }
-        } catch (error) {
-            console.error('Error saving admin configuration:', error);
-        }
+    const handleAdminConfig = (config: AdminConfig) => {
+        // The AdminConfigForm component already handles the API call and shows toast
+        // We just need to handle the navigation here
+        console.log('Setup wizard: Admin config received, moving to next step');
+        setAdminConfig(config);
+        setCurrentStep(2); // Move to complete step
     };
 
     const renderCurrentStep = () => {
