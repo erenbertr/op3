@@ -146,13 +146,13 @@ export function SetupWizard() {
 
                 {/* Stacked Steps Overview */}
                 <div className="max-w-2xl mx-auto mb-8">
-                    <div className="relative h-96">
+                    <div className="relative h-32 overflow-hidden">
                         {steps.map((step, index) => {
                             const isActive = index === currentStep;
                             const isCompleted = step.completed;
                             const isFuture = index > currentStep;
 
-                            // Calculate positioning and styling
+                            // Calculate positioning and styling for true stacked effect
                             let zIndex = steps.length - Math.abs(index - currentStep);
                             let translateY = 0;
                             let scale = 1;
@@ -160,25 +160,27 @@ export function SetupWizard() {
                             let blur = 0;
 
                             if (isActive) {
-                                // Active step: fully visible, no transform
+                                // Active step: fully visible at the top
                                 translateY = 0;
                                 scale = 1;
                                 opacity = 1;
                                 blur = 0;
                                 zIndex = steps.length;
                             } else if (isCompleted) {
-                                // Completed steps: stacked behind with blur
-                                translateY = -(index * 8);
-                                scale = 0.95 - (currentStep - index) * 0.02;
-                                opacity = 0.7 - (currentStep - index) * 0.1;
-                                blur = (currentStep - index) * 1;
+                                // Completed steps: stacked behind, only top edge visible
+                                const stackOffset = (currentStep - index) * 4; // 4px per step
+                                translateY = -stackOffset;
+                                scale = 0.98;
+                                opacity = 0.8;
+                                blur = 0.5;
                                 zIndex = steps.length - (currentStep - index);
                             } else if (isFuture) {
-                                // Future steps: show only top edge
-                                translateY = 120 + ((index - currentStep - 1) * 5);
+                                // Future steps: stacked below, only top edge visible
+                                const stackOffset = (index - currentStep) * 4; // 4px per step
+                                translateY = 96 + stackOffset; // Position below active card
                                 scale = 0.98;
-                                opacity = 0.6;
-                                blur = 1;
+                                opacity = 0.7;
+                                blur = 0.5;
                                 zIndex = steps.length - (index - currentStep);
                             }
 
@@ -191,14 +193,15 @@ export function SetupWizard() {
                                         zIndex,
                                         opacity,
                                         filter: `blur(${blur}px)`,
+                                        height: '120px', // Fixed height for consistent stacking
                                     }}
                                 >
                                     <div
-                                        className={`p-6 rounded-xl border-2 bg-card shadow-lg transition-all duration-300 ${isActive
-                                            ? 'border-primary bg-primary/5 shadow-xl'
+                                        className={`p-6 rounded-xl border-2 shadow-lg transition-all duration-300 h-full overflow-hidden ${isActive
+                                            ? 'border-primary bg-white dark:bg-gray-900 shadow-xl'
                                             : isCompleted
-                                                ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-                                                : 'border-muted bg-muted/30'
+                                                ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900'
+                                                : 'border-muted bg-gray-100 dark:bg-gray-800'
                                             }`}
                                     >
                                         <div className="flex items-center gap-4">
