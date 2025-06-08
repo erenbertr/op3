@@ -16,7 +16,7 @@ import { apiClient, DatabaseConfig } from '@/lib/api';
 
 // Create schema function that takes translation function
 const createDatabaseSchema = (t: (key: string) => string) => z.object({
-    type: z.enum(['mongodb', 'mysql', 'postgresql', 'localdb']),
+    type: z.enum(['mongodb', 'mysql', 'postgresql', 'localdb', 'supabase', 'convex', 'firebase', 'planetscale', 'neon', 'turso']),
     host: z.string().optional(),
     port: z.number().optional(),
     database: z.string().min(1, t('validation.database.required')),
@@ -24,6 +24,12 @@ const createDatabaseSchema = (t: (key: string) => string) => z.object({
     password: z.string().optional(),
     connectionString: z.string().optional(),
     ssl: z.boolean().optional(),
+    // New fields for modern providers
+    url: z.string().optional(),
+    apiKey: z.string().optional(),
+    projectId: z.string().optional(),
+    authToken: z.string().optional(),
+    region: z.string().optional(),
 });
 
 type DatabaseFormData = z.infer<ReturnType<typeof createDatabaseSchema>>;
@@ -62,7 +68,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             setConnectionStatus('idle');
             setConnectionMessage('');
         }
-    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password]);
+    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password, connectionStatus]);
 
     const testConnection = async () => {
         const formData = form.getValues();
@@ -88,6 +94,56 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                 form.setError('database', { message: t('validation.localdb.format') });
                 return;
             }
+        } else if (formData.type === 'supabase') {
+            if (!formData.url) {
+                form.setError('url', { message: t('validation.url.required') });
+                return;
+            }
+            if (!formData.apiKey) {
+                form.setError('apiKey', { message: t('validation.apiKey.required') });
+                return;
+            }
+            config.url = formData.url;
+            config.apiKey = formData.apiKey;
+        } else if (formData.type === 'convex') {
+            if (!formData.url) {
+                form.setError('url', { message: t('validation.url.required') });
+                return;
+            }
+            if (!formData.authToken) {
+                form.setError('authToken', { message: t('validation.authToken.required') });
+                return;
+            }
+            config.url = formData.url;
+            config.authToken = formData.authToken;
+        } else if (formData.type === 'firebase') {
+            if (!formData.projectId) {
+                form.setError('projectId', { message: t('validation.projectId.required') });
+                return;
+            }
+            if (!formData.apiKey) {
+                form.setError('apiKey', { message: t('validation.apiKey.required') });
+                return;
+            }
+            config.projectId = formData.projectId;
+            config.apiKey = formData.apiKey;
+        } else if (formData.type === 'neon') {
+            if (!formData.connectionString) {
+                form.setError('connectionString', { message: t('validation.connectionString.required') });
+                return;
+            }
+            config.connectionString = formData.connectionString;
+        } else if (formData.type === 'turso') {
+            if (!formData.url) {
+                form.setError('url', { message: t('validation.url.required') });
+                return;
+            }
+            if (!formData.authToken) {
+                form.setError('authToken', { message: t('validation.authToken.required') });
+                return;
+            }
+            config.url = formData.url;
+            config.authToken = formData.authToken;
         } else {
             // MySQL and PostgreSQL
             if (!formData.host || !formData.port || !formData.username || !formData.password) {
@@ -133,6 +189,25 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
 
         if (data.type === 'mongodb') {
             config.connectionString = data.connectionString;
+        } else if (data.type === 'supabase') {
+            config.url = data.url;
+            config.apiKey = data.apiKey;
+        } else if (data.type === 'convex') {
+            config.url = data.url;
+            config.authToken = data.authToken;
+        } else if (data.type === 'firebase') {
+            config.projectId = data.projectId;
+            config.apiKey = data.apiKey;
+        } else if (data.type === 'planetscale') {
+            config.host = data.host;
+            config.username = data.username;
+            config.password = data.password;
+            config.ssl = true; // Always true for PlanetScale
+        } else if (data.type === 'neon') {
+            config.connectionString = data.connectionString;
+        } else if (data.type === 'turso') {
+            config.url = data.url;
+            config.authToken = data.authToken;
         } else if (data.type !== 'localdb') {
             config.host = data.host;
             config.port = data.port;
@@ -199,6 +274,273 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             case 'localdb':
                 return null; // Only database name (file path) is needed
 
+            case 'supabase':
+                return (
+                    <>
+                        <FormField
+                            control={form.control}
+                            name="url"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.url')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="https://your-project.supabase.co"
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.url) {
+                                                    form.clearErrors('url');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="apiKey"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.apiKey')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="password"
+                                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.apiKey) {
+                                                    form.clearErrors('apiKey');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </>
+                );
+
+            case 'convex':
+                return (
+                    <>
+                        <FormField
+                            control={form.control}
+                            name="url"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.url')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="https://your-deployment.convex.cloud"
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.url) {
+                                                    form.clearErrors('url');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="authToken"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.authToken')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="password"
+                                            placeholder="convex_auth_token_..."
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.authToken) {
+                                                    form.clearErrors('authToken');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </>
+                );
+
+            case 'firebase':
+                return (
+                    <>
+                        <FormField
+                            control={form.control}
+                            name="projectId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.projectId')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="your-firebase-project"
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.projectId) {
+                                                    form.clearErrors('projectId');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="apiKey"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.apiKey')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="password"
+                                            placeholder="AIzaSyC..."
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.apiKey) {
+                                                    form.clearErrors('apiKey');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </>
+                );
+
+            case 'neon':
+                return (
+                    <FormField
+                        control={form.control}
+                        name="connectionString"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('setup.database.connectionString')}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder="postgresql://user:password@ep-xxx.us-east-1.aws.neon.tech/dbname"
+                                        value={field.value || ''}
+                                        onChange={(e) => {
+                                            field.onChange(e.target.value);
+                                            if (form.formState.errors.connectionString) {
+                                                form.clearErrors('connectionString');
+                                            }
+                                            if (connectionStatus !== 'idle') {
+                                                setConnectionStatus('idle');
+                                                setConnectionMessage('');
+                                            }
+                                        }}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                );
+
+            case 'turso':
+                return (
+                    <>
+                        <FormField
+                            control={form.control}
+                            name="url"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.url')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="libsql://your-database.turso.io"
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.url) {
+                                                    form.clearErrors('url');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="authToken"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('setup.database.authToken')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="password"
+                                            placeholder="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9..."
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                if (form.formState.errors.authToken) {
+                                                    form.clearErrors('authToken');
+                                                }
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </>
+                );
+
+            case 'planetscale': // PlanetScale uses MySQL protocol but with specific requirements
             default: // mysql, postgresql
                 return (
                     <>
@@ -352,6 +694,12 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                             <SelectItem value="mysql">{t('database.type.mysql')}</SelectItem>
                                             <SelectItem value="mongodb">{t('database.type.mongodb')}</SelectItem>
                                             <SelectItem value="localdb">{t('database.type.localdb')}</SelectItem>
+                                            <SelectItem value="supabase">{t('database.type.supabase')}</SelectItem>
+                                            <SelectItem value="convex">{t('database.type.convex')}</SelectItem>
+                                            <SelectItem value="firebase">{t('database.type.firebase')}</SelectItem>
+                                            <SelectItem value="planetscale">{t('database.type.planetscale')}</SelectItem>
+                                            <SelectItem value="neon">{t('database.type.neon')}</SelectItem>
+                                            <SelectItem value="turso">{t('database.type.turso')}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -367,7 +715,11 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                     <FormLabel>
                                         {watchedType === 'localdb'
                                             ? t('setup.database.filePath')
-                                            : t('setup.database.name')
+                                            : watchedType === 'firebase'
+                                                ? t('setup.database.name') + ' (Database ID)'
+                                                : watchedType === 'convex'
+                                                    ? t('setup.database.name') + ' (Project Name)'
+                                                    : t('setup.database.name')
                                         }
                                     </FormLabel>
                                     <FormControl>
@@ -375,7 +727,13 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                             placeholder={
                                                 watchedType === 'localdb'
                                                     ? './data/myapp.db'
-                                                    : 'myapp'
+                                                    : watchedType === 'firebase'
+                                                        ? '(default)'
+                                                        : watchedType === 'convex'
+                                                            ? 'my-project'
+                                                            : watchedType === 'supabase'
+                                                                ? 'postgres'
+                                                                : 'myapp'
                                             }
                                             value={field.value || ''}
                                             onChange={(e) => {

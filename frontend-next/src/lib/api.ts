@@ -1,7 +1,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 export interface DatabaseConfig {
-    type: 'mongodb' | 'mysql' | 'postgresql' | 'localdb';
+    type: 'mongodb' | 'mysql' | 'postgresql' | 'localdb' | 'supabase' | 'convex' | 'firebase' | 'planetscale' | 'neon' | 'turso';
     host?: string;
     port?: number;
     database: string;
@@ -9,6 +9,12 @@ export interface DatabaseConfig {
     password?: string;
     connectionString?: string;
     ssl?: boolean;
+    // New fields for modern providers
+    apiKey?: string;
+    projectId?: string;
+    region?: string;
+    authToken?: string;
+    url?: string;
 }
 
 export interface ApiResponse<T = unknown> {

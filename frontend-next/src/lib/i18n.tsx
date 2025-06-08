@@ -117,6 +117,41 @@ const translations: Translations = {
         fr: 'Chemin du Fichier de Base de Données',
         de: 'Datenbankdateipfad'
     },
+    'setup.database.url': {
+        en: 'Database URL',
+        tr: 'Veritabanı URL\'si',
+        es: 'URL de Base de Datos',
+        fr: 'URL de Base de Données',
+        de: 'Datenbank-URL'
+    },
+    'setup.database.apiKey': {
+        en: 'API Key',
+        tr: 'API Anahtarı',
+        es: 'Clave API',
+        fr: 'Clé API',
+        de: 'API-Schlüssel'
+    },
+    'setup.database.projectId': {
+        en: 'Project ID',
+        tr: 'Proje Kimliği',
+        es: 'ID del Proyecto',
+        fr: 'ID du Projet',
+        de: 'Projekt-ID'
+    },
+    'setup.database.authToken': {
+        en: 'Auth Token',
+        tr: 'Kimlik Doğrulama Jetonu',
+        es: 'Token de Autenticación',
+        fr: 'Jeton d\'Authentification',
+        de: 'Authentifizierungs-Token'
+    },
+    'setup.database.region': {
+        en: 'Region',
+        tr: 'Bölge',
+        es: 'Región',
+        fr: 'Région',
+        de: 'Region'
+    },
     'button.testConnection': {
         en: 'Test Connection',
         tr: 'Bağlantıyı Test Et',
@@ -243,6 +278,48 @@ const translations: Translations = {
         fr: 'Base de Données Locale (SQLite)',
         de: 'Lokale Datenbank (SQLite)'
     },
+    'database.type.supabase': {
+        en: 'Supabase',
+        tr: 'Supabase',
+        es: 'Supabase',
+        fr: 'Supabase',
+        de: 'Supabase'
+    },
+    'database.type.convex': {
+        en: 'Convex',
+        tr: 'Convex',
+        es: 'Convex',
+        fr: 'Convex',
+        de: 'Convex'
+    },
+    'database.type.firebase': {
+        en: 'Firebase Firestore',
+        tr: 'Firebase Firestore',
+        es: 'Firebase Firestore',
+        fr: 'Firebase Firestore',
+        de: 'Firebase Firestore'
+    },
+    'database.type.planetscale': {
+        en: 'PlanetScale',
+        tr: 'PlanetScale',
+        es: 'PlanetScale',
+        fr: 'PlanetScale',
+        de: 'PlanetScale'
+    },
+    'database.type.neon': {
+        en: 'Neon',
+        tr: 'Neon',
+        es: 'Neon',
+        fr: 'Neon',
+        de: 'Neon'
+    },
+    'database.type.turso': {
+        en: 'Turso',
+        tr: 'Turso',
+        es: 'Turso',
+        fr: 'Turso',
+        de: 'Turso'
+    },
     // Validation messages
     'validation.database.required': {
         en: 'Database name is required',
@@ -299,6 +376,34 @@ const translations: Translations = {
         es: 'La prueba de conexión falló',
         fr: 'Le test de connexion a échoué',
         de: 'Verbindungstest fehlgeschlagen'
+    },
+    'validation.url.required': {
+        en: 'URL is required',
+        tr: 'URL gereklidir',
+        es: 'La URL es requerida',
+        fr: 'L\'URL est requise',
+        de: 'URL ist erforderlich'
+    },
+    'validation.apiKey.required': {
+        en: 'API Key is required',
+        tr: 'API Anahtarı gereklidir',
+        es: 'La Clave API es requerida',
+        fr: 'La Clé API est requise',
+        de: 'API-Schlüssel ist erforderlich'
+    },
+    'validation.projectId.required': {
+        en: 'Project ID is required',
+        tr: 'Proje Kimliği gereklidir',
+        es: 'El ID del Proyecto es requerido',
+        fr: 'L\'ID du Projet est requis',
+        de: 'Projekt-ID ist erforderlich'
+    },
+    'validation.authToken.required': {
+        en: 'Auth Token is required',
+        tr: 'Kimlik Doğrulama Jetonu gereklidir',
+        es: 'El Token de Autenticación es requerido',
+        fr: 'Le Jeton d\'Authentification est requis',
+        de: 'Authentifizierungs-Token ist erforderlich'
     }
 };
 
