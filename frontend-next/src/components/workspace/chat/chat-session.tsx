@@ -49,18 +49,28 @@ export function ChatSessionComponent({
     useEffect(() => {
         const connectWebSocket = async () => {
             try {
-                await websocketService.connect(userId);
+                const connected = await websocketService.connect(userId);
+                if (!connected) {
+                    console.warn('WebSocket connection failed, chat functionality may be limited');
+                    addToast({
+                        title: "Connection Warning",
+                        description: "Real-time chat service is unavailable. Some features may not work.",
+                        variant: "destructive"
+                    });
+                }
             } catch (error) {
                 console.error('Failed to connect to WebSocket:', error);
                 addToast({
                     title: "Connection Error",
-                    description: "Failed to connect to real-time chat service",
+                    description: "Failed to connect to real-time chat service. Please check your network connection.",
                     variant: "destructive"
                 });
             }
         };
 
-        connectWebSocket();
+        if (userId) {
+            connectWebSocket();
+        }
 
         // Cleanup on unmount
         return () => {
@@ -69,12 +79,19 @@ export function ChatSessionComponent({
     }, [userId, addToast]);
 
     const loadMessages = useCallback(async () => {
+        if (!session?.id) {
+            console.warn('No session ID provided for loading messages');
+            setIsLoadingMessages(false);
+            return;
+        }
+
         setIsLoadingMessages(true);
         try {
             const result = await apiClient.getChatMessages(session.id);
             if (result.success) {
-                setMessages(result.messages);
+                setMessages(result.messages || []);
             } else {
+                console.error('Failed to load messages:', result.message);
                 addToast({
                     title: "Error",
                     description: result.message || "Failed to load messages",
@@ -91,15 +108,32 @@ export function ChatSessionComponent({
         } finally {
             setIsLoadingMessages(false);
         }
-    }, [session.id, addToast]);
+    }, [session?.id, addToast]);
 
     // Load messages when session changes
     useEffect(() => {
-        loadMessages();
-    }, [session.id, loadMessages]);
+        if (session?.id) {
+            loadMessages();
+        }
+    }, [session?.id, loadMessages]);
 
     const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string) => {
+        if (!content?.trim()) {
+            console.warn('Empty message content provided');
+            return;
+        }
+
+        if (!session?.id) {
+            addToast({
+                title: "Error",
+                description: "No active chat session. Please create a new chat.",
+                variant: "destructive"
+            });
+            return;
+        }
+
         if (!websocketService.isConnected()) {
+            console.warn('WebSocket not connected, connection state:', websocketService.getConnectionState());
             addToast({
                 title: "Connection Error",
                 description: "Not connected to chat service. Please refresh the page.",
@@ -114,7 +148,7 @@ export function ChatSessionComponent({
 
         try {
             const request: StreamingChatRequest = {
-                content,
+                content: content.trim(),
                 personalityId,
                 aiProviderId,
                 sessionId: session.id,
@@ -129,13 +163,15 @@ export function ChatSessionComponent({
                 },
                 onComplete: (data) => {
                     // Add both messages to the list
-                    setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
+                    if (data?.userMessage && data?.aiMessage) {
+                        setMessages(prev => [...(prev || []), data.userMessage, data.aiMessage]);
+                    }
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
 
                     // Update session title if this is the first message and title is "New Chat"
-                    if (messages.length === 0 && session.title === 'New Chat') {
+                    if (messages.length === 0 && session?.title === 'New Chat') {
                         const newTitle = content.length > 50 ? content.substring(0, 50) + '...' : content;
                         apiClient.updateChatSession(session.id, { title: newTitle }).then(updateResult => {
                             if (updateResult.success && updateResult.session && onSessionUpdate) {

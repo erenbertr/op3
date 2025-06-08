@@ -101,22 +101,22 @@ interface ChatMessageListProps {
 }
 
 export function ChatMessageList({
-    messages,
-    personalities,
-    aiProviders,
+    messages = [],
+    personalities = [],
+    aiProviders = [],
     streamingMessage,
     isStreaming,
     className
 }: ChatMessageListProps) {
     const getPersonality = (personalityId?: string) => {
-        return personalityId ? personalities.find(p => p.id === personalityId) : undefined;
+        return personalityId && personalities ? personalities.find(p => p?.id === personalityId) : undefined;
     };
 
     const getAIProvider = (aiProviderId?: string) => {
-        return aiProviderId ? aiProviders.find(p => p.id === aiProviderId) : undefined;
+        return aiProviderId && aiProviders ? aiProviders.find(p => p?.id === aiProviderId) : undefined;
     };
 
-    if (messages.length === 0) {
+    if (!messages || messages.length === 0) {
         return (
             <div className={cn("text-center space-y-6 max-w-md", className)}>
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
@@ -162,7 +162,7 @@ export function ChatMessageList({
 
     return (
         <div className={cn("space-y-6 p-4", className)}>
-            {messages.map((message) => (
+            {(messages || []).map((message) => (
                 <ChatMessage
                     key={message.id}
                     message={message}

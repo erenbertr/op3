@@ -61,7 +61,8 @@ export class WebSocketService {
         this.currentUserId = userId;
 
         try {
-            const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3003/ws';
+            const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3005/ws';
+            console.log('Attempting to connect to WebSocket:', wsUrl);
             this.ws = new WebSocket(wsUrl);
 
             return new Promise((resolve, reject) => {
@@ -106,7 +107,7 @@ export class WebSocketService {
                 this.ws.onerror = (error) => {
                     console.error('WebSocket error:', error);
                     this.isConnecting = false;
-                    reject(error);
+                    reject(new Error('WebSocket connection failed'));
                 };
             });
         } catch (error) {

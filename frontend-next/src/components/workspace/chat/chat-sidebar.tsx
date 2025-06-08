@@ -67,8 +67,8 @@ export function ChatSidebar({
     }, [userId, loadChatSessions]);
 
     // Filter chats based on search query
-    const filteredChats = chats.filter(chat =>
-        chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredChats = (chats || []).filter(chat =>
+        chat?.title?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const handleChatClick = (chat: ChatSession) => {

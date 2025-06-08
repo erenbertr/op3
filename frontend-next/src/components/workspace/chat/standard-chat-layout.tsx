@@ -102,8 +102,8 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                 {activeSession ? (
                     <ChatSessionComponent
                         session={activeSession}
-                        personalities={personalities}
-                        aiProviders={aiProviders}
+                        personalities={personalities || []}
+                        aiProviders={aiProviders || []}
                         onSessionUpdate={handleSessionUpdate}
                         userId={userId}
                     />

@@ -52,9 +52,9 @@ export function ChatInput({
 
     // Set default AI provider
     useEffect(() => {
-        if (aiProviders.length > 0 && !selectedProvider) {
-            const activeProvider = aiProviders.find(p => p.isActive) || aiProviders[0];
-            setSelectedProvider(activeProvider.id || '');
+        if (aiProviders && aiProviders.length > 0 && !selectedProvider) {
+            const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
+            setSelectedProvider(activeProvider?.id || '');
         }
     }, [aiProviders, selectedProvider]);
 
@@ -103,17 +103,17 @@ export function ChatInput({
         }
     };
 
-    const filteredPersonalities = personalities.filter(p =>
-        p.title.toLowerCase().includes(personalitySearch.toLowerCase())
+    const filteredPersonalities = (personalities || []).filter(p =>
+        p?.title?.toLowerCase().includes(personalitySearch.toLowerCase())
     );
 
-    const filteredProviders = aiProviders.filter(p =>
-        (p.name || p.type).toLowerCase().includes(providerSearch.toLowerCase()) ||
-        p.model.toLowerCase().includes(providerSearch.toLowerCase())
+    const filteredProviders = (aiProviders || []).filter(p =>
+        (p?.name || p?.type || '').toLowerCase().includes(providerSearch.toLowerCase()) ||
+        (p?.model || '').toLowerCase().includes(providerSearch.toLowerCase())
     );
 
-    const selectedPersonalityObj = personalities.find(p => p.id === selectedPersonality);
-    const selectedProviderObj = aiProviders.find(p => p.id === selectedProvider);
+    const selectedPersonalityObj = (personalities || []).find(p => p?.id === selectedPersonality);
+    const selectedProviderObj = (aiProviders || []).find(p => p?.id === selectedProvider);
 
     return (
         <div className={cn("w-full max-w-4xl mx-auto", className)}>
@@ -192,9 +192,9 @@ export function ChatInput({
                                                 setPersonalitySearch('');
                                             }}
                                         >
-                                            <div className="font-medium">{personality.title}</div>
+                                            <div className="font-medium">{personality?.title || 'Untitled'}</div>
                                             <div className="text-xs text-muted-foreground line-clamp-2">
-                                                {personality.prompt.substring(0, 100)}...
+                                                {personality?.prompt ? personality.prompt.substring(0, 100) + '...' : 'No description'}
                                             </div>
                                         </div>
                                     ))}
@@ -248,8 +248,8 @@ export function ChatInput({
                                                 setProviderSearch('');
                                             }}
                                         >
-                                            <div className="font-medium">{provider.name || provider.type}</div>
-                                            <div className="text-xs text-muted-foreground">{provider.model}</div>
+                                            <div className="font-medium">{provider?.name || provider?.type || 'Unknown Provider'}</div>
+                                            <div className="text-xs text-muted-foreground">{provider?.model || 'Unknown Model'}</div>
                                         </div>
                                     ))}
                                     {filteredProviders.length === 0 && providerSearch && (
