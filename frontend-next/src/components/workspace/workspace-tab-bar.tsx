@@ -188,7 +188,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
                             <span className="text-sm font-medium truncate max-w-32">
                                 {workspace.name}
                             </span>
-                            {workspaces.length > 1 && (
+                            {workspaces.length > 1 && workspace.isActive && currentView === 'workspace' && (
                                 <Button
                                     variant="ghost"
                                     size="sm"

@@ -158,6 +158,10 @@ export function AppWrapper() {
         setCurrentWorkspaceId(workspaceId);
         setCurrentView('workspace');
         loadWorkspaceDetails(workspaceId);
+        // Refresh workspace tabs to ensure synchronization
+        if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
+            refreshWorkspaces();
+        }
     };
 
     const handleShowSettings = () => {
@@ -370,6 +374,10 @@ export function AppWrapper() {
                                     onWorkspaceSelect={(workspaceId) => {
                                         setCurrentWorkspaceId(workspaceId);
                                         loadWorkspaceDetails(workspaceId);
+                                        // Refresh workspace tabs to sync the state
+                                        if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
+                                            refreshWorkspaces();
+                                        }
                                         handleBackToWorkspace();
                                     }}
                                 />
