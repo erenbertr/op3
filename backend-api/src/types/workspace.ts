@@ -3,15 +3,23 @@ export type WorkspaceTemplate = 'standard-chat' | 'kanban-board' | 'node-graph';
 export interface Workspace {
     id: string;
     userId: string;
+    name: string;
     templateType: WorkspaceTemplate;
     workspaceRules: string;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface CreateWorkspaceRequest {
+    name: string;
     templateType: WorkspaceTemplate;
     workspaceRules: string;
+}
+
+export interface UpdateWorkspaceRequest {
+    name?: string;
+    workspaceRules?: string;
 }
 
 export interface CreateWorkspaceResponse {
@@ -19,8 +27,10 @@ export interface CreateWorkspaceResponse {
     message: string;
     workspace?: {
         id: string;
+        name: string;
         templateType: WorkspaceTemplate;
         workspaceRules: string;
+        isActive: boolean;
         createdAt: string;
     };
 }
@@ -30,8 +40,40 @@ export interface WorkspaceStatusResponse {
     hasWorkspace: boolean;
     workspace?: {
         id: string;
+        name: string;
         templateType: WorkspaceTemplate;
         workspaceRules: string;
+        isActive: boolean;
         createdAt: string;
     };
+}
+
+export interface WorkspaceListResponse {
+    success: boolean;
+    workspaces: {
+        id: string;
+        name: string;
+        templateType: WorkspaceTemplate;
+        workspaceRules: string;
+        isActive: boolean;
+        createdAt: string;
+    }[];
+}
+
+export interface WorkspaceUpdateResponse {
+    success: boolean;
+    message: string;
+    workspace?: {
+        id: string;
+        name: string;
+        templateType: WorkspaceTemplate;
+        workspaceRules: string;
+        isActive: boolean;
+        createdAt: string;
+    };
+}
+
+export interface WorkspaceDeleteResponse {
+    success: boolean;
+    message: string;
 }

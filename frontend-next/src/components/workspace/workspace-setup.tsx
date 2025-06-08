@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { apiClient, WorkspaceTemplate } from '@/lib/api';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 
 interface WorkspaceSetupProps {
-    onComplete?: (workspace: { id: string; templateType: string; workspaceRules: string; createdAt: string } | undefined) => void;
+    onComplete?: (workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => void;
     userId: string;
 }
 
@@ -23,6 +23,7 @@ interface TemplateOption {
 }
 
 export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
+    const [workspaceName, setWorkspaceName] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState<WorkspaceTemplate | null>(null);
     const [workspaceRules, setWorkspaceRules] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +54,11 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
         e.preventDefault();
         setError('');
 
+        if (!workspaceName.trim()) {
+            setError('Please enter a workspace name');
+            return;
+        }
+
         if (!selectedTemplate) {
             setError('Please select a workspace template');
             return;
@@ -61,7 +67,7 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
         setIsLoading(true);
 
         try {
-            const result = await apiClient.createWorkspace(userId, selectedTemplate, workspaceRules);
+            const result = await apiClient.createWorkspace(userId, workspaceName.trim(), selectedTemplate, workspaceRules);
 
             if (result.success) {
                 onComplete?.(result.workspace);
@@ -87,6 +93,26 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
+                    {/* Workspace Name */}
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="workspaceName" className="text-lg font-semibold">
+                                Workspace Name *
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                                Give your workspace a descriptive name
+                            </p>
+                        </div>
+                        <Input
+                            id="workspaceName"
+                            value={workspaceName}
+                            onChange={(e) => setWorkspaceName(e.target.value)}
+                            placeholder="e.g., My First Workspace, Development Chat, etc."
+                            disabled={isLoading}
+                            className="max-w-md"
+                        />
+                    </div>
+
                     {/* Template Selection */}
                     <div className="space-y-4">
                         <Label className="text-lg font-semibold">Choose a Template *</Label>

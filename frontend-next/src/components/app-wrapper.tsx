@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
+import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -21,6 +22,7 @@ export function AppWrapper() {
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
+    const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
 
     useEffect(() => {
         initializeApp();
@@ -88,9 +90,14 @@ export function AppWrapper() {
         setError(null);
     };
 
-    const handleWorkspaceSetupComplete = (workspace: { id: string; templateType: string; workspaceRules: string; createdAt: string } | undefined) => {
+    const handleWorkspaceSetupComplete = (workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
         console.log('Workspace setup completed:', workspace);
         setShowWorkspaceSetup(false);
+
+        // Set the current workspace
+        if (workspace) {
+            setCurrentWorkspaceId(workspace.id);
+        }
 
         // Update user state to reflect completed workspace setup
         if (currentUser) {
@@ -101,6 +108,10 @@ export function AppWrapper() {
             setCurrentUser(updatedUser);
             authService.updateUser({ hasCompletedWorkspaceSetup: true });
         }
+    };
+
+    const handleWorkspaceChange = (workspaceId: string) => {
+        setCurrentWorkspaceId(workspaceId);
     };
 
     if (isLoading) {
@@ -227,6 +238,12 @@ export function AppWrapper() {
                     </div>
                 </header>
 
+                {/* Workspace Tab Bar */}
+                <WorkspaceTabBar
+                    userId={currentUser.id}
+                    onWorkspaceChange={handleWorkspaceChange}
+                />
+
                 {/* Main workspace content */}
                 <main className="container mx-auto px-4 py-8">
                     <div className="text-center space-y-4">
@@ -234,6 +251,11 @@ export function AppWrapper() {
                         <p className="text-muted-foreground">
                             Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.
                         </p>
+                        {currentWorkspaceId && (
+                            <p className="text-sm text-muted-foreground">
+                                Current workspace ID: {currentWorkspaceId}
+                            </p>
+                        )}
                     </div>
                 </main>
             </div>

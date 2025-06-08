@@ -101,8 +101,10 @@ export interface CreateWorkspaceResponse {
     message: string;
     workspace?: {
         id: string;
+        name: string;
         templateType: WorkspaceTemplate;
         workspaceRules: string;
+        isActive: boolean;
         createdAt: string;
     };
 }
@@ -112,10 +114,47 @@ export interface WorkspaceStatusResponse {
     hasWorkspace: boolean;
     workspace?: {
         id: string;
+        name: string;
         templateType: WorkspaceTemplate;
         workspaceRules: string;
+        isActive: boolean;
         createdAt: string;
     };
+}
+
+export interface WorkspaceListResponse {
+    success: boolean;
+    workspaces: {
+        id: string;
+        name: string;
+        templateType: WorkspaceTemplate;
+        workspaceRules: string;
+        isActive: boolean;
+        createdAt: string;
+    }[];
+}
+
+export interface UpdateWorkspaceRequest {
+    name?: string;
+    workspaceRules?: string;
+}
+
+export interface WorkspaceUpdateResponse {
+    success: boolean;
+    message: string;
+    workspace?: {
+        id: string;
+        name: string;
+        templateType: WorkspaceTemplate;
+        workspaceRules: string;
+        isActive: boolean;
+        createdAt: string;
+    };
+}
+
+export interface WorkspaceDeleteResponse {
+    success: boolean;
+    message: string;
 }
 
 class ApiClient {
@@ -214,10 +253,10 @@ class ApiClient {
     }
 
     // Workspace-related methods
-    async createWorkspace(userId: string, templateType: string, workspaceRules: string): Promise<CreateWorkspaceResponse> {
+    async createWorkspace(userId: string, name: string, templateType: string, workspaceRules: string): Promise<CreateWorkspaceResponse> {
         return this.request<CreateWorkspaceResponse>('/workspace/create', {
             method: 'POST',
-            body: JSON.stringify({ userId, templateType, workspaceRules }),
+            body: JSON.stringify({ userId, name, templateType, workspaceRules }),
         });
     }
 
@@ -225,8 +264,33 @@ class ApiClient {
         return this.request<WorkspaceStatusResponse>(`/workspace/status/${userId}`);
     }
 
-    async getUserWorkspace(userId: string): Promise<{ success: boolean; workspace?: { id: string; templateType: WorkspaceTemplate; workspaceRules: string; createdAt: string } }> {
-        return this.request<{ success: boolean; workspace?: { id: string; templateType: WorkspaceTemplate; workspaceRules: string; createdAt: string } }>(`/workspace/${userId}`);
+    async getUserWorkspace(userId: string): Promise<{ success: boolean; workspace?: { id: string; name: string; templateType: WorkspaceTemplate; workspaceRules: string; isActive: boolean; createdAt: string } }> {
+        return this.request<{ success: boolean; workspace?: { id: string; name: string; templateType: WorkspaceTemplate; workspaceRules: string; isActive: boolean; createdAt: string } }>(`/workspace/${userId}`);
+    }
+
+    async getUserWorkspaces(userId: string): Promise<WorkspaceListResponse> {
+        return this.request<WorkspaceListResponse>(`/workspace/list/${userId}`);
+    }
+
+    async updateWorkspace(workspaceId: string, userId: string, updates: UpdateWorkspaceRequest): Promise<WorkspaceUpdateResponse> {
+        return this.request<WorkspaceUpdateResponse>(`/workspace/${workspaceId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ userId, ...updates }),
+        });
+    }
+
+    async setActiveWorkspace(workspaceId: string, userId: string): Promise<WorkspaceUpdateResponse> {
+        return this.request<WorkspaceUpdateResponse>(`/workspace/${workspaceId}/activate`, {
+            method: 'POST',
+            body: JSON.stringify({ userId }),
+        });
+    }
+
+    async deleteWorkspace(workspaceId: string, userId: string): Promise<WorkspaceDeleteResponse> {
+        return this.request<WorkspaceDeleteResponse>(`/workspace/${workspaceId}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ userId }),
+        });
     }
 }
 

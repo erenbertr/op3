@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { WorkspaceService } from '../services/workspaceService';
 import { UserService } from '../services/userService';
-import { CreateWorkspaceRequest } from '../types/workspace';
+import { CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../types/workspace';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 
 const router = Router();
@@ -10,10 +10,14 @@ const userService = UserService.getInstance();
 
 // Create workspace for user
 router.post('/create', asyncHandler(async (req: Request, res: Response) => {
-    const { userId, templateType, workspaceRules }: { userId: string } & CreateWorkspaceRequest = req.body;
+    const { userId, name, templateType, workspaceRules }: { userId: string } & CreateWorkspaceRequest = req.body;
 
     if (!userId) {
         throw createError('User ID is required', 400);
+    }
+
+    if (!name || name.trim() === '') {
+        throw createError('Workspace name is required', 400);
     }
 
     if (!templateType) {
@@ -30,6 +34,7 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
     }
 
     const result = await workspaceService.createWorkspace(userId, {
+        name: name.trim(),
         templateType,
         workspaceRules: workspaceRules || ''
     });
@@ -84,6 +89,93 @@ router.get('/:userId', asyncHandler(async (req: Request, res: Response) => {
         success: true,
         workspace: result.workspace
     });
+}));
+
+// Get all workspaces for a user
+router.get('/list/:userId', asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    const result = await workspaceService.getUserWorkspaces(userId);
+
+    res.json(result);
+}));
+
+// Update a workspace
+router.patch('/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
+    const { workspaceId } = req.params;
+    const { userId, name, workspaceRules }: { userId: string } & UpdateWorkspaceRequest = req.body;
+
+    if (!workspaceId) {
+        throw createError('Workspace ID is required', 400);
+    }
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (name !== undefined && name.trim() === '') {
+        throw createError('Workspace name cannot be empty', 400);
+    }
+
+    const updateData: UpdateWorkspaceRequest = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (workspaceRules !== undefined) updateData.workspaceRules = workspaceRules;
+
+    const result = await workspaceService.updateWorkspace(workspaceId, userId, updateData);
+
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    res.json(result);
+}));
+
+// Set active workspace
+router.post('/:workspaceId/activate', asyncHandler(async (req: Request, res: Response) => {
+    const { workspaceId } = req.params;
+    const { userId }: { userId: string } = req.body;
+
+    if (!workspaceId) {
+        throw createError('Workspace ID is required', 400);
+    }
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    const result = await workspaceService.setActiveWorkspace(workspaceId, userId);
+
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    res.json(result);
+}));
+
+// Delete a workspace
+router.delete('/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
+    const { workspaceId } = req.params;
+    const { userId }: { userId: string } = req.body;
+
+    if (!workspaceId) {
+        throw createError('Workspace ID is required', 400);
+    }
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    const result = await workspaceService.deleteWorkspace(workspaceId, userId);
+
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    res.json(result);
 }));
 
 export default router;
