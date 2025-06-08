@@ -144,102 +144,61 @@ export function SetupWizard() {
                     </p>
                 </div>
 
-                {/* Stacked Steps Overview */}
-                <div className="max-w-2xl mx-auto mb-8">
-                    <div className="relative h-32 overflow-hidden">
+                {/* Horizontal Steps Overview */}
+                <div className="max-w-4xl mx-auto mb-8">
+                    <div className="flex items-center justify-center gap-4 p-4">
                         {steps.map((step, index) => {
                             const isActive = index === currentStep;
                             const isCompleted = step.completed;
                             const isFuture = index > currentStep;
 
-                            // Calculate positioning and styling for true stacked effect
-                            let zIndex = steps.length - Math.abs(index - currentStep);
-                            let translateY = 0;
-                            let scale = 1;
-                            let opacity = 1;
-                            let blur = 0;
-
-                            if (isActive) {
-                                // Active step: fully visible at the top
-                                translateY = 0;
-                                scale = 1;
-                                opacity = 1;
-                                blur = 0;
-                                zIndex = steps.length;
-                            } else if (isCompleted) {
-                                // Completed steps: stacked behind, only top edge visible
-                                const stackOffset = (currentStep - index) * 4; // 4px per step
-                                translateY = -stackOffset;
-                                scale = 0.98;
-                                opacity = 0.8;
-                                blur = 0.5;
-                                zIndex = steps.length - (currentStep - index);
-                            } else if (isFuture) {
-                                // Future steps: stacked below, only top edge visible
-                                const stackOffset = (index - currentStep) * 6; // 6px per step for better visibility
-                                translateY = 114 + stackOffset; // Position below active card, showing 6px of top edge
-                                scale = 0.98;
-                                opacity = 0.7;
-                                blur = 0.5;
-                                zIndex = steps.length - (index - currentStep);
-                            }
-
                             return (
-                                <div
-                                    key={step.id}
-                                    className="absolute inset-x-0 transition-all duration-700 ease-in-out"
-                                    style={{
-                                        transform: `translateY(${translateY}px) scale(${scale})`,
-                                        zIndex,
-                                        opacity,
-                                        filter: `blur(${blur}px)`,
-                                        height: '120px', // Fixed height for consistent stacking
-                                    }}
-                                >
-                                    <div
-                                        className={`p-6 rounded-xl border-2 shadow-lg transition-all duration-300 h-full overflow-hidden ${isActive
-                                            ? 'border-primary bg-white dark:bg-gray-900 shadow-xl'
-                                            : isCompleted
-                                                ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900'
-                                                : 'border-muted bg-gray-100 dark:bg-gray-800'
-                                            }`}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div
-                                                className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ${isCompleted
-                                                    ? 'bg-green-500 text-white'
-                                                    : isActive
-                                                        ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-muted text-muted-foreground'
-                                                    }`}
-                                            >
-                                                {isCompleted ? (
-                                                    <CheckCircle className="h-6 w-6" />
-                                                ) : (
-                                                    <div className="h-6 w-6">{step.icon}</div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-lg font-semibold">{step.title}</h3>
-                                                <p className="text-sm text-muted-foreground mt-1">
+                                <React.Fragment key={step.id}>
+                                    {/* Step */}
+                                    <div className={`flex items-center gap-3 transition-all duration-300 ${isActive
+                                            ? 'bg-white dark:bg-gray-900 p-4 rounded-xl border-2 border-primary shadow-lg'
+                                            : 'p-2'
+                                        }`}>
+                                        {/* Icon */}
+                                        <div
+                                            className={`flex items-center justify-center rounded-full transition-all duration-300 ${isActive
+                                                    ? 'w-12 h-12 bg-primary text-primary-foreground'
+                                                    : isCompleted
+                                                        ? 'w-10 h-10 bg-green-500 text-white'
+                                                        : 'w-10 h-10 bg-muted text-muted-foreground'
+                                                }`}
+                                        >
+                                            {isCompleted ? (
+                                                <CheckCircle className={isActive ? "h-6 w-6" : "h-5 w-5"} />
+                                            ) : (
+                                                <div className={isActive ? "h-6 w-6" : "h-5 w-5"}>{step.icon}</div>
+                                            )}
+                                        </div>
+
+                                        {/* Title and Description - Only for active step */}
+                                        {isActive && (
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-lg font-semibold truncate">{step.title}</h3>
+                                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                                                     {step.description}
                                                 </p>
                                             </div>
-                                            <div className="flex flex-col items-end gap-2">
-                                                {isCompleted && (
-                                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                                                        {t('badge.complete')}
-                                                    </Badge>
-                                                )}
-                                                {isFuture && (
-                                                    <Badge variant="outline" className="opacity-60">
-                                                        {t('badge.upcoming')}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </div>
+                                        )}
+
+                                        {/* Badge for active step */}
+                                        {isActive && isCompleted && (
+                                            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 ml-2">
+                                                {t('badge.complete')}
+                                            </Badge>
+                                        )}
                                     </div>
-                                </div>
+
+                                    {/* Connector Line */}
+                                    {index < steps.length - 1 && (
+                                        <div className={`h-0.5 w-8 transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-muted'
+                                            }`} />
+                                    )}
+                                </React.Fragment>
                             );
                         })}
                     </div>

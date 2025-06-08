@@ -73,11 +73,22 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
                 onNext(data);
             } else {
                 console.error('Failed to create admin account:', result.message);
-                // You could show an error toast here
+                // Set form error to show user what went wrong
+                form.setError('root', {
+                    type: 'manual',
+                    message: result.message || 'Failed to create admin account. Please try again.'
+                });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating admin account:', error);
-            // You could show an error toast here
+            // Set form error to show user what went wrong
+            const errorMessage = error?.response?.data?.error?.message ||
+                error?.message ||
+                'Failed to create admin account. Please check your database connection and try again.';
+            form.setError('root', {
+                type: 'manual',
+                message: errorMessage
+            });
         } finally {
             setIsCreating(false);
         }
@@ -224,6 +235,15 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
                                 </FormItem>
                             )}
                         />
+
+                        {/* Error Display */}
+                        {form.formState.errors.root && (
+                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                <p className="text-sm text-red-700 dark:text-red-300">
+                                    {form.formState.errors.root.message}
+                                </p>
+                            </div>
+                        )}
 
                         {/* Submit Button */}
                         <Button

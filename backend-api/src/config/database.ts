@@ -9,6 +9,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { connect } from '@planetscale/database';
 import { neon } from '@neondatabase/serverless';
 import { createClient as createLibsqlClient } from '@libsql/client';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
     DatabaseConfig,
     DatabaseConnectionResult,
@@ -27,14 +29,50 @@ import {
 export class DatabaseManager {
     private static instance: DatabaseManager;
     private currentConfig: DatabaseConfig | null = null;
+    private configFilePath: string;
 
-    private constructor() { }
+    private constructor() {
+        // Create data directory if it doesn't exist
+        const dataDir = path.join(process.cwd(), 'data');
+        console.log('DatabaseManager: Data directory path:', dataDir);
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+            console.log('DatabaseManager: Created data directory');
+        }
+        this.configFilePath = path.join(dataDir, 'config.json');
+        console.log('DatabaseManager: Config file path:', this.configFilePath);
+        this.loadConfig();
+    }
 
     public static getInstance(): DatabaseManager {
         if (!DatabaseManager.instance) {
             DatabaseManager.instance = new DatabaseManager();
         }
         return DatabaseManager.instance;
+    }
+
+    private loadConfig(): void {
+        try {
+            if (fs.existsSync(this.configFilePath)) {
+                const configData = fs.readFileSync(this.configFilePath, 'utf8');
+                this.currentConfig = JSON.parse(configData);
+                console.log('Database configuration loaded from file:', { type: this.currentConfig?.type });
+            }
+        } catch (error) {
+            console.error('Error loading database configuration:', error);
+            this.currentConfig = null;
+        }
+    }
+
+    private saveConfig(): void {
+        try {
+            if (this.currentConfig) {
+                fs.writeFileSync(this.configFilePath, JSON.stringify(this.currentConfig, null, 2));
+                console.log('Database configuration saved to file');
+            }
+        } catch (error) {
+            console.error('Error saving database configuration:', error);
+        }
     }
 
     public async testConnection(config: DatabaseConfig): Promise<DatabaseConnectionResult> {
@@ -207,6 +245,7 @@ export class DatabaseManager {
 
     public setCurrentConfig(config: DatabaseConfig): void {
         this.currentConfig = config;
+        this.saveConfig();
     }
 
     public getCurrentConfig(): DatabaseConfig | null {

@@ -203,9 +203,10 @@ export class UserService {
             };
         } catch (error) {
             console.error('Error creating user:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             return {
                 success: false,
-                message: 'Failed to create user'
+                message: `Failed to create user: ${errorMessage}`
             };
         }
     }
@@ -257,8 +258,16 @@ export class UserService {
                 case 'localdb':
                     return new Promise((resolve, reject) => {
                         connection.get('SELECT * FROM users WHERE email = ?', [email], (err: any, row: any) => {
-                            if (err) reject(err);
-                            else resolve(row ? this.mapSQLUser(row) : null);
+                            if (err) {
+                                // If table doesn't exist, return null (no user found)
+                                if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                                    resolve(null);
+                                } else {
+                                    reject(err);
+                                }
+                            } else {
+                                resolve(row ? this.mapSQLUser(row) : null);
+                            }
                         });
                     });
 
@@ -291,6 +300,13 @@ export class UserService {
         if (!config) {
             throw new Error('No database configuration found. Please configure database first.');
         }
+
+        console.log('Attempting to save user to database:', {
+            type: config.type,
+            userId: user.id,
+            email: user.email,
+            role: user.role
+        });
 
         const connection = await this.dbManager.getConnection();
 
@@ -397,47 +413,57 @@ export class UserService {
     }
 
     private async saveUserPostgreSQL(client: any, user: User): Promise<void> {
-        // Create users table if it doesn't exist
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id VARCHAR(36) PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                username VARCHAR(255),
-                password VARCHAR(255) NOT NULL,
-                role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'subscribed', 'normal')),
-                "isActive" BOOLEAN DEFAULT TRUE,
-                "createdAt" TIMESTAMP NOT NULL,
-                "updatedAt" TIMESTAMP NOT NULL,
-                "lastLoginAt" TIMESTAMP,
-                permissions JSONB,
-                "subscriptionId" VARCHAR(255),
-                "subscriptionExpiry" TIMESTAMP,
-                "firstName" VARCHAR(255),
-                "lastName" VARCHAR(255),
-                avatar TEXT
-            )
-        `);
+        try {
+            console.log('Creating PostgreSQL users table if not exists...');
+            // Create users table if it doesn't exist
+            await client.query(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id VARCHAR(36) PRIMARY KEY,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    username VARCHAR(255),
+                    password VARCHAR(255) NOT NULL,
+                    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'subscribed', 'normal')),
+                    "isActive" BOOLEAN DEFAULT TRUE,
+                    "createdAt" TIMESTAMP NOT NULL,
+                    "updatedAt" TIMESTAMP NOT NULL,
+                    "lastLoginAt" TIMESTAMP,
+                    permissions JSONB,
+                    "subscriptionId" VARCHAR(255),
+                    "subscriptionExpiry" TIMESTAMP,
+                    "firstName" VARCHAR(255),
+                    "lastName" VARCHAR(255),
+                    avatar TEXT
+                )
+            `);
 
-        // Create indexes
-        await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-        await client.query('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+            console.log('Creating PostgreSQL indexes...');
+            // Create indexes
+            await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+            await client.query('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
 
-        await client.query(`
-            INSERT INTO users (
-                id, email, username, password, role, "isActive", "createdAt", "updatedAt",
-                "lastLoginAt", permissions, "subscriptionId", "subscriptionExpiry",
-                "firstName", "lastName", avatar
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        `, [
-            user.id, user.email, user.username, user.password, user.role,
-            user.isActive, user.createdAt, user.updatedAt, user.lastLoginAt,
-            JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry,
-            user.firstName, user.lastName, user.avatar
-        ]);
+            console.log('Inserting user into PostgreSQL database...');
+            await client.query(`
+                INSERT INTO users (
+                    id, email, username, password, role, "isActive", "createdAt", "updatedAt",
+                    "lastLoginAt", permissions, "subscriptionId", "subscriptionExpiry",
+                    "firstName", "lastName", avatar
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            `, [
+                user.id, user.email, user.username, user.password, user.role,
+                user.isActive, user.createdAt, user.updatedAt, user.lastLoginAt,
+                JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry,
+                user.firstName, user.lastName, user.avatar
+            ]);
+            console.log('User successfully inserted into PostgreSQL database');
+        } catch (error) {
+            console.error('PostgreSQL save user error:', error);
+            throw error;
+        }
     }
 
     private async saveUserSQLite(db: any, user: User): Promise<void> {
         return new Promise((resolve, reject) => {
+            console.log('SQLite: Creating users table if not exists...');
             // Create users table if it doesn't exist
             db.run(`
                 CREATE TABLE IF NOT EXISTS users (
@@ -459,10 +485,12 @@ export class UserService {
                 )
             `, (err: any) => {
                 if (err) {
+                    console.error('SQLite: Error creating table:', err);
                     reject(err);
                     return;
                 }
 
+                console.log('SQLite: Table created successfully, inserting user...');
                 // Insert user
                 db.run(`
                     INSERT INTO users (
@@ -477,8 +505,13 @@ export class UserService {
                     user.subscriptionId, user.subscriptionExpiry?.toISOString(),
                     user.firstName, user.lastName, user.avatar
                 ], (err: any) => {
-                    if (err) reject(err);
-                    else resolve();
+                    if (err) {
+                        console.error('SQLite: Error inserting user:', err);
+                        reject(err);
+                    } else {
+                        console.log('SQLite: User inserted successfully');
+                        resolve();
+                    }
                 });
             });
         });
