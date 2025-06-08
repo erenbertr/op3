@@ -42,16 +42,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
     return (
         <Card className="w-full max-w-md mx-auto">
-            <CardHeader className="text-center">
-                <CardTitle className="flex items-center justify-center gap-2">
-                    <LogIn className="h-5 w-5" />
-                    {t('login.title')}
-                </CardTitle>
-                <CardDescription>
-                    {t('login.description')}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
                         <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-md">
