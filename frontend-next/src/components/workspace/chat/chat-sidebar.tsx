@@ -106,18 +106,46 @@ export function ChatSidebar({
         }
     };
 
-    const formatChatTime = (dateString: string) => {
-        const date = new Date(dateString);
+    const groupChatsByDate = (chats: ChatSession[]) => {
         const now = new Date();
-        const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const thisMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        if (diffInHours < 24) {
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else if (diffInHours < 24 * 7) {
-            return date.toLocaleDateString([], { weekday: 'short' });
-        } else {
-            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        }
+        const groups: { [key: string]: ChatSession[] } = {
+            'Today': [],
+            'Yesterday': [],
+            'This Week': [],
+            'This Month': [],
+            'Older': []
+        };
+
+        chats.forEach(chat => {
+            const chatDate = new Date(chat.updatedAt);
+            const chatDay = new Date(chatDate.getFullYear(), chatDate.getMonth(), chatDate.getDate());
+
+            if (chatDay.getTime() === today.getTime()) {
+                groups['Today'].push(chat);
+            } else if (chatDay.getTime() === yesterday.getTime()) {
+                groups['Yesterday'].push(chat);
+            } else if (chatDate >= thisWeek) {
+                groups['This Week'].push(chat);
+            } else if (chatDate >= thisMonth) {
+                groups['This Month'].push(chat);
+            } else {
+                groups['Older'].push(chat);
+            }
+        });
+
+        // Remove empty groups
+        Object.keys(groups).forEach(key => {
+            if (groups[key].length === 0) {
+                delete groups[key];
+            }
+        });
+
+        return groups;
     };
 
     return (
@@ -155,7 +183,7 @@ export function ChatSidebar({
 
             {/* Chat List - Scrollable */}
             <ScrollArea className="flex-1">
-                <div className="px-4 py-2 space-y-1">
+                <div className="px-4 py-2">
                     {isLoading ? (
                         <div className="text-center py-8">
                             <Loader2 className="h-6 w-6 mx-auto text-muted-foreground mb-2 animate-spin" />
@@ -174,34 +202,33 @@ export function ChatSidebar({
                             )}
                         </div>
                     ) : (
-                        <div className="space-y-1">
-                            {filteredChats.map((chat) => (
-                                <button
-                                    key={chat.id}
-                                    className={cn(
-                                        "w-full text-left px-3 py-3 rounded-md transition-colors",
-                                        "hover:bg-accent hover:text-accent-foreground",
-                                        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                                        activeChatId === chat.id
-                                            ? "bg-accent text-accent-foreground"
-                                            : "text-foreground"
-                                    )}
-                                    onClick={() => handleChatClick(chat)}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
+                        <div className="space-y-4">
+                            {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
+                                <div key={groupName} className="space-y-1">
+                                    <h3 className="text-xs font-medium text-muted-foreground px-2 py-1">
+                                        {groupName}
+                                    </h3>
+                                    <div className="space-y-1">
+                                        {groupChats.map((chat) => (
+                                            <button
+                                                key={chat.id}
+                                                className={cn(
+                                                    "w-full text-left px-3 py-3 rounded-md transition-colors",
+                                                    "hover:bg-accent hover:text-accent-foreground",
+                                                    "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                    activeChatId === chat.id
+                                                        ? "bg-accent text-accent-foreground"
+                                                        : "text-foreground"
+                                                )}
+                                                onClick={() => handleChatClick(chat)}
+                                            >
                                                 <p className="text-sm font-medium truncate">
                                                     {chat.title}
                                                 </p>
-                                                <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                                                    {formatChatTime(chat.updatedAt)}
-                                                </span>
-                                            </div>
-                                        </div>
+                                            </button>
+                                        ))}
                                     </div>
-                                </button>
+                                </div>
                             ))}
                         </div>
                     )}
