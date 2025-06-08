@@ -175,26 +175,20 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
         setConnectionStatus('idle');
 
         try {
-            console.log('Testing connection with config:', config);
             const result = await apiClient.testDatabaseConnection(config);
-            console.log('Connection test result:', result);
 
             if (result.success) {
                 setConnectionStatus('success');
                 setConnectionMessage(result.message);
-                console.log('Connection successful, status set to success');
             } else {
                 setConnectionStatus('error');
                 setConnectionMessage(result.message);
-                console.log('Connection failed, status set to error');
             }
         } catch (error) {
-            console.error('Connection test error:', error);
             setConnectionStatus('error');
             setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
         } finally {
             setIsTestingConnection(false);
-            console.log('Connection test finished, isTestingConnection set to false');
         }
     };
 
@@ -773,11 +767,6 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                         />
 
                         {renderDatabaseFields()}
-
-                        {/* Debug info - remove in production */}
-                        <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
-                            Debug: connectionStatus = &quot;{connectionStatus}&quot;, isTestingConnection = {isTestingConnection.toString()}
-                        </div>
 
                         {connectionStatus !== 'idle' && (
                             <div className="flex items-center gap-2">
