@@ -156,22 +156,26 @@ export function SetupWizard() {
                                 <React.Fragment key={step.id}>
                                     {/* Step */}
                                     <div className={`flex items-center gap-3 transition-all duration-300 ${isActive
-                                            ? 'bg-white dark:bg-gray-900 p-4 rounded-xl border-2 border-primary shadow-lg'
-                                            : 'p-2'
+                                        ? 'bg-white dark:bg-gray-900 p-4 rounded-xl border-2 border-primary shadow-lg'
+                                        : 'p-2'
                                         }`}>
                                         {/* Icon */}
                                         <div
                                             className={`flex items-center justify-center rounded-full transition-all duration-300 ${isActive
-                                                    ? 'w-12 h-12 bg-primary text-primary-foreground'
-                                                    : isCompleted
-                                                        ? 'w-10 h-10 bg-green-500 text-white'
-                                                        : 'w-10 h-10 bg-muted text-muted-foreground'
+                                                ? 'w-12 h-12 bg-primary text-primary-foreground'
+                                                : isCompleted
+                                                    ? 'w-10 h-10 bg-green-500 text-white'
+                                                    : 'w-10 h-10 bg-muted text-muted-foreground'
                                                 }`}
                                         >
                                             {isCompleted ? (
                                                 <CheckCircle className={isActive ? "h-6 w-6" : "h-5 w-5"} />
                                             ) : (
-                                                <div className={isActive ? "h-6 w-6" : "h-5 w-5"}>{step.icon}</div>
+                                                <div className={`flex items-center justify-center ${isActive ? "h-6 w-6" : "h-5 w-5"}`}>
+                                                    {React.cloneElement(step.icon as React.ReactElement, {
+                                                        className: isActive ? "h-6 w-6" : "h-5 w-5"
+                                                    })}
+                                                </div>
                                             )}
                                         </div>
 
