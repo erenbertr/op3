@@ -30,6 +30,7 @@ export function ChatSessionComponent({
     const [isLoadingMessages, setIsLoadingMessages] = useState(true);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -201,6 +202,21 @@ export function ChatSessionComponent({
             return;
         }
 
+        // Create and immediately show user message
+        const userMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            sessionId: session.id,
+            content: content.trim(),
+            role: 'user',
+            personalityId,
+            aiProviderId,
+            createdAt: new Date().toISOString()
+        };
+
+        // Add user message immediately to UI
+        setMessages(prev => [...(prev || []), userMessage]);
+        setPendingUserMessage(userMessage);
+
         setIsLoading(true);
         setIsStreaming(true);
         setStreamingMessage('');
@@ -221,10 +237,15 @@ export function ChatSessionComponent({
                     }
                 },
                 onComplete: (data) => {
-                    // Add both messages to the list
+                    // Replace the temporary user message with the server one and add AI message
                     if (data?.userMessage && data?.aiMessage) {
-                        setMessages(prev => [...(prev || []), data.userMessage, data.aiMessage]);
+                        setMessages(prev => {
+                            // Remove the temporary user message and add both server messages
+                            const withoutPending = prev.filter(msg => msg.id !== userMessage.id);
+                            return [...withoutPending, data.userMessage, data.aiMessage];
+                        });
                     }
+                    setPendingUserMessage(null);
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
@@ -243,6 +264,9 @@ export function ChatSessionComponent({
                 },
                 onError: (error) => {
                     console.error('Streaming error:', error);
+                    // Remove the temporary user message on error
+                    setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+                    setPendingUserMessage(null);
                     addToast({
                         title: "Error",
                         description: error || "Failed to send message",
@@ -255,6 +279,9 @@ export function ChatSessionComponent({
             });
         } catch (error) {
             console.error('Error sending message:', error);
+            // Remove the temporary user message on error
+            setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+            setPendingUserMessage(null);
             addToast({
                 title: "Error",
                 description: "Failed to send message. Please try again.",

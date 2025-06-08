@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
 
 import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -38,13 +39,19 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
         }
     };
 
-    // Sanitize and render HTML for AI messages
+    // Convert markdown to HTML and sanitize for AI messages
     const renderContent = () => {
         if (isAssistant) {
+            // Convert markdown to HTML first (using sync version)
+            const htmlContent = marked.parse(message.content, {
+                breaks: true, // Convert line breaks to <br>
+                gfm: true, // GitHub Flavored Markdown
+            }) as string;
+
             // Sanitize HTML content for AI messages
-            const sanitizedHTML = DOMPurify.sanitize(message.content, {
-                ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote'],
-                ALLOWED_ATTR: ['href', 'target', 'rel']
+            const sanitizedHTML = DOMPurify.sanitize(htmlContent, {
+                ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+                ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
             });
 
             return (
@@ -67,7 +74,7 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
 
     return (
         <div
-            className={cn("relative group pb-4 mb-4 last:mb-0 last:border-b-0 border-b border-border", className)}
+            className={cn("relative group pb-4 mb-4", className)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -95,7 +102,7 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                 )}
 
                 {/* Message content */}
-                <div className="p-3 rounded-lg">
+                <div className={cn("p-3 rounded-lg", !isAssistant && "bg-muted/30")}>
                     {renderContent()}
                 </div>
 
@@ -211,9 +218,33 @@ export function ChatMessageList({
                 />
             ))}
 
+            {/* Loading state when streaming but no content yet */}
+            {isStreaming && !streamingMessage && (
+                <div className="relative pb-4 mb-4">
+                    <div className="space-y-2">
+                        {/* Typing indicator */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                            <div className="flex items-center gap-1">
+                                <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
+                                <span>thinking...</span>
+                            </div>
+                        </div>
+
+                        {/* Loading dots */}
+                        <div className="p-3 rounded-lg">
+                            <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Streaming message */}
             {isStreaming && streamingMessage && (
-                <div className="relative pb-4 mb-4 border-b border-border">
+                <div className="relative pb-4 mb-4">
 
                     {/* Message content */}
                     <div className="space-y-2">
@@ -228,10 +259,20 @@ export function ChatMessageList({
                         {/* Message content */}
                         <div className="p-3 rounded-lg">
                             <div className="prose prose-sm max-w-none dark:prose-invert">
-                                <div className="whitespace-pre-wrap break-words">
-                                    {streamingMessage}
-                                    <span className="inline-block w-2 h-4 bg-primary/50 animate-pulse ml-1"></span>
-                                </div>
+                                <div
+                                    dangerouslySetInnerHTML={{
+                                        __html: DOMPurify.sanitize(
+                                            marked.parse(streamingMessage + '<span class="inline-block w-2 h-4 bg-primary/50 animate-pulse ml-1"></span>', {
+                                                breaks: true,
+                                                gfm: true,
+                                            }) as string,
+                                            {
+                                                ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span'],
+                                                ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+                                            }
+                                        )
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>
