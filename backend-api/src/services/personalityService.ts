@@ -1,11 +1,11 @@
 import { DatabaseManager } from '../config/database';
-import { 
-    Personality, 
-    CreatePersonalityRequest, 
-    UpdatePersonalityRequest, 
-    PersonalityResponse, 
-    PersonalitiesListResponse, 
-    DeletePersonalityResponse 
+import {
+    Personality,
+    CreatePersonalityRequest,
+    UpdatePersonalityRequest,
+    PersonalityResponse,
+    PersonalitiesListResponse,
+    DeletePersonalityResponse
 } from '../types/personality';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -52,14 +52,25 @@ export class PersonalityService {
                 updatedAt: new Date().toISOString()
             };
 
-            // Create table if it doesn't exist
-            await this.createPersonalityTableIfNotExists(connection, dbType);
-
             // Insert personality based on database type
-            if (dbType === 'localdb') {
-                await this.createPersonalitySQLite(connection, personality);
-            } else {
-                await this.createPersonalitySQL(connection, personality, dbType);
+            switch (dbType) {
+                case 'mongodb':
+                    await connection.collection('personalities').insertOne(personality);
+                    break;
+
+                case 'localdb':
+                    await this.createPersonalityTableIfNotExists(connection, dbType);
+                    await this.createPersonalitySQLite(connection, personality);
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    await this.createPersonalityTableIfNotExists(connection, dbType);
+                    await this.createPersonalitySQL(connection, personality, dbType);
+                    break;
+
+                default:
+                    throw new Error(`Database type ${dbType} not supported for personality operations`);
             }
 
             return {
@@ -89,15 +100,27 @@ export class PersonalityService {
                 };
             }
 
-            // Create table if it doesn't exist
-            await this.createPersonalityTableIfNotExists(connection, dbType);
-
             let personalities: Personality[] = [];
 
-            if (dbType === 'localdb') {
-                personalities = await this.getPersonalitiesSQLite(connection, userId);
-            } else {
-                personalities = await this.getPersonalitiesSQL(connection, userId);
+            switch (dbType) {
+                case 'mongodb':
+                    const mongoPersonalities = await connection.collection('personalities').find({ userId }).toArray();
+                    personalities = mongoPersonalities.map(this.mapMongoPersonality);
+                    break;
+
+                case 'localdb':
+                    await this.createPersonalityTableIfNotExists(connection, dbType);
+                    personalities = await this.getPersonalitiesSQLite(connection, userId);
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    await this.createPersonalityTableIfNotExists(connection, dbType);
+                    personalities = await this.getPersonalitiesSQL(connection, userId);
+                    break;
+
+                default:
+                    throw new Error(`Database type ${dbType} not supported for personality operations`);
             }
 
             return {
@@ -153,10 +176,31 @@ export class PersonalityService {
                 updatedAt: new Date().toISOString()
             };
 
-            if (dbType === 'localdb') {
-                await this.updatePersonalitySQLite(connection, updatedPersonality);
-            } else {
-                await this.updatePersonalitySQL(connection, updatedPersonality, dbType);
+            switch (dbType) {
+                case 'mongodb':
+                    await connection.collection('personalities').updateOne(
+                        { id: personalityId, userId },
+                        {
+                            $set: {
+                                title: updatedPersonality.title,
+                                prompt: updatedPersonality.prompt,
+                                updatedAt: updatedPersonality.updatedAt
+                            }
+                        }
+                    );
+                    break;
+
+                case 'localdb':
+                    await this.updatePersonalitySQLite(connection, updatedPersonality);
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    await this.updatePersonalitySQL(connection, updatedPersonality, dbType);
+                    break;
+
+                default:
+                    throw new Error(`Database type ${dbType} not supported for personality operations`);
             }
 
             return {
@@ -196,10 +240,22 @@ export class PersonalityService {
                 };
             }
 
-            if (dbType === 'localdb') {
-                await this.deletePersonalitySQLite(connection, personalityId);
-            } else {
-                await this.deletePersonalitySQL(connection, personalityId, dbType);
+            switch (dbType) {
+                case 'mongodb':
+                    await connection.collection('personalities').deleteOne({ id: personalityId, userId });
+                    break;
+
+                case 'localdb':
+                    await this.deletePersonalitySQLite(connection, personalityId);
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    await this.deletePersonalitySQL(connection, personalityId, dbType);
+                    break;
+
+                default:
+                    throw new Error(`Database type ${dbType} not supported for personality operations`);
             }
 
             return {
@@ -213,6 +269,18 @@ export class PersonalityService {
                 message: 'Failed to delete personality'
             };
         }
+    }
+
+    // Helper method to map MongoDB document to Personality interface
+    private mapMongoPersonality(doc: any): Personality {
+        return {
+            id: doc.id,
+            userId: doc.userId,
+            title: doc.title,
+            prompt: doc.prompt,
+            createdAt: doc.createdAt,
+            updatedAt: doc.updatedAt
+        };
     }
 
     // Helper methods for database table creation
@@ -279,7 +347,7 @@ export class PersonalityService {
             INSERT INTO personalities (id, userId, title, prompt, createdAt, updatedAt)
             VALUES (?, ?, ?, ?, ?, ?)
         `;
-        
+
         await connection.execute(query, [
             personality.id,
             personality.userId,
@@ -297,7 +365,7 @@ export class PersonalityService {
             WHERE userId = ?
             ORDER BY createdAt DESC
         `;
-        
+
         const [rows] = await connection.execute(query, [userId]);
         return rows as Personality[];
     }
@@ -308,7 +376,7 @@ export class PersonalityService {
             SET title = ?, prompt = ?, updatedAt = ?
             WHERE id = ?
         `;
-        
+
         await connection.execute(query, [
             personality.title,
             personality.prompt,
@@ -329,7 +397,7 @@ export class PersonalityService {
                 INSERT INTO personalities (id, userId, title, prompt, createdAt, updatedAt)
                 VALUES (?, ?, ?, ?, ?, ?)
             `;
-            
+
             connection.run(query, [
                 personality.id,
                 personality.userId,
@@ -352,7 +420,7 @@ export class PersonalityService {
                 WHERE userId = ?
                 ORDER BY createdAt DESC
             `;
-            
+
             connection.all(query, [userId], (err: any, rows: any[]) => {
                 if (err) reject(err);
                 else resolve(rows as Personality[]);
@@ -367,7 +435,7 @@ export class PersonalityService {
                 SET title = ?, prompt = ?, updatedAt = ?
                 WHERE id = ?
             `;
-            
+
             connection.run(query, [
                 personality.title,
                 personality.prompt,
@@ -383,7 +451,7 @@ export class PersonalityService {
     private async deletePersonalitySQLite(connection: any, personalityId: string): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             const query = `DELETE FROM personalities WHERE id = ?`;
-            
+
             connection.run(query, [personalityId], (err: any) => {
                 if (err) reject(err);
                 else resolve();
