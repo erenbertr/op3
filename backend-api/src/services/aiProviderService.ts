@@ -5,7 +5,8 @@ import {
     AIProviderTestResult,
     AIProviderType,
     DEFAULT_ENDPOINTS,
-    API_KEY_PATTERNS
+    API_KEY_PATTERNS,
+    DEFAULT_MODELS
 } from '../types/ai-provider';
 
 export class AIProviderService {
@@ -94,7 +95,7 @@ export class AIProviderService {
             }
 
             // Test the connection based on provider type
-            const result = await this.testProviderConnection(request.type, request.apiKey, endpoint);
+            const result = await this.testProviderConnection(request.type, request.apiKey, request.model, endpoint);
             const responseTime = Date.now() - startTime;
 
             if (result.success) {
@@ -128,20 +129,21 @@ export class AIProviderService {
     private async testProviderConnection(
         type: AIProviderType,
         apiKey: string,
+        model: string,
         endpoint: string
     ): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
             switch (type) {
                 case 'openai':
-                    return await this.testOpenAI(apiKey, endpoint);
+                    return await this.testOpenAI(apiKey, model, endpoint);
                 case 'anthropic':
-                    return await this.testAnthropic(apiKey, endpoint);
+                    return await this.testAnthropic(apiKey, model, endpoint);
                 case 'google':
-                    return await this.testGoogle(apiKey, endpoint);
+                    return await this.testGoogle(apiKey, model, endpoint);
                 case 'replicate':
-                    return await this.testReplicate(apiKey, endpoint);
+                    return await this.testReplicate(apiKey, model, endpoint);
                 case 'custom':
-                    return await this.testCustomProvider(apiKey, endpoint);
+                    return await this.testCustomProvider(apiKey, model, endpoint);
                 default:
                     return {
                         success: false,
@@ -159,7 +161,7 @@ export class AIProviderService {
     }
 
     // Test OpenAI connection
-    private async testOpenAI(apiKey: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
+    private async testOpenAI(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
             const response = await fetch(`${endpoint}/models`, {
                 headers: {
@@ -175,7 +177,7 @@ export class AIProviderService {
                 return {
                     success: true,
                     message: 'OpenAI connection successful',
-                    model: firstModel
+                    model: model
                 };
             } else {
                 const errorData = await response.json().catch(() => ({})) as any;
@@ -195,7 +197,7 @@ export class AIProviderService {
     }
 
     // Test Anthropic connection
-    private async testAnthropic(apiKey: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
+    private async testAnthropic(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
             // Anthropic doesn't have a simple models endpoint, so we'll make a minimal completion request
             const response = await fetch(`${endpoint}/v1/messages`, {
@@ -206,7 +208,7 @@ export class AIProviderService {
                     'anthropic-version': '2023-06-01'
                 },
                 body: JSON.stringify({
-                    model: 'claude-3-haiku-20240307',
+                    model: model,
                     max_tokens: 1,
                     messages: [{ role: 'user', content: 'test' }]
                 })
@@ -216,7 +218,7 @@ export class AIProviderService {
                 return {
                     success: true,
                     message: 'Anthropic connection successful',
-                    model: 'claude-3-haiku-20240307'
+                    model: model
                 };
             } else {
                 const errorData = await response.json().catch(() => ({})) as any;
@@ -236,7 +238,7 @@ export class AIProviderService {
     }
 
     // Test Google connection
-    private async testGoogle(apiKey: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
+    private async testGoogle(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
             const response = await fetch(`${endpoint}/v1/models?key=${apiKey}`);
 
@@ -247,7 +249,7 @@ export class AIProviderService {
                 return {
                     success: true,
                     message: 'Google connection successful',
-                    model: firstModel
+                    model: model
                 };
             } else {
                 const errorData = await response.json().catch(() => ({})) as any;
@@ -267,7 +269,7 @@ export class AIProviderService {
     }
 
     // Test Replicate connection
-    private async testReplicate(apiKey: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
+    private async testReplicate(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
             const response = await fetch(`${endpoint}/v1/account`, {
                 headers: {
@@ -280,7 +282,7 @@ export class AIProviderService {
                 return {
                     success: true,
                     message: 'Replicate connection successful',
-                    model: 'Various models available'
+                    model: model
                 };
             } else {
                 const errorData = await response.json().catch(() => ({})) as any;
@@ -300,7 +302,7 @@ export class AIProviderService {
     }
 
     // Test custom provider connection
-    private async testCustomProvider(apiKey: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
+    private async testCustomProvider(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
             // For custom providers, we'll try a simple GET request to the endpoint
             const response = await fetch(endpoint, {
@@ -314,7 +316,7 @@ export class AIProviderService {
                 return {
                     success: true,
                     message: 'Custom provider connection successful',
-                    model: 'Custom model'
+                    model: model
                 };
             } else {
                 return {

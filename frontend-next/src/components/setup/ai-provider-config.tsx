@@ -26,6 +26,8 @@ const createAIProviderSchema = (t: (key: string) => string) => z.object({
         apiKey: z.string()
             .min(1, t('validation.aiProvider.apiKey.required'))
             .min(10, t('validation.aiProvider.apiKey.minLength')),
+        model: z.string()
+            .min(1, t('validation.aiProvider.model.required')),
         endpoint: z.string().url(t('validation.aiProvider.endpoint.invalid')).optional().or(z.literal('')),
         isActive: z.boolean().default(true)
     })).min(1, t('setup.aiProvider.requireAtLeastOne'))
@@ -63,6 +65,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                     type: provider.type,
                     name: provider.name,
                     apiKey: provider.apiKey,
+                    model: provider.model,
                     endpoint: provider.endpoint || '',
                     isActive: provider.isActive
                 }))
@@ -70,6 +73,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                     type: 'openai' as AIProviderType,
                     name: '',
                     apiKey: '',
+                    model: 'gpt-4o',
                     endpoint: '',
                     isActive: true
                 }]
@@ -86,6 +90,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
             type: 'openai' as AIProviderType,
             name: '',
             apiKey: '',
+            model: 'gpt-4o',
             endpoint: '',
             isActive: true
         });
@@ -122,6 +127,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
             const result = await apiClient.testAIProviderConnection({
                 type: provider.type,
                 apiKey: provider.apiKey,
+                model: provider.model,
                 endpoint: provider.endpoint || undefined
             });
 
@@ -171,6 +177,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                 type: provider.type,
                 name: provider.name,
                 apiKey: provider.apiKey,
+                model: provider.model,
                 endpoint: provider.endpoint || undefined,
                 isActive: provider.isActive
             }));
@@ -205,6 +212,23 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
 
     const getProviderTypeLabel = (type: AIProviderType): string => {
         return t(`aiProvider.type.${type}`);
+    };
+
+    const getDefaultModels = (type: AIProviderType): string[] => {
+        switch (type) {
+            case 'openai':
+                return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
+            case 'anthropic':
+                return ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'];
+            case 'google':
+                return ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'];
+            case 'replicate':
+                return ['meta/llama-2-70b-chat', 'mistralai/mixtral-8x7b-instruct-v0.1', 'meta/codellama-34b-instruct'];
+            case 'custom':
+                return [];
+            default:
+                return [];
+        }
     };
 
     const getTestStatusIcon = (status: ProviderTestStatus[number]) => {
@@ -338,6 +362,44 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                                     )}
                                 />
 
+                                {/* Model */}
+                                <FormField
+                                    control={form.control}
+                                    name={`providers.${index}.model`}
+                                    render={({ field }) => {
+                                        const currentType = form.watch(`providers.${index}.type`);
+                                        const availableModels = getDefaultModels(currentType);
+
+                                        return (
+                                            <FormItem className="mt-4">
+                                                <FormLabel>{t('setup.aiProvider.model.label')}</FormLabel>
+                                                <FormControl>
+                                                    {availableModels.length > 0 ? (
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder={t('setup.aiProvider.model.placeholder')} />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {availableModels.map((model) => (
+                                                                    <SelectItem key={model} value={model}>
+                                                                        {model}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    ) : (
+                                                        <Input
+                                                            placeholder={t('setup.aiProvider.model.placeholder')}
+                                                            {...field}
+                                                        />
+                                                    )}
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}
+                                />
+
                                 {/* Custom Endpoint */}
                                 <FormField
                                     control={form.control}
@@ -378,8 +440,8 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                                 {/* Test Status Message */}
                                 {testStatus[index]?.message && (
                                     <div className={`mt-2 text-sm ${testStatus[index]?.status === 'success'
-                                            ? 'text-green-600'
-                                            : 'text-red-600'
+                                        ? 'text-green-600'
+                                        : 'text-red-600'
                                         }`}>
                                         {testStatus[index]?.message}
                                     </div>
@@ -399,7 +461,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                         </Button>
 
                         {/* Navigation Buttons */}
-                        <div className="flex justify-between pt-6">
+                        <div className="flex gap-4 pt-6">
                             {onBack && (
                                 <Button type="button" variant="outline" onClick={onBack}>
                                     Back

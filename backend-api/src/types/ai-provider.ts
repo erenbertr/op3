@@ -5,6 +5,7 @@ export interface AIProviderConfig {
     type: AIProviderType;
     name: string; // Custom name/label for the provider
     apiKey: string;
+    model: string; // AI model to use (e.g., gpt-4, claude-3-sonnet, gemini-pro)
     endpoint?: string; // Optional custom endpoint URL
     isActive: boolean;
     createdAt?: Date;
@@ -39,6 +40,7 @@ export interface CustomConfig extends AIProviderConfig {
 export interface AIProviderTestRequest {
     type: AIProviderType;
     apiKey: string;
+    model: string;
     endpoint?: string;
 }
 
@@ -72,6 +74,15 @@ export const DEFAULT_ENDPOINTS: Record<AIProviderType, string | null> = {
     google: 'https://generativelanguage.googleapis.com',
     replicate: 'https://api.replicate.com',
     custom: null // Custom providers must specify their own endpoint
+};
+
+// Default models for each provider type
+export const DEFAULT_MODELS: Record<AIProviderType, string[]> = {
+    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
+    google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'],
+    replicate: ['meta/llama-2-70b-chat', 'mistralai/mixtral-8x7b-instruct-v0.1', 'meta/codellama-34b-instruct'],
+    custom: [] // Custom providers can specify any model
 };
 
 // Validation patterns for API keys (basic format validation)

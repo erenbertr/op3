@@ -677,6 +677,20 @@ const translations: Translations = {
         fr: 'Entrez votre clé API',
         de: 'Geben Sie Ihren API-Schlüssel ein'
     },
+    'setup.aiProvider.model.label': {
+        en: 'Model',
+        tr: 'Model',
+        es: 'Modelo',
+        fr: 'Modèle',
+        de: 'Modell'
+    },
+    'setup.aiProvider.model.placeholder': {
+        en: 'Select or enter model name',
+        tr: 'Model adını seçin veya girin',
+        es: 'Seleccione o ingrese el nombre del modelo',
+        fr: 'Sélectionnez ou entrez le nom du modèle',
+        de: 'Wählen Sie einen Modellnamen aus oder geben Sie ihn ein'
+    },
     'setup.aiProvider.endpoint.label': {
         en: 'Custom Endpoint (Optional)',
         tr: 'Özel Uç Nokta (İsteğe Bağlı)',
@@ -806,6 +820,13 @@ const translations: Translations = {
         es: 'La clave API debe tener al menos 10 caracteres',
         fr: 'La clé API doit contenir au moins 10 caractères',
         de: 'API-Schlüssel muss mindestens 10 Zeichen lang sein'
+    },
+    'validation.aiProvider.model.required': {
+        en: 'Model is required',
+        tr: 'Model gereklidir',
+        es: 'El modelo es requerido',
+        fr: 'Le modèle est requis',
+        de: 'Modell ist erforderlich'
     },
     'validation.aiProvider.endpoint.invalid': {
         en: 'Please enter a valid URL',

@@ -110,8 +110,8 @@ router.post('/admin', asyncHandler(async (req: Request, res: Response) => {
 router.post('/ai-providers/test', asyncHandler(async (req: Request, res: Response) => {
     const testRequest: AIProviderTestRequest = req.body;
 
-    if (!testRequest.type || !testRequest.apiKey) {
-        throw createError('Provider type and API key are required', 400);
+    if (!testRequest.type || !testRequest.apiKey || !testRequest.model) {
+        throw createError('Provider type, API key, and model are required', 400);
     }
 
     const result = await aiProviderService.testConnection(testRequest);
@@ -129,8 +129,8 @@ router.post('/ai-providers', asyncHandler(async (req: Request, res: Response) =>
 
     // Validate each provider configuration
     for (const provider of providers) {
-        if (!provider.type || !provider.name || !provider.apiKey) {
-            throw createError('Provider type, name, and API key are required for each provider', 400);
+        if (!provider.type || !provider.name || !provider.apiKey || !provider.model) {
+            throw createError('Provider type, name, API key, and model are required for each provider', 400);
         }
 
         // Validate API key format

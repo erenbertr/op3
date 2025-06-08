@@ -31,6 +31,7 @@ export interface AIProviderConfig {
     type: AIProviderType;
     name: string;
     apiKey: string;
+    model: string;
     endpoint?: string;
     isActive: boolean;
 }
@@ -38,6 +39,7 @@ export interface AIProviderConfig {
 export interface AIProviderTestRequest {
     type: AIProviderType;
     apiKey: string;
+    model: string;
     endpoint?: string;
 }
 
