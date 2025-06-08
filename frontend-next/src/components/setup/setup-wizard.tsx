@@ -176,8 +176,8 @@ export function SetupWizard() {
                                 zIndex = steps.length - (currentStep - index);
                             } else if (isFuture) {
                                 // Future steps: stacked below, only top edge visible
-                                const stackOffset = (index - currentStep) * 4; // 4px per step
-                                translateY = 96 + stackOffset; // Position below active card
+                                const stackOffset = (index - currentStep) * 6; // 6px per step for better visibility
+                                translateY = 114 + stackOffset; // Position below active card, showing 6px of top edge
                                 scale = 0.98;
                                 opacity = 0.7;
                                 blur = 0.5;
@@ -229,11 +229,6 @@ export function SetupWizard() {
                                                 {isCompleted && (
                                                     <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
                                                         {t('badge.complete')}
-                                                    </Badge>
-                                                )}
-                                                {isActive && !isCompleted && (
-                                                    <Badge variant="default">
-                                                        {t('badge.current')}
                                                     </Badge>
                                                 )}
                                                 {isFuture && (
