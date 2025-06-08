@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, CheckCircle, XCircle, Shield, Eye, EyeOff } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { apiClient, AdminConfig } from '@/lib/api';
+import { useToast } from '@/components/ui/toast';
 
 // Create schema function that takes translation function
 const createAdminSchema = (t: (key: string) => string) => z.object({
@@ -38,6 +39,7 @@ interface AdminConfigProps {
 
 export function AdminConfigForm({ onNext }: AdminConfigProps) {
     const { t } = useI18n();
+    const { addToast } = useToast();
     const [isCreating, setIsCreating] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -70,24 +72,29 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
             const result = await apiClient.saveAdminConfig(data);
 
             if (result.success) {
+                addToast({
+                    title: "Success!",
+                    description: "Admin account created successfully.",
+                    variant: "success"
+                });
                 onNext(data);
             } else {
                 console.error('Failed to create admin account:', result.message);
-                // Set form error to show user what went wrong
-                form.setError('root', {
-                    type: 'manual',
-                    message: result.message || 'Failed to create admin account. Please try again.'
+                addToast({
+                    title: "Error",
+                    description: result.message || 'Failed to create admin account. Please try again.',
+                    variant: "destructive"
                 });
             }
         } catch (error: any) {
             console.error('Error creating admin account:', error);
-            // Set form error to show user what went wrong
             const errorMessage = error?.response?.data?.error?.message ||
                 error?.message ||
                 'Failed to create admin account. Please check your database connection and try again.';
-            form.setError('root', {
-                type: 'manual',
-                message: errorMessage
+            addToast({
+                title: "Error",
+                description: errorMessage,
+                variant: "destructive"
             });
         } finally {
             setIsCreating(false);
@@ -236,14 +243,7 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
                             )}
                         />
 
-                        {/* Error Display */}
-                        {form.formState.errors.root && (
-                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                                <p className="text-sm text-red-700 dark:text-red-300">
-                                    {form.formState.errors.root.message}
-                                </p>
-                            </div>
-                        )}
+
 
                         {/* Submit Button */}
                         <Button

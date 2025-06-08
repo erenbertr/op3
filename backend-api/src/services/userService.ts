@@ -141,7 +141,7 @@ export class UserService {
     /**
      * Create a new user
      */
-    public async createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
+    public async createUser(request: CreateUserRequest, isSetupMode: boolean = false): Promise<CreateUserResponse> {
         try {
             // Validate email
             const emailErrors = this.validateEmail(request.email);
@@ -164,10 +164,17 @@ export class UserService {
             // Check if user already exists
             const existingUser = await this.getUserByEmail(request.email);
             if (existingUser) {
-                return {
-                    success: false,
-                    message: 'User with this email already exists'
-                };
+                if (isSetupMode) {
+                    // In setup mode, we override the existing user
+                    console.log('Setup mode: Overriding existing user with email:', request.email);
+                    await this.deleteUserByEmail(request.email);
+                } else {
+                    // In normal operation, return error
+                    return {
+                        success: false,
+                        message: 'User with this email already exists'
+                    };
+                }
             }
 
             // Hash password
@@ -212,6 +219,24 @@ export class UserService {
     }
 
     /**
+     * Check if the application is in setup mode
+     */
+    public async isInSetupMode(): Promise<boolean> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                return true; // No database config = setup mode
+            }
+
+            const adminExists = await this.adminExists();
+            return !adminExists; // No admin = setup mode
+        } catch (error) {
+            console.error('Error checking setup mode:', error);
+            return true; // Default to setup mode on error
+        }
+    }
+
+    /**
      * Create admin user from config
      */
     public async createAdminUser(config: AdminConfig): Promise<CreateUserResponse> {
@@ -224,12 +249,15 @@ export class UserService {
             };
         }
 
+        // Check if we're in setup mode
+        const isSetupMode = await this.isInSetupMode();
+
         return this.createUser({
             email: config.email,
             username: config.username,
             password: config.password,
             role: 'admin'
-        });
+        }, isSetupMode);
     }
 
     /**
@@ -289,6 +317,59 @@ export class UserService {
         } catch (error) {
             console.error('Error getting user by email:', error);
             return null;
+        }
+    }
+
+    /**
+     * Delete user by email
+     */
+    private async deleteUserByEmail(email: string): Promise<void> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('users').deleteOne({ email });
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'DELETE FROM users WHERE email = ?';
+                    await connection.execute(query, [email]);
+                    break;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.run('DELETE FROM users WHERE email = ?', [email], (err: any) => {
+                            if (err) reject(err);
+                            else resolve();
+                        });
+                    });
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('users')
+                        .delete()
+                        .eq('email', email);
+
+                    if (error) {
+                        throw error;
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            console.log('User deleted successfully:', email);
+        } catch (error) {
+            console.error('Error deleting user by email:', error);
+            throw error;
         }
     }
 
