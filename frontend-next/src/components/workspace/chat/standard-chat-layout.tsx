@@ -159,7 +159,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
             <div className="container mx-auto h-full px-4">
                 <div className="flex h-full">
                     {/* Left Sidebar - Fixed width */}
-                    <div className="w-80 flex-shrink-0 h-full border-r border-border">
+                    <div className="w-80 flex-shrink-0 h-full">
                         <ChatSidebar
                             userId={userId}
                             workspaceId={workspaceId}
