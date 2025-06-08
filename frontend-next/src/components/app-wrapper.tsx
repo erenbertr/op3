@@ -53,6 +53,9 @@ export function AppWrapper() {
                         // Check if user needs workspace setup
                         if (!user.hasCompletedWorkspaceSetup) {
                             setShowWorkspaceSetup(true);
+                        } else {
+                            // Load initial workspace for authenticated user
+                            await loadInitialWorkspace(user.id);
                         }
                     }
                 }
@@ -78,6 +81,9 @@ export function AppWrapper() {
                 // Check if user needs workspace setup
                 if (!result.user.hasCompletedWorkspaceSetup) {
                     setShowWorkspaceSetup(true);
+                } else {
+                    // Load initial workspace for authenticated user
+                    await loadInitialWorkspace(result.user.id);
                 }
             } else {
                 setError(result.message || 'Login failed');
@@ -114,6 +120,21 @@ export function AppWrapper() {
             };
             setCurrentUser(updatedUser);
             authService.updateUser({ hasCompletedWorkspaceSetup: true });
+        }
+    };
+
+    const loadInitialWorkspace = async (userId: string) => {
+        try {
+            const result = await apiClient.getUserWorkspaces(userId);
+            if (result.success) {
+                const activeWorkspace = result.workspaces.find(w => w.isActive);
+                if (activeWorkspace) {
+                    setCurrentWorkspaceId(activeWorkspace.id);
+                    setCurrentWorkspace(activeWorkspace);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading initial workspace:', error);
         }
     };
 
