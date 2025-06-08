@@ -98,7 +98,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-full">
+            <div className="flex-1 flex flex-col h-full border-r border-border">
                 {activeSession ? (
                     <ChatSessionComponent
                         session={activeSession}

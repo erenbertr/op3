@@ -165,7 +165,7 @@ interface EmptyChatStateProps {
 
 export function EmptyChatState({ className }: EmptyChatStateProps) {
     return (
-        <div className={`flex-1 flex items-center justify-center ${className || ''}`}>
+        <div className={`flex-1 flex items-center justify-center min-h-0 ${className || ''}`}>
             <div className="text-center space-y-6 max-w-md">
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
                     <svg
@@ -184,9 +184,9 @@ export function EmptyChatState({ className }: EmptyChatStateProps) {
                 </div>
 
                 <div className="space-y-2">
-                    <h3 className="text-xl font-semibold">Ready to Chat</h3>
+                    <h3 className="text-xl font-semibold">Start a conversation</h3>
                     <p className="text-muted-foreground">
-                        Select a chat from the sidebar or start a new conversation to begin.
+                        Send a message to begin chatting with the AI assistant.
                     </p>
                 </div>
 
