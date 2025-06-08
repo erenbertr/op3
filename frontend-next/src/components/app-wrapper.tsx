@@ -178,7 +178,7 @@ export function AppWrapper() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                     <p className="text-muted-foreground">Loading application...</p>
@@ -189,7 +189,7 @@ export function AppWrapper() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md">
                     <h1 className="text-2xl font-bold text-destructive">Error</h1>
                     <p className="text-muted-foreground">{error}</p>
@@ -207,7 +207,7 @@ export function AppWrapper() {
     // If setup is not completed, show setup wizard
     if (!setupStatus?.completed) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="h-screen bg-background">
                 {/* Header with theme toggle and language selector */}
                 <header className="border-b">
                     <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -233,7 +233,7 @@ export function AppWrapper() {
     // If user is logged in and needs workspace setup
     if (currentUser && showWorkspaceSetup) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="h-screen bg-background">
                 {/* Header with theme toggle and language selector */}
                 <header className="border-b">
                     <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -274,7 +274,7 @@ export function AppWrapper() {
     // If user is logged in and has completed workspace setup
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
         return (
-            <div className="min-h-screen bg-background flex flex-col">
+            <div className="h-screen bg-background flex flex-col">
                 {/* Header with theme toggle and language selector */}
                 <header className="border-b flex-shrink-0">
                     <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -405,7 +405,7 @@ export function AppWrapper() {
 
     // If setup is completed but user is not logged in, show login form
     return (
-        <div className="min-h-screen bg-background">
+        <div className="h-screen bg-background">
             {/* Header with theme toggle and language selector */}
             <header className="border-b">
                 <div className="container mx-auto px-4 py-4 flex justify-between items-center">
