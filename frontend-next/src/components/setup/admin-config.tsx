@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -35,9 +35,11 @@ type AdminFormData = z.infer<ReturnType<typeof createAdminSchema>>;
 
 interface AdminConfigProps {
     onNext: (config: AdminConfig) => void;
+    onBack?: () => void;
+    defaultValues?: AdminConfig | null;
 }
 
-export function AdminConfigForm({ onNext }: AdminConfigProps) {
+export function AdminConfigForm({ onNext, onBack, defaultValues }: AdminConfigProps) {
     const { t } = useI18n();
     const { addToast } = useToast();
     const [isCreating, setIsCreating] = useState(false);
@@ -45,15 +47,35 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const adminSchema = createAdminSchema(t);
-    const form = useForm<AdminFormData>({
-        resolver: zodResolver(adminSchema),
-        defaultValues: {
+
+    // Create form default values based on props or fallback defaults
+    const getDefaultValues = useCallback((): AdminFormData => {
+        if (defaultValues) {
+            return {
+                email: defaultValues.email || '',
+                username: defaultValues.username || '',
+                password: '', // Don't pre-fill passwords for security
+                confirmPassword: '',
+            };
+        }
+        return {
             email: '',
             username: '',
             password: '',
             confirmPassword: '',
-        },
+        };
+    }, [defaultValues]);
+
+    const form = useForm<AdminFormData>({
+        resolver: zodResolver(adminSchema),
+        defaultValues: getDefaultValues(),
     });
+
+    // Reset form when defaultValues change
+    useEffect(() => {
+        const newDefaults = getDefaultValues();
+        form.reset(newDefaults);
+    }, [getDefaultValues, form]);
 
     const password = form.watch('password');
 
@@ -95,10 +117,10 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
                     variant: "destructive"
                 });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error creating admin account:', error);
-            const errorMessage = error?.response?.data?.error?.message ||
-                error?.message ||
+            const errorMessage = (error as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ||
+                (error as Error)?.message ||
                 'Failed to create admin account. Please check your database connection and try again.';
             addToast({
                 title: "Error",
@@ -254,21 +276,34 @@ export function AdminConfigForm({ onNext }: AdminConfigProps) {
 
 
 
-                        {/* Submit Button */}
-                        <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={isCreating}
-                        >
-                            {isCreating ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating...
-                                </>
-                            ) : (
-                                t('setup.admin.button.create')
+                        {/* Action Buttons */}
+                        <div className="flex gap-4">
+                            {onBack && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={onBack}
+                                    disabled={isCreating}
+                                >
+                                    {t('button.back')}
+                                </Button>
                             )}
-                        </Button>
+
+                            <Button
+                                type="submit"
+                                className="flex-1"
+                                disabled={isCreating}
+                            >
+                                {isCreating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creating...
+                                    </>
+                                ) : (
+                                    t('setup.admin.button.create')
+                                )}
+                            </Button>
+                        </div>
                     </form>
                 </Form>
             </CardContent>

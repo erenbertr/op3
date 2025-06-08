@@ -71,12 +71,29 @@ export function SetupWizard() {
         setCurrentStep(2); // Move to complete step
     };
 
+    const handleBack = () => {
+        if (currentStep > 0) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
     const renderCurrentStep = () => {
         switch (currentStep) {
             case 0:
-                return <DatabaseConfigForm onNext={handleDatabaseConfig} />;
+                return (
+                    <DatabaseConfigForm
+                        onNext={handleDatabaseConfig}
+                        defaultValues={databaseConfig}
+                    />
+                );
             case 1:
-                return <AdminConfigForm onNext={handleAdminConfig} />;
+                return (
+                    <AdminConfigForm
+                        onNext={handleAdminConfig}
+                        onBack={handleBack}
+                        defaultValues={adminConfig}
+                    />
+                );
             case 2:
                 return (
                     <Card className="w-full max-w-2xl mx-auto">
@@ -142,7 +159,6 @@ export function SetupWizard() {
                         {steps.map((step, index) => {
                             const isActive = index === currentStep;
                             const isCompleted = step.completed;
-                            const isFuture = index > currentStep;
 
                             return (
                                 <React.Fragment key={step.id}>
@@ -164,7 +180,7 @@ export function SetupWizard() {
                                                 <CheckCircle className={isActive ? "h-6 w-6" : "h-5 w-5"} />
                                             ) : (
                                                 <div className={`flex items-center justify-center ${isActive ? "h-6 w-6" : "h-5 w-5"}`}>
-                                                    {React.cloneElement(step.icon as React.ReactElement, {
+                                                    {React.cloneElement(step.icon as React.ReactElement<{ className?: string }>, {
                                                         className: isActive ? "h-6 w-6" : "h-5 w-5"
                                                     })}
                                                 </div>

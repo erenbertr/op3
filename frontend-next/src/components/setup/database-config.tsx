@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,18 +36,38 @@ type DatabaseFormData = z.infer<ReturnType<typeof createDatabaseSchema>>;
 
 interface DatabaseConfigProps {
     onNext: (config: DatabaseConfig) => void;
+    onBack?: () => void;
+    defaultValues?: DatabaseConfig | null;
 }
 
-export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
+export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseConfigProps) {
     const { t } = useI18n();
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [connectionMessage, setConnectionMessage] = useState('');
 
     const databaseSchema = createDatabaseSchema(t);
-    const form = useForm<DatabaseFormData>({
-        resolver: zodResolver(databaseSchema),
-        defaultValues: {
+
+    // Create form default values based on props or fallback defaults
+    const getDefaultValues = useCallback((): DatabaseFormData => {
+        if (defaultValues) {
+            return {
+                type: defaultValues.type || 'postgresql',
+                host: defaultValues.host || 'localhost',
+                port: defaultValues.port || 5432,
+                database: defaultValues.database || '',
+                username: defaultValues.username || '',
+                password: defaultValues.password || '',
+                connectionString: defaultValues.connectionString || '',
+                ssl: defaultValues.ssl || false,
+                url: defaultValues.url || '',
+                apiKey: defaultValues.apiKey || '',
+                projectId: defaultValues.projectId || '',
+                authToken: defaultValues.authToken || '',
+                region: defaultValues.region || '',
+            };
+        }
+        return {
             type: 'postgresql',
             host: 'localhost',
             port: 5432,
@@ -56,8 +76,24 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             password: '',
             connectionString: '',
             ssl: false,
-        },
+            url: '',
+            apiKey: '',
+            projectId: '',
+            authToken: '',
+            region: '',
+        };
+    }, [defaultValues]);
+
+    const form = useForm<DatabaseFormData>({
+        resolver: zodResolver(databaseSchema),
+        defaultValues: getDefaultValues(),
     });
+
+    // Reset form when defaultValues change
+    useEffect(() => {
+        const newDefaults = getDefaultValues();
+        form.reset(newDefaults);
+    }, [getDefaultValues, form]);
 
     const watchedType = form.watch('type');
     const watchedValues = form.watch();
@@ -788,6 +824,16 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                         )}
 
                         <div className="flex gap-4">
+                            {onBack && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={onBack}
+                                >
+                                    {t('button.back')}
+                                </Button>
+                            )}
+
                             <Button
                                 type="button"
                                 variant="outline"
