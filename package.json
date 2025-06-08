@@ -1,0 +1,34 @@
+{
+  "name": "op3-monorepo",
+  "version": "1.0.0",
+  "description": "OP3 Monorepo with Next.js frontend and Node.js backend",
+  "private": true,
+  "workspaces": [
+    "frontend-next",
+    "backend-api"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend-next && npm run dev",
+    "dev:backend": "cd backend-api && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend-next && npm run build",
+    "build:backend": "cd backend-api && npm run build",
+    "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\"",
+    "start:frontend": "cd frontend-next && npm run start",
+    "start:backend": "cd backend-api && npm run start",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend-next && npm run lint",
+    "lint:backend": "cd backend-api && npm run lint",
+    "type-check": "npm run type-check:frontend && npm run type-check:backend",
+    "type-check:frontend": "cd frontend-next && npm run type-check",
+    "type-check:backend": "cd backend-api && npm run type-check"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

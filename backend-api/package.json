@@ -1,0 +1,42 @@
+{
+    "name": "backend-api",
+    "version": "1.0.0",
+    "description": "OP3 Backend API with TypeScript and Express",
+    "main": "dist/index.js",
+    "scripts": {
+        "dev": "nodemon src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "lint": "echo \"Linting not configured yet\"",
+        "type-check": "tsc --noEmit",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "bcryptjs": "^3.0.2",
+        "cors": "^2.8.5",
+        "dotenv": "^16.5.0",
+        "express": "^5.1.0",
+        "helmet": "^8.1.0",
+        "jsonwebtoken": "^9.0.2",
+        "mongodb": "^6.17.0",
+        "morgan": "^1.10.0",
+        "mysql2": "^3.14.1",
+        "pg": "^8.16.0",
+        "sqlite3": "^5.1.7"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^3.0.0",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.3",
+        "@types/jsonwebtoken": "^9.0.9",
+        "@types/morgan": "^1.9.10",
+        "@types/node": "^22.15.30",
+        "@types/pg": "^8.15.4",
+        "nodemon": "^3.1.10",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.8.3"
+    }
+}

@@ -1,0 +1,132 @@
+import { Router, Request, Response } from 'express';
+import { DatabaseManager } from '../config/database';
+import { DatabaseConfig, SetupData, SetupResponse } from '../types/database';
+import { asyncHandler, createError } from '../middleware/errorHandler';
+
+const router = Router();
+const dbManager = DatabaseManager.getInstance();
+
+// Test database connection
+router.post('/test-connection', asyncHandler(async (req: Request, res: Response) => {
+  const { database }: { database: DatabaseConfig } = req.body;
+
+  if (!database) {
+    throw createError('Database configuration is required', 400);
+  }
+
+  // Validate required fields based on database type
+  const validationError = validateDatabaseConfig(database);
+  if (validationError) {
+    throw createError(validationError, 400);
+  }
+
+  const result = await dbManager.testConnection(database);
+  
+  res.json({
+    success: result.success,
+    message: result.message,
+    connectionInfo: result.connectionInfo
+  });
+}));
+
+// Save database configuration (Step 1 of setup)
+router.post('/database', asyncHandler(async (req: Request, res: Response) => {
+  const { database }: { database: DatabaseConfig } = req.body;
+
+  if (!database) {
+    throw createError('Database configuration is required', 400);
+  }
+
+  // Validate configuration
+  const validationError = validateDatabaseConfig(database);
+  if (validationError) {
+    throw createError(validationError, 400);
+  }
+
+  // Test connection before saving
+  const connectionResult = await dbManager.testConnection(database);
+  if (!connectionResult.success) {
+    throw createError(`Database connection failed: ${connectionResult.message}`, 400);
+  }
+
+  // Save configuration
+  dbManager.setCurrentConfig(database);
+
+  const response: SetupResponse = {
+    success: true,
+    message: 'Database configuration saved successfully',
+    step: 'database',
+    data: {
+      type: database.type,
+      database: database.database,
+      host: database.host
+    }
+  };
+
+  res.json(response);
+}));
+
+// Get current setup status
+router.get('/status', asyncHandler(async (req: Request, res: Response) => {
+  const currentConfig = dbManager.getCurrentConfig();
+  
+  res.json({
+    success: true,
+    setup: {
+      database: {
+        configured: !!currentConfig,
+        type: currentConfig?.type || null
+      }
+    }
+  });
+}));
+
+// Validate database configuration
+function validateDatabaseConfig(config: DatabaseConfig): string | null {
+  if (!config.type) {
+    return 'Database type is required';
+  }
+
+  if (!['mongodb', 'mysql', 'postgresql', 'localdb'].includes(config.type)) {
+    return 'Invalid database type';
+  }
+
+  if (!config.database) {
+    return 'Database name is required';
+  }
+
+  switch (config.type) {
+    case 'mongodb':
+      if (!config.connectionString) {
+        return 'Connection string is required for MongoDB';
+      }
+      break;
+
+    case 'mysql':
+    case 'postgresql':
+      if (!config.host) {
+        return `Host is required for ${config.type}`;
+      }
+      if (!config.port) {
+        return `Port is required for ${config.type}`;
+      }
+      if (!config.username) {
+        return `Username is required for ${config.type}`;
+      }
+      if (!config.password) {
+        return `Password is required for ${config.type}`;
+      }
+      break;
+
+    case 'localdb':
+      // For SQLite, database field contains the file path
+      if (!config.database.endsWith('.db') && !config.database.endsWith('.sqlite')) {
+        return 'LocalDB database should be a .db or .sqlite file';
+      }
+      break;
+  }
+
+  return null;
+}
+
+export default router;
