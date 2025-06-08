@@ -35,7 +35,7 @@ export function ChatInput({
     const [showPersonalityDropdown, setShowPersonalityDropdown] = useState(false);
     const [searchEnabled, setSearchEnabled] = useState(false);
     const [fileAttachEnabled, setFileAttachEnabled] = useState(false);
-    
+
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -70,14 +70,14 @@ export function ChatInput({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!message.trim() || isLoading || disabled) {
             return;
         }
 
         const content = message.trim();
         setMessage('');
-        
+
         try {
             await onSendMessage(
                 content,
@@ -120,7 +120,7 @@ export function ChatInput({
                         className="min-h-[60px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 pr-12"
                         rows={1}
                     />
-                    
+
                     {/* Send button */}
                     <Button
                         type="submit"
@@ -149,7 +149,7 @@ export function ChatInput({
                             </span>
                             <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        
+
                         {showPersonalityDropdown && (
                             <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-hidden">
                                 <div className="p-2 border-b">
@@ -212,7 +212,7 @@ export function ChatInput({
                                 )}
                             </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent side="top">
                             {aiProviders.map((provider) => (
                                 <SelectItem key={provider.id} value={provider.id || ''}>
                                     <div className="flex flex-col">
