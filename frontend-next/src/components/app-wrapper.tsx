@@ -334,11 +334,15 @@ export function AppWrapper() {
                     {currentView === 'workspace' && (
                         <>
                             {currentWorkspace?.templateType === 'standard-chat' ? (
-                                <StandardChatLayout
-                                    workspaceId={currentWorkspaceId || ''}
-                                    userId={currentUser?.id || ''}
-                                    className="h-full"
-                                />
+                                <div className="h-full flex justify-center">
+                                    <div className="w-full max-w-7xl h-full">
+                                        <StandardChatLayout
+                                            workspaceId={currentWorkspaceId || ''}
+                                            userId={currentUser?.id || ''}
+                                            className="h-full"
+                                        />
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="container mx-auto px-4 py-8">
                                     <div className="text-center space-y-4">
