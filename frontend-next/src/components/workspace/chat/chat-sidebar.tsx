@@ -16,6 +16,8 @@ interface ChatSidebarProps {
     onNewChat?: (session: ChatSession) => void;
     onChatSelect?: (session: ChatSession) => void;
     activeChatId?: string;
+    chatSessions?: ChatSession[];
+    onSessionsUpdate?: (sessions: ChatSession[]) => void;
 }
 
 export function ChatSidebar({
@@ -24,50 +26,16 @@ export function ChatSidebar({
     workspaceId,
     onNewChat,
     onChatSelect,
-    activeChatId
+    activeChatId,
+    chatSessions = [],
+    onSessionsUpdate
 }: ChatSidebarProps) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [chats, setChats] = useState<ChatSession[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const { addToast } = useToast();
 
-
-
-    const loadChatSessions = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const result = await apiClient.getChatSessions(userId, workspaceId);
-            if (result.success) {
-                setChats(result.sessions);
-            } else {
-                addToast({
-                    title: "Error",
-                    description: result.message || "Failed to load chat sessions",
-                    variant: "destructive"
-                });
-            }
-        } catch (error) {
-            console.error('Error loading chat sessions:', error);
-            addToast({
-                title: "Error",
-                description: "Failed to load chat sessions",
-                variant: "destructive"
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    }, [userId, workspaceId, addToast]);
-
-    // Load chat sessions when component mounts or userId changes
-    useEffect(() => {
-        if (userId) {
-            loadChatSessions();
-        }
-    }, [userId, loadChatSessions]);
-
     // Filter chats based on search query
-    const filteredChats = (chats || []).filter(chat =>
+    const filteredChats = (chatSessions || []).filter(chat =>
         chat?.title?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -85,7 +53,8 @@ export function ChatSidebar({
             });
 
             if (result.success && result.session) {
-                setChats(prev => [result.session!, ...prev]);
+                // Update parent's sessions list
+                onSessionsUpdate?.([result.session, ...chatSessions]);
                 onNewChat?.(result.session);
             } else {
                 addToast({
@@ -184,12 +153,7 @@ export function ChatSidebar({
             {/* Chat List - Scrollable */}
             <ScrollArea className="flex-1">
                 <div className="px-4 py-2">
-                    {isLoading ? (
-                        <div className="text-center py-8">
-                            <Loader2 className="h-6 w-6 mx-auto text-muted-foreground mb-2 animate-spin" />
-                            <p className="text-sm text-muted-foreground">Loading chats...</p>
-                        </div>
-                    ) : filteredChats.length === 0 ? (
+                    {filteredChats.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">

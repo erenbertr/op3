@@ -42,7 +42,7 @@ export class WebSocketService {
     }
 
     public setupServer(server: HTTPServer): void {
-        this.wss = new WebSocketServer({ 
+        this.wss = new WebSocketServer({
             server,
             path: '/ws'
         });
@@ -55,7 +55,7 @@ export class WebSocketService {
             };
 
             this.clients.set(clientId, client);
-            console.log(`WebSocket client connected: ${clientId}`);
+            console.log(`WebSocket client connected: ${clientId} from ${request.socket.remoteAddress}`);
 
             // Send connection confirmation
             this.sendToClient(clientId, {
@@ -76,8 +76,8 @@ export class WebSocketService {
                 }
             });
 
-            ws.on('close', () => {
-                console.log(`WebSocket client disconnected: ${clientId}`);
+            ws.on('close', (code, reason) => {
+                console.log(`WebSocket client disconnected: ${clientId}, code: ${code}, reason: ${reason}`);
                 this.clients.delete(clientId);
             });
 
@@ -85,6 +85,10 @@ export class WebSocketService {
                 console.error(`WebSocket error for client ${clientId}:`, error);
                 this.clients.delete(clientId);
             });
+        });
+
+        this.wss.on('error', (error) => {
+            console.error('WebSocket server error:', error);
         });
 
         console.log('WebSocket server setup complete');

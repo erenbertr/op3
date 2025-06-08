@@ -12,22 +12,72 @@ interface StandardChatLayoutProps {
     className?: string;
 }
 
+// Key for storing active session in localStorage
+const ACTIVE_SESSION_KEY = 'op3_active_chat_session';
+
 export function StandardChatLayout({ workspaceId, userId, className }: StandardChatLayoutProps) {
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [personalities, setPersonalities] = useState<Personality[]>([]);
     const [aiProviders, setAIProviders] = useState<AIProviderConfig[]>([]);
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const { addToast } = useToast();
 
+    // Save active session to localStorage
+    const saveActiveSession = useCallback((session: ChatSession | null) => {
+        try {
+            if (session) {
+                localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify({
+                    id: session.id,
+                    userId: session.userId,
+                    workspaceId: session.workspaceId,
+                    title: session.title,
+                    createdAt: session.createdAt,
+                    updatedAt: session.updatedAt
+                }));
+            } else {
+                localStorage.removeItem(ACTIVE_SESSION_KEY);
+            }
+        } catch (error) {
+            console.error('Error saving active session to localStorage:', error);
+        }
+    }, []);
 
+    // Restore active session from localStorage
+    const restoreActiveSession = useCallback(async (sessions: ChatSession[]) => {
+        try {
+            const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
+            if (!savedSessionStr) return;
+
+            const savedSession = JSON.parse(savedSessionStr);
+
+            // Check if the saved session still exists in the current workspace
+            const existingSession = sessions.find(s =>
+                s.id === savedSession.id &&
+                s.workspaceId === workspaceId &&
+                s.userId === userId
+            );
+
+            if (existingSession) {
+                setActiveSession(existingSession);
+            } else {
+                // Session no longer exists, clear localStorage
+                localStorage.removeItem(ACTIVE_SESSION_KEY);
+            }
+        } catch (error) {
+            console.error('Error restoring active session from localStorage:', error);
+            localStorage.removeItem(ACTIVE_SESSION_KEY);
+        }
+    }, [workspaceId, userId]);
 
     const loadInitialData = useCallback(async () => {
         setIsLoadingData(true);
         try {
-            // Load personalities and AI providers in parallel
-            const [personalitiesResult, aiProvidersResult] = await Promise.all([
+            // Load personalities, AI providers, and chat sessions in parallel
+            const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
                 apiClient.getPersonalities(userId),
-                apiClient.getAIProviders()
+                apiClient.getAIProviders(),
+                apiClient.getChatSessions(userId, workspaceId)
             ]);
 
             if (personalitiesResult.success) {
@@ -44,6 +94,15 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                     variant: "destructive"
                 });
             }
+
+            if (chatSessionsResult.success) {
+                const sessions = chatSessionsResult.sessions || [];
+                setChatSessions(sessions);
+                // Try to restore the previously active session
+                await restoreActiveSession(sessions);
+            } else {
+                console.error('Failed to load chat sessions:', chatSessionsResult.message);
+            }
         } catch (error) {
             console.error('Error loading initial data:', error);
             addToast({
@@ -54,7 +113,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         } finally {
             setIsLoadingData(false);
         }
-    }, [userId, addToast]);
+    }, [userId, workspaceId, addToast, restoreActiveSession]);
 
     // Load personalities and AI providers when component mounts
     useEffect(() => {
@@ -63,14 +122,25 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
 
     const handleNewChat = (session: ChatSession) => {
         setActiveSession(session);
+        saveActiveSession(session);
     };
 
     const handleChatSelect = (session: ChatSession) => {
         setActiveSession(session);
+        saveActiveSession(session);
     };
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {
         setActiveSession(updatedSession);
+        saveActiveSession(updatedSession);
+    };
+
+    const handleSessionDelete = (sessionId: string) => {
+        // If the deleted session is the active one, clear it
+        if (activeSession?.id === sessionId) {
+            setActiveSession(null);
+            saveActiveSession(null);
+        }
     };
 
     if (isLoadingData) {
@@ -94,6 +164,8 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                     onNewChat={handleNewChat}
                     onChatSelect={handleChatSelect}
                     activeChatId={activeSession?.id}
+                    chatSessions={chatSessions}
+                    onSessionsUpdate={setChatSessions}
                 />
             </div>
 

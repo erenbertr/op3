@@ -85,7 +85,9 @@ export class ChatService {
      */
     public async getChatMessages(sessionId: string): Promise<ChatMessagesResponse> {
         try {
+            console.log(`[DEBUG] Getting messages for session: ${sessionId}`);
             const messages = await this.getSessionMessages(sessionId);
+            console.log(`[DEBUG] Retrieved ${messages.length} messages:`, messages);
             return {
                 success: true,
                 message: 'Chat messages retrieved successfully',
@@ -703,8 +705,12 @@ export class ChatService {
 
     private async getSessionMessagesMongo(db: any, sessionId: string): Promise<ChatMessage[]> {
         const collection = db.collection('chat_messages');
+        console.log(`[DEBUG] MongoDB: Searching for messages with sessionId: ${sessionId}`);
         const messages = await collection.find({ sessionId }).sort({ createdAt: 1 }).toArray();
-        return messages.map((message: any) => this.mapMongoChatMessage(message));
+        console.log(`[DEBUG] MongoDB: Found ${messages.length} raw messages:`, messages);
+        const mappedMessages = messages.map((message: any) => this.mapMongoChatMessage(message));
+        console.log(`[DEBUG] MongoDB: Mapped messages:`, mappedMessages);
+        return mappedMessages;
     }
 
     private async getChatSessionByIdMongo(db: any, sessionId: string): Promise<ChatSession | null> {

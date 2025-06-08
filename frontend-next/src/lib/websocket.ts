@@ -49,8 +49,14 @@ export class WebSocketService {
     }
 
     public async connect(userId: string): Promise<boolean> {
-        if (this.ws?.readyState === WebSocket.OPEN) {
+        // If already connected to the same user, return true
+        if (this.ws?.readyState === WebSocket.OPEN && this.currentUserId === userId) {
             return true;
+        }
+
+        // If connecting to a different user, disconnect first
+        if (this.ws?.readyState === WebSocket.OPEN && this.currentUserId !== userId) {
+            this.disconnect();
         }
 
         if (this.isConnecting) {
@@ -71,8 +77,14 @@ export class WebSocketService {
                     return;
                 }
 
+                // Set a timeout for the connection attempt
+                const connectionTimeout = setTimeout(() => {
+                    reject(new Error('WebSocket connection timeout'));
+                }, 5000); // 5 second timeout
+
                 this.ws.onopen = () => {
                     console.log('WebSocket connected');
+                    clearTimeout(connectionTimeout);
                     this.isConnecting = false;
                     this.reconnectAttempts = 0;
 
@@ -99,15 +111,18 @@ export class WebSocketService {
 
                 this.ws.onclose = () => {
                     console.log('WebSocket disconnected');
+                    clearTimeout(connectionTimeout);
                     this.isConnecting = false;
                     this.ws = null;
                     this.scheduleReconnect();
+                    reject(new Error('WebSocket connection closed'));
                 };
 
                 this.ws.onerror = (error) => {
                     console.error('WebSocket error:', error);
+                    clearTimeout(connectionTimeout);
                     this.isConnecting = false;
-                    reject(new Error('WebSocket connection failed'));
+                    // Don't reject immediately - let the close handler manage reconnection
                 };
             });
         } catch (error) {
@@ -249,6 +264,10 @@ export class WebSocketService {
 
     public isConnected(): boolean {
         return this.ws?.readyState === WebSocket.OPEN;
+    }
+
+    public isConnectedToUser(userId: string): boolean {
+        return this.ws?.readyState === WebSocket.OPEN && this.currentUserId === userId;
     }
 
     public getConnectionState(): string {

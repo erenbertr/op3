@@ -49,22 +49,35 @@ export function ChatSessionComponent({
     useEffect(() => {
         const connectWebSocket = async () => {
             try {
-                const connected = await websocketService.connect(userId);
-                if (!connected) {
-                    console.warn('WebSocket connection failed, chat functionality may be limited');
-                    addToast({
-                        title: "Connection Warning",
-                        description: "Real-time chat service is unavailable. Some features may not work.",
-                        variant: "destructive"
-                    });
+                // Only connect if not already connected to this user
+                if (!websocketService.isConnectedToUser(userId)) {
+                    const connected = await websocketService.connect(userId);
+                    if (!connected) {
+                        // Wait a bit and check if connection was established through reconnection
+                        setTimeout(() => {
+                            if (!websocketService.isConnectedToUser(userId)) {
+                                console.warn('WebSocket connection failed, chat functionality may be limited');
+                                addToast({
+                                    title: "Connection Warning",
+                                    description: "Real-time chat service is unavailable. Some features may not work.",
+                                    variant: "destructive"
+                                });
+                            }
+                        }, 2000); // Wait 2 seconds before showing warning
+                    }
                 }
             } catch (error) {
                 console.error('Failed to connect to WebSocket:', error);
-                addToast({
-                    title: "Connection Error",
-                    description: "Failed to connect to real-time chat service. Please check your network connection.",
-                    variant: "destructive"
-                });
+                // Wait a bit and check if connection was established through reconnection
+                setTimeout(() => {
+                    if (!websocketService.isConnectedToUser(userId)) {
+                        addToast({
+                            title: "Connection Error",
+                            description: "Failed to connect to real-time chat service. Please check your network connection.",
+                            variant: "destructive"
+                        });
+                    }
+                }, 2000); // Wait 2 seconds before showing error
             }
         };
 
@@ -72,9 +85,10 @@ export function ChatSessionComponent({
             connectWebSocket();
         }
 
-        // Cleanup on unmount
+        // Only disconnect on actual unmount, not on re-renders
         return () => {
-            websocketService.disconnect();
+            // Don't disconnect here as it causes issues with React StrictMode
+            // The WebSocket service will handle reconnection as needed
         };
     }, [userId, addToast]);
 

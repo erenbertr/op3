@@ -50,8 +50,8 @@ export class AIChatService {
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string }> {
         try {
-            // Get AI provider configuration
-            const providers = await this.aiProviderService.getProviders();
+            // Get AI provider configuration with encrypted keys for internal use
+            const providers = this.aiProviderService.getProvidersWithEncryptedKeys();
             let selectedProvider: AIProviderConfig | undefined;
 
             if (request.aiProviderId) {

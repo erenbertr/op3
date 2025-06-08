@@ -80,13 +80,35 @@ export class AIProviderService {
 
     // Decrypt API key for use
     public decryptApiKey(encryptedApiKey: string): string {
-        const parts = encryptedApiKey.split(':');
-        const iv = Buffer.from(parts[0], 'hex');
-        const encryptedText = parts[1];
-        const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(this.encryptionKey.padEnd(32, '0').slice(0, 32)), iv);
-        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        return decrypted;
+        try {
+            const parts = encryptedApiKey.split(':');
+            if (parts.length !== 2) {
+                throw new Error(`Invalid encrypted API key format. Expected 'iv:encryptedText', got ${parts.length} parts`);
+            }
+
+            const ivHex = parts[0];
+            const encryptedText = parts[1];
+
+            if (!ivHex || !encryptedText) {
+                throw new Error('Invalid encrypted API key: missing IV or encrypted text');
+            }
+
+            const iv = Buffer.from(ivHex, 'hex');
+            if (iv.length !== 16) {
+                throw new Error(`Invalid initialization vector length. Expected 16 bytes, got ${iv.length} bytes`);
+            }
+
+            const key = Buffer.from(this.encryptionKey.padEnd(32, '0').slice(0, 32));
+            const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+
+            let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+
+            return decrypted;
+        } catch (error) {
+            console.error('Error decrypting API key:', error);
+            throw new Error(`Failed to decrypt API key: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 
     // Validate API key format based on provider type
@@ -421,6 +443,11 @@ export class AIProviderService {
             ...provider,
             apiKey: '***' // Mask the API key
         }));
+    }
+
+    // Get all configured providers with encrypted API keys (for internal use only)
+    public getProvidersWithEncryptedKeys(): AIProviderConfig[] {
+        return Array.from(this.providers.values());
     }
 
     // Check if any providers are configured
