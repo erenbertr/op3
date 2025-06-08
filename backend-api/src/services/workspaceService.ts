@@ -514,6 +514,31 @@ export class WorkspaceService {
     }
 
     /**
+     * Get workspace details by ID
+     */
+    public async getWorkspace(workspaceId: string, userId: string): Promise<{ success: boolean; workspace?: Workspace; message?: string }> {
+        try {
+            const workspace = await this.getWorkspaceById(workspaceId, userId);
+            if (!workspace) {
+                return {
+                    success: false,
+                    message: 'Workspace not found'
+                };
+            }
+            return {
+                success: true,
+                workspace
+            };
+        } catch (error) {
+            console.error('Error getting workspace:', error);
+            return {
+                success: false,
+                message: `Failed to get workspace: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
      * Set a workspace as active (and deactivate others)
      */
     public async setActiveWorkspace(workspaceId: string, userId: string): Promise<WorkspaceUpdateResponse> {

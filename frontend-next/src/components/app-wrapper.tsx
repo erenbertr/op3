@@ -403,6 +403,8 @@ export function AppWrapper() {
                                         if (workspace) {
                                             setCurrentWorkspaceId(workspace.id);
                                             setCurrentWorkspace(workspace);
+                                            // Add the new workspace to tabs and focus it
+                                            openWorkspaceRef.current?.(workspace.id);
                                         }
                                         handleBackToWorkspace();
                                     }}

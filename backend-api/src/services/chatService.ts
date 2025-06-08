@@ -154,6 +154,31 @@ export class ChatService {
     }
 
     /**
+     * Get a single chat session by ID
+     */
+    public async getChatSession(sessionId: string): Promise<{ success: boolean; session?: ChatSession; message?: string }> {
+        try {
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    message: 'Chat session not found'
+                };
+            }
+            return {
+                success: true,
+                session
+            };
+        } catch (error) {
+            console.error('Error getting chat session:', error);
+            return {
+                success: false,
+                message: `Failed to get chat session: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
      * Update a chat session
      */
     public async updateChatSession(sessionId: string, request: UpdateChatSessionRequest): Promise<UpdateChatSessionResponse> {
@@ -251,7 +276,7 @@ export class ChatService {
         }
     }
 
-    private async saveChatMessageInternal(message: ChatMessage): Promise<void> {
+    public async saveChatMessageInternal(message: ChatMessage): Promise<void> {
         const config = this.dbManager.getCurrentConfig();
         if (!config) {
             throw new Error('No database configuration found');

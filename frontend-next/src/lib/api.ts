@@ -498,6 +498,69 @@ class ApiClient {
             method: 'DELETE',
         });
     }
+
+    // AI Streaming chat method
+    async streamChatMessage(
+        sessionId: string,
+        request: SendMessageRequest & { userId: string },
+        onChunk: (chunk: any) => void,
+        onComplete: (message: ChatMessage) => void,
+        onError: (error: string) => void
+    ): Promise<void> {
+        try {
+            const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}/ai-stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(request),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('No response body reader available');
+            }
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+
+                            if (data.type === 'chunk') {
+                                onChunk(data);
+                            } else if (data.type === 'complete') {
+                                onComplete(data.message);
+                            } else if (data.type === 'error') {
+                                onError(data.message);
+                                return;
+                            }
+                        } catch (error) {
+                            console.error('Error parsing SSE data:', error);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in streaming chat:', error);
+            onError(error instanceof Error ? error.message : 'Unknown error');
+        }
+    }
 }
 
 export const apiClient = new ApiClient();

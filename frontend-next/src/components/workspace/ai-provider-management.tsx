@@ -221,7 +221,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                 description: result.message,
                 variant: result.success ? "success" : "destructive"
             });
-        } catch (error) {
+        } catch (err) {
             setTestStatus(prev => ({ ...prev, [provider.id!]: 'error' }));
             addToast({
                 title: "Test Failed",

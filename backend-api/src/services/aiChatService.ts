@@ -3,6 +3,7 @@ import { ChatMessage } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
+import { WorkspaceService } from './workspaceService';
 
 export interface StreamingChatRequest {
     content: string;
@@ -36,11 +37,13 @@ export class AIChatService {
     private aiProviderService: AIProviderService;
     private personalityService: PersonalityService;
     private chatService: ChatService;
+    private workspaceService: WorkspaceService;
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
         this.personalityService = new PersonalityService();
         this.chatService = ChatService.getInstance();
+        this.workspaceService = WorkspaceService.getInstance();
     }
 
     public static getInstance(): AIChatService {
@@ -80,17 +83,8 @@ export class AIChatService {
                 };
             }
 
-            // Get personality prompt if specified
-            let systemPrompt = '';
-            if (request.personalityId) {
-                const personalitiesResult = await this.personalityService.getPersonalities(request.userId);
-                if (personalitiesResult.success) {
-                    const personality = personalitiesResult.personalities.find(p => p.id === request.personalityId);
-                    if (personality) {
-                        systemPrompt = personality.prompt;
-                    }
-                }
-            }
+            // Build system prompt from workspace rules and personality
+            const systemPrompt = await this.buildSystemPrompt(request.sessionId, request.personalityId, request.userId);
 
             // Get conversation history
             const conversationHistory = await this.buildConversationHistory(request.sessionId, systemPrompt);
@@ -115,6 +109,41 @@ export class AIChatService {
                 message: `Failed to generate response: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
         }
+    }
+
+    /**
+     * Build system prompt from workspace rules and personality
+     */
+    private async buildSystemPrompt(sessionId: string, personalityId?: string, userId?: string): Promise<string> {
+        const systemParts: string[] = [];
+
+        try {
+            // Get chat session to find workspace ID
+            const chatSession = await this.chatService.getChatSession(sessionId);
+            if (chatSession.success && chatSession.session) {
+                // Get workspace rules
+                const workspaceResult = await this.workspaceService.getWorkspace(chatSession.session.workspaceId, chatSession.session.userId);
+                if (workspaceResult.success && workspaceResult.workspace && workspaceResult.workspace.workspaceRules && workspaceResult.workspace.workspaceRules.trim()) {
+                    systemParts.push(`Workspace Context: ${workspaceResult.workspace.workspaceRules.trim()}`);
+                }
+            }
+
+            // Get personality prompt if specified
+            if (personalityId && userId) {
+                const personalitiesResult = await this.personalityService.getPersonalities(userId);
+                if (personalitiesResult.success) {
+                    const personality = personalitiesResult.personalities.find(p => p.id === personalityId);
+                    if (personality && personality.prompt && personality.prompt.trim()) {
+                        systemParts.push(`Personality: ${personality.prompt.trim()}`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error building system prompt:', error);
+            // Continue without system prompt if there's an error
+        }
+
+        return systemParts.join('\n\n');
     }
 
     /**

@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/chatService';
+import { AIChatService } from '../services/aiChatService';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
 import {
@@ -10,6 +12,7 @@ import {
 
 const router = Router();
 const chatService = ChatService.getInstance();
+const aiChatService = AIChatService.getInstance();
 
 // Create a new chat session
 router.post('/sessions', asyncHandler(async (req: Request, res: Response) => {
@@ -108,6 +111,111 @@ router.delete('/sessions/:sessionId', asyncHandler(async (req: Request, res: Res
 
     const result = await chatService.deleteChatSession(sessionId);
     res.json(result);
+}));
+
+// AI Chat streaming endpoint
+router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const { content, personalityId, aiProviderId, userId }: SendMessageRequest & { userId: string } = req.body;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    if (!content || content.trim() === '') {
+        throw createError('Message content is required', 400);
+    }
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    // Set up Server-Sent Events
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    try {
+        // First save the user message
+        const userMessageResult = await chatService.sendMessage(sessionId, {
+            content: content.trim(),
+            personalityId,
+            aiProviderId
+        });
+
+        if (!userMessageResult.success) {
+            res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to save user message' })}\n\n`);
+            res.end();
+            return;
+        }
+
+        // Send user message confirmation
+        res.write(`data: ${JSON.stringify({
+            type: 'user_message',
+            message: userMessageResult.userMessage
+        })}\n\n`);
+
+        let fullAiResponse = '';
+
+        // Generate AI response with streaming
+        const streamResult = await aiChatService.generateStreamingResponse({
+            sessionId,
+            content: content.trim(),
+            personalityId,
+            aiProviderId,
+            userId
+        }, (chunk) => {
+            if (chunk.type === 'chunk' && chunk.content) {
+                fullAiResponse += chunk.content;
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            } else if (chunk.type === 'error') {
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            }
+        });
+
+        if (streamResult.success && fullAiResponse.trim()) {
+            // Save the complete AI response to database
+            const aiMessage = {
+                id: uuidv4(),
+                sessionId,
+                content: fullAiResponse.trim(),
+                role: 'assistant' as const,
+                personalityId,
+                aiProviderId,
+                createdAt: new Date()
+            };
+
+            // Save AI message to database
+            try {
+                await chatService.saveChatMessageInternal(aiMessage);
+            } catch (error) {
+                console.error('Error saving AI message:', error);
+            }
+
+            res.write(`data: ${JSON.stringify({
+                type: 'complete',
+                message: aiMessage
+            })}\n\n`);
+        } else {
+            res.write(`data: ${JSON.stringify({
+                type: 'error',
+                message: 'Failed to generate AI response'
+            })}\n\n`);
+        }
+
+    } catch (error) {
+        console.error('Error in AI streaming:', error);
+        res.write(`data: ${JSON.stringify({
+            type: 'error',
+            message: 'Internal server error'
+        })}\n\n`);
+    }
+
+    res.end();
 }));
 
 export default router;

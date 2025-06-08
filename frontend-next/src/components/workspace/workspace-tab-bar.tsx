@@ -67,23 +67,6 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
             if (result.success) {
                 setWorkspaces(result.workspaces);
-
-                // Initialize open tabs from localStorage or with all workspaces if not already set
-                if (openWorkspaceTabs.length === 0 && result.workspaces.length > 0) {
-                    const savedTabs = loadOpenTabs();
-                    const validSavedTabs = savedTabs.filter((tabId: string) =>
-                        result.workspaces.some(w => w.id === tabId)
-                    );
-
-                    if (validSavedTabs.length > 0) {
-                        setOpenWorkspaceTabs(validSavedTabs);
-                    } else {
-                        // If no valid saved tabs, open all workspaces
-                        const allWorkspaceIds = result.workspaces.map(w => w.id);
-                        setOpenWorkspaceTabs(allWorkspaceIds);
-                        saveOpenTabs(allWorkspaceIds);
-                    }
-                }
             } else {
                 setError('Failed to load workspaces');
             }
@@ -93,12 +76,38 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         } finally {
             setIsLoading(false);
         }
-    }, [userId, openWorkspaceTabs.length, loadOpenTabs, saveOpenTabs]);
+    }, [userId]);
+
+    // Initialize open tabs separately to avoid dependency issues
+    const initializeOpenTabs = useCallback((workspaces: Workspace[]) => {
+        if (openWorkspaceTabs.length === 0 && workspaces.length > 0) {
+            const savedTabs = loadOpenTabs();
+            const validSavedTabs = savedTabs.filter((tabId: string) =>
+                workspaces.some(w => w.id === tabId)
+            );
+
+            if (validSavedTabs.length > 0) {
+                setOpenWorkspaceTabs(validSavedTabs);
+            } else {
+                // If no valid saved tabs, open all workspaces
+                const allWorkspaceIds = workspaces.map(w => w.id);
+                setOpenWorkspaceTabs(allWorkspaceIds);
+                saveOpenTabs(allWorkspaceIds);
+            }
+        }
+    }, [openWorkspaceTabs.length, loadOpenTabs, saveOpenTabs]);
 
     // Load workspaces on component mount
     useEffect(() => {
         loadWorkspaces();
     }, [loadWorkspaces]);
+
+    // Initialize open tabs when workspaces are loaded
+    useEffect(() => {
+        if (workspaces.length > 0) {
+            initializeOpenTabs(workspaces);
+        }
+    }, [workspaces, initializeOpenTabs]);
 
     // Reload workspaces when currentWorkspaceId changes and it's not in the current list
     useEffect(() => {
