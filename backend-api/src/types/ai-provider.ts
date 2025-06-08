@@ -76,9 +76,9 @@ export const DEFAULT_ENDPOINTS: Record<AIProviderType, string | null> = {
 
 // Validation patterns for API keys (basic format validation)
 export const API_KEY_PATTERNS: Record<AIProviderType, RegExp | null> = {
-    openai: /^sk-[a-zA-Z0-9]{48,}$/, // OpenAI keys start with 'sk-'
+    openai: /^sk-[a-zA-Z0-9-_]{20,}$/, // OpenAI keys start with 'sk-' and have at least 20 chars after (including hyphens for proj keys)
     anthropic: /^sk-ant-[a-zA-Z0-9-_]{95,}$/, // Anthropic keys start with 'sk-ant-'
-    google: /^[a-zA-Z0-9_-]{39}$/, // Google API keys are typically 39 characters
+    google: /^[a-zA-Z0-9_-]{20,}$/, // Google API keys are variable length, at least 20 chars
     replicate: /^r8_[a-zA-Z0-9]{40}$/, // Replicate keys start with 'r8_'
     custom: null // Custom providers can have any format
 };

@@ -52,6 +52,24 @@ export class AIProviderService {
         return pattern.test(apiKey);
     }
 
+    // Get expected API key format description for better error messages
+    public getApiKeyFormatDescription(type: AIProviderType): string {
+        switch (type) {
+            case 'openai':
+                return 'OpenAI API keys should start with "sk-" followed by at least 20 characters (supports both regular and project-based keys)';
+            case 'anthropic':
+                return 'Anthropic API keys should start with "sk-ant-" followed by at least 95 characters';
+            case 'google':
+                return 'Google API keys should be at least 20 characters long';
+            case 'replicate':
+                return 'Replicate API keys should start with "r8_" followed by exactly 40 characters';
+            case 'custom':
+                return 'Custom provider API keys can have any format';
+            default:
+                return 'Invalid provider type';
+        }
+    }
+
     // Test connection to AI provider
     public async testConnection(request: AIProviderTestRequest): Promise<AIProviderTestResult> {
         const startTime = Date.now();
@@ -61,7 +79,7 @@ export class AIProviderService {
             if (!this.validateApiKeyFormat(request.type, request.apiKey)) {
                 return {
                     success: false,
-                    message: `Invalid API key format for ${request.type}`,
+                    message: `Invalid API key format for ${request.type}. ${this.getApiKeyFormatDescription(request.type)}`,
                     error: 'INVALID_API_KEY_FORMAT'
                 };
             }

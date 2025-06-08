@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useI18n } from '@/lib/i18n';
 import { AIProviderConfig, AIProviderType, apiClient } from '@/lib/api';
 import { Brain, Plus, Trash2, Eye, EyeOff, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/toast';
 
 // Create schema function that takes translation function
 const createAIProviderSchema = (t: (key: string) => string) => z.object({
@@ -58,7 +58,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
     const form = useForm<AIProviderFormData>({
         resolver: zodResolver(aiProviderSchema),
         defaultValues: {
-            providers: defaultValues && defaultValues.length > 0 
+            providers: defaultValues && defaultValues.length > 0
                 ? defaultValues.map(provider => ({
                     type: provider.type,
                     name: provider.name,
@@ -97,7 +97,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
         const newTestStatus = { ...testStatus };
         delete newTestStatus[index];
         setTestStatus(newTestStatus);
-        
+
         const newShowApiKeys = { ...showApiKeys };
         delete newShowApiKeys[index];
         setShowApiKeys(newShowApiKeys);
@@ -112,7 +112,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
 
     const testConnection = async (index: number) => {
         const provider = form.getValues(`providers.${index}`);
-        
+
         setTestStatus(prev => ({
             ...prev,
             [index]: { status: 'testing' }
@@ -368,7 +368,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                                         {testStatus[index]?.status === 'testing' ? (
                                             <Loader2 className="h-4 w-4 animate-spin" />
                                         ) : null}
-                                        {testStatus[index]?.status === 'testing' 
+                                        {testStatus[index]?.status === 'testing'
                                             ? t('setup.aiProvider.testing')
                                             : t('setup.aiProvider.testConnection')
                                         }
@@ -377,11 +377,10 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
 
                                 {/* Test Status Message */}
                                 {testStatus[index]?.message && (
-                                    <div className={`mt-2 text-sm ${
-                                        testStatus[index]?.status === 'success' 
-                                            ? 'text-green-600' 
+                                    <div className={`mt-2 text-sm ${testStatus[index]?.status === 'success'
+                                            ? 'text-green-600'
                                             : 'text-red-600'
-                                    }`}>
+                                        }`}>
                                         {testStatus[index]?.message}
                                     </div>
                                 )}
@@ -406,8 +405,8 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                                     Back
                                 </Button>
                             )}
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 disabled={isSaving}
                                 className="ml-auto flex items-center gap-2"
                             >
