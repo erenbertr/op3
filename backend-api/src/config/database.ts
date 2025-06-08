@@ -30,6 +30,7 @@ export class DatabaseManager {
     private static instance: DatabaseManager;
     private currentConfig: DatabaseConfig | null = null;
     private configFilePath: string;
+    private setupStatusFilePath: string;
 
     private constructor() {
         // Create data directory if it doesn't exist
@@ -40,7 +41,9 @@ export class DatabaseManager {
             console.log('DatabaseManager: Created data directory');
         }
         this.configFilePath = path.join(dataDir, 'config.json');
+        this.setupStatusFilePath = path.join(dataDir, 'setup-status.json');
         console.log('DatabaseManager: Config file path:', this.configFilePath);
+        console.log('DatabaseManager: Setup status file path:', this.setupStatusFilePath);
         this.loadConfig();
     }
 
@@ -250,6 +253,46 @@ export class DatabaseManager {
 
     public getCurrentConfig(): DatabaseConfig | null {
         return this.currentConfig;
+    }
+
+    public async markSetupComplete(): Promise<{ success: boolean; message: string }> {
+        try {
+            const setupStatus = {
+                completed: true,
+                completedAt: new Date().toISOString(),
+                version: '1.0.0'
+            };
+
+            fs.writeFileSync(this.setupStatusFilePath, JSON.stringify(setupStatus, null, 2));
+            console.log('Setup marked as complete');
+
+            return {
+                success: true,
+                message: 'Setup completion status saved successfully'
+            };
+        } catch (error) {
+            console.error('Error marking setup as complete:', error);
+            return {
+                success: false,
+                message: `Failed to mark setup as complete: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    public async isSetupComplete(): Promise<boolean> {
+        try {
+            if (!fs.existsSync(this.setupStatusFilePath)) {
+                return false;
+            }
+
+            const statusData = fs.readFileSync(this.setupStatusFilePath, 'utf8');
+            const setupStatus = JSON.parse(statusData);
+
+            return setupStatus.completed === true;
+        } catch (error) {
+            console.error('Error checking setup completion status:', error);
+            return false;
+        }
     }
 
     /**

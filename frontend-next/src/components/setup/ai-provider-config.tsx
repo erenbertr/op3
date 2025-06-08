@@ -29,7 +29,7 @@ const createAIProviderSchema = (t: (key: string) => string) => z.object({
         model: z.string()
             .min(1, t('validation.aiProvider.model.required')),
         endpoint: z.string().url(t('validation.aiProvider.endpoint.invalid')).optional().or(z.literal('')),
-        isActive: z.boolean().default(true)
+        isActive: z.boolean()
     })).min(1, t('setup.aiProvider.requireAtLeastOne'))
 });
 
@@ -67,7 +67,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                     apiKey: provider.apiKey,
                     model: provider.model,
                     endpoint: provider.endpoint || '',
-                    isActive: provider.isActive
+                    isActive: provider.isActive ?? true
                 }))
                 : [{
                     type: 'openai' as AIProviderType,

@@ -358,11 +358,83 @@ const translations: Translations = {
         de: 'Administrator-Konto erfolgreich erstellt!'
     },
     'setup.complete.final.message': {
-        en: 'You can now start using your application. Additional configuration steps will be available in future updates.',
-        tr: 'Artık uygulamanızı kullanmaya başlayabilirsiniz. Gelecek güncellemelerde ek yapılandırma adımları mevcut olacaktır.',
-        es: 'Ahora puede comenzar a usar su aplicación. Pasos de configuración adicionales estarán disponibles en futuras actualizaciones.',
-        fr: 'Vous pouvez maintenant commencer à utiliser votre application. Des étapes de configuration supplémentaires seront disponibles dans les futures mises à jour.',
-        de: 'Sie können jetzt mit der Nutzung Ihrer Anwendung beginnen. Zusätzliche Konfigurationsschritte werden in zukünftigen Updates verfügbar sein.'
+        en: 'Your OP3 application is now fully configured and ready to use!',
+        tr: 'OP3 uygulamanız artık tamamen yapılandırıldı ve kullanıma hazır!',
+        es: '¡Su aplicación OP3 ahora está completamente configurada y lista para usar!',
+        fr: 'Votre application OP3 est maintenant entièrement configurée et prête à être utilisée!',
+        de: 'Ihre OP3-Anwendung ist jetzt vollständig konfiguriert und einsatzbereit!'
+    },
+    'setup.complete.login.button': {
+        en: 'Login Now',
+        tr: 'Şimdi Giriş Yap',
+        es: 'Iniciar Sesión Ahora',
+        fr: 'Se Connecter Maintenant',
+        de: 'Jetzt Anmelden'
+    },
+    'setup.complete.login.description': {
+        en: 'Click the button below to access your application and start using OP3.',
+        tr: 'Uygulamanıza erişmek ve OP3\'ü kullanmaya başlamak için aşağıdaki düğmeye tıklayın.',
+        es: 'Haga clic en el botón de abajo para acceder a su aplicación y comenzar a usar OP3.',
+        fr: 'Cliquez sur le bouton ci-dessous pour accéder à votre application et commencer à utiliser OP3.',
+        de: 'Klicken Sie auf die Schaltfläche unten, um auf Ihre Anwendung zuzugreifen und OP3 zu verwenden.'
+    },
+
+    // Login form
+    'login.title': {
+        en: 'Welcome to OP3',
+        tr: 'OP3\'e Hoş Geldiniz',
+        es: 'Bienvenido a OP3',
+        fr: 'Bienvenue sur OP3',
+        de: 'Willkommen bei OP3'
+    },
+    'login.description': {
+        en: 'Sign in to your account to continue',
+        tr: 'Devam etmek için hesabınıza giriş yapın',
+        es: 'Inicie sesión en su cuenta para continuar',
+        fr: 'Connectez-vous à votre compte pour continuer',
+        de: 'Melden Sie sich bei Ihrem Konto an, um fortzufahren'
+    },
+    'login.email.label': {
+        en: 'Email',
+        tr: 'E-posta',
+        es: 'Correo electrónico',
+        fr: 'E-mail',
+        de: 'E-Mail'
+    },
+    'login.email.placeholder': {
+        en: 'Enter your email address',
+        tr: 'E-posta adresinizi girin',
+        es: 'Ingrese su dirección de correo electrónico',
+        fr: 'Entrez votre adresse e-mail',
+        de: 'Geben Sie Ihre E-Mail-Adresse ein'
+    },
+    'login.password.label': {
+        en: 'Password',
+        tr: 'Şifre',
+        es: 'Contraseña',
+        fr: 'Mot de passe',
+        de: 'Passwort'
+    },
+    'login.password.placeholder': {
+        en: 'Enter your password',
+        tr: 'Şifrenizi girin',
+        es: 'Ingrese su contraseña',
+        fr: 'Entrez votre mot de passe',
+        de: 'Geben Sie Ihr Passwort ein'
+    },
+    'login.button.submit': {
+        en: 'Sign In',
+        tr: 'Giriş Yap',
+        es: 'Iniciar Sesión',
+        fr: 'Se Connecter',
+        de: 'Anmelden'
+    },
+    'login.button.loading': {
+        en: 'Signing in...',
+        tr: 'Giriş yapılıyor...',
+        es: 'Iniciando sesión...',
+        fr: 'Connexion en cours...',
+        de: 'Anmeldung läuft...'
     },
     'badge.complete': {
         en: 'Complete',

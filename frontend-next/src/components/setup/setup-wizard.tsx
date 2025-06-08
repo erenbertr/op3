@@ -2,13 +2,14 @@
 
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatabaseConfigForm } from './database-config';
 import { AdminConfigForm } from './admin-config';
 import { AIProviderConfigForm } from './ai-provider-config';
 import { useI18n } from '@/lib/i18n';
 import { DatabaseConfig, AdminConfig, AIProviderConfig, apiClient } from '@/lib/api';
-import { CheckCircle, Database, Shield, Brain } from 'lucide-react';
+import { CheckCircle, Database, Shield, Brain, ArrowRight } from 'lucide-react';
 
 interface SetupStep {
     id: string;
@@ -92,6 +93,25 @@ export function SetupWizard() {
         }
     };
 
+    const handleCompleteSetup = async () => {
+        try {
+            console.log('Completing setup...');
+            const response = await apiClient.completeSetup();
+
+            if (response.success) {
+                console.log('Setup completed successfully, redirecting to main app...');
+                // Redirect to main application
+                window.location.href = '/';
+            } else {
+                console.error('Failed to complete setup:', response.message);
+                alert('Failed to complete setup. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error completing setup:', error);
+            alert('An error occurred while completing setup. Please try again.');
+        }
+    };
+
     const renderCurrentStep = () => {
         switch (currentStep) {
             case 0:
@@ -162,10 +182,21 @@ export function SetupWizard() {
                                     </div>
                                 )}
 
-                                <div className="text-center">
+                                <div className="text-center space-y-4">
                                     <p className="text-muted-foreground">
                                         {t('setup.complete.final.message')}
                                     </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {t('setup.complete.login.description')}
+                                    </p>
+                                    <Button
+                                        onClick={handleCompleteSetup}
+                                        size="lg"
+                                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3"
+                                    >
+                                        {t('setup.complete.login.button')}
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
                         </CardContent>

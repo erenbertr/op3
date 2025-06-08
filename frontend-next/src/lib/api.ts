@@ -62,6 +62,26 @@ export interface ApiResponse<T = unknown> {
     error?: string;
 }
 
+export interface SetupStatusResponse {
+    success: boolean;
+    message?: string;
+    setup: {
+        database: {
+            configured: boolean;
+            type: string | null;
+        };
+        admin: {
+            configured: boolean;
+        };
+        aiProviders: {
+            configured: boolean;
+            count: number;
+        };
+        completed: boolean;
+        allStepsCompleted: boolean;
+    };
+}
+
 export interface ConnectionTestResponse {
     success: boolean;
     message: string;
@@ -134,8 +154,15 @@ class ApiClient {
     }
 
     // Get setup status
-    async getSetupStatus(): Promise<ApiResponse> {
-        return this.request<ApiResponse>('/setup/status');
+    async getSetupStatus(): Promise<SetupStatusResponse> {
+        return this.request<SetupStatusResponse>('/setup/status');
+    }
+
+    // Mark setup as complete
+    async completeSetup(): Promise<ApiResponse> {
+        return this.request<ApiResponse>('/setup/complete', {
+            method: 'POST',
+        });
     }
 
     // Health check

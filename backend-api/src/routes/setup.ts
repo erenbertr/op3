@@ -157,6 +157,47 @@ router.post('/ai-providers', asyncHandler(async (req: Request, res: Response) =>
     res.json(response);
 }));
 
+// Mark setup as complete
+router.post('/complete', asyncHandler(async (req: Request, res: Response) => {
+    const currentConfig = dbManager.getCurrentConfig();
+
+    // Verify all setup steps are completed
+    if (!currentConfig) {
+        throw createError('Database configuration is required', 400);
+    }
+
+    let adminExists = false;
+    try {
+        adminExists = await userService.adminExists();
+    } catch (error) {
+        console.error('Error checking admin existence:', error);
+        adminExists = false;
+    }
+
+    if (!adminExists) {
+        throw createError('Admin user must be created', 400);
+    }
+
+    const aiProvidersConfigured = aiProviderService.hasProviders();
+    if (!aiProvidersConfigured) {
+        throw createError('At least one AI provider must be configured', 400);
+    }
+
+    // Mark setup as complete
+    const result = await dbManager.markSetupComplete();
+    if (!result.success) {
+        throw createError(result.message, 500);
+    }
+
+    res.json({
+        success: true,
+        message: 'Setup completed successfully',
+        data: {
+            completedAt: new Date().toISOString()
+        }
+    });
+}));
+
 // Get current setup status
 router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     const currentConfig = dbManager.getCurrentConfig();
@@ -175,6 +216,12 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     // Check if AI providers are configured
     const aiProvidersConfigured = aiProviderService.hasProviders();
 
+    // Check if setup is marked as complete
+    const setupComplete = await dbManager.isSetupComplete();
+
+    // Determine if all steps are completed
+    const allStepsCompleted = !!currentConfig && adminExists && aiProvidersConfigured;
+
     res.json({
         success: true,
         setup: {
@@ -188,7 +235,9 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
             aiProviders: {
                 configured: aiProvidersConfigured,
                 count: aiProviderService.getProviders().length
-            }
+            },
+            completed: setupComplete,
+            allStepsCompleted: allStepsCompleted
         }
     });
 }));
