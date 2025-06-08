@@ -8,43 +8,51 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
 import { apiClient, SetupStatusResponse } from '@/lib/api';
-import { Loader2 } from 'lucide-react';
+import { authService, AuthUser } from '@/lib/auth';
+import { Loader2, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type SetupStatus = SetupStatusResponse['setup'];
-
-// Mock user interface for demonstration
-interface MockUser {
-    id: string;
-    email: string;
-    hasCompletedWorkspaceSetup: boolean;
-}
 
 export function AppWrapper() {
     const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(true);
     const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
+    const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
 
     useEffect(() => {
-        checkSetupStatus();
+        initializeApp();
     }, []);
 
-    const checkSetupStatus = async () => {
+    const initializeApp = async () => {
         try {
             setIsLoading(true);
             setError(null);
 
+            // Check setup status first
             const response = await apiClient.getSetupStatus();
 
             if (response.success && response.setup) {
                 setSetupStatus(response.setup);
+
+                // If setup is completed, check for existing authentication
+                if (response.setup.completed) {
+                    const user = authService.getCurrentUser();
+                    if (user) {
+                        setCurrentUser(user);
+                        // Check if user needs workspace setup
+                        if (!user.hasCompletedWorkspaceSetup) {
+                            setShowWorkspaceSetup(true);
+                        }
+                    }
+                }
             } else {
                 setError('Failed to check setup status');
             }
         } catch (error) {
-            console.error('Error checking setup status:', error);
+            console.error('Error initializing app:', error);
             setError(error instanceof Error ? error.message : 'Unknown error occurred');
         } finally {
             setIsLoading(false);
@@ -52,22 +60,32 @@ export function AppWrapper() {
     };
 
     const handleLogin = async (credentials: { email: string; password: string }) => {
-        // Mock login logic for demonstration
-        console.log('Login attempt:', credentials);
+        try {
+            setIsLoading(true);
+            const result = await authService.login(credentials);
 
-        // Create a mock user (in real implementation, this would come from the backend)
-        const mockUser: MockUser = {
-            id: 'user-123',
-            email: credentials.email,
-            hasCompletedWorkspaceSetup: false // This would be checked from the backend
-        };
+            if (result.success && result.user) {
+                setCurrentUser(result.user);
 
-        setCurrentUser(mockUser);
-
-        // Check if user needs workspace setup
-        if (!mockUser.hasCompletedWorkspaceSetup) {
-            setShowWorkspaceSetup(true);
+                // Check if user needs workspace setup
+                if (!result.user.hasCompletedWorkspaceSetup) {
+                    setShowWorkspaceSetup(true);
+                }
+            } else {
+                setError(result.message || 'Login failed');
+            }
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'Login failed');
+        } finally {
+            setIsLoading(false);
         }
+    };
+
+    const handleLogout = () => {
+        authService.logout();
+        setCurrentUser(null);
+        setShowWorkspaceSetup(false);
+        setError(null);
     };
 
     const handleWorkspaceSetupComplete = (workspace: { id: string; templateType: string; workspaceRules: string; createdAt: string } | undefined) => {
@@ -76,10 +94,12 @@ export function AppWrapper() {
 
         // Update user state to reflect completed workspace setup
         if (currentUser) {
-            setCurrentUser({
+            const updatedUser = {
                 ...currentUser,
                 hasCompletedWorkspaceSetup: true
-            });
+            };
+            setCurrentUser(updatedUser);
+            authService.updateUser({ hasCompletedWorkspaceSetup: true });
         }
     };
 
@@ -101,7 +121,7 @@ export function AppWrapper() {
                     <h1 className="text-2xl font-bold text-destructive">Error</h1>
                     <p className="text-muted-foreground">{error}</p>
                     <button
-                        onClick={checkSetupStatus}
+                        onClick={initializeApp}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                     >
                         Retry
@@ -152,6 +172,15 @@ export function AppWrapper() {
                             <span className="text-sm text-muted-foreground">
                                 Welcome, {currentUser.email}
                             </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleLogout}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                Logout
+                            </Button>
                             <LanguageSelector />
                             <ThemeToggle />
                         </div>
@@ -183,6 +212,15 @@ export function AppWrapper() {
                             <span className="text-sm text-muted-foreground">
                                 Welcome, {currentUser.email}
                             </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleLogout}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                Logout
+                            </Button>
                             <LanguageSelector />
                             <ThemeToggle />
                         </div>
@@ -227,7 +265,7 @@ export function AppWrapper() {
                             Setup completed successfully! Please sign in to continue.
                         </p>
                     </div>
-                    <LoginForm onLogin={handleLogin} />
+                    <LoginForm onLogin={handleLogin} isLoading={isLoading} />
                 </div>
             </main>
         </div>

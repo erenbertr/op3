@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { apiClient, WorkspaceTemplate } from '@/lib/api';
-import { MessageSquare, Kanban, Network, CheckCircle } from 'lucide-react';
+import { MessageSquare, Kanban, Network } from 'lucide-react';
 
 interface WorkspaceSetupProps {
     onComplete?: (workspace: { id: string; templateType: string; workspaceRules: string; createdAt: string } | undefined) => void;
@@ -115,14 +115,6 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
                                         <CardDescription className="text-center text-sm leading-relaxed">
                                             {template.description}
                                         </CardDescription>
-                                        {selectedTemplate === template.id && (
-                                            <div className="flex justify-center mt-4">
-                                                <div className="flex items-center gap-2 text-primary text-sm font-medium">
-                                                    <CheckCircle className="h-4 w-4" />
-                                                    Selected
-                                                </div>
-                                            </div>
-                                        )}
                                     </CardContent>
                                 </Card>
                             ))}

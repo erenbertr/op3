@@ -8,15 +8,17 @@ import { useI18n } from '@/lib/i18n';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface LoginFormProps {
-    onLogin?: (credentials: { email: string; password: string }) => void;
+    onLogin?: (credentials: { email: string; password: string }) => Promise<void>;
+    isLoading?: boolean;
 }
 
-export function LoginForm({ onLogin }: LoginFormProps) {
+export function LoginForm({ onLogin, isLoading: externalLoading }: LoginFormProps) {
     const { t } = useI18n();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const loading = externalLoading || isLoading;
     const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -57,7 +59,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder={t('login.email.placeholder')}
                         required
-                        disabled={isLoading}
+                        disabled={loading}
                     />
                 </div>
 
@@ -71,7 +73,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder={t('login.password.placeholder')}
                             required
-                            disabled={isLoading}
+                            disabled={loading}
                             className="pr-10"
                         />
                         <Button
@@ -80,7 +82,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                             size="sm"
                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                             onClick={() => setShowPassword(!showPassword)}
-                            disabled={isLoading}
+                            disabled={loading}
                         >
                             {showPassword ? (
                                 <EyeOff className="h-4 w-4" />
@@ -94,9 +96,9 @@ export function LoginForm({ onLogin }: LoginFormProps) {
                 <Button
                     type="submit"
                     className="w-full"
-                    disabled={isLoading || !email || !password}
+                    disabled={loading || !email || !password}
                 >
-                    {isLoading ? t('login.button.loading') : t('login.button.submit')}
+                    {loading ? t('login.button.loading') : t('login.button.submit')}
                 </Button>
             </form>
         </div>
