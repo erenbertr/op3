@@ -115,9 +115,9 @@ export function ChatSidebar({
 
             {/* Chat List - Scrollable */}
             <ScrollArea className="flex-1">
-                <div className="container mx-auto px-4">
+                <div>
                     {filteredChats.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
+                        <div className="text-center py-8 text-muted-foreground px-4">
                             <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">
                                 {searchQuery ? 'No chats found' : 'No chats yet'}
@@ -134,7 +134,7 @@ export function ChatSidebar({
                                 <div
                                     key={chat.id}
                                     className={cn(
-                                        "cursor-pointer transition-colors duration-200 py-3 px-2 hover:bg-muted/50",
+                                        "cursor-pointer transition-colors duration-200 py-3 px-4 hover:bg-muted/50",
                                         activeChatId === chat.id
                                             ? "bg-primary/10 text-primary"
                                             : "text-foreground"
