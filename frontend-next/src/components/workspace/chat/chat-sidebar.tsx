@@ -37,7 +37,7 @@ export function ChatSidebar({
     const loadChatSessions = useCallback(async () => {
         setIsLoading(true);
         try {
-            const result = await apiClient.getChatSessions(userId);
+            const result = await apiClient.getChatSessions(userId, workspaceId);
             if (result.success) {
                 setChats(result.sessions);
             } else {
@@ -57,7 +57,7 @@ export function ChatSidebar({
         } finally {
             setIsLoading(false);
         }
-    }, [userId, addToast]);
+    }, [userId, workspaceId, addToast]);
 
     // Load chat sessions when component mounts or userId changes
     useEffect(() => {

@@ -32,15 +32,19 @@ router.post('/sessions', asyncHandler(async (req: Request, res: Response) => {
     res.json(result);
 }));
 
-// Get all chat sessions for a user
-router.get('/sessions/:userId', asyncHandler(async (req: Request, res: Response) => {
-    const { userId } = req.params;
+// Get all chat sessions for a user in a specific workspace
+router.get('/sessions/:userId/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
+    const { userId, workspaceId } = req.params;
 
     if (!userId) {
         throw createError('User ID is required', 400);
     }
 
-    const result = await chatService.getChatSessions(userId);
+    if (!workspaceId) {
+        throw createError('Workspace ID is required', 400);
+    }
+
+    const result = await chatService.getChatSessions(userId, workspaceId);
     res.json(result);
 }));
 

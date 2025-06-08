@@ -3,9 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Search, Paperclip, Send, Loader2, ChevronDown } from 'lucide-react';
+import { Search, Paperclip, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality, AIProviderConfig } from '@/lib/api';
 
@@ -32,6 +31,7 @@ export function ChatInput({
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
     const [selectedProvider, setSelectedProvider] = useState<string>('');
     const [personalitySearch, setPersonalitySearch] = useState('');
+    const [providerSearch, setProviderSearch] = useState('');
     const [showPersonalityDropdown, setShowPersonalityDropdown] = useState(false);
     const [showProviderDropdown, setShowProviderDropdown] = useState(false);
     const [searchEnabled, setSearchEnabled] = useState(false);
@@ -107,6 +107,11 @@ export function ChatInput({
         p.title.toLowerCase().includes(personalitySearch.toLowerCase())
     );
 
+    const filteredProviders = aiProviders.filter(p =>
+        (p.name || p.type).toLowerCase().includes(providerSearch.toLowerCase()) ||
+        p.model.toLowerCase().includes(providerSearch.toLowerCase())
+    );
+
     const selectedPersonalityObj = personalities.find(p => p.id === selectedPersonality);
     const selectedProviderObj = aiProviders.find(p => p.id === selectedProvider);
 
@@ -145,18 +150,18 @@ export function ChatInput({
                 <div className="flex items-center gap-3 text-sm">
                     {/* Personality selection */}
                     <div className="relative flex-1" ref={personalityDropdownRef}>
-                        <div
-                            className="flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer hover:bg-accent"
+                        <button
+                            type="button"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={() => setShowPersonalityDropdown(!showPersonalityDropdown)}
                         >
                             <span className="text-muted-foreground">
                                 {selectedPersonalityObj ? selectedPersonalityObj.title : "No personality selected"}
                             </span>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        </div>
+                        </button>
 
                         {showPersonalityDropdown && (
-                            <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-hidden">
+                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-hidden">
                                 <div className="p-2 border-b">
                                     <Input
                                         placeholder="Search personalities..."
@@ -171,6 +176,7 @@ export function ChatInput({
                                         onClick={() => {
                                             setSelectedPersonality('');
                                             setShowPersonalityDropdown(false);
+                                            setPersonalitySearch('');
                                         }}
                                     >
                                         <div className="font-medium">No personality</div>
@@ -183,6 +189,7 @@ export function ChatInput({
                                             onClick={() => {
                                                 setSelectedPersonality(personality.id);
                                                 setShowPersonalityDropdown(false);
+                                                setPersonalitySearch('');
                                             }}
                                         >
                                             <div className="font-medium">{personality.title}</div>
@@ -201,7 +208,7 @@ export function ChatInput({
                         )}
                     </div>
 
-                    {/* AI Provider selection - Custom dropdown */}
+                    {/* AI Provider selection */}
                     <div className="relative w-48" ref={providerDropdownRef}>
                         <button
                             type="button"
@@ -209,35 +216,48 @@ export function ChatInput({
                             onClick={() => setShowProviderDropdown(!showProviderDropdown)}
                         >
                             {selectedProviderObj ? (
-                                <span className="flex items-center gap-2">
+                                <span className="flex items-center gap-2 text-muted-foreground">
                                     <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs">
                                         {selectedProviderObj.model}
                                     </span>
                                 </span>
                             ) : (
-                                "Select AI provider"
+                                <span className="text-muted-foreground">Select AI provider</span>
                             )}
-                            <ChevronDown className="h-4 w-4 opacity-50" />
                         </button>
 
                         {showProviderDropdown && (
-                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                                {aiProviders.map((provider) => (
-                                    <div
-                                        key={provider.id}
-                                        className="px-3 py-2 hover:bg-accent cursor-pointer"
-                                        onClick={() => {
-                                            setSelectedProvider(provider.id || '');
-                                            setShowProviderDropdown(false);
-                                        }}
-                                    >
-                                        <div className="flex flex-col">
-                                            <span>{provider.name || provider.type}</span>
-                                            <span className="text-xs text-muted-foreground">{provider.model}</span>
+                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-hidden">
+                                <div className="p-2 border-b">
+                                    <Input
+                                        placeholder="Search providers..."
+                                        value={providerSearch}
+                                        onChange={(e) => setProviderSearch(e.target.value)}
+                                        className="h-8"
+                                    />
+                                </div>
+                                <div className="max-h-40 overflow-y-auto">
+                                    {filteredProviders.map((provider) => (
+                                        <div
+                                            key={provider.id}
+                                            className="px-3 py-2 hover:bg-accent cursor-pointer"
+                                            onClick={() => {
+                                                setSelectedProvider(provider.id || '');
+                                                setShowProviderDropdown(false);
+                                                setProviderSearch('');
+                                            }}
+                                        >
+                                            <div className="font-medium">{provider.name || provider.type}</div>
+                                            <div className="text-xs text-muted-foreground">{provider.model}</div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                    {filteredProviders.length === 0 && providerSearch && (
+                                        <div className="px-3 py-2 text-muted-foreground text-center">
+                                            No providers found
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

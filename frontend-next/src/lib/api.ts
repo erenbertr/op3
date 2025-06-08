@@ -441,8 +441,8 @@ class ApiClient {
         });
     }
 
-    async getChatSessions(userId: string): Promise<ChatSessionsListResponse> {
-        return this.request<ChatSessionsListResponse>(`/chat/sessions/${userId}`);
+    async getChatSessions(userId: string, workspaceId: string): Promise<ChatSessionsListResponse> {
+        return this.request<ChatSessionsListResponse>(`/chat/sessions/${userId}/${workspaceId}`);
     }
 
     async getChatMessages(sessionId: string): Promise<ChatMessagesResponse> {

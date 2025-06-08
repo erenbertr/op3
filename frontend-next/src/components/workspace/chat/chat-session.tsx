@@ -6,6 +6,7 @@ import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
+import { websocketService, StreamingChatRequest, AIStreamChunk } from '@/lib/websocket';
 
 interface ChatSessionProps {
     session: ChatSession;
@@ -13,6 +14,7 @@ interface ChatSessionProps {
     aiProviders: AIProviderConfig[];
     onSessionUpdate?: (session: ChatSession) => void;
     className?: string;
+    userId: string;
 }
 
 export function ChatSessionComponent({
@@ -20,11 +22,14 @@ export function ChatSessionComponent({
     personalities,
     aiProviders,
     onSessionUpdate,
-    className
+    className,
+    userId
 }: ChatSessionProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+    const [streamingMessage, setStreamingMessage] = useState<string>('');
+    const [isStreaming, setIsStreaming] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -38,7 +43,30 @@ export function ChatSessionComponent({
                 scrollContainer.scrollTop = scrollContainer.scrollHeight;
             }
         }
-    }, [messages]);
+    }, [messages, streamingMessage]);
+
+    // Connect to WebSocket when component mounts
+    useEffect(() => {
+        const connectWebSocket = async () => {
+            try {
+                await websocketService.connect(userId);
+            } catch (error) {
+                console.error('Failed to connect to WebSocket:', error);
+                addToast({
+                    title: "Connection Error",
+                    description: "Failed to connect to real-time chat service",
+                    variant: "destructive"
+                });
+            }
+        };
+
+        connectWebSocket();
+
+        // Cleanup on unmount
+        return () => {
+            websocketService.disconnect();
+        };
+    }, [userId, addToast]);
 
     const loadMessages = useCallback(async () => {
         setIsLoadingMessages(true);
@@ -71,53 +99,74 @@ export function ChatSessionComponent({
     }, [session.id, loadMessages]);
 
     const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string) => {
+        if (!websocketService.isConnected()) {
+            addToast({
+                title: "Connection Error",
+                description: "Not connected to chat service. Please refresh the page.",
+                variant: "destructive"
+            });
+            return;
+        }
+
         setIsLoading(true);
+        setIsStreaming(true);
+        setStreamingMessage('');
+
         try {
-            const result = await apiClient.sendMessage(session.id, {
+            const request: StreamingChatRequest = {
                 content,
                 personalityId,
-                aiProviderId
-            });
+                aiProviderId,
+                sessionId: session.id,
+                userId
+            };
 
-            if (result.success) {
-                // Add both user message and AI response to the messages list
-                const newMessages: ChatMessage[] = [];
-                if (result.userMessage) {
-                    newMessages.push(result.userMessage);
-                }
-                if (result.aiResponse) {
-                    newMessages.push(result.aiResponse);
-                }
-
-                setMessages(prev => [...prev, ...newMessages]);
-
-                // Update session title if this is the first message and title is "New Chat"
-                if (messages.length === 0 && session.title === 'New Chat') {
-                    const newTitle = content.length > 50 ? content.substring(0, 50) + '...' : content;
-                    try {
-                        const updateResult = await apiClient.updateChatSession(session.id, { title: newTitle });
-                        if (updateResult.success && updateResult.session && onSessionUpdate) {
-                            onSessionUpdate(updateResult.session);
-                        }
-                    } catch (error) {
-                        console.error('Error updating session title:', error);
+            websocketService.sendChatMessage(request, {
+                onChunk: (chunk: AIStreamChunk) => {
+                    if (chunk.type === 'chunk' && chunk.content) {
+                        setStreamingMessage(prev => prev + chunk.content);
                     }
+                },
+                onComplete: (data) => {
+                    // Add both messages to the list
+                    setMessages(prev => [...prev, data.userMessage, data.aiMessage]);
+                    setStreamingMessage('');
+                    setIsStreaming(false);
+                    setIsLoading(false);
+
+                    // Update session title if this is the first message and title is "New Chat"
+                    if (messages.length === 0 && session.title === 'New Chat') {
+                        const newTitle = content.length > 50 ? content.substring(0, 50) + '...' : content;
+                        apiClient.updateChatSession(session.id, { title: newTitle }).then(updateResult => {
+                            if (updateResult.success && updateResult.session && onSessionUpdate) {
+                                onSessionUpdate(updateResult.session);
+                            }
+                        }).catch(error => {
+                            console.error('Error updating session title:', error);
+                        });
+                    }
+                },
+                onError: (error) => {
+                    console.error('Streaming error:', error);
+                    addToast({
+                        title: "Error",
+                        description: error || "Failed to send message",
+                        variant: "destructive"
+                    });
+                    setStreamingMessage('');
+                    setIsStreaming(false);
+                    setIsLoading(false);
                 }
-            } else {
-                addToast({
-                    title: "Error",
-                    description: result.message || "Failed to send message",
-                    variant: "destructive"
-                });
-            }
+            });
         } catch (error) {
             console.error('Error sending message:', error);
             addToast({
                 title: "Error",
-                description: "Failed to send message",
+                description: "Failed to send message. Please try again.",
                 variant: "destructive"
             });
-        } finally {
+            setStreamingMessage('');
+            setIsStreaming(false);
             setIsLoading(false);
         }
     };
@@ -137,12 +186,16 @@ export function ChatSessionComponent({
         <div className={`flex flex-col h-full ${className || ''}`}>
             {/* Messages area */}
             <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                <ChatMessageList
-                    messages={messages}
-                    personalities={personalities}
-                    aiProviders={aiProviders}
-                    className={messages.length === 0 ? "h-full" : "py-4"}
-                />
+                <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
+                    <ChatMessageList
+                        messages={messages}
+                        personalities={personalities}
+                        aiProviders={aiProviders}
+                        streamingMessage={streamingMessage}
+                        isStreaming={isStreaming}
+                        className={messages.length === 0 ? "" : "py-4"}
+                    />
+                </div>
             </ScrollArea>
 
             {/* Input area */}
@@ -165,7 +218,7 @@ interface EmptyChatStateProps {
 
 export function EmptyChatState({ className }: EmptyChatStateProps) {
     return (
-        <div className={`h-full flex items-center justify-center ${className || ''}`}>
+        <div className={`pt-16 flex justify-center ${className || ''}`}>
             <div className="text-center space-y-6 max-w-md">
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
                     <svg

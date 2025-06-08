@@ -79,7 +79,7 @@ export class AIProviderService {
     }
 
     // Decrypt API key for use
-    private decryptApiKey(encryptedApiKey: string): string {
+    public decryptApiKey(encryptedApiKey: string): string {
         const parts = encryptedApiKey.split(':');
         const iv = Buffer.from(parts[0], 'hex');
         const encryptedText = parts[1];

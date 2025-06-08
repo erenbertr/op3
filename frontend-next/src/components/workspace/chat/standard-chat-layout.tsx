@@ -105,6 +105,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                         personalities={personalities}
                         aiProviders={aiProviders}
                         onSessionUpdate={handleSessionUpdate}
+                        userId={userId}
                     />
                 ) : (
                     <EmptyChatState />

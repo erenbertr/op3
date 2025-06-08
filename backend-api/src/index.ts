@@ -3,8 +3,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
 import { setupRoutes } from './routes';
 import { errorHandler } from './middleware/errorHandler';
+import { setupWebSocketServer } from './services/websocketService';
 
 // Load environment variables
 dotenv.config();
@@ -45,11 +47,18 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use(errorHandler);
 
+// Create HTTP server
+const server = createServer(app);
+
+// Setup WebSocket server
+setupWebSocketServer(server);
+
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`🚀 OP3 Backend API running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔗 API endpoints: http://localhost:${PORT}/api/v1`);
+    console.log(`🔌 WebSocket server: ws://localhost:${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

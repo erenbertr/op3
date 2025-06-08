@@ -60,11 +60,11 @@ export class ChatService {
     }
 
     /**
-     * Get all chat sessions for a user
+     * Get all chat sessions for a user in a specific workspace
      */
-    public async getChatSessions(userId: string): Promise<ChatSessionsListResponse> {
+    public async getChatSessions(userId: string, workspaceId?: string): Promise<ChatSessionsListResponse> {
         try {
-            const sessions = await this.getUserChatSessions(userId);
+            const sessions = await this.getUserChatSessions(userId, workspaceId);
             return {
                 success: true,
                 message: 'Chat sessions retrieved successfully',
@@ -117,7 +117,7 @@ export class ChatService {
                 createdAt: new Date()
             };
 
-            await this.saveChatMessage(userMessage);
+            await this.saveChatMessageInternal(userMessage);
 
             // TODO: Integrate with AI providers to generate response
             // For now, create a simple echo response
@@ -131,7 +131,7 @@ export class ChatService {
                 createdAt: new Date()
             };
 
-            await this.saveChatMessage(aiResponse);
+            await this.saveChatMessageInternal(aiResponse);
 
             // Update session timestamp
             await this.updateSessionTimestamp(sessionId);
@@ -236,7 +236,20 @@ export class ChatService {
         }
     }
 
-    private async saveChatMessage(message: ChatMessage): Promise<void> {
+    public async saveChatMessage(message: ChatMessage): Promise<{ success: boolean; message: string }> {
+        try {
+            await this.saveChatMessageInternal(message);
+            return { success: true, message: 'Message saved successfully' };
+        } catch (error) {
+            console.error('Error saving chat message:', error);
+            return {
+                success: false,
+                message: `Failed to save message: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    private async saveChatMessageInternal(message: ChatMessage): Promise<void> {
         const config = this.dbManager.getCurrentConfig();
         if (!config) {
             throw new Error('No database configuration found');
@@ -263,7 +276,7 @@ export class ChatService {
         }
     }
 
-    private async getUserChatSessions(userId: string): Promise<ChatSession[]> {
+    private async getUserChatSessions(userId: string, workspaceId?: string): Promise<ChatSession[]> {
         const config = this.dbManager.getCurrentConfig();
         if (!config) {
             throw new Error('No database configuration found');
@@ -273,14 +286,14 @@ export class ChatService {
 
         switch (config.type) {
             case 'localdb':
-                return this.getUserChatSessionsSQLite(connection, userId);
+                return this.getUserChatSessionsSQLite(connection, userId, workspaceId);
             case 'mongodb':
-                return this.getUserChatSessionsMongo(connection, userId);
+                return this.getUserChatSessionsMongo(connection, userId, workspaceId);
             case 'mysql':
             case 'postgresql':
-                return this.getUserChatSessionsSQL(connection, userId);
+                return this.getUserChatSessionsSQL(connection, userId, workspaceId);
             case 'supabase':
-                return this.getUserChatSessionsSupabase(connection, userId);
+                return this.getUserChatSessionsSupabase(connection, userId, workspaceId);
             default:
                 throw new Error(`Database type ${config.type} not supported for chat operations yet`);
         }
@@ -521,24 +534,30 @@ export class ChatService {
         });
     }
 
-    private async getUserChatSessionsSQLite(db: any, userId: string): Promise<ChatSession[]> {
+    private async getUserChatSessionsSQLite(db: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
         return new Promise((resolve, reject) => {
-            db.all(
-                'SELECT * FROM chat_sessions WHERE userId = ? ORDER BY updatedAt DESC',
-                [userId],
-                (err: any, rows: any[]) => {
-                    if (err) {
-                        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
-                            resolve([]);
-                        } else {
-                            reject(err);
-                        }
+            let query = 'SELECT * FROM chat_sessions WHERE userId = ?';
+            let params = [userId];
+
+            if (workspaceId) {
+                query += ' AND workspaceId = ?';
+                params.push(workspaceId);
+            }
+
+            query += ' ORDER BY updatedAt DESC';
+
+            db.all(query, params, (err: any, rows: any[]) => {
+                if (err) {
+                    if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                        resolve([]);
                     } else {
-                        const sessions = rows.map(row => this.mapSQLChatSession(row));
-                        resolve(sessions);
+                        reject(err);
                     }
+                } else {
+                    const sessions = rows.map(row => this.mapSQLChatSession(row));
+                    resolve(sessions);
                 }
-            );
+            });
         });
     }
 
@@ -670,9 +689,15 @@ export class ChatService {
         });
     }
 
-    private async getUserChatSessionsMongo(db: any, userId: string): Promise<ChatSession[]> {
+    private async getUserChatSessionsMongo(db: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
         const collection = db.collection('chat_sessions');
-        const sessions = await collection.find({ userId }).sort({ updatedAt: -1 }).toArray();
+        const filter: any = { userId };
+
+        if (workspaceId) {
+            filter.workspaceId = workspaceId;
+        }
+
+        const sessions = await collection.find(filter).sort({ updatedAt: -1 }).toArray();
         return sessions.map((session: any) => this.mapMongoChatSession(session));
     }
 
@@ -761,11 +786,18 @@ export class ChatService {
         `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt]);
     }
 
-    private async getUserChatSessionsSQL(connection: any, userId: string): Promise<ChatSession[]> {
-        const [rows] = await connection.execute(
-            'SELECT * FROM chat_sessions WHERE userId = ? ORDER BY updatedAt DESC',
-            [userId]
-        );
+    private async getUserChatSessionsSQL(connection: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
+        let query = 'SELECT * FROM chat_sessions WHERE userId = ?';
+        let params = [userId];
+
+        if (workspaceId) {
+            query += ' AND workspaceId = ?';
+            params.push(workspaceId);
+        }
+
+        query += ' ORDER BY updatedAt DESC';
+
+        const [rows] = await connection.execute(query, params);
         return rows.map((row: any) => this.mapSQLChatSession(row));
     }
 
@@ -841,12 +873,17 @@ export class ChatService {
         if (error) throw error;
     }
 
-    private async getUserChatSessionsSupabase(supabase: any, userId: string): Promise<ChatSession[]> {
-        const { data, error } = await supabase
+    private async getUserChatSessionsSupabase(supabase: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
+        let query = supabase
             .from('chat_sessions')
             .select('*')
-            .eq('userId', userId)
-            .order('updatedAt', { ascending: false });
+            .eq('userId', userId);
+
+        if (workspaceId) {
+            query = query.eq('workspaceId', workspaceId);
+        }
+
+        const { data, error } = await query.order('updatedAt', { ascending: false });
 
         if (error) throw error;
         return data ? data.map((session: any) => this.mapSupabaseChatSession(session)) : [];
