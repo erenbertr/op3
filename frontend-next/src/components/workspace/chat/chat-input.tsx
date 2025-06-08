@@ -33,11 +33,13 @@ export function ChatInput({
     const [selectedProvider, setSelectedProvider] = useState<string>('');
     const [personalitySearch, setPersonalitySearch] = useState('');
     const [showPersonalityDropdown, setShowPersonalityDropdown] = useState(false);
+    const [showProviderDropdown, setShowProviderDropdown] = useState(false);
     const [searchEnabled, setSearchEnabled] = useState(false);
     const [fileAttachEnabled, setFileAttachEnabled] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
+    const providerDropdownRef = useRef<HTMLDivElement>(null);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -56,11 +58,14 @@ export function ChatInput({
         }
     }, [aiProviders, selectedProvider]);
 
-    // Close personality dropdown when clicking outside
+    // Close dropdowns when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (personalityDropdownRef.current && !personalityDropdownRef.current.contains(event.target as Node)) {
                 setShowPersonalityDropdown(false);
+            }
+            if (providerDropdownRef.current && !providerDropdownRef.current.contains(event.target as Node)) {
+                setShowProviderDropdown(false);
             }
         };
 
@@ -196,33 +201,46 @@ export function ChatInput({
                         )}
                     </div>
 
-                    {/* AI Provider selection */}
-                    <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                        <SelectTrigger className="w-48">
-                            <SelectValue placeholder="Select AI provider">
-                                {selectedProviderObj ? (
-                                    <span className="flex items-center gap-2">
-                                        <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {selectedProviderObj.model}
-                                        </span>
+                    {/* AI Provider selection - Custom dropdown */}
+                    <div className="relative w-48" ref={providerDropdownRef}>
+                        <button
+                            type="button"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => setShowProviderDropdown(!showProviderDropdown)}
+                        >
+                            {selectedProviderObj ? (
+                                <span className="flex items-center gap-2">
+                                    <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {selectedProviderObj.model}
                                     </span>
-                                ) : (
-                                    "Select AI provider"
-                                )}
-                            </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent side="top">
-                            {aiProviders.map((provider) => (
-                                <SelectItem key={provider.id} value={provider.id || ''}>
-                                    <div className="flex flex-col">
-                                        <span>{provider.name || provider.type}</span>
-                                        <span className="text-xs text-muted-foreground">{provider.model}</span>
+                                </span>
+                            ) : (
+                                "Select AI provider"
+                            )}
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                        </button>
+
+                        {showProviderDropdown && (
+                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                                {aiProviders.map((provider) => (
+                                    <div
+                                        key={provider.id}
+                                        className="px-3 py-2 hover:bg-accent cursor-pointer"
+                                        onClick={() => {
+                                            setSelectedProvider(provider.id || '');
+                                            setShowProviderDropdown(false);
+                                        }}
+                                    >
+                                        <div className="flex flex-col">
+                                            <span>{provider.name || provider.type}</span>
+                                            <span className="text-xs text-muted-foreground">{provider.model}</span>
+                                        </div>
                                     </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     {/* Toggle buttons */}
                     <Button
