@@ -58,13 +58,13 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     // Reload workspaces when currentWorkspaceId changes and it's not in the current list
     useEffect(() => {
-        if (currentWorkspaceId && workspaces.length > 0) {
+        if (currentWorkspaceId) {
             const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
-            if (!workspaceExists) {
+            if (!workspaceExists && workspaces.length > 0) {
                 loadWorkspaces();
             }
         }
-    }, [currentWorkspaceId, workspaces, loadWorkspaces]);
+    }, [currentWorkspaceId, loadWorkspaces]);
 
     // Expose refresh function to parent
     useEffect(() => {
@@ -74,8 +74,8 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, [onRefresh, loadWorkspaces]);
 
     const handleTabClick = async (workspaceId: string) => {
-        if (workspaceId === currentWorkspaceId) return;
-
+        // Always allow the click to go through - let the parent decide if action is needed
+        // This fixes the issue where clicking on a newly created workspace doesn't work
         try {
             const result = await apiClient.setActiveWorkspace(workspaceId, userId);
 

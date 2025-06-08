@@ -160,6 +160,8 @@ export function AppWrapper() {
     };
 
     const handleWorkspaceChange = async (workspaceId: string) => {
+        // Always update the workspace, even if it's the same ID
+        // This ensures the view switches to 'workspace' and UI updates properly
         setCurrentWorkspaceId(workspaceId);
         setCurrentView('workspace');
         await loadWorkspaceDetails(workspaceId);
