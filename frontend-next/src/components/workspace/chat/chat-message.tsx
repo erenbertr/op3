@@ -56,7 +56,7 @@ export function ChatMessage({ message, personality, aiProvider, className }: Cha
                     <span className="font-medium">
                         {isUser ? "You" : "Assistant"}
                     </span>
-                    
+
                     {/* Personality badge for assistant messages */}
                     {isAssistant && personality && (
                         <Badge variant="secondary" className="text-xs">
@@ -64,14 +64,14 @@ export function ChatMessage({ message, personality, aiProvider, className }: Cha
                             {personality.title}
                         </Badge>
                     )}
-                    
+
                     {/* AI Provider badge for assistant messages */}
                     {isAssistant && aiProvider && (
                         <Badge variant="outline" className="text-xs">
                             {aiProvider.name || aiProvider.type}
                         </Badge>
                     )}
-                    
+
                     <span>{formatTime(message.createdAt)}</span>
                 </div>
 
@@ -98,11 +98,11 @@ interface ChatMessageListProps {
     className?: string;
 }
 
-export function ChatMessageList({ 
-    messages, 
-    personalities, 
-    aiProviders, 
-    className 
+export function ChatMessageList({
+    messages,
+    personalities,
+    aiProviders,
+    className
 }: ChatMessageListProps) {
     const getPersonality = (personalityId?: string) => {
         return personalityId ? personalities.find(p => p.id === personalityId) : undefined;
@@ -114,16 +114,44 @@ export function ChatMessageList({
 
     if (messages.length === 0) {
         return (
-            <div className={cn("flex-1 flex items-center justify-center", className)}>
-                <div className="text-center space-y-3">
-                    <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                        <Bot className="h-6 w-6 text-muted-foreground" />
+            <div className={cn("h-full flex items-center justify-center", className)}>
+                <div className="text-center space-y-6 max-w-md">
+                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
+                        <svg
+                            className="w-8 h-8 text-primary"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                            />
+                        </svg>
                     </div>
-                    <div className="space-y-1">
-                        <h3 className="font-medium">Start a conversation</h3>
-                        <p className="text-sm text-muted-foreground">
+
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-semibold">Start a conversation</h3>
+                        <p className="text-muted-foreground">
                             Send a message to begin chatting with the AI assistant.
                         </p>
+                    </div>
+
+                    <div className="space-y-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            <span>Choose from different AI personalities</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            <span>Select your preferred AI provider</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            <span>Enable search and file attachments</span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -141,7 +141,7 @@ export function ChatSessionComponent({
                     messages={messages}
                     personalities={personalities}
                     aiProviders={aiProviders}
-                    className="py-4"
+                    className={messages.length === 0 ? "h-full" : "py-4"}
                 />
             </ScrollArea>
 
