@@ -68,7 +68,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             setConnectionStatus('idle');
             setConnectionMessage('');
         }
-    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password, connectionStatus]);
+    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password, watchedValues.url, watchedValues.apiKey, watchedValues.projectId, watchedValues.authToken, connectionStatus]);
 
     const testConnection = async () => {
         const formData = form.getValues();
@@ -144,7 +144,19 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             }
             config.url = formData.url;
             config.authToken = formData.authToken;
-        } else {
+        } else if (formData.type === 'planetscale') {
+            // PlanetScale validation
+            if (!formData.host || !formData.username || !formData.password) {
+                if (!formData.host) form.setError('host', { message: t('validation.host.required') });
+                if (!formData.username) form.setError('username', { message: t('validation.username.required') });
+                if (!formData.password) form.setError('password', { message: t('validation.password.required') });
+                return;
+            }
+            config.host = formData.host;
+            config.username = formData.username;
+            config.password = formData.password;
+            config.ssl = true; // Always true for PlanetScale
+        } else if (formData.type === 'mysql' || formData.type === 'postgresql') {
             // MySQL and PostgreSQL
             if (!formData.host || !formData.port || !formData.username || !formData.password) {
                 if (!formData.host) form.setError('host', { message: t('validation.host.required') });

@@ -217,22 +217,35 @@ export class DatabaseManager {
         try {
             const supabase = createClient(config.url, config.apiKey);
 
-            // Test connection by trying to get the current user or making a simple query
-            const { data, error } = await supabase.auth.getUser();
-
-            if (error && error.message !== 'Invalid JWT') {
-                // If it's not a JWT error, it might be a connection issue
-                throw new Error(error.message);
-            }
-
-            // Try a simple database query to test the connection
-            const { error: queryError } = await supabase
+            // Test connection by making a simple query to the REST API
+            // We'll try to access the health endpoint or make a simple query
+            const { data, error } = await supabase
                 .from('_supabase_migrations')
                 .select('version')
                 .limit(1);
 
-            // Even if the table doesn't exist, we should get a proper error response
-            // which indicates the connection is working
+            // Check if we get a proper response (even if it's an error about table not existing)
+            // This indicates the connection and API key are working
+            if (error) {
+                // If it's a table not found error, that's actually good - it means we connected
+                if (error.message.includes('relation') && error.message.includes('does not exist')) {
+                    return {
+                        success: true,
+                        message: 'Supabase connection successful',
+                        connectionInfo: {
+                            type: 'supabase',
+                            database: config.database,
+                            connected: true
+                        }
+                    };
+                }
+                // If it's an auth error, the API key is wrong
+                if (error.message.includes('JWT') || error.message.includes('Invalid API key')) {
+                    throw new Error('Invalid API key');
+                }
+                // Other errors might indicate connection issues
+                throw new Error(error.message);
+            }
 
             return {
                 success: true,
@@ -260,11 +273,33 @@ export class DatabaseManager {
                 throw new Error('Invalid auth token format');
             }
 
-            // For now, we'll just validate the format since Convex connection testing
-            // requires proper setup and might not work in all environments
+            // Test the connection by making a simple HTTP request to the Convex API
+            const response = await fetch(`${config.url}/api/query`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.authToken}`,
+                },
+                body: JSON.stringify({
+                    path: '_system/listFunctions',
+                    args: {},
+                }),
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Invalid auth token');
+                } else if (response.status === 404) {
+                    throw new Error('Invalid Convex URL or deployment not found');
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            }
+
+            // If we get here, the connection is working
             return {
                 success: true,
-                message: 'Convex configuration validated (full connection test requires proper deployment)',
+                message: 'Convex connection successful',
                 connectionInfo: {
                     type: 'convex',
                     database: config.database,
