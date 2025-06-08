@@ -32,6 +32,18 @@ router.post('/sessions', asyncHandler(async (req: Request, res: Response) => {
     res.json(result);
 }));
 
+// Get messages for a specific chat session (MUST come before the more general route)
+router.get('/sessions/:sessionId/messages', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.getChatMessages(sessionId);
+    res.json(result);
+}));
+
 // Get all chat sessions for a user in a specific workspace
 router.get('/sessions/:userId/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
     const { userId, workspaceId } = req.params;
@@ -45,18 +57,6 @@ router.get('/sessions/:userId/:workspaceId', asyncHandler(async (req: Request, r
     }
 
     const result = await chatService.getChatSessions(userId, workspaceId);
-    res.json(result);
-}));
-
-// Get messages for a specific chat session
-router.get('/sessions/:sessionId/messages', asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-
-    if (!sessionId) {
-        throw createError('Session ID is required', 400);
-    }
-
-    const result = await chatService.getChatMessages(sessionId);
     res.json(result);
 }));
 
