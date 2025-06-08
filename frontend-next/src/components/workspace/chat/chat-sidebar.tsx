@@ -137,7 +137,7 @@ export function ChatSidebar({
                                         "cursor-pointer transition-colors duration-200 py-3 px-4 hover:bg-muted/50",
                                         activeChatId === chat.id
                                             ? "bg-primary/10 text-primary"
-                                            : "text-foreground"
+                                            : "text-muted-foreground hover:text-foreground"
                                     )}
                                     onClick={() => handleChatClick(chat.id)}
                                 >
