@@ -5,6 +5,7 @@ import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
+import { WorkspaceManagementPanel } from '@/components/workspace/workspace-management-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -23,6 +24,7 @@ export function AppWrapper() {
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
+    const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create'>('workspace');
 
     useEffect(() => {
         initializeApp();
@@ -112,6 +114,19 @@ export function AppWrapper() {
 
     const handleWorkspaceChange = (workspaceId: string) => {
         setCurrentWorkspaceId(workspaceId);
+        setCurrentView('workspace');
+    };
+
+    const handleShowSettings = () => {
+        setCurrentView('settings');
+    };
+
+    const handleShowCreateWorkspace = () => {
+        setCurrentView('create');
+    };
+
+    const handleBackToWorkspace = () => {
+        setCurrentView('workspace');
     };
 
     if (isLoading) {
@@ -242,21 +257,77 @@ export function AppWrapper() {
                 <WorkspaceTabBar
                     userId={currentUser.id}
                     onWorkspaceChange={handleWorkspaceChange}
+                    onShowSettings={handleShowSettings}
+                    onShowCreateWorkspace={handleShowCreateWorkspace}
                 />
 
-                {/* Main workspace content */}
-                <main className="container mx-auto px-4 py-8">
-                    <div className="text-center space-y-4">
-                        <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
-                        <p className="text-muted-foreground">
-                            Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.
-                        </p>
-                        {currentWorkspaceId && (
-                            <p className="text-sm text-muted-foreground">
-                                Current workspace ID: {currentWorkspaceId}
-                            </p>
-                        )}
-                    </div>
+                {/* Main content based on current view */}
+                <main>
+                    {currentView === 'workspace' && (
+                        <div className="container mx-auto px-4 py-8">
+                            <div className="text-center space-y-4">
+                                <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
+                                <p className="text-muted-foreground">
+                                    Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.
+                                </p>
+                                {currentWorkspaceId && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Current workspace ID: {currentWorkspaceId}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {currentView === 'settings' && (
+                        <div className="container mx-auto px-4 py-8">
+                            <div className="max-w-4xl mx-auto">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleBackToWorkspace}
+                                        className="flex items-center gap-2"
+                                    >
+                                        ← Back to Workspace
+                                    </Button>
+                                    <h1 className="text-2xl font-bold">Workspace Settings</h1>
+                                </div>
+                                <WorkspaceManagementPanel
+                                    userId={currentUser.id}
+                                    workspaces={[]} // Will be loaded by the component
+                                    onClose={handleBackToWorkspace}
+                                    onWorkspaceUpdated={() => { }}
+                                    onWorkspaceDeleted={() => { }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {currentView === 'create' && (
+                        <div className="container mx-auto px-4 py-8">
+                            <div className="max-w-4xl mx-auto">
+                                <div className="flex items-center gap-4 mb-6">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleBackToWorkspace}
+                                        className="flex items-center gap-2"
+                                    >
+                                        ← Back to Workspace
+                                    </Button>
+                                    <h1 className="text-2xl font-bold">Create New Workspace</h1>
+                                </div>
+                                <WorkspaceSetup
+                                    userId={currentUser.id}
+                                    onComplete={(workspace) => {
+                                        if (workspace) {
+                                            setCurrentWorkspaceId(workspace.id);
+                                        }
+                                        handleBackToWorkspace();
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </main>
             </div>
         );

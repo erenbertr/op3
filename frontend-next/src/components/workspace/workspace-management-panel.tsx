@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,15 +33,38 @@ interface EditingWorkspace {
 
 export function WorkspaceManagementPanel({
     userId,
-    workspaces,
+    workspaces: initialWorkspaces,
     onClose,
     onWorkspaceUpdated,
     onWorkspaceDeleted
 }: WorkspaceManagementPanelProps) {
+    const [workspaces, setWorkspaces] = useState(initialWorkspaces);
     const [editingWorkspace, setEditingWorkspace] = useState<EditingWorkspace | null>(null);
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Load workspaces on component mount
+    useEffect(() => {
+        loadWorkspaces();
+    }, [userId]);
+
+    const loadWorkspaces = async () => {
+        try {
+            setIsLoading(true);
+            const result = await apiClient.getUserWorkspaces(userId);
+            if (result.success) {
+                setWorkspaces(result.workspaces);
+            } else {
+                setError('Failed to load workspaces');
+            }
+        } catch (error) {
+            console.error('Error loading workspaces:', error);
+            setError('Failed to load workspaces');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {
@@ -99,6 +122,7 @@ export function WorkspaceManagementPanel({
 
             if (result.success) {
                 setEditingWorkspace(null);
+                loadWorkspaces(); // Refresh the list
                 onWorkspaceUpdated();
             } else {
                 setError(result.message || 'Failed to update workspace');
@@ -125,6 +149,7 @@ export function WorkspaceManagementPanel({
 
             if (result.success) {
                 setDeletingWorkspaceId(null);
+                loadWorkspaces(); // Refresh the list
                 onWorkspaceDeleted();
             } else {
                 setError(result.message || 'Failed to delete workspace');
@@ -137,155 +162,155 @@ export function WorkspaceManagementPanel({
         }
     };
 
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-8">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground">Loading workspaces...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <>
-            {/* Main Management Panel */}
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                    <div className="p-6">
-                        {/* Header */}
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold">Workspace Management</h2>
-                            <Button variant="ghost" size="sm" onClick={onClose}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-
-                        {/* Error Display */}
-                        {error && (
-                            <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-                                <p className="text-destructive text-sm">{error}</p>
-                            </div>
-                        )}
-
-                        {/* Workspace List */}
-                        <div className="space-y-4">
-                            {workspaces.map((workspace) => (
-                                <Card key={workspace.id} className={workspace.isActive ? 'ring-2 ring-primary' : ''}>
-                                    <CardHeader className="pb-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                {getTemplateIcon(workspace.templateType)}
-                                                <div>
-                                                    <CardTitle className="text-lg">
-                                                        {workspace.name}
-                                                        {workspace.isActive && (
-                                                            <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                                                                Active
-                                                            </span>
-                                                        )}
-                                                    </CardTitle>
-                                                    <CardDescription>
-                                                        {getTemplateLabel(workspace.templateType)} • Created {new Date(workspace.createdAt).toLocaleDateString()}
-                                                    </CardDescription>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleEditWorkspace(workspace)}
-                                                    disabled={isLoading}
-                                                >
-                                                    <Edit2 className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => setDeletingWorkspaceId(workspace.id)}
-                                                    disabled={isLoading || workspaces.length <= 1}
-                                                    className="text-destructive hover:text-destructive"
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardHeader>
-                                    {workspace.workspaceRules && (
-                                        <CardContent className="pt-0">
-                                            <div className="text-sm text-muted-foreground">
-                                                <strong>Rules:</strong> {workspace.workspaceRules}
-                                            </div>
-                                        </CardContent>
-                                    )}
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
+            {/* Error Display */}
+            {error && (
+                <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+                    <p className="text-destructive text-sm">{error}</p>
                 </div>
+            )}
+
+            {/* Workspace List */}
+            <div className="space-y-4">
+                {workspaces.map((workspace) => (
+                    <Card key={workspace.id} className={workspace.isActive ? 'ring-2 ring-primary' : ''}>
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    {getTemplateIcon(workspace.templateType)}
+                                    <div>
+                                        <CardTitle className="text-lg">
+                                            {workspace.name}
+                                            {workspace.isActive && (
+                                                <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
+                                                    Active
+                                                </span>
+                                            )}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {getTemplateLabel(workspace.templateType)} • Created {new Date(workspace.createdAt).toLocaleDateString()}
+                                        </CardDescription>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleEditWorkspace(workspace)}
+                                        disabled={isLoading}
+                                    >
+                                        <Edit2 className="h-4 w-4 mr-2" />
+                                        Edit
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setDeletingWorkspaceId(workspace.id)}
+                                        disabled={isLoading || workspaces.length <= 1}
+                                        className="text-destructive hover:text-destructive"
+                                    >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        {workspace.workspaceRules && (
+                            <CardContent className="pt-0">
+                                <div className="text-sm text-muted-foreground">
+                                    <strong>Rules:</strong> {workspace.workspaceRules}
+                                </div>
+                            </CardContent>
+                        )}
+                    </Card>
+                ))}
             </div>
 
             {/* Edit Workspace Dialog */}
-            {editingWorkspace && (
-                <Dialog open={true} onOpenChange={() => setEditingWorkspace(null)}>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Edit Workspace</DialogTitle>
-                            <DialogDescription>
-                                Update the workspace name and rules. Template type cannot be changed after creation.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-name">Workspace Name</Label>
-                                <Input
-                                    id="edit-name"
-                                    value={editingWorkspace.name}
-                                    onChange={(e) => setEditingWorkspace(prev => prev ? { ...prev, name: e.target.value } : null)}
-                                    disabled={isLoading}
-                                />
+            {
+                editingWorkspace && (
+                    <Dialog open={true} onOpenChange={() => setEditingWorkspace(null)}>
+                        <DialogContent className="max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Edit Workspace</DialogTitle>
+                                <DialogDescription>
+                                    Update the workspace name and rules. Template type cannot be changed after creation.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-name">Workspace Name</Label>
+                                    <Input
+                                        id="edit-name"
+                                        value={editingWorkspace.name}
+                                        onChange={(e) => setEditingWorkspace(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-rules">Workspace Rules</Label>
+                                    <Textarea
+                                        id="edit-rules"
+                                        value={editingWorkspace.workspaceRules}
+                                        onChange={(e) => setEditingWorkspace(prev => prev ? { ...prev, workspaceRules: e.target.value } : null)}
+                                        placeholder="Enter workspace rules..."
+                                        disabled={isLoading}
+                                        className="min-h-[100px]"
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-rules">Workspace Rules</Label>
-                                <Textarea
-                                    id="edit-rules"
-                                    value={editingWorkspace.workspaceRules}
-                                    onChange={(e) => setEditingWorkspace(prev => prev ? { ...prev, workspaceRules: e.target.value } : null)}
-                                    placeholder="Enter workspace rules..."
-                                    disabled={isLoading}
-                                    className="min-h-[100px]"
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setEditingWorkspace(null)} disabled={isLoading}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleSaveEdit} disabled={isLoading}>
-                                Save Changes
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setEditingWorkspace(null)} disabled={isLoading}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleSaveEdit} disabled={isLoading}>
+                                    Save Changes
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )
+            }
 
             {/* Delete Confirmation Dialog */}
-            {deletingWorkspaceId && (
-                <Dialog open={true} onOpenChange={() => setDeletingWorkspaceId(null)}>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>Delete Workspace</DialogTitle>
-                            <DialogDescription>
-                                Are you sure you want to delete this workspace? This action cannot be undone.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setDeletingWorkspaceId(null)} disabled={isLoading}>
-                                Cancel
-                            </Button>
-                            <Button 
-                                variant="destructive" 
-                                onClick={() => handleDeleteWorkspace(deletingWorkspaceId)} 
-                                disabled={isLoading}
-                            >
-                                Delete Workspace
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            )}
+            {
+                deletingWorkspaceId && (
+                    <Dialog open={true} onOpenChange={() => setDeletingWorkspaceId(null)}>
+                        <DialogContent className="max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Delete Workspace</DialogTitle>
+                                <DialogDescription>
+                                    Are you sure you want to delete this workspace? This action cannot be undone.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setDeletingWorkspaceId(null)} disabled={isLoading}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => handleDeleteWorkspace(deletingWorkspaceId)}
+                                    disabled={isLoading}
+                                >
+                                    Delete Workspace
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                )
+            }
         </>
     );
 }
