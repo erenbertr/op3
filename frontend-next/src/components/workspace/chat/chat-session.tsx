@@ -131,6 +131,37 @@ export function ChatSessionComponent({
         }
     }, [session?.id, loadMessages]);
 
+    const handleRetryMessage = async (messageId: string) => {
+        // Find the message to retry
+        const messageToRetry = messages.find(msg => msg.id === messageId);
+        if (!messageToRetry) {
+            console.warn('Message not found for retry:', messageId);
+            return;
+        }
+
+        // If it's a user message, resend it
+        if (messageToRetry.role === 'user') {
+            await handleSendMessage(
+                messageToRetry.content,
+                messageToRetry.personalityId,
+                messageToRetry.aiProviderId
+            );
+        } else {
+            // For AI messages, find the previous user message and resend it
+            const messageIndex = messages.findIndex(msg => msg.id === messageId);
+            if (messageIndex > 0) {
+                const previousUserMessage = messages[messageIndex - 1];
+                if (previousUserMessage.role === 'user') {
+                    await handleSendMessage(
+                        previousUserMessage.content,
+                        previousUserMessage.personalityId,
+                        previousUserMessage.aiProviderId
+                    );
+                }
+            }
+        }
+    };
+
     const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string) => {
         if (!content?.trim()) {
             console.warn('Empty message content provided');
@@ -244,6 +275,7 @@ export function ChatSessionComponent({
                         streamingMessage={streamingMessage}
                         isStreaming={isStreaming}
                         className={messages.length === 0 ? "" : "py-4"}
+                        onRetry={handleRetryMessage}
                     />
                 </div>
             </ScrollArea>
