@@ -450,6 +450,31 @@ export class AIProviderService {
         return Array.from(this.providers.values());
     }
 
+    // Delete a provider by ID
+    public deleteProvider(providerId: string): { success: boolean; message: string } {
+        try {
+            if (!this.providers.has(providerId)) {
+                return {
+                    success: false,
+                    message: 'AI provider not found'
+                };
+            }
+
+            this.providers.delete(providerId);
+            this.saveProvidersToFile();
+
+            return {
+                success: true,
+                message: 'AI provider deleted successfully'
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: `Failed to delete provider: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
     // Check if any providers are configured
     public hasProviders(): boolean {
         return this.providers.size > 0;

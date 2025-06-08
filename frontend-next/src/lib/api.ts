@@ -366,6 +366,36 @@ class ApiClient {
         return this.request<{ success: boolean; message: string; providers: AIProviderConfig[] }>('/ai-providers');
     }
 
+    // Create a new AI provider
+    async createAIProvider(provider: AIProviderConfig): Promise<{ success: boolean; message: string; provider?: AIProviderConfig }> {
+        return this.request<{ success: boolean; message: string; provider?: AIProviderConfig }>('/ai-providers', {
+            method: 'POST',
+            body: JSON.stringify(provider),
+        });
+    }
+
+    // Update an existing AI provider
+    async updateAIProvider(providerId: string, provider: AIProviderConfig): Promise<{ success: boolean; message: string; provider?: AIProviderConfig }> {
+        return this.request<{ success: boolean; message: string; provider?: AIProviderConfig }>(`/ai-providers/${providerId}`, {
+            method: 'PUT',
+            body: JSON.stringify(provider),
+        });
+    }
+
+    // Delete an AI provider
+    async deleteAIProvider(providerId: string): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>(`/ai-providers/${providerId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // Test an AI provider connection
+    async testAIProvider(providerId: string): Promise<AIProviderTestResult> {
+        return this.request<AIProviderTestResult>(`/ai-providers/${providerId}/test`, {
+            method: 'POST',
+        });
+    }
+
     // Workspace-related methods
     async createWorkspace(userId: string, name: string, templateType: string, workspaceRules: string): Promise<CreateWorkspaceResponse> {
         return this.request<CreateWorkspaceResponse>('/workspace/create', {
