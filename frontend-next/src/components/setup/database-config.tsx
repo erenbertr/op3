@@ -14,18 +14,19 @@ import { Loader2, CheckCircle, XCircle, Database } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { apiClient, DatabaseConfig } from '@/lib/api';
 
-const databaseSchema = z.object({
+// Create schema function that takes translation function
+const createDatabaseSchema = (t: (key: string) => string) => z.object({
     type: z.enum(['mongodb', 'mysql', 'postgresql', 'localdb']),
     host: z.string().optional(),
     port: z.number().optional(),
-    database: z.string().min(1, 'Database name is required'),
+    database: z.string().min(1, t('validation.database.required')),
     username: z.string().optional(),
     password: z.string().optional(),
     connectionString: z.string().optional(),
     ssl: z.boolean().optional(),
 });
 
-type DatabaseFormData = z.infer<typeof databaseSchema>;
+type DatabaseFormData = z.infer<ReturnType<typeof createDatabaseSchema>>;
 
 interface DatabaseConfigProps {
     onNext: (config: DatabaseConfig) => void;
@@ -37,6 +38,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
     const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [connectionMessage, setConnectionMessage] = useState('');
 
+    const databaseSchema = createDatabaseSchema(t);
     const form = useForm<DatabaseFormData>({
         resolver: zodResolver(databaseSchema),
         defaultValues: {
@@ -76,23 +78,23 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
 
         if (formData.type === 'mongodb') {
             if (!formData.connectionString) {
-                form.setError('connectionString', { message: 'Connection string is required for MongoDB' });
+                form.setError('connectionString', { message: t('validation.connectionString.required') });
                 return;
             }
             config.connectionString = formData.connectionString;
         } else if (formData.type === 'localdb') {
             // For SQLite, database field is the file path
             if (!formData.database.endsWith('.db') && !formData.database.endsWith('.sqlite')) {
-                form.setError('database', { message: 'LocalDB should be a .db or .sqlite file' });
+                form.setError('database', { message: t('validation.localdb.format') });
                 return;
             }
         } else {
             // MySQL and PostgreSQL
             if (!formData.host || !formData.port || !formData.username || !formData.password) {
-                if (!formData.host) form.setError('host', { message: 'Host is required' });
-                if (!formData.port) form.setError('port', { message: 'Port is required' });
-                if (!formData.username) form.setError('username', { message: 'Username is required' });
-                if (!formData.password) form.setError('password', { message: 'Password is required' });
+                if (!formData.host) form.setError('host', { message: t('validation.host.required') });
+                if (!formData.port) form.setError('port', { message: t('validation.port.required') });
+                if (!formData.username) form.setError('username', { message: t('validation.username.required') });
+                if (!formData.password) form.setError('password', { message: t('validation.password.required') });
                 return;
             }
             config.host = formData.host;
@@ -117,7 +119,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             }
         } catch (error) {
             setConnectionStatus('error');
-            setConnectionMessage(error instanceof Error ? error.message : 'Connection test failed');
+            setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
         } finally {
             setIsTestingConnection(false);
         }
@@ -154,7 +156,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             }
         } catch (error) {
             setConnectionStatus('error');
-            setConnectionMessage(error instanceof Error ? error.message : 'Connection test failed');
+            setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
         } finally {
             setIsTestingConnection(false);
         }

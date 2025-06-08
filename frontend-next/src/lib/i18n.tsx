@@ -242,6 +242,63 @@ const translations: Translations = {
         es: 'Base de Datos Local (SQLite)',
         fr: 'Base de Données Locale (SQLite)',
         de: 'Lokale Datenbank (SQLite)'
+    },
+    // Validation messages
+    'validation.database.required': {
+        en: 'Database name is required',
+        tr: 'Veritabanı adı gereklidir',
+        es: 'El nombre de la base de datos es requerido',
+        fr: 'Le nom de la base de données est requis',
+        de: 'Datenbankname ist erforderlich'
+    },
+    'validation.host.required': {
+        en: 'Host is required',
+        tr: 'Sunucu gereklidir',
+        es: 'El host es requerido',
+        fr: 'L\'hôte est requis',
+        de: 'Host ist erforderlich'
+    },
+    'validation.port.required': {
+        en: 'Port is required',
+        tr: 'Port gereklidir',
+        es: 'El puerto es requerido',
+        fr: 'Le port est requis',
+        de: 'Port ist erforderlich'
+    },
+    'validation.username.required': {
+        en: 'Username is required',
+        tr: 'Kullanıcı adı gereklidir',
+        es: 'El nombre de usuario es requerido',
+        fr: 'Le nom d\'utilisateur est requis',
+        de: 'Benutzername ist erforderlich'
+    },
+    'validation.password.required': {
+        en: 'Password is required',
+        tr: 'Şifre gereklidir',
+        es: 'La contraseña es requerida',
+        fr: 'Le mot de passe est requis',
+        de: 'Passwort ist erforderlich'
+    },
+    'validation.connectionString.required': {
+        en: 'Connection string is required for MongoDB',
+        tr: 'MongoDB için bağlantı dizesi gereklidir',
+        es: 'La cadena de conexión es requerida para MongoDB',
+        fr: 'La chaîne de connexion est requise pour MongoDB',
+        de: 'Verbindungszeichenfolge ist für MongoDB erforderlich'
+    },
+    'validation.localdb.format': {
+        en: 'LocalDB should be a .db or .sqlite file',
+        tr: 'Yerel veritabanı .db veya .sqlite dosyası olmalıdır',
+        es: 'LocalDB debe ser un archivo .db o .sqlite',
+        fr: 'LocalDB doit être un fichier .db ou .sqlite',
+        de: 'LocalDB sollte eine .db- oder .sqlite-Datei sein'
+    },
+    'validation.connection.failed': {
+        en: 'Connection test failed',
+        tr: 'Bağlantı testi başarısız',
+        es: 'La prueba de conexión falló',
+        fr: 'Le test de connexion a échoué',
+        de: 'Verbindungstest fehlgeschlagen'
     }
 };
 
