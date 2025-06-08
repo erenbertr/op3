@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -46,14 +46,27 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             database: '',
             username: '',
             password: '',
+            connectionString: '',
             ssl: false,
         },
     });
 
     const watchedType = form.watch('type');
+    const watchedValues = form.watch();
+
+    // Clear connection status when form values change
+    useEffect(() => {
+        if (connectionStatus !== 'idle') {
+            setConnectionStatus('idle');
+            setConnectionMessage('');
+        }
+    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password, connectionStatus]);
 
     const testConnection = async () => {
         const formData = form.getValues();
+
+        // Clear any existing errors first
+        form.clearErrors();
 
         // Validate required fields based on database type
         const config: DatabaseConfig = {
@@ -160,7 +173,19 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                 <FormControl>
                                     <Input
                                         placeholder="mongodb://localhost:27017/mydb"
-                                        {...field}
+                                        value={field.value || ''}
+                                        onChange={(e) => {
+                                            field.onChange(e.target.value);
+                                            // Clear the specific error for this field
+                                            if (form.formState.errors.connectionString) {
+                                                form.clearErrors('connectionString');
+                                            }
+                                            // Reset connection status
+                                            if (connectionStatus !== 'idle') {
+                                                setConnectionStatus('idle');
+                                                setConnectionMessage('');
+                                            }
+                                        }}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -183,7 +208,21 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                     <FormItem>
                                         <FormLabel>{t('setup.database.host')}</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="localhost" {...field} />
+                                            <Input
+                                                placeholder="localhost"
+                                                value={field.value || ''}
+                                                onChange={(e) => {
+                                                    field.onChange(e.target.value);
+                                                    if (form.formState.errors.host) {
+                                                        form.clearErrors('host');
+                                                    }
+                                                    // Reset connection status
+                                                    if (connectionStatus !== 'idle') {
+                                                        setConnectionStatus('idle');
+                                                        setConnectionMessage('');
+                                                    }
+                                                }}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -199,8 +238,20 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                             <Input
                                                 type="number"
                                                 placeholder={watchedType === 'mysql' ? '3306' : '5432'}
-                                                {...field}
-                                                onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
+                                                value={field.value || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    // Convert to number or undefined for empty string
+                                                    field.onChange(value === '' ? undefined : parseInt(value) || undefined);
+                                                    if (form.formState.errors.port) {
+                                                        form.clearErrors('port');
+                                                    }
+                                                    // Reset connection status
+                                                    if (connectionStatus !== 'idle') {
+                                                        setConnectionStatus('idle');
+                                                        setConnectionMessage('');
+                                                    }
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -216,7 +267,20 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                     <FormItem>
                                         <FormLabel>{t('setup.database.username')}</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                value={field.value || ''}
+                                                onChange={(e) => {
+                                                    field.onChange(e.target.value);
+                                                    if (form.formState.errors.username) {
+                                                        form.clearErrors('username');
+                                                    }
+                                                    // Reset connection status
+                                                    if (connectionStatus !== 'idle') {
+                                                        setConnectionStatus('idle');
+                                                        setConnectionMessage('');
+                                                    }
+                                                }}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -229,7 +293,21 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                     <FormItem>
                                         <FormLabel>{t('setup.database.password')}</FormLabel>
                                         <FormControl>
-                                            <Input type="password" {...field} />
+                                            <Input
+                                                type="password"
+                                                value={field.value || ''}
+                                                onChange={(e) => {
+                                                    field.onChange(e.target.value);
+                                                    if (form.formState.errors.password) {
+                                                        form.clearErrors('password');
+                                                    }
+                                                    // Reset connection status
+                                                    if (connectionStatus !== 'idle') {
+                                                        setConnectionStatus('idle');
+                                                        setConnectionMessage('');
+                                                    }
+                                                }}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -268,10 +346,10 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="postgresql">PostgreSQL</SelectItem>
-                                            <SelectItem value="mysql">MySQL</SelectItem>
-                                            <SelectItem value="mongodb">MongoDB</SelectItem>
-                                            <SelectItem value="localdb">LocalDB (SQLite)</SelectItem>
+                                            <SelectItem value="postgresql">{t('database.type.postgresql')}</SelectItem>
+                                            <SelectItem value="mysql">{t('database.type.mysql')}</SelectItem>
+                                            <SelectItem value="mongodb">{t('database.type.mongodb')}</SelectItem>
+                                            <SelectItem value="localdb">{t('database.type.localdb')}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
@@ -297,7 +375,19 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
                                                     ? './data/myapp.db'
                                                     : 'myapp'
                                             }
-                                            {...field}
+                                            value={field.value || ''}
+                                            onChange={(e) => {
+                                                field.onChange(e.target.value);
+                                                // Clear the specific error for this field
+                                                if (form.formState.errors.database) {
+                                                    form.clearErrors('database');
+                                                }
+                                                // Reset connection status
+                                                if (connectionStatus !== 'idle') {
+                                                    setConnectionStatus('idle');
+                                                    setConnectionMessage('');
+                                                }
+                                            }}
                                         />
                                     </FormControl>
                                     <FormMessage />
