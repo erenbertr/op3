@@ -604,6 +604,215 @@ const translations: Translations = {
         es: 'El nombre de usuario debe tener al menos 3 caracteres',
         fr: 'Le nom d\'utilisateur doit contenir au moins 3 caractères',
         de: 'Der Benutzername muss mindestens 3 Zeichen lang sein'
+    },
+
+    // AI Provider setup
+    'setup.aiProvider.title': {
+        en: 'AI Provider Configuration',
+        tr: 'AI Sağlayıcı Yapılandırması',
+        es: 'Configuración de Proveedor de IA',
+        fr: 'Configuration du Fournisseur IA',
+        de: 'KI-Anbieter-Konfiguration'
+    },
+    'setup.aiProvider.description': {
+        en: 'Configure AI API providers to enable intelligent features',
+        tr: 'Akıllı özellikleri etkinleştirmek için AI API sağlayıcılarını yapılandırın',
+        es: 'Configure proveedores de API de IA para habilitar funciones inteligentes',
+        fr: 'Configurez les fournisseurs d\'API IA pour activer les fonctionnalités intelligentes',
+        de: 'Konfigurieren Sie KI-API-Anbieter, um intelligente Funktionen zu aktivieren'
+    },
+    'setup.aiProvider.addProvider': {
+        en: 'Add AI Provider',
+        tr: 'AI Sağlayıcı Ekle',
+        es: 'Agregar Proveedor de IA',
+        fr: 'Ajouter un Fournisseur IA',
+        de: 'KI-Anbieter Hinzufügen'
+    },
+    'setup.aiProvider.removeProvider': {
+        en: 'Remove Provider',
+        tr: 'Sağlayıcıyı Kaldır',
+        es: 'Eliminar Proveedor',
+        fr: 'Supprimer le Fournisseur',
+        de: 'Anbieter Entfernen'
+    },
+    'setup.aiProvider.type.label': {
+        en: 'Provider Type',
+        tr: 'Sağlayıcı Türü',
+        es: 'Tipo de Proveedor',
+        fr: 'Type de Fournisseur',
+        de: 'Anbieter-Typ'
+    },
+    'setup.aiProvider.type.placeholder': {
+        en: 'Select AI provider',
+        tr: 'AI sağlayıcı seçin',
+        es: 'Seleccionar proveedor de IA',
+        fr: 'Sélectionner le fournisseur IA',
+        de: 'KI-Anbieter auswählen'
+    },
+    'setup.aiProvider.name.label': {
+        en: 'Custom Name',
+        tr: 'Özel Ad',
+        es: 'Nombre Personalizado',
+        fr: 'Nom Personnalisé',
+        de: 'Benutzerdefinierter Name'
+    },
+    'setup.aiProvider.name.placeholder': {
+        en: 'e.g., OpenAI - Personal, Claude - Work',
+        tr: 'örn., OpenAI - Kişisel, Claude - İş',
+        es: 'ej., OpenAI - Personal, Claude - Trabajo',
+        fr: 'ex., OpenAI - Personnel, Claude - Travail',
+        de: 'z.B., OpenAI - Persönlich, Claude - Arbeit'
+    },
+    'setup.aiProvider.apiKey.label': {
+        en: 'API Key',
+        tr: 'API Anahtarı',
+        es: 'Clave API',
+        fr: 'Clé API',
+        de: 'API-Schlüssel'
+    },
+    'setup.aiProvider.apiKey.placeholder': {
+        en: 'Enter your API key',
+        tr: 'API anahtarınızı girin',
+        es: 'Ingrese su clave API',
+        fr: 'Entrez votre clé API',
+        de: 'Geben Sie Ihren API-Schlüssel ein'
+    },
+    'setup.aiProvider.endpoint.label': {
+        en: 'Custom Endpoint (Optional)',
+        tr: 'Özel Uç Nokta (İsteğe Bağlı)',
+        es: 'Endpoint Personalizado (Opcional)',
+        fr: 'Point de Terminaison Personnalisé (Optionnel)',
+        de: 'Benutzerdefinierter Endpunkt (Optional)'
+    },
+    'setup.aiProvider.endpoint.placeholder': {
+        en: 'https://api.example.com/v1',
+        tr: 'https://api.example.com/v1',
+        es: 'https://api.example.com/v1',
+        fr: 'https://api.example.com/v1',
+        de: 'https://api.example.com/v1'
+    },
+    'setup.aiProvider.testConnection': {
+        en: 'Test Connection',
+        tr: 'Bağlantıyı Test Et',
+        es: 'Probar Conexión',
+        fr: 'Tester la Connexion',
+        de: 'Verbindung Testen'
+    },
+    'setup.aiProvider.testing': {
+        en: 'Testing...',
+        tr: 'Test ediliyor...',
+        es: 'Probando...',
+        fr: 'Test en cours...',
+        de: 'Teste...'
+    },
+    'setup.aiProvider.connectionSuccess': {
+        en: 'Connection successful',
+        tr: 'Bağlantı başarılı',
+        es: 'Conexión exitosa',
+        fr: 'Connexion réussie',
+        de: 'Verbindung erfolgreich'
+    },
+    'setup.aiProvider.connectionFailed': {
+        en: 'Connection failed',
+        tr: 'Bağlantı başarısız',
+        es: 'Conexión fallida',
+        fr: 'Connexion échouée',
+        de: 'Verbindung fehlgeschlagen'
+    },
+    'setup.aiProvider.button.continue': {
+        en: 'Continue to Final Step',
+        tr: 'Son Adıma Devam Et',
+        es: 'Continuar al Paso Final',
+        fr: 'Continuer à l\'Étape Finale',
+        de: 'Zum Letzten Schritt Fortfahren'
+    },
+    'setup.aiProvider.requireAtLeastOne': {
+        en: 'At least one AI provider must be configured',
+        tr: 'En az bir AI sağlayıcı yapılandırılmalıdır',
+        es: 'Al menos un proveedor de IA debe estar configurado',
+        fr: 'Au moins un fournisseur IA doit être configuré',
+        de: 'Mindestens ein KI-Anbieter muss konfiguriert werden'
+    },
+
+    // AI Provider types
+    'aiProvider.type.openai': {
+        en: 'OpenAI',
+        tr: 'OpenAI',
+        es: 'OpenAI',
+        fr: 'OpenAI',
+        de: 'OpenAI'
+    },
+    'aiProvider.type.anthropic': {
+        en: 'Anthropic (Claude)',
+        tr: 'Anthropic (Claude)',
+        es: 'Anthropic (Claude)',
+        fr: 'Anthropic (Claude)',
+        de: 'Anthropic (Claude)'
+    },
+    'aiProvider.type.google': {
+        en: 'Google (Gemini)',
+        tr: 'Google (Gemini)',
+        es: 'Google (Gemini)',
+        fr: 'Google (Gemini)',
+        de: 'Google (Gemini)'
+    },
+    'aiProvider.type.replicate': {
+        en: 'Replicate',
+        tr: 'Replicate',
+        es: 'Replicate',
+        fr: 'Replicate',
+        de: 'Replicate'
+    },
+    'aiProvider.type.custom': {
+        en: 'Custom Provider',
+        tr: 'Özel Sağlayıcı',
+        es: 'Proveedor Personalizado',
+        fr: 'Fournisseur Personnalisé',
+        de: 'Benutzerdefinierter Anbieter'
+    },
+
+    // AI Provider validation messages
+    'validation.aiProvider.type.required': {
+        en: 'Provider type is required',
+        tr: 'Sağlayıcı türü gereklidir',
+        es: 'El tipo de proveedor es requerido',
+        fr: 'Le type de fournisseur est requis',
+        de: 'Anbieter-Typ ist erforderlich'
+    },
+    'validation.aiProvider.name.required': {
+        en: 'Custom name is required',
+        tr: 'Özel ad gereklidir',
+        es: 'El nombre personalizado es requerido',
+        fr: 'Le nom personnalisé est requis',
+        de: 'Benutzerdefinierter Name ist erforderlich'
+    },
+    'validation.aiProvider.name.minLength': {
+        en: 'Name must be at least 2 characters long',
+        tr: 'Ad en az 2 karakter uzunluğunda olmalıdır',
+        es: 'El nombre debe tener al menos 2 caracteres',
+        fr: 'Le nom doit contenir au moins 2 caractères',
+        de: 'Der Name muss mindestens 2 Zeichen lang sein'
+    },
+    'validation.aiProvider.apiKey.required': {
+        en: 'API key is required',
+        tr: 'API anahtarı gereklidir',
+        es: 'La clave API es requerida',
+        fr: 'La clé API est requise',
+        de: 'API-Schlüssel ist erforderlich'
+    },
+    'validation.aiProvider.apiKey.minLength': {
+        en: 'API key must be at least 10 characters long',
+        tr: 'API anahtarı en az 10 karakter uzunluğunda olmalıdır',
+        es: 'La clave API debe tener al menos 10 caracteres',
+        fr: 'La clé API doit contenir au moins 10 caractères',
+        de: 'API-Schlüssel muss mindestens 10 Zeichen lang sein'
+    },
+    'validation.aiProvider.endpoint.invalid': {
+        en: 'Please enter a valid URL',
+        tr: 'Lütfen geçerli bir URL girin',
+        es: 'Por favor ingrese una URL válida',
+        fr: 'Veuillez entrer une URL valide',
+        de: 'Bitte geben Sie eine gültige URL ein'
     }
 };
 

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3004/api/v1';
 
 export interface DatabaseConfig {
     type: 'mongodb' | 'mysql' | 'postgresql' | 'localdb' | 'supabase' | 'convex' | 'firebase' | 'planetscale' | 'neon' | 'turso';
@@ -22,6 +22,35 @@ export interface AdminConfig {
     username?: string;
     password: string;
     confirmPassword: string;
+}
+
+export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'custom';
+
+export interface AIProviderConfig {
+    id?: string;
+    type: AIProviderType;
+    name: string;
+    apiKey: string;
+    endpoint?: string;
+    isActive: boolean;
+}
+
+export interface AIProviderTestRequest {
+    type: AIProviderType;
+    apiKey: string;
+    endpoint?: string;
+}
+
+export interface AIProviderTestResult {
+    success: boolean;
+    message: string;
+    providerInfo?: {
+        type: AIProviderType;
+        endpoint: string;
+        responseTime?: number;
+        model?: string;
+    };
+    error?: string;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -112,6 +141,22 @@ class ApiClient {
         const url = `${this.baseUrl.replace('/api/v1', '')}/health`;
         const response = await fetch(url);
         return response.json();
+    }
+
+    // Test AI provider connection
+    async testAIProviderConnection(request: AIProviderTestRequest): Promise<AIProviderTestResult> {
+        return this.request<AIProviderTestResult>('/setup/ai-providers/test', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    // Save AI provider configurations
+    async saveAIProviders(providers: AIProviderConfig[]): Promise<ApiResponse> {
+        return this.request<ApiResponse>('/setup/ai-providers', {
+            method: 'POST',
+            body: JSON.stringify({ providers }),
+        });
     }
 }
 

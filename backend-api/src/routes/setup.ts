@@ -3,11 +3,14 @@ import { DatabaseManager } from '../config/database';
 import { DatabaseConfig, SetupData, SetupResponse } from '../types/database';
 import { AdminConfig } from '../types/user';
 import { UserService } from '../services/userService';
+import { AIProviderService } from '../services/aiProviderService';
+import { AIProviderTestRequest, AIProviderSaveRequest } from '../types/ai-provider';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 
 const router = Router();
 const dbManager = DatabaseManager.getInstance();
 const userService = UserService.getInstance();
+const aiProviderService = AIProviderService.getInstance();
 
 // Test database connection
 router.post('/test-connection', asyncHandler(async (req: Request, res: Response) => {
@@ -103,6 +106,57 @@ router.post('/admin', asyncHandler(async (req: Request, res: Response) => {
     res.json(response);
 }));
 
+// Test AI provider connection (Step 3 of setup)
+router.post('/ai-providers/test', asyncHandler(async (req: Request, res: Response) => {
+    const testRequest: AIProviderTestRequest = req.body;
+
+    if (!testRequest.type || !testRequest.apiKey) {
+        throw createError('Provider type and API key are required', 400);
+    }
+
+    const result = await aiProviderService.testConnection(testRequest);
+
+    res.json(result);
+}));
+
+// Save AI provider configurations (Step 3 of setup)
+router.post('/ai-providers', asyncHandler(async (req: Request, res: Response) => {
+    const { providers }: AIProviderSaveRequest = req.body;
+
+    if (!providers || !Array.isArray(providers) || providers.length === 0) {
+        throw createError('At least one AI provider configuration is required', 400);
+    }
+
+    // Validate each provider configuration
+    for (const provider of providers) {
+        if (!provider.type || !provider.name || !provider.apiKey) {
+            throw createError('Provider type, name, and API key are required for each provider', 400);
+        }
+
+        // Validate API key format
+        if (!aiProviderService.validateApiKeyFormat(provider.type, provider.apiKey)) {
+            throw createError(`Invalid API key format for ${provider.type}`, 400);
+        }
+    }
+
+    const result = await aiProviderService.saveProviders(providers);
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    const response: SetupResponse = {
+        success: true,
+        message: result.message,
+        step: 'ai-providers',
+        data: {
+            providersCount: providers.length,
+            providers: result.savedProviders
+        }
+    };
+
+    res.json(response);
+}));
+
 // Get current setup status
 router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     const currentConfig = dbManager.getCurrentConfig();
@@ -118,6 +172,9 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
         }
     }
 
+    // Check if AI providers are configured
+    const aiProvidersConfigured = aiProviderService.hasProviders();
+
     res.json({
         success: true,
         setup: {
@@ -127,6 +184,10 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
             },
             admin: {
                 configured: adminExists
+            },
+            aiProviders: {
+                configured: aiProvidersConfigured,
+                count: aiProviderService.getProviders().length
             }
         }
     });
