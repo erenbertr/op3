@@ -853,6 +853,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                             <Button
                                 type="submit"
                                 disabled={connectionStatus !== 'success'}
+                                className="ml-auto"
                             >
                                 {t('button.next')}
                             </Button>
