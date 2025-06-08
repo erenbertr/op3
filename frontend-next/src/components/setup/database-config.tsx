@@ -62,7 +62,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
             setConnectionStatus('idle');
             setConnectionMessage('');
         }
-    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password, connectionStatus]);
+    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password]);
 
     const testConnection = async () => {
         const formData = form.getValues();
@@ -105,7 +105,7 @@ export function DatabaseConfigForm({ onNext }: DatabaseConfigProps) {
         }
 
         setIsTestingConnection(true);
-        setConnectionStatus('idle');
+        setConnectionMessage('');
 
         try {
             const result = await apiClient.testDatabaseConnection(config);
