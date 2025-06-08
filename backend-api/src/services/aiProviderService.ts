@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
     AIProviderConfig,
     AIProviderTestRequest,
@@ -13,10 +15,19 @@ export class AIProviderService {
     private static instance: AIProviderService;
     private providers: Map<string, AIProviderConfig> = new Map();
     private encryptionKey: string;
+    private configFilePath: string;
 
     private constructor() {
         // In production, this should come from environment variables
         this.encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
+
+        // Create data directory if it doesn't exist
+        const dataDir = path.join(process.cwd(), 'data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+        this.configFilePath = path.join(dataDir, 'ai-providers.json');
+        this.loadProviders();
     }
 
     public static getInstance(): AIProviderService {
@@ -24,6 +35,38 @@ export class AIProviderService {
             AIProviderService.instance = new AIProviderService();
         }
         return AIProviderService.instance;
+    }
+
+    // Load providers from file
+    private loadProviders(): void {
+        try {
+            if (fs.existsSync(this.configFilePath)) {
+                const configData = fs.readFileSync(this.configFilePath, 'utf8');
+                const providersArray: AIProviderConfig[] = JSON.parse(configData);
+
+                // Convert array to Map
+                this.providers.clear();
+                for (const provider of providersArray) {
+                    this.providers.set(provider.id!, provider);
+                }
+
+                console.log(`AI Provider Service: Loaded ${providersArray.length} provider(s) from file`);
+            }
+        } catch (error) {
+            console.error('Error loading AI provider configurations:', error);
+            this.providers.clear();
+        }
+    }
+
+    // Save providers to file
+    private saveProvidersToFile(): void {
+        try {
+            const providersArray = Array.from(this.providers.values());
+            fs.writeFileSync(this.configFilePath, JSON.stringify(providersArray, null, 2));
+            console.log(`AI Provider Service: Saved ${providersArray.length} provider(s) to file`);
+        } catch (error) {
+            console.error('Error saving AI provider configurations:', error);
+        }
     }
 
     // Encrypt API key for secure storage
@@ -355,6 +398,9 @@ export class AIProviderService {
                     apiKey: '***' // Don't return the actual API key
                 });
             }
+
+            // Persist to file
+            this.saveProvidersToFile();
 
             return {
                 success: true,

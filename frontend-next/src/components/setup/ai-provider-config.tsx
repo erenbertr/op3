@@ -96,6 +96,23 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
         });
     };
 
+    const getDefaultModelForType = (type: AIProviderType): string => {
+        switch (type) {
+            case 'openai':
+                return 'gpt-4o';
+            case 'anthropic':
+                return 'claude-3-5-sonnet-20241022';
+            case 'google':
+                return 'gemini-1.5-pro';
+            case 'replicate':
+                return 'meta/llama-2-70b-chat';
+            case 'custom':
+                return '';
+            default:
+                return '';
+        }
+    };
+
     const removeProvider = (index: number) => {
         remove(index);
         // Clean up test status and show API key state
@@ -223,7 +240,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
             case 'google':
                 return ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'];
             case 'replicate':
-                return ['meta/llama-2-70b-chat', 'mistralai/mixtral-8x7b-instruct-v0.1', 'meta/codellama-34b-instruct'];
+                return []; // Allow custom input for Replicate
             case 'custom':
                 return [];
             default:
@@ -289,7 +306,15 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>{t('setup.aiProvider.type.label')}</FormLabel>
-                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <Select
+                                                    onValueChange={(value) => {
+                                                        field.onChange(value);
+                                                        // Update model to default for the new provider type
+                                                        const defaultModel = getDefaultModelForType(value as AIProviderType);
+                                                        form.setValue(`providers.${index}.model`, defaultModel);
+                                                    }}
+                                                    defaultValue={field.value}
+                                                >
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder={t('setup.aiProvider.type.placeholder')} />
