@@ -106,8 +106,17 @@ router.post('/admin', asyncHandler(async (req: Request, res: Response) => {
 // Get current setup status
 router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     const currentConfig = dbManager.getCurrentConfig();
-    // TODO: Check if admin user exists in database
-    const adminExists = false; // This will be implemented when we have database integration
+
+    // Check if admin user exists in database
+    let adminExists = false;
+    if (currentConfig) {
+        try {
+            adminExists = await userService.adminExists();
+        } catch (error) {
+            console.error('Error checking admin existence:', error);
+            adminExists = false;
+        }
+    }
 
     res.json({
         success: true,

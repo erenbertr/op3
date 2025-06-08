@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatabaseConfigForm } from './database-config';
@@ -47,8 +46,6 @@ export function SetupWizard() {
             completed: false,
         },
     ];
-
-    const progress = ((currentStep + 1) / steps.length) * 100;
 
     const handleDatabaseConfig = async (config: DatabaseConfig) => {
         try {
@@ -147,62 +144,106 @@ export function SetupWizard() {
                     </p>
                 </div>
 
-                {/* Progress */}
+                {/* Stacked Steps Overview */}
                 <div className="max-w-2xl mx-auto mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="text-sm font-medium">
-                            {t('setup.step')} {currentStep + 1} of {steps.length}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                            {Math.round(progress)}% {t('setup.complete')}
-                        </span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                </div>
+                    <div className="relative h-96">
+                        {steps.map((step, index) => {
+                            const isActive = index === currentStep;
+                            const isCompleted = step.completed;
+                            const isFuture = index > currentStep;
 
-                {/* Steps Overview */}
-                <div className="max-w-2xl mx-auto mb-8">
-                    <div className="grid gap-4">
-                        {steps.map((step, index) => (
-                            <div
-                                key={step.id}
-                                className={`flex items-center gap-3 p-3 rounded-lg border ${index === currentStep
-                                    ? 'border-primary bg-primary/5'
-                                    : step.completed
-                                        ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-                                        : 'border-muted bg-muted/30'
-                                    }`}
-                            >
+                            // Calculate positioning and styling
+                            let zIndex = steps.length - Math.abs(index - currentStep);
+                            let translateY = 0;
+                            let scale = 1;
+                            let opacity = 1;
+                            let blur = 0;
+
+                            if (isActive) {
+                                // Active step: fully visible, no transform
+                                translateY = 0;
+                                scale = 1;
+                                opacity = 1;
+                                blur = 0;
+                                zIndex = steps.length;
+                            } else if (isCompleted) {
+                                // Completed steps: stacked behind with blur
+                                translateY = -(index * 8);
+                                scale = 0.95 - (currentStep - index) * 0.02;
+                                opacity = 0.7 - (currentStep - index) * 0.1;
+                                blur = (currentStep - index) * 1;
+                                zIndex = steps.length - (currentStep - index);
+                            } else if (isFuture) {
+                                // Future steps: show only top edge
+                                translateY = 120 + ((index - currentStep - 1) * 5);
+                                scale = 0.98;
+                                opacity = 0.6;
+                                blur = 1;
+                                zIndex = steps.length - (index - currentStep);
+                            }
+
+                            return (
                                 <div
-                                    className={`flex items-center justify-center w-8 h-8 rounded-full ${step.completed
-                                        ? 'bg-green-500 text-white'
-                                        : index === currentStep
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted text-muted-foreground'
-                                        }`}
+                                    key={step.id}
+                                    className="absolute inset-x-0 transition-all duration-700 ease-in-out"
+                                    style={{
+                                        transform: `translateY(${translateY}px) scale(${scale})`,
+                                        zIndex,
+                                        opacity,
+                                        filter: `blur(${blur}px)`,
+                                    }}
                                 >
-                                    {step.completed ? (
-                                        <CheckCircle className="h-4 w-4" />
-                                    ) : (
-                                        step.icon
-                                    )}
+                                    <div
+                                        className={`p-6 rounded-xl border-2 bg-card shadow-lg transition-all duration-300 ${isActive
+                                            ? 'border-primary bg-primary/5 shadow-xl'
+                                            : isCompleted
+                                                ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                                                : 'border-muted bg-muted/30'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div
+                                                className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ${isCompleted
+                                                    ? 'bg-green-500 text-white'
+                                                    : isActive
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'bg-muted text-muted-foreground'
+                                                    }`}
+                                            >
+                                                {isCompleted ? (
+                                                    <CheckCircle className="h-6 w-6" />
+                                                ) : (
+                                                    <div className="h-6 w-6">{step.icon}</div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-semibold">{step.title}</h3>
+                                                <p className="text-sm text-muted-foreground mt-1">
+                                                    {step.description}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-2">
+                                                {isCompleted && (
+                                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                                                        {t('badge.complete')}
+                                                    </Badge>
+                                                )}
+                                                {isActive && !isCompleted && (
+                                                    <Badge variant="default">
+                                                        {t('badge.current')}
+                                                    </Badge>
+                                                )}
+                                                {isFuture && (
+                                                    <Badge variant="outline" className="opacity-60">
+                                                        {t('badge.upcoming')}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <h3 className="font-medium">{step.title}</h3>
-                                    <p className="text-sm text-muted-foreground">{step.description}</p>
-                                </div>
-                                {step.completed && (
-                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                                        {t('badge.complete')}
-                                    </Badge>
-                                )}
-                                {index === currentStep && !step.completed && (
-                                    <Badge variant="default">
-                                        {t('badge.current')}
-                                    </Badge>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 

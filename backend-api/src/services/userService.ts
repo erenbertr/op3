@@ -1,10 +1,10 @@
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { 
-    User, 
-    CreateUserRequest, 
-    CreateUserResponse, 
-    UserValidationError, 
+import {
+    User,
+    CreateUserRequest,
+    CreateUserResponse,
+    UserValidationError,
     PasswordRequirements,
     DEFAULT_PASSWORD_REQUIREMENTS,
     AdminConfig
@@ -235,18 +235,391 @@ export class UserService {
      * Get user by email
      */
     private async getUserByEmail(email: string): Promise<User | null> {
-        // This will be implemented based on the database type
-        // For now, return null (no existing users during setup)
-        return null;
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    const mongoUser = await connection.collection('users').findOne({ email });
+                    return mongoUser ? this.mapMongoUser(mongoUser) : null;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'SELECT * FROM users WHERE email = ?';
+                    const [rows] = await connection.execute(query, [email]);
+                    return rows.length > 0 ? this.mapSQLUser(rows[0]) : null;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.get('SELECT * FROM users WHERE email = ?', [email], (err: any, row: any) => {
+                            if (err) reject(err);
+                            else resolve(row ? this.mapSQLUser(row) : null);
+                        });
+                    });
+
+                case 'supabase':
+                    const { data, error } = await connection
+                        .from('users')
+                        .select('*')
+                        .eq('email', email)
+                        .single();
+
+                    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+                        throw error;
+                    }
+                    return data ? this.mapSupabaseUser(data) : null;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+        } catch (error) {
+            console.error('Error getting user by email:', error);
+            return null;
+        }
     }
 
     /**
      * Save user to database
      */
     private async saveUser(user: User): Promise<void> {
-        // This will be implemented based on the database type
-        // For now, we'll store it in memory or a simple file
-        // The actual implementation will depend on the configured database
-        console.log('Saving user:', { id: user.id, email: user.email, role: user.role });
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found. Please configure database first.');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        try {
+            switch (config.type) {
+                case 'mongodb':
+                    await this.saveUserMongo(connection, user);
+                    break;
+
+                case 'mysql':
+                    await this.saveUserMySQL(connection, user);
+                    break;
+
+                case 'postgresql':
+                    await this.saveUserPostgreSQL(connection, user);
+                    break;
+
+                case 'localdb':
+                    await this.saveUserSQLite(connection, user);
+                    break;
+
+                case 'supabase':
+                    await this.saveUserSupabase(connection, user);
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            console.log('User saved successfully:', { id: user.id, email: user.email, role: user.role });
+        } catch (error) {
+            console.error('Error saving user:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(`Failed to save user to ${config.type} database: ${errorMessage}`);
+        }
+    }
+
+    /**
+     * Database-specific save methods
+     */
+    private async saveUserMongo(db: any, user: User): Promise<void> {
+        // Ensure users collection exists and create if needed
+        const collection = db.collection('users');
+
+        // Create indexes for better performance
+        await collection.createIndex({ email: 1 }, { unique: true });
+        await collection.createIndex({ username: 1 }, { sparse: true });
+
+        await collection.insertOne({
+            _id: user.id,
+            email: user.email,
+            username: user.username,
+            password: user.password,
+            role: user.role,
+            isActive: user.isActive,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+            lastLoginAt: user.lastLoginAt,
+            permissions: user.permissions,
+            subscriptionId: user.subscriptionId,
+            subscriptionExpiry: user.subscriptionExpiry,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            avatar: user.avatar
+        });
+    }
+
+    private async saveUserMySQL(connection: any, user: User): Promise<void> {
+        // Create users table if it doesn't exist
+        await connection.execute(`
+            CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(36) PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                username VARCHAR(255),
+                password VARCHAR(255) NOT NULL,
+                role ENUM('admin', 'subscribed', 'normal') NOT NULL,
+                isActive BOOLEAN DEFAULT TRUE,
+                createdAt DATETIME NOT NULL,
+                updatedAt DATETIME NOT NULL,
+                lastLoginAt DATETIME,
+                permissions JSON,
+                subscriptionId VARCHAR(255),
+                subscriptionExpiry DATETIME,
+                firstName VARCHAR(255),
+                lastName VARCHAR(255),
+                avatar TEXT,
+                INDEX idx_email (email),
+                INDEX idx_username (username)
+            )
+        `);
+
+        await connection.execute(`
+            INSERT INTO users (
+                id, email, username, password, role, isActive, createdAt, updatedAt,
+                lastLoginAt, permissions, subscriptionId, subscriptionExpiry,
+                firstName, lastName, avatar
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            user.id, user.email, user.username, user.password, user.role,
+            user.isActive, user.createdAt, user.updatedAt, user.lastLoginAt,
+            JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry,
+            user.firstName, user.lastName, user.avatar
+        ]);
+    }
+
+    private async saveUserPostgreSQL(client: any, user: User): Promise<void> {
+        // Create users table if it doesn't exist
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(36) PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                username VARCHAR(255),
+                password VARCHAR(255) NOT NULL,
+                role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'subscribed', 'normal')),
+                "isActive" BOOLEAN DEFAULT TRUE,
+                "createdAt" TIMESTAMP NOT NULL,
+                "updatedAt" TIMESTAMP NOT NULL,
+                "lastLoginAt" TIMESTAMP,
+                permissions JSONB,
+                "subscriptionId" VARCHAR(255),
+                "subscriptionExpiry" TIMESTAMP,
+                "firstName" VARCHAR(255),
+                "lastName" VARCHAR(255),
+                avatar TEXT
+            )
+        `);
+
+        // Create indexes
+        await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+        await client.query('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+
+        await client.query(`
+            INSERT INTO users (
+                id, email, username, password, role, "isActive", "createdAt", "updatedAt",
+                "lastLoginAt", permissions, "subscriptionId", "subscriptionExpiry",
+                "firstName", "lastName", avatar
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `, [
+            user.id, user.email, user.username, user.password, user.role,
+            user.isActive, user.createdAt, user.updatedAt, user.lastLoginAt,
+            JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry,
+            user.firstName, user.lastName, user.avatar
+        ]);
+    }
+
+    private async saveUserSQLite(db: any, user: User): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Create users table if it doesn't exist
+            db.run(`
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    username TEXT,
+                    password TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('admin', 'subscribed', 'normal')),
+                    isActive INTEGER DEFAULT 1,
+                    createdAt TEXT NOT NULL,
+                    updatedAt TEXT NOT NULL,
+                    lastLoginAt TEXT,
+                    permissions TEXT,
+                    subscriptionId TEXT,
+                    subscriptionExpiry TEXT,
+                    firstName TEXT,
+                    lastName TEXT,
+                    avatar TEXT
+                )
+            `, (err: any) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                // Insert user
+                db.run(`
+                    INSERT INTO users (
+                        id, email, username, password, role, isActive, createdAt, updatedAt,
+                        lastLoginAt, permissions, subscriptionId, subscriptionExpiry,
+                        firstName, lastName, avatar
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [
+                    user.id, user.email, user.username, user.password, user.role,
+                    user.isActive ? 1 : 0, user.createdAt.toISOString(), user.updatedAt.toISOString(),
+                    user.lastLoginAt?.toISOString(), JSON.stringify(user.permissions),
+                    user.subscriptionId, user.subscriptionExpiry?.toISOString(),
+                    user.firstName, user.lastName, user.avatar
+                ], (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        });
+    }
+
+    private async saveUserSupabase(supabase: any, user: User): Promise<void> {
+        const { error } = await supabase
+            .from('users')
+            .insert([{
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                password: user.password,
+                role: user.role,
+                isActive: user.isActive,
+                createdAt: user.createdAt.toISOString(),
+                updatedAt: user.updatedAt.toISOString(),
+                lastLoginAt: user.lastLoginAt?.toISOString(),
+                permissions: user.permissions,
+                subscriptionId: user.subscriptionId,
+                subscriptionExpiry: user.subscriptionExpiry?.toISOString(),
+                firstName: user.firstName,
+                lastName: user.lastName,
+                avatar: user.avatar
+            }]);
+
+        if (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Mapping functions to convert database records to User objects
+     */
+    private mapMongoUser(mongoUser: any): User {
+        return {
+            id: mongoUser._id,
+            email: mongoUser.email,
+            username: mongoUser.username,
+            password: mongoUser.password,
+            role: mongoUser.role,
+            isActive: mongoUser.isActive,
+            createdAt: mongoUser.createdAt,
+            updatedAt: mongoUser.updatedAt,
+            lastLoginAt: mongoUser.lastLoginAt,
+            permissions: mongoUser.permissions,
+            subscriptionId: mongoUser.subscriptionId,
+            subscriptionExpiry: mongoUser.subscriptionExpiry,
+            firstName: mongoUser.firstName,
+            lastName: mongoUser.lastName,
+            avatar: mongoUser.avatar
+        };
+    }
+
+    private mapSQLUser(sqlUser: any): User {
+        return {
+            id: sqlUser.id,
+            email: sqlUser.email,
+            username: sqlUser.username,
+            password: sqlUser.password,
+            role: sqlUser.role,
+            isActive: sqlUser.isActive === 1 || sqlUser.isActive === true,
+            createdAt: new Date(sqlUser.createdAt),
+            updatedAt: new Date(sqlUser.updatedAt),
+            lastLoginAt: sqlUser.lastLoginAt ? new Date(sqlUser.lastLoginAt) : undefined,
+            permissions: sqlUser.permissions ? JSON.parse(sqlUser.permissions) : undefined,
+            subscriptionId: sqlUser.subscriptionId,
+            subscriptionExpiry: sqlUser.subscriptionExpiry ? new Date(sqlUser.subscriptionExpiry) : undefined,
+            firstName: sqlUser.firstName,
+            lastName: sqlUser.lastName,
+            avatar: sqlUser.avatar
+        };
+    }
+
+    private mapSupabaseUser(supabaseUser: any): User {
+        return {
+            id: supabaseUser.id,
+            email: supabaseUser.email,
+            username: supabaseUser.username,
+            password: supabaseUser.password,
+            role: supabaseUser.role,
+            isActive: supabaseUser.isActive,
+            createdAt: new Date(supabaseUser.createdAt),
+            updatedAt: new Date(supabaseUser.updatedAt),
+            lastLoginAt: supabaseUser.lastLoginAt ? new Date(supabaseUser.lastLoginAt) : undefined,
+            permissions: supabaseUser.permissions,
+            subscriptionId: supabaseUser.subscriptionId,
+            subscriptionExpiry: supabaseUser.subscriptionExpiry ? new Date(supabaseUser.subscriptionExpiry) : undefined,
+            firstName: supabaseUser.firstName,
+            lastName: supabaseUser.lastName,
+            avatar: supabaseUser.avatar
+        };
+    }
+
+    /**
+     * Check if admin user exists in database
+     */
+    public async adminExists(): Promise<boolean> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                return false;
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    const adminUser = await connection.collection('users').findOne({ role: 'admin' });
+                    return !!adminUser;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'SELECT COUNT(*) as count FROM users WHERE role = ?';
+                    const [rows] = await connection.execute(query, ['admin']);
+                    return rows[0].count > 0;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin'], (err: any, row: any) => {
+                            if (err) resolve(false); // If table doesn't exist, no admin exists
+                            else resolve(row.count > 0);
+                        });
+                    });
+
+                case 'supabase':
+                    const { data, error } = await connection
+                        .from('users')
+                        .select('id')
+                        .eq('role', 'admin')
+                        .limit(1);
+
+                    if (error) return false;
+                    return data && data.length > 0;
+
+                default:
+                    return false;
+            }
+        } catch (error) {
+            console.error('Error checking if admin exists:', error);
+            return false;
+        }
     }
 }

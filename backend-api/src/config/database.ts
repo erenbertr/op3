@@ -213,6 +213,81 @@ export class DatabaseManager {
         return this.currentConfig;
     }
 
+    /**
+     * Get a database connection for operations
+     */
+    public async getConnection(): Promise<any> {
+        if (!this.currentConfig) {
+            throw new Error('No database configuration found. Please configure database first.');
+        }
+
+        switch (this.currentConfig.type) {
+            case 'mongodb':
+                return this.getMongoConnection(this.currentConfig as MongoDBConfig);
+            case 'mysql':
+                return this.getMySQLConnection(this.currentConfig as MySQLConfig);
+            case 'postgresql':
+                return this.getPostgreSQLConnection(this.currentConfig as PostgreSQLConfig);
+            case 'localdb':
+                return this.getLocalDBConnection(this.currentConfig as LocalDBConfig);
+            case 'supabase':
+                return this.getSupabaseConnection(this.currentConfig as SupabaseConfig);
+            default:
+                throw new Error(`Database type ${this.currentConfig.type} not supported for operations yet`);
+        }
+    }
+
+    private async getMongoConnection(config: MongoDBConfig) {
+        const client = new MongoClient(config.connectionString, {
+            serverSelectionTimeoutMS: 5000,
+            connectTimeoutMS: 5000,
+        });
+        await client.connect();
+        return client.db(config.database);
+    }
+
+    private async getMySQLConnection(config: MySQLConfig) {
+        const connectionConfig: any = {
+            host: config.host,
+            port: config.port,
+            user: config.username,
+            password: config.password,
+            database: config.database
+        };
+
+        if (config.ssl) {
+            connectionConfig.ssl = {};
+        }
+
+        return mysql.createConnection(connectionConfig);
+    }
+
+    private async getPostgreSQLConnection(config: PostgreSQLConfig) {
+        const client = new PgClient({
+            host: config.host,
+            port: config.port,
+            user: config.username,
+            password: config.password,
+            database: config.database,
+            ssl: config.ssl
+        });
+        await client.connect();
+        return client;
+    }
+
+    private async getLocalDBConnection(config: LocalDBConfig) {
+        return new Promise((resolve, reject) => {
+            const db = new sqlite3.Database(config.database, (err) => {
+                if (err) reject(err);
+                else resolve(db);
+            });
+        });
+    }
+
+    private getSupabaseConnection(config: SupabaseConfig) {
+        return createClient(config.url, config.apiKey);
+    }
+
     private async testSupabaseConnection(config: SupabaseConfig): Promise<DatabaseConnectionResult> {
         try {
             const supabase = createClient(config.url, config.apiKey);

@@ -378,6 +378,13 @@ const translations: Translations = {
         fr: 'Actuel',
         de: 'Aktuell'
     },
+    'badge.upcoming': {
+        en: 'Upcoming',
+        tr: 'Yaklaşan',
+        es: 'Próximo',
+        fr: 'À venir',
+        de: 'Bevorstehend'
+    },
     'database.type.postgresql': {
         en: 'PostgreSQL',
         tr: 'PostgreSQL',
