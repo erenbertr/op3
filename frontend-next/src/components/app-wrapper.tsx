@@ -35,6 +35,10 @@ export function AppWrapper() {
         initializeApp();
     }, []);
 
+
+
+
+
     const initializeApp = async () => {
         try {
             setIsLoading(true);
@@ -139,7 +143,7 @@ export function AppWrapper() {
         }
     };
 
-    const loadWorkspaceDetails = async (workspaceId: string) => {
+    const loadWorkspaceDetails = async (workspaceId: string): Promise<void> => {
         if (!currentUser) return;
 
         try {
@@ -155,14 +159,11 @@ export function AppWrapper() {
         }
     };
 
-    const handleWorkspaceChange = (workspaceId: string) => {
+    const handleWorkspaceChange = async (workspaceId: string) => {
         setCurrentWorkspaceId(workspaceId);
         setCurrentView('workspace');
-        loadWorkspaceDetails(workspaceId);
-        // Refresh workspace tabs to ensure synchronization
-        if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
-            refreshWorkspaces();
-        }
+        await loadWorkspaceDetails(workspaceId);
+        // Note: refreshWorkspaces() is automatically called by useEffect when currentWorkspaceId changes
     };
 
     const handleShowSettings = () => {
@@ -314,6 +315,7 @@ export function AppWrapper() {
                     <WorkspaceTabBar
                         userId={currentUser.id}
                         currentView={currentView}
+                        currentWorkspaceId={currentWorkspaceId}
                         onWorkspaceChange={handleWorkspaceChange}
                         onShowSettings={handleShowSettings}
                         onShowCreateWorkspace={handleShowCreateWorkspace}
@@ -377,13 +379,10 @@ export function AppWrapper() {
                                 <WorkspaceSelection
                                     userId={currentUser.id}
                                     currentWorkspaceId={currentWorkspaceId}
-                                    onWorkspaceSelect={(workspaceId) => {
+                                    onWorkspaceSelect={async (workspaceId) => {
                                         setCurrentWorkspaceId(workspaceId);
-                                        loadWorkspaceDetails(workspaceId);
-                                        // Refresh workspace tabs to sync the state
-                                        if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
-                                            refreshWorkspaces();
-                                        }
+                                        await loadWorkspaceDetails(workspaceId);
+                                        // Note: refreshWorkspaces() is automatically called by useEffect when currentWorkspaceId changes
                                         handleBackToWorkspace();
                                     }}
                                 />
@@ -401,10 +400,6 @@ export function AppWrapper() {
                                         if (workspace) {
                                             setCurrentWorkspaceId(workspace.id);
                                             setCurrentWorkspace(workspace);
-                                        }
-                                        // Refresh workspace tabs
-                                        if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
-                                            refreshWorkspaces();
                                         }
                                         handleBackToWorkspace();
                                     }}

@@ -8,7 +8,8 @@ import { apiClient, WorkspaceListResponse } from '@/lib/api';
 interface WorkspaceTabBarProps {
     userId: string;
     currentView?: 'workspace' | 'settings' | 'create' | 'selection' | 'personalities';
-    onWorkspaceChange?: (workspaceId: string) => void;
+    currentWorkspaceId: string | null;
+    onWorkspaceChange?: (workspaceId: string) => Promise<void> | void;
     onShowSettings?: () => void;
     onShowCreateWorkspace?: () => void;
     onShowWorkspaceSelection?: () => void;
@@ -25,9 +26,8 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onShowPersonalities, onRefresh }: WorkspaceTabBarProps) {
+export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onShowPersonalities, onRefresh }: WorkspaceTabBarProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-    const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -40,10 +40,6 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
 
             if (result.success) {
                 setWorkspaces(result.workspaces);
-                const activeWorkspace = result.workspaces.find(w => w.isActive);
-                if (activeWorkspace) {
-                    setActiveWorkspaceId(activeWorkspace.id);
-                }
             } else {
                 setError('Failed to load workspaces');
             }
@@ -60,6 +56,16 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
         loadWorkspaces();
     }, [loadWorkspaces]);
 
+    // Reload workspaces when currentWorkspaceId changes and it's not in the current list
+    useEffect(() => {
+        if (currentWorkspaceId && workspaces.length > 0) {
+            const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
+            if (!workspaceExists) {
+                loadWorkspaces();
+            }
+        }
+    }, [currentWorkspaceId, workspaces, loadWorkspaces]);
+
     // Expose refresh function to parent
     useEffect(() => {
         if (onRefresh) {
@@ -68,18 +74,19 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
     }, [onRefresh, loadWorkspaces]);
 
     const handleTabClick = async (workspaceId: string) => {
-        if (workspaceId === activeWorkspaceId) return;
+        if (workspaceId === currentWorkspaceId) return;
 
         try {
             const result = await apiClient.setActiveWorkspace(workspaceId, userId);
 
             if (result.success) {
-                setActiveWorkspaceId(workspaceId);
+                // Update local workspace state to reflect the change
                 setWorkspaces(prev => prev.map(w => ({
                     ...w,
                     isActive: w.id === workspaceId
                 })));
-                onWorkspaceChange?.(workspaceId);
+                // Let parent handle the workspace change
+                await onWorkspaceChange?.(workspaceId);
             } else {
                 setError(result.message || 'Failed to switch workspace');
             }
@@ -99,7 +106,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
 
         try {
             // If this is the active workspace, switch to another one first
-            if (workspaceId === activeWorkspaceId) {
+            if (workspaceId === currentWorkspaceId) {
                 const otherWorkspace = workspaces.find(w => w.id !== workspaceId);
                 if (otherWorkspace) {
                     await handleTabClick(otherWorkspace.id);
@@ -114,11 +121,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
                 setWorkspaces(prev => prev.filter(w => w.id !== workspaceId));
 
                 // If we deleted the active workspace, make sure another one is active
-                if (workspaceId === activeWorkspaceId) {
+                if (workspaceId === currentWorkspaceId) {
                     const remainingWorkspaces = workspaces.filter(w => w.id !== workspaceId);
                     if (remainingWorkspaces.length > 0) {
-                        setActiveWorkspaceId(remainingWorkspaces[0].id);
-                        onWorkspaceChange?.(remainingWorkspaces[0].id);
+                        await onWorkspaceChange?.(remainingWorkspaces[0].id);
                     }
                 }
             } else {
@@ -194,7 +200,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
                     {workspaces.map((workspace) => (
                         <div
                             key={workspace.id}
-                            className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.isActive && currentView === 'workspace'
+                            className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                 ? 'bg-primary/10 border-primary text-primary'
                                 : 'hover:bg-muted border-transparent hover:border-primary/50'
                                 }`}
@@ -203,7 +209,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
                             <span className="text-sm font-medium truncate max-w-32">
                                 {workspace.name}
                             </span>
-                            {workspaces.length > 1 && workspace.isActive && currentView === 'workspace' && (
+                            {workspaces.length > 1 && workspace.id === currentWorkspaceId && currentView === 'workspace' && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
