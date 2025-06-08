@@ -6,6 +6,7 @@ import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { WorkspaceManagementPanel } from '@/components/workspace/workspace-management-panel';
+import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -24,7 +25,7 @@ export function AppWrapper() {
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
-    const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create'>('workspace');
+    const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection'>('workspace');
 
     useEffect(() => {
         initializeApp();
@@ -123,6 +124,10 @@ export function AppWrapper() {
 
     const handleShowCreateWorkspace = () => {
         setCurrentView('create');
+    };
+
+    const handleShowWorkspaceSelection = () => {
+        setCurrentView('selection');
     };
 
     const handleBackToWorkspace = () => {
@@ -259,6 +264,7 @@ export function AppWrapper() {
                     onWorkspaceChange={handleWorkspaceChange}
                     onShowSettings={handleShowSettings}
                     onShowCreateWorkspace={handleShowCreateWorkspace}
+                    onShowWorkspaceSelection={handleShowWorkspaceSelection}
                 />
 
                 {/* Main content based on current view */}
@@ -280,18 +286,9 @@ export function AppWrapper() {
                     )}
 
                     {currentView === 'settings' && (
-                        <div className="container mx-auto px-4 py-8">
+                        <div className="container mx-auto px-4 py-6">
                             <div className="max-w-4xl mx-auto">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleBackToWorkspace}
-                                        className="flex items-center gap-2"
-                                    >
-                                        ← Back to Workspace
-                                    </Button>
-                                    <h1 className="text-2xl font-bold">Workspace Settings</h1>
-                                </div>
+                                <h1 className="text-2xl font-bold mb-6">Workspace Settings</h1>
                                 <WorkspaceManagementPanel
                                     userId={currentUser.id}
                                     workspaces={[]} // Will be loaded by the component
@@ -303,19 +300,26 @@ export function AppWrapper() {
                         </div>
                     )}
 
+                    {currentView === 'selection' && (
+                        <div className="container mx-auto px-4 py-6">
+                            <div className="max-w-6xl mx-auto">
+                                <h1 className="text-2xl font-bold mb-6">Select Workspace</h1>
+                                <WorkspaceSelection
+                                    userId={currentUser.id}
+                                    currentWorkspaceId={currentWorkspaceId}
+                                    onWorkspaceSelect={(workspaceId) => {
+                                        setCurrentWorkspaceId(workspaceId);
+                                        handleBackToWorkspace();
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {currentView === 'create' && (
-                        <div className="container mx-auto px-4 py-8">
+                        <div className="container mx-auto px-4 py-6">
                             <div className="max-w-4xl mx-auto">
-                                <div className="flex items-center gap-4 mb-6">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleBackToWorkspace}
-                                        className="flex items-center gap-2"
-                                    >
-                                        ← Back to Workspace
-                                    </Button>
-                                    <h1 className="text-2xl font-bold">Create New Workspace</h1>
-                                </div>
+                                <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
                                 <WorkspaceSetup
                                     userId={currentUser.id}
                                     onComplete={(workspace) => {

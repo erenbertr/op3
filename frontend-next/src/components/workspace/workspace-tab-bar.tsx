@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X } from 'lucide-react';
+import { Settings, Plus, X, FolderOpen } from 'lucide-react';
 import { apiClient, WorkspaceListResponse } from '@/lib/api';
 
 interface WorkspaceTabBarProps {
@@ -10,6 +10,7 @@ interface WorkspaceTabBarProps {
     onWorkspaceChange?: (workspaceId: string) => void;
     onShowSettings?: () => void;
     onShowCreateWorkspace?: () => void;
+    onShowWorkspaceSelection?: () => void;
 }
 
 interface Workspace {
@@ -21,7 +22,7 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace }: WorkspaceTabBarProps) {
+export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection }: WorkspaceTabBarProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -149,6 +150,17 @@ export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onS
                         title="Workspace Settings"
                     >
                         <Settings className="h-4 w-4" />
+                    </Button>
+
+                    {/* Workspace Selection Tab */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onShowWorkspaceSelection}
+                        className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
+                        title="Select Workspace"
+                    >
+                        <FolderOpen className="h-4 w-4" />
                     </Button>
 
                     {/* Workspace Tabs */}
