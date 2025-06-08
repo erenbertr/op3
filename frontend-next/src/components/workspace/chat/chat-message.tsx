@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { User, Bot, Brain, Copy, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
-import { useTheme } from 'next-themes';
+
 import DOMPurify from 'dompurify';
 
 interface ChatMessageProps {
@@ -22,7 +22,7 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
     const isUser = message.role === 'user';
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
-    const { theme } = useTheme();
+
 
     // Copy to clipboard functionality
     const handleCopy = async () => {
@@ -65,18 +65,11 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
         }
     };
 
-    // Determine background color based on theme
-    const getUserMessageBg = () => {
-        if (theme === 'dark') {
-            return '#1b1718';
-        } else {
-            return '#f8f9fa';
-        }
-    };
+
 
     return (
         <div
-            className={cn("flex gap-3 max-w-4xl relative group", className)}
+            className={cn("flex gap-3 relative group border-b border-border pb-4 mb-4 last:border-b-0 last:mb-0", className)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -121,7 +114,6 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                         "p-3 rounded-lg relative",
                         isUser ? "max-w-[80%]" : "max-w-full"
                     )}
-                    style={isUser ? { backgroundColor: getUserMessageBg() } : {}}
                 >
                     {renderContent()}
 
@@ -226,7 +218,7 @@ export function ChatMessageList({
     }
 
     return (
-        <div className={cn("space-y-6 p-4", className)}>
+        <div className={cn("p-4", className)}>
             {(messages || []).map((message) => (
                 <ChatMessage
                     key={message.id}
@@ -239,7 +231,7 @@ export function ChatMessageList({
 
             {/* Streaming message */}
             {isStreaming && streamingMessage && (
-                <div className="flex gap-3 max-w-4xl relative">
+                <div className="flex gap-3 relative border-b border-border pb-4 mb-4">
                     {/* Avatar */}
                     <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarFallback className="bg-secondary text-secondary-foreground">

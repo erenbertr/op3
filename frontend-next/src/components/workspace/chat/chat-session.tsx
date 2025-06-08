@@ -266,29 +266,35 @@ export function ChatSessionComponent({
     return (
         <div className={`flex flex-col h-full ${className || ''}`}>
             {/* Messages area */}
-            <ScrollArea ref={scrollAreaRef} className="flex-1 px-4">
-                <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
-                    <ChatMessageList
-                        messages={messages}
+            <div className="flex-1 overflow-hidden">
+                <ScrollArea ref={scrollAreaRef} className="h-full">
+                    <div className="px-4 max-w-4xl mx-auto">
+                        <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
+                            <ChatMessageList
+                                messages={messages}
+                                personalities={personalities}
+                                aiProviders={aiProviders}
+                                streamingMessage={streamingMessage}
+                                isStreaming={isStreaming}
+                                className={messages.length === 0 ? "" : "py-4"}
+                                onRetry={handleRetryMessage}
+                            />
+                        </div>
+                    </div>
+                </ScrollArea>
+            </div>
+
+            {/* Input area - Fixed at bottom */}
+            <div className="flex-shrink-0 border-t bg-background">
+                <div className="px-4 py-4 max-w-4xl mx-auto">
+                    <ChatInput
+                        onSendMessage={handleSendMessage}
                         personalities={personalities}
                         aiProviders={aiProviders}
-                        streamingMessage={streamingMessage}
-                        isStreaming={isStreaming}
-                        className={messages.length === 0 ? "" : "py-4"}
-                        onRetry={handleRetryMessage}
+                        isLoading={isLoading}
+                        placeholder={messages.length === 0 ? "Start your conversation..." : "Type your message here..."}
                     />
                 </div>
-            </ScrollArea>
-
-            {/* Input area */}
-            <div className="border-t bg-background p-4">
-                <ChatInput
-                    onSendMessage={handleSendMessage}
-                    personalities={personalities}
-                    aiProviders={aiProviders}
-                    isLoading={isLoading}
-                    placeholder={messages.length === 0 ? "Start your conversation..." : "Type your message here..."}
-                />
             </div>
         </div>
     );

@@ -155,33 +155,40 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
     }
 
     return (
-        <div className={`flex h-full ${className || ''}`}>
-            {/* Left Sidebar - Fixed width */}
-            <div className="w-80 flex-shrink-0 h-full">
-                <ChatSidebar
-                    userId={userId}
-                    workspaceId={workspaceId}
-                    onNewChat={handleNewChat}
-                    onChatSelect={handleChatSelect}
-                    activeChatId={activeSession?.id}
-                    chatSessions={chatSessions}
-                    onSessionsUpdate={setChatSessions}
-                />
-            </div>
+        <div className={`h-full ${className || ''}`}>
+            <div className="container mx-auto h-full max-w-7xl">
+                <div className="flex h-full">
+                    {/* Left Sidebar - Fixed width */}
+                    <div className="w-80 flex-shrink-0 h-full border-r border-border">
+                        <ChatSidebar
+                            userId={userId}
+                            workspaceId={workspaceId}
+                            onNewChat={handleNewChat}
+                            onChatSelect={handleChatSelect}
+                            activeChatId={activeSession?.id}
+                            chatSessions={chatSessions}
+                            onSessionsUpdate={setChatSessions}
+                        />
+                    </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-full border-r border-border">
-                {activeSession ? (
-                    <ChatSessionComponent
-                        session={activeSession}
-                        personalities={personalities || []}
-                        aiProviders={aiProviders || []}
-                        onSessionUpdate={handleSessionUpdate}
-                        userId={userId}
-                    />
-                ) : (
-                    <EmptyChatState />
-                )}
+                    {/* Main Content Area */}
+                    <div className="flex-1 h-full border-r border-border">
+                        {activeSession ? (
+                            <ChatSessionComponent
+                                session={activeSession}
+                                personalities={personalities || []}
+                                aiProviders={aiProviders || []}
+                                onSessionUpdate={handleSessionUpdate}
+                                userId={userId}
+                                className="h-full"
+                            />
+                        ) : (
+                            <div className="h-full flex items-center justify-center">
+                                <EmptyChatState />
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

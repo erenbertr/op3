@@ -41,6 +41,10 @@ export function ChatInput({
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
     const providerDropdownRef = useRef<HTMLDivElement>(null);
 
+    // Constants for localStorage keys
+    const LAST_AI_PROVIDER_KEY = 'op3-last-ai-provider';
+    const LAST_PERSONALITY_KEY = 'op3-last-personality';
+
     // Auto-resize textarea
     useEffect(() => {
         const textarea = textareaRef.current;
@@ -50,13 +54,73 @@ export function ChatInput({
         }
     }, [message]);
 
-    // Set default AI provider
+    // Load saved selections from localStorage on mount
+    useEffect(() => {
+        try {
+            const savedProvider = localStorage.getItem(LAST_AI_PROVIDER_KEY);
+            const savedPersonality = localStorage.getItem(LAST_PERSONALITY_KEY);
+
+            if (savedProvider) {
+                setSelectedProvider(savedProvider);
+            }
+            if (savedPersonality) {
+                setSelectedPersonality(savedPersonality);
+            }
+        } catch (error) {
+            console.error('Error loading saved selections from localStorage:', error);
+        }
+    }, []);
+
+    // Set default AI provider if none selected and none saved
     useEffect(() => {
         if (aiProviders && aiProviders.length > 0 && !selectedProvider) {
             const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
-            setSelectedProvider(activeProvider?.id || '');
+            const providerId = activeProvider?.id || '';
+            setSelectedProvider(providerId);
+
+            // Save as default for future sessions
+            try {
+                localStorage.setItem(LAST_AI_PROVIDER_KEY, providerId);
+            } catch (error) {
+                console.error('Error saving default AI provider to localStorage:', error);
+            }
         }
     }, [aiProviders, selectedProvider]);
+
+    // Validate saved provider still exists in current providers
+    useEffect(() => {
+        if (selectedProvider && aiProviders && aiProviders.length > 0) {
+            const providerExists = aiProviders.find(p => p?.id === selectedProvider);
+            if (!providerExists) {
+                // Saved provider no longer exists, reset to default
+                const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
+                const providerId = activeProvider?.id || '';
+                setSelectedProvider(providerId);
+
+                try {
+                    localStorage.setItem(LAST_AI_PROVIDER_KEY, providerId);
+                } catch (error) {
+                    console.error('Error updating AI provider in localStorage:', error);
+                }
+            }
+        }
+    }, [aiProviders, selectedProvider]);
+
+    // Validate saved personality still exists in current personalities
+    useEffect(() => {
+        if (selectedPersonality && personalities && personalities.length > 0) {
+            const personalityExists = personalities.find(p => p?.id === selectedPersonality);
+            if (!personalityExists) {
+                // Saved personality no longer exists, reset to none
+                setSelectedPersonality('');
+                try {
+                    localStorage.removeItem(LAST_PERSONALITY_KEY);
+                } catch (error) {
+                    console.error('Error removing invalid personality from localStorage:', error);
+                }
+            }
+        }
+    }, [personalities, selectedPersonality]);
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -177,6 +241,11 @@ export function ChatInput({
                                             setSelectedPersonality('');
                                             setShowPersonalityDropdown(false);
                                             setPersonalitySearch('');
+                                            try {
+                                                localStorage.removeItem(LAST_PERSONALITY_KEY);
+                                            } catch (error) {
+                                                console.error('Error removing personality from localStorage:', error);
+                                            }
                                         }}
                                     >
                                         <div className="font-medium">No personality</div>
@@ -190,6 +259,11 @@ export function ChatInput({
                                                 setSelectedPersonality(personality.id);
                                                 setShowPersonalityDropdown(false);
                                                 setPersonalitySearch('');
+                                                try {
+                                                    localStorage.setItem(LAST_PERSONALITY_KEY, personality.id);
+                                                } catch (error) {
+                                                    console.error('Error saving personality to localStorage:', error);
+                                                }
                                             }}
                                         >
                                             <div className="font-medium">{personality?.title || 'Untitled'}</div>
@@ -243,9 +317,15 @@ export function ChatInput({
                                             key={provider.id}
                                             className="px-3 py-2 hover:bg-accent cursor-pointer"
                                             onClick={() => {
-                                                setSelectedProvider(provider.id || '');
+                                                const providerId = provider.id || '';
+                                                setSelectedProvider(providerId);
                                                 setShowProviderDropdown(false);
                                                 setProviderSearch('');
+                                                try {
+                                                    localStorage.setItem(LAST_AI_PROVIDER_KEY, providerId);
+                                                } catch (error) {
+                                                    console.error('Error saving AI provider to localStorage:', error);
+                                                }
                                             }}
                                         >
                                             <div className="font-medium">{provider?.name || provider?.type || 'Unknown Provider'}</div>
