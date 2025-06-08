@@ -321,6 +321,69 @@ export class UserService {
     }
 
     /**
+     * Mark user as having completed workspace setup
+     */
+    public async markWorkspaceSetupComplete(userId: string): Promise<void> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('users').updateOne(
+                        { _id: userId },
+                        { $set: { hasCompletedWorkspaceSetup: true, updatedAt: new Date() } }
+                    );
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'UPDATE users SET hasCompletedWorkspaceSetup = ?, updatedAt = ? WHERE id = ?';
+                    await connection.execute(query, [true, new Date().toISOString(), userId]);
+                    break;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.run(
+                            'UPDATE users SET hasCompletedWorkspaceSetup = ?, updatedAt = ? WHERE id = ?',
+                            [1, new Date().toISOString(), userId],
+                            (err: any) => {
+                                if (err) reject(err);
+                                else resolve();
+                            }
+                        );
+                    });
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('users')
+                        .update({
+                            hasCompletedWorkspaceSetup: true,
+                            updatedAt: new Date().toISOString()
+                        })
+                        .eq('id', userId);
+
+                    if (error) {
+                        throw error;
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            console.log('User workspace setup marked as complete:', userId);
+        } catch (error) {
+            console.error('Error marking workspace setup as complete:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Delete user by email
      */
     private async deleteUserByEmail(email: string): Promise<void> {
@@ -468,6 +531,7 @@ export class UserService {
                 createdAt DATETIME NOT NULL,
                 updatedAt DATETIME NOT NULL,
                 lastLoginAt DATETIME,
+                hasCompletedWorkspaceSetup BOOLEAN DEFAULT FALSE,
                 permissions JSON,
                 subscriptionId VARCHAR(255),
                 subscriptionExpiry DATETIME,
@@ -482,12 +546,13 @@ export class UserService {
         await connection.execute(`
             INSERT INTO users (
                 id, email, username, password, role, isActive, createdAt, updatedAt,
-                lastLoginAt, permissions, subscriptionId, subscriptionExpiry,
+                lastLoginAt, hasCompletedWorkspaceSetup, permissions, subscriptionId, subscriptionExpiry,
                 firstName, lastName, avatar
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             user.id, user.email, user.username, user.password, user.role,
             user.isActive, user.createdAt, user.updatedAt, user.lastLoginAt,
+            user.hasCompletedWorkspaceSetup || false,
             JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry,
             user.firstName, user.lastName, user.avatar
         ]);
@@ -508,6 +573,7 @@ export class UserService {
                     "createdAt" TIMESTAMP NOT NULL,
                     "updatedAt" TIMESTAMP NOT NULL,
                     "lastLoginAt" TIMESTAMP,
+                    "hasCompletedWorkspaceSetup" BOOLEAN DEFAULT FALSE,
                     permissions JSONB,
                     "subscriptionId" VARCHAR(255),
                     "subscriptionExpiry" TIMESTAMP,
@@ -526,12 +592,13 @@ export class UserService {
             await client.query(`
                 INSERT INTO users (
                     id, email, username, password, role, "isActive", "createdAt", "updatedAt",
-                    "lastLoginAt", permissions, "subscriptionId", "subscriptionExpiry",
+                    "lastLoginAt", "hasCompletedWorkspaceSetup", permissions, "subscriptionId", "subscriptionExpiry",
                     "firstName", "lastName", avatar
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
             `, [
                 user.id, user.email, user.username, user.password, user.role,
                 user.isActive, user.createdAt, user.updatedAt, user.lastLoginAt,
+                user.hasCompletedWorkspaceSetup || false,
                 JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry,
                 user.firstName, user.lastName, user.avatar
             ]);
@@ -557,6 +624,7 @@ export class UserService {
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL,
                     lastLoginAt TEXT,
+                    hasCompletedWorkspaceSetup INTEGER DEFAULT 0,
                     permissions TEXT,
                     subscriptionId TEXT,
                     subscriptionExpiry TEXT,
@@ -576,14 +644,14 @@ export class UserService {
                 db.run(`
                     INSERT INTO users (
                         id, email, username, password, role, isActive, createdAt, updatedAt,
-                        lastLoginAt, permissions, subscriptionId, subscriptionExpiry,
+                        lastLoginAt, hasCompletedWorkspaceSetup, permissions, subscriptionId, subscriptionExpiry,
                         firstName, lastName, avatar
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     user.id, user.email, user.username, user.password, user.role,
                     user.isActive ? 1 : 0, user.createdAt.toISOString(), user.updatedAt.toISOString(),
-                    user.lastLoginAt?.toISOString(), JSON.stringify(user.permissions),
-                    user.subscriptionId, user.subscriptionExpiry?.toISOString(),
+                    user.lastLoginAt?.toISOString(), user.hasCompletedWorkspaceSetup ? 1 : 0,
+                    JSON.stringify(user.permissions), user.subscriptionId, user.subscriptionExpiry?.toISOString(),
                     user.firstName, user.lastName, user.avatar
                 ], (err: any) => {
                     if (err) {
@@ -611,6 +679,7 @@ export class UserService {
                 createdAt: user.createdAt.toISOString(),
                 updatedAt: user.updatedAt.toISOString(),
                 lastLoginAt: user.lastLoginAt?.toISOString(),
+                hasCompletedWorkspaceSetup: user.hasCompletedWorkspaceSetup || false,
                 permissions: user.permissions,
                 subscriptionId: user.subscriptionId,
                 subscriptionExpiry: user.subscriptionExpiry?.toISOString(),
@@ -638,6 +707,7 @@ export class UserService {
             createdAt: mongoUser.createdAt,
             updatedAt: mongoUser.updatedAt,
             lastLoginAt: mongoUser.lastLoginAt,
+            hasCompletedWorkspaceSetup: mongoUser.hasCompletedWorkspaceSetup || false,
             permissions: mongoUser.permissions,
             subscriptionId: mongoUser.subscriptionId,
             subscriptionExpiry: mongoUser.subscriptionExpiry,
@@ -658,6 +728,7 @@ export class UserService {
             createdAt: new Date(sqlUser.createdAt),
             updatedAt: new Date(sqlUser.updatedAt),
             lastLoginAt: sqlUser.lastLoginAt ? new Date(sqlUser.lastLoginAt) : undefined,
+            hasCompletedWorkspaceSetup: sqlUser.hasCompletedWorkspaceSetup === 1 || sqlUser.hasCompletedWorkspaceSetup === true,
             permissions: sqlUser.permissions ? JSON.parse(sqlUser.permissions) : undefined,
             subscriptionId: sqlUser.subscriptionId,
             subscriptionExpiry: sqlUser.subscriptionExpiry ? new Date(sqlUser.subscriptionExpiry) : undefined,
@@ -678,6 +749,7 @@ export class UserService {
             createdAt: new Date(supabaseUser.createdAt),
             updatedAt: new Date(supabaseUser.updatedAt),
             lastLoginAt: supabaseUser.lastLoginAt ? new Date(supabaseUser.lastLoginAt) : undefined,
+            hasCompletedWorkspaceSetup: supabaseUser.hasCompletedWorkspaceSetup || false,
             permissions: supabaseUser.permissions,
             subscriptionId: supabaseUser.subscriptionId,
             subscriptionExpiry: supabaseUser.subscriptionExpiry ? new Date(supabaseUser.subscriptionExpiry) : undefined,

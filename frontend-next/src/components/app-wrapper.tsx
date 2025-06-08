@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
+import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -11,11 +12,20 @@ import { Loader2 } from 'lucide-react';
 
 type SetupStatus = SetupStatusResponse['setup'];
 
+// Mock user interface for demonstration
+interface MockUser {
+    id: string;
+    email: string;
+    hasCompletedWorkspaceSetup: boolean;
+}
+
 export function AppWrapper() {
     const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(true);
     const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
+    const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
 
     useEffect(() => {
         checkSetupStatus();
@@ -42,9 +52,35 @@ export function AppWrapper() {
     };
 
     const handleLogin = async (credentials: { email: string; password: string }) => {
-        // TODO: Implement actual login logic
+        // Mock login logic for demonstration
         console.log('Login attempt:', credentials);
-        alert('Login functionality will be implemented in the next phase.');
+
+        // Create a mock user (in real implementation, this would come from the backend)
+        const mockUser: MockUser = {
+            id: 'user-123',
+            email: credentials.email,
+            hasCompletedWorkspaceSetup: false // This would be checked from the backend
+        };
+
+        setCurrentUser(mockUser);
+
+        // Check if user needs workspace setup
+        if (!mockUser.hasCompletedWorkspaceSetup) {
+            setShowWorkspaceSetup(true);
+        }
+    };
+
+    const handleWorkspaceSetupComplete = (workspace: { id: string; templateType: string; workspaceRules: string; createdAt: string } | undefined) => {
+        console.log('Workspace setup completed:', workspace);
+        setShowWorkspaceSetup(false);
+
+        // Update user state to reflect completed workspace setup
+        if (currentUser) {
+            setCurrentUser({
+                ...currentUser,
+                hasCompletedWorkspaceSetup: true
+            });
+        }
     };
 
     if (isLoading) {
@@ -101,7 +137,72 @@ export function AppWrapper() {
         );
     }
 
-    // If setup is completed, show main application (login for now)
+    // If user is logged in and needs workspace setup
+    if (currentUser && showWorkspaceSetup) {
+        return (
+            <div className="min-h-screen bg-background">
+                {/* Header with theme toggle and language selector */}
+                <header className="border-b">
+                    <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-bold">OP3</h1>
+                            <span className="text-sm text-muted-foreground">Workspace Setup</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-muted-foreground">
+                                Welcome, {currentUser.email}
+                            </span>
+                            <LanguageSelector />
+                            <ThemeToggle />
+                        </div>
+                    </div>
+                </header>
+
+                {/* Workspace setup */}
+                <main>
+                    <WorkspaceSetup
+                        userId={currentUser.id}
+                        onComplete={handleWorkspaceSetupComplete}
+                    />
+                </main>
+            </div>
+        );
+    }
+
+    // If user is logged in and has completed workspace setup
+    if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
+        return (
+            <div className="min-h-screen bg-background">
+                {/* Header with theme toggle and language selector */}
+                <header className="border-b">
+                    <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-bold">OP3</h1>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm text-muted-foreground">
+                                Welcome, {currentUser.email}
+                            </span>
+                            <LanguageSelector />
+                            <ThemeToggle />
+                        </div>
+                    </div>
+                </header>
+
+                {/* Main workspace content */}
+                <main className="container mx-auto px-4 py-8">
+                    <div className="text-center space-y-4">
+                        <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
+                        <p className="text-muted-foreground">
+                            Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.
+                        </p>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
+    // If setup is completed but user is not logged in, show login form
     return (
         <div className="min-h-screen bg-background">
             {/* Header with theme toggle and language selector */}

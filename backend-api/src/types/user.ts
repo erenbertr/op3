@@ -10,6 +10,8 @@ export interface User {
     createdAt: Date;
     updatedAt: Date;
     lastLoginAt?: Date;
+    // Setup completion tracking
+    hasCompletedWorkspaceSetup?: boolean;
     // Admin specific fields
     permissions?: string[];
     // Subscribed user specific fields

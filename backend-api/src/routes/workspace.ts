@@ -1,0 +1,89 @@
+import { Router, Request, Response } from 'express';
+import { WorkspaceService } from '../services/workspaceService';
+import { UserService } from '../services/userService';
+import { CreateWorkspaceRequest } from '../types/workspace';
+import { asyncHandler, createError } from '../middleware/errorHandler';
+
+const router = Router();
+const workspaceService = WorkspaceService.getInstance();
+const userService = UserService.getInstance();
+
+// Create workspace for user
+router.post('/create', asyncHandler(async (req: Request, res: Response) => {
+    const { userId, templateType, workspaceRules }: { userId: string } & CreateWorkspaceRequest = req.body;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (!templateType) {
+        throw createError('Template type is required', 400);
+    }
+
+    if (!['standard-chat', 'kanban-board', 'node-graph'].includes(templateType)) {
+        throw createError('Invalid template type', 400);
+    }
+
+    // Validate that workspaceRules is provided (can be empty string)
+    if (workspaceRules === undefined || workspaceRules === null) {
+        throw createError('Workspace rules field is required', 400);
+    }
+
+    const result = await workspaceService.createWorkspace(userId, {
+        templateType,
+        workspaceRules: workspaceRules || ''
+    });
+
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    // Mark user as having completed workspace setup
+    try {
+        await userService.markWorkspaceSetupComplete(userId);
+    } catch (error) {
+        console.error('Error marking workspace setup as complete:', error);
+        // Don't fail the request if this fails, just log it
+    }
+
+    res.json(result);
+}));
+
+// Get user's workspace status
+router.get('/status/:userId', asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    const result = await workspaceService.getUserWorkspace(userId);
+
+    res.json(result);
+}));
+
+// Get user's workspace
+router.get('/:userId', asyncHandler(async (req: Request, res: Response) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    const result = await workspaceService.getUserWorkspace(userId);
+
+    if (!result.success) {
+        throw createError('Failed to get workspace', 500);
+    }
+
+    if (!result.hasWorkspace) {
+        throw createError('No workspace found for user', 404);
+    }
+
+    res.json({
+        success: true,
+        workspace: result.workspace
+    });
+}));
+
+export default router;

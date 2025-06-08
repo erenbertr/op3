@@ -93,6 +93,31 @@ export interface ConnectionTestResponse {
     };
 }
 
+// Workspace types
+export type WorkspaceTemplate = 'standard-chat' | 'kanban-board' | 'node-graph';
+
+export interface CreateWorkspaceResponse {
+    success: boolean;
+    message: string;
+    workspace?: {
+        id: string;
+        templateType: WorkspaceTemplate;
+        workspaceRules: string;
+        createdAt: string;
+    };
+}
+
+export interface WorkspaceStatusResponse {
+    success: boolean;
+    hasWorkspace: boolean;
+    workspace?: {
+        id: string;
+        templateType: WorkspaceTemplate;
+        workspaceRules: string;
+        createdAt: string;
+    };
+}
+
 class ApiClient {
     private baseUrl: string;
 
@@ -186,6 +211,22 @@ class ApiClient {
             method: 'POST',
             body: JSON.stringify({ providers }),
         });
+    }
+
+    // Workspace-related methods
+    async createWorkspace(userId: string, templateType: string, workspaceRules: string): Promise<CreateWorkspaceResponse> {
+        return this.request<CreateWorkspaceResponse>('/workspace/create', {
+            method: 'POST',
+            body: JSON.stringify({ userId, templateType, workspaceRules }),
+        });
+    }
+
+    async getWorkspaceStatus(userId: string): Promise<WorkspaceStatusResponse> {
+        return this.request<WorkspaceStatusResponse>(`/workspace/status/${userId}`);
+    }
+
+    async getUserWorkspace(userId: string): Promise<{ success: boolean; workspace?: { id: string; templateType: WorkspaceTemplate; workspaceRules: string; createdAt: string } }> {
+        return this.request<{ success: boolean; workspace?: { id: string; templateType: WorkspaceTemplate; workspaceRules: string; createdAt: string } }>(`/workspace/${userId}`);
     }
 }
 

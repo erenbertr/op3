@@ -1,5 +1,6 @@
 import { Express } from 'express';
 import setupRouter from './setup';
+import workspaceRouter from './workspace';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -7,6 +8,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Setup routes
     app.use(`${API_PREFIX}/setup`, setupRouter);
+
+    // Workspace routes
+    app.use(`${API_PREFIX}/workspace`, workspaceRouter);
 
     // API info endpoint
     app.get(`${API_PREFIX}`, (req, res) => {
@@ -16,6 +20,7 @@ export const setupRoutes = (app: Express): void => {
             description: 'Backend API for OP3 application setup and management',
             endpoints: {
                 setup: `${API_PREFIX}/setup`,
+                workspace: `${API_PREFIX}/workspace`,
                 health: '/health'
             }
         });
