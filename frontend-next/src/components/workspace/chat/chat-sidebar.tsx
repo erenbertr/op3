@@ -91,7 +91,7 @@ export function ChatSidebar({
             className
         )}>
             {/* Header with Search and New Chat - Fixed at top */}
-            <div className="container mx-auto px-4 py-4 border-b border-border flex-shrink-0">
+            <div className="px-4 py-4 border-b border-border flex-shrink-0">
                 <div className="relative mb-3">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
