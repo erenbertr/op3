@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen } from 'lucide-react';
 import { apiClient, WorkspaceListResponse } from '@/lib/api';
@@ -30,19 +30,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
-    // Load workspaces on component mount
-    useEffect(() => {
-        loadWorkspaces();
-    }, [userId]);
-
-    // Expose refresh function to parent
-    useEffect(() => {
-        if (onRefresh) {
-            onRefresh(loadWorkspaces);
-        }
-    }, [onRefresh]);
-
-    const loadWorkspaces = async () => {
+    const loadWorkspaces = useCallback(async () => {
         try {
             setIsLoading(true);
             setError('');
@@ -64,7 +52,19 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [userId]);
+
+    // Load workspaces on component mount
+    useEffect(() => {
+        loadWorkspaces();
+    }, [loadWorkspaces]);
+
+    // Expose refresh function to parent
+    useEffect(() => {
+        if (onRefresh) {
+            onRefresh(loadWorkspaces);
+        }
+    }, [onRefresh, loadWorkspaces]);
 
     const handleTabClick = async (workspaceId: string) => {
         if (workspaceId === activeWorkspaceId) return;
@@ -129,10 +129,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
         }
     };
 
-    // Expose loadWorkspaces for parent components to refresh data
-    const refreshWorkspaces = () => {
-        loadWorkspaces();
-    };
+
 
     if (isLoading) {
         return (
@@ -183,8 +180,8 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', onWorkspace
                         <div
                             key={workspace.id}
                             className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.isActive && currentView === 'workspace'
-                                    ? 'bg-primary/10 border-primary text-primary'
-                                    : 'hover:bg-muted border-transparent hover:border-primary/50'
+                                ? 'bg-primary/10 border-primary text-primary'
+                                : 'hover:bg-muted border-transparent hover:border-primary/50'
                                 }`}
                             onClick={() => handleTabClick(workspace.id)}
                         >

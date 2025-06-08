@@ -330,7 +330,7 @@ export function AppWrapper() {
                                             setCurrentWorkspaceId(workspace.id);
                                         }
                                         // Refresh workspace tabs
-                                        if (refreshWorkspaces) {
+                                        if (refreshWorkspaces && typeof refreshWorkspaces === 'function') {
                                             refreshWorkspaces();
                                         }
                                         handleBackToWorkspace();
