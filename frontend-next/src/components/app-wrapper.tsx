@@ -26,6 +26,7 @@ export function AppWrapper() {
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
     const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection'>('workspace');
+    const [refreshWorkspaces, setRefreshWorkspaces] = useState<(() => void) | null>(null);
 
     useEffect(() => {
         initializeApp();
@@ -265,6 +266,7 @@ export function AppWrapper() {
                     onShowSettings={handleShowSettings}
                     onShowCreateWorkspace={handleShowCreateWorkspace}
                     onShowWorkspaceSelection={handleShowWorkspaceSelection}
+                    onRefresh={setRefreshWorkspaces}
                 />
 
                 {/* Main content based on current view */}
@@ -325,6 +327,10 @@ export function AppWrapper() {
                                     onComplete={(workspace) => {
                                         if (workspace) {
                                             setCurrentWorkspaceId(workspace.id);
+                                        }
+                                        // Refresh workspace tabs
+                                        if (refreshWorkspaces) {
+                                            refreshWorkspaces();
                                         }
                                         handleBackToWorkspace();
                                     }}

@@ -83,11 +83,6 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
 
     return (
         <div className="w-full max-w-4xl space-y-8">
-            <div className="text-center space-y-2">
-                <p className="text-muted-foreground">
-                    Choose a template and configure your workspace to get started
-                </p>
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Workspace Name */}

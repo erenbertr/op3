@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { X, Edit2, Trash2, MessageSquare, Kanban, Network } from 'lucide-react';
 import { apiClient, UpdateWorkspaceRequest } from '@/lib/api';
+import { WorkspaceRulesModal } from './workspace-rules-modal';
 
 interface WorkspaceManagementPanelProps {
     userId: string;
@@ -193,11 +194,6 @@ export function WorkspaceManagementPanel({
                                     <div>
                                         <CardTitle className="text-lg">
                                             {workspace.name}
-                                            {workspace.isActive && (
-                                                <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                                                    Active
-                                                </span>
-                                            )}
                                         </CardTitle>
                                         <CardDescription>
                                             {getTemplateLabel(workspace.templateType)} • Created {new Date(workspace.createdAt).toLocaleDateString()}
@@ -229,9 +225,10 @@ export function WorkspaceManagementPanel({
                         </CardHeader>
                         {workspace.workspaceRules && (
                             <CardContent className="pt-0">
-                                <div className="text-sm text-muted-foreground">
-                                    <strong>Rules:</strong> {workspace.workspaceRules}
-                                </div>
+                                <WorkspaceRulesModal
+                                    rules={workspace.workspaceRules}
+                                    workspaceName={workspace.name}
+                                />
                             </CardContent>
                         )}
                     </Card>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { WorkspaceRulesModal } from './workspace-rules-modal';
 
 interface WorkspaceSelectionProps {
     userId: string;
@@ -116,44 +117,36 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
             {/* Workspace Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {workspaces.map((workspace) => (
-                    <Card 
-                        key={workspace.id} 
-                        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-                            workspace.id === currentWorkspaceId
-                                ? 'ring-2 ring-primary border-primary bg-primary/5'
-                                : 'hover:border-primary/50'
-                        }`}
+                    <Card
+                        key={workspace.id}
+                        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${workspace.id === currentWorkspaceId
+                            ? 'ring-2 ring-primary border-primary bg-primary/5'
+                            : 'hover:border-primary/50'
+                            }`}
                         onClick={() => handleWorkspaceSelect(workspace.id)}
                     >
                         <CardHeader className="text-center pb-4">
                             <div className="flex justify-center mb-3">
-                                <div className={`p-3 rounded-full ${
-                                    workspace.id === currentWorkspaceId
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-muted text-muted-foreground'
-                                }`}>
+                                <div className={`p-3 rounded-full ${workspace.id === currentWorkspaceId
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground'
+                                    }`}>
                                     {getTemplateIcon(workspace.templateType)}
                                 </div>
                             </div>
                             <CardTitle className="text-lg">
                                 {workspace.name}
-                                {workspace.id === currentWorkspaceId && (
-                                    <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
-                                        Active
-                                    </span>
-                                )}
                             </CardTitle>
                             <CardDescription>
                                 {getTemplateLabel(workspace.templateType)}
                             </CardDescription>
                         </CardHeader>
                         {workspace.workspaceRules && (
-                            <CardContent className="pt-0">
-                                <div className="text-sm text-muted-foreground text-center">
-                                    <strong>Rules:</strong> {workspace.workspaceRules.length > 50 
-                                        ? workspace.workspaceRules.substring(0, 50) + '...' 
-                                        : workspace.workspaceRules}
-                                </div>
+                            <CardContent className="pt-0 text-center">
+                                <WorkspaceRulesModal
+                                    rules={workspace.workspaceRules}
+                                    workspaceName={workspace.name}
+                                />
                             </CardContent>
                         )}
                     </Card>

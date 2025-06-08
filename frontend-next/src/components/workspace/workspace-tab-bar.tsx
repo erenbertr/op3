@@ -11,6 +11,7 @@ interface WorkspaceTabBarProps {
     onShowSettings?: () => void;
     onShowCreateWorkspace?: () => void;
     onShowWorkspaceSelection?: () => void;
+    onRefresh?: (refreshFn: () => void) => void;
 }
 
 interface Workspace {
@@ -22,7 +23,7 @@ interface Workspace {
     createdAt: string;
 }
 
-export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection }: WorkspaceTabBarProps) {
+export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onRefresh }: WorkspaceTabBarProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,6 +33,13 @@ export function WorkspaceTabBar({ userId, onWorkspaceChange, onShowSettings, onS
     useEffect(() => {
         loadWorkspaces();
     }, [userId]);
+
+    // Expose refresh function to parent
+    useEffect(() => {
+        if (onRefresh) {
+            onRefresh(loadWorkspaces);
+        }
+    }, [onRefresh]);
 
     const loadWorkspaces = async () => {
         try {
