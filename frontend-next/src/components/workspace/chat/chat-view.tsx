@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { WorkspaceLayout } from '../workspace-layout';
 import { ChatSidebar } from './chat-sidebar';
-import { ChatSessionComponent } from './chat-session';
+import { ChatSessionComponent, EmptyChatState } from './chat-session';
 import { authService } from '@/lib/auth';
 import { ChatSession } from '@/lib/api';
 import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
@@ -13,7 +13,7 @@ import { Loader2 } from 'lucide-react';
 
 interface ChatViewProps {
     workspaceId: string;
-    chatId: string;
+    chatId?: string; // Made optional to handle workspace overview
 }
 
 export function ChatView({ workspaceId, chatId }: ChatViewProps) {
@@ -64,7 +64,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     // Handle chat session changes using callback approach
     const updateActiveSession = useCallback(() => {
-        if (chatSessions.length > 0) {
+        if (chatId && chatSessions.length > 0) {
+            // Specific chat requested
             const foundSession = chatSessions.find(s => s.id === chatId);
             if (foundSession) {
                 setActiveSession(foundSession);
@@ -86,6 +87,10 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                 setError('Chat session not found');
                 setActiveSession(null);
             }
+        } else if (!chatId) {
+            // Workspace overview - no specific chat, show empty state
+            setActiveSession(null);
+            setError(null);
         }
     }, [chatId, chatSessions]);
 
@@ -191,7 +196,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         );
     }
 
-    if (!activeSession) {
+    // Only show "Chat Not Found" error if we're looking for a specific chat that doesn't exist
+    if (chatId && !activeSession && !isLoading) {
         return (
             <WorkspaceLayout currentWorkspaceId={workspaceId}>
                 <div className="h-full flex items-center justify-center">
@@ -222,7 +228,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 workspaceId={workspaceId}
                                 onNewChat={handleNewChat}
                                 onChatSelect={handleChatSelect}
-                                activeChatId={activeSession.id}
+                                activeChatId={activeSession?.id}
                                 chatSessions={chatSessions}
                                 onSessionsUpdate={() => {
                                     // TanStack Query will automatically refetch and update the cache
@@ -233,14 +239,18 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
                         {/* Main Content Area */}
                         <div className="flex-1 h-full border-r border-border">
-                            <ChatSessionComponent
-                                session={activeSession}
-                                personalities={personalities || []}
-                                aiProviders={aiProviders || []}
-                                onSessionUpdate={handleSessionUpdate}
-                                userId={user?.id || ''}
-                                className="h-full"
-                            />
+                            {activeSession ? (
+                                <ChatSessionComponent
+                                    session={activeSession}
+                                    personalities={personalities || []}
+                                    aiProviders={aiProviders || []}
+                                    onSessionUpdate={handleSessionUpdate}
+                                    userId={user?.id || ''}
+                                    className="h-full"
+                                />
+                            ) : (
+                                <EmptyChatState />
+                            )}
                         </div>
                     </div>
                 </div>

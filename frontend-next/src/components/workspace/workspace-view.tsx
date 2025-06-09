@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
-import { StandardChatLayout } from './chat/standard-chat-layout';
+import { ChatView } from './chat/chat-view';
 import { authService } from '@/lib/auth';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { Loader2 } from 'lucide-react';
@@ -83,10 +83,9 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
     return (
         <WorkspaceLayout currentWorkspaceId={workspaceId}>
             {workspace.templateType === 'standard-chat' ? (
-                <StandardChatLayout
+                <ChatView
                     workspaceId={workspaceId}
-                    userId={user?.id || ''}
-                    className="h-full"
+                // No chatId provided - will show workspace overview with empty state
                 />
             ) : (
                 <div className="container mx-auto px-4 py-8">

@@ -106,7 +106,7 @@ export function WorkspaceManagementSkeleton() {
     );
 }
 
-// Complete chat layout skeleton that matches the real StandardChatLayout structure
+// Complete chat layout skeleton that matches the real ChatView structure
 // Note: ChatInput is NOT included in skeleton - it will be shown separately by the parent component
 export function ChatLayoutSkeleton() {
     return (
@@ -114,7 +114,7 @@ export function ChatLayoutSkeleton() {
             <div className="container mx-auto h-full px-4">
                 <div className="flex h-full">
                     {/* Left Sidebar - Fixed width */}
-                    <div className="w-80 flex-shrink-0 h-full border-r border-border">
+                    <div className="w-80 flex-shrink-0 h-full border-l border-border">
                         <ChatSidebarSkeleton />
                     </div>
 

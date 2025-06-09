@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
-import { StandardChatLayout } from '@/components/workspace/chat/standard-chat-layout';
+import { ChatView } from '@/components/workspace/chat/chat-view';
 import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
@@ -175,10 +175,9 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 {currentView === 'workspace' && routeParams.workspaceId && currentWorkspace && (
                     <>
                         {currentWorkspace.templateType === 'standard-chat' ? (
-                            <StandardChatLayout
+                            <ChatView
                                 workspaceId={routeParams.workspaceId}
-                                userId={currentUser.id}
-                                className="h-full"
+                            // No chatId provided - will show workspace overview with empty state
                             />
                         ) : (
                             <div className="container mx-auto px-4 py-8">
@@ -352,10 +351,9 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
     }
 
     return (
-        <StandardChatLayout
+        <ChatView
             workspaceId={workspaceId}
-            userId={currentUser.id}
-            className="h-full"
+            chatId={chatId}
         />
     );
 }
