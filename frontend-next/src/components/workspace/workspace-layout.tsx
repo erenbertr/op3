@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -25,7 +25,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
 
     // Determine current view from pathname
-    const getCurrentView = useCallback(() => {
+    const currentView = useMemo(() => {
         if (pathname.startsWith('/settings')) return 'settings';
         if (pathname === '/workspaces') return 'selection';
         if (pathname === '/personalities') return 'personalities';
@@ -33,8 +33,6 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         if (pathname.startsWith('/ws/')) return 'workspace';
         return 'workspace';
     }, [pathname]);
-
-    const currentView = getCurrentView();
 
     useEffect(() => {
         const user = authService.getCurrentUser();

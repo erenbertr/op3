@@ -57,9 +57,11 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         return [];
     }, []);
 
-    const loadWorkspaces = useCallback(async () => {
+    const loadWorkspaces = useCallback(async (clearError = true) => {
         try {
-            setError('');
+            if (clearError) {
+                setError('');
+            }
 
             // Try to get workspaces from cache first
             const cachedWorkspaces = workspaceCache.get(userId);
@@ -89,22 +91,27 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     // Initialize open tabs separately to avoid dependency issues
     const initializeOpenTabs = useCallback((workspaces: Workspace[]) => {
-        if (openWorkspaceTabs.length === 0 && workspaces.length > 0) {
-            const savedTabs = loadOpenTabs();
-            const validSavedTabs = savedTabs.filter((tabId: string) =>
-                workspaces.some(w => w.id === tabId)
-            );
+        setOpenWorkspaceTabs(currentTabs => {
+            // Only initialize if we don't have any tabs yet and we have workspaces
+            if (currentTabs.length === 0 && workspaces.length > 0) {
+                const savedTabs = loadOpenTabs();
+                const validSavedTabs = savedTabs.filter((tabId: string) =>
+                    workspaces.some(w => w.id === tabId)
+                );
 
-            if (validSavedTabs.length > 0) {
-                setOpenWorkspaceTabs(validSavedTabs);
-            } else {
-                // If no valid saved tabs, open all workspaces
-                const allWorkspaceIds = workspaces.map(w => w.id);
-                setOpenWorkspaceTabs(allWorkspaceIds);
-                saveOpenTabs(allWorkspaceIds);
+                if (validSavedTabs.length > 0) {
+                    saveOpenTabs(validSavedTabs);
+                    return validSavedTabs;
+                } else {
+                    // If no valid saved tabs, open all workspaces
+                    const allWorkspaceIds = workspaces.map(w => w.id);
+                    saveOpenTabs(allWorkspaceIds);
+                    return allWorkspaceIds;
+                }
             }
-        }
-    }, [openWorkspaceTabs.length, loadOpenTabs, saveOpenTabs]);
+            return currentTabs;
+        });
+    }, [loadOpenTabs, saveOpenTabs]);
 
     // Load workspaces on component mount
     useEffect(() => {
@@ -124,10 +131,13 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
             if (!workspaceExists) {
                 // Only reload if we're sure the workspace should exist but doesn't
-                loadWorkspaces();
+                // Use setTimeout to avoid state updates during render
+                setTimeout(() => {
+                    loadWorkspaces(false); // Don't clear error during this reload
+                }, 0);
             }
         }
-    }, [currentWorkspaceId, workspaces.length]);
+    }, [currentWorkspaceId, workspaces.length, loadWorkspaces]);
 
     // Expose refresh function to parent
     useEffect(() => {
