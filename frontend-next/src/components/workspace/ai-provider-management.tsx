@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Edit2, Trash2, Plus, Eye, EyeOff, TestTube } from 'lucide-react';
+import { Edit2, Trash2, Plus, TestTube } from 'lucide-react';
 import { AIProviderConfig, AIProviderType } from '@/lib/api';
 import { useAIProviders, useSaveAIProvider, useDeleteAIProvider, useTestAIProvider } from '@/lib/hooks/use-query-hooks';
 import { useToast } from '@/components/ui/toast';
@@ -47,7 +47,6 @@ const DEFAULT_MODELS: Record<AIProviderType, string> = {
 export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }, AIProviderManagementProps>(({ className }, ref) => {
     const [editingProvider, setEditingProvider] = useState<EditingProvider | null>(null);
     const [deletingProviderId, setDeletingProviderId] = useState<string | null>(null);
-    const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
     const [testStatus, setTestStatus] = useState<Record<string, 'testing' | 'success' | 'error'>>({});
     const { addToast } = useToast();
 
@@ -155,12 +154,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         }
     };
 
-    const toggleApiKeyVisibility = (providerId: string) => {
-        setShowApiKeys(prev => ({
-            ...prev,
-            [providerId]: !prev[providerId]
-        }));
-    };
+
 
     const handleTestProvider = async (provider: AIProviderConfig) => {
         if (!provider.id) return;
@@ -300,23 +294,9 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <span>API Key:</span>
                                     <code className="bg-muted px-2 py-1 rounded text-xs">
-                                        {showApiKeys[provider.id!]
-                                            ? provider.apiKey
-                                            : '••••••••••••••••'
-                                        }
+                                        ••••••••••••••••
                                     </code>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => toggleApiKeyVisibility(provider.id!)}
-                                        className="h-6 w-6 p-0"
-                                    >
-                                        {showApiKeys[provider.id!] ? (
-                                            <EyeOff className="h-3 w-3" />
-                                        ) : (
-                                            <Eye className="h-3 w-3" />
-                                        )}
-                                    </Button>
+                                    <span className="text-xs text-muted-foreground">(hidden for security)</span>
                                 </div>
                                 {provider.endpoint && (
                                     <div className="mt-2 text-sm text-muted-foreground">
