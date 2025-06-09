@@ -54,7 +54,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const {
         data: chatSessionsData,
         isLoading: chatSessionsLoading,
-        error: chatSessionsError
+        error: chatSessionsError,
+        refetch: refetchChatSessions
     } = useChatSessions(user?.id || '', workspaceId);
 
     // Extract data from query results
@@ -211,7 +212,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     }
 
     // Only show "Chat Not Found" error if we're looking for a specific chat that doesn't exist
-    if (chatId && !activeSession && !isLoading) {
+    // Add a small buffer to prevent race conditions when creating new chats
+    if (chatId && !activeSession && !isLoading && chatSessions.length > 0) {
         return (
             <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md">
@@ -241,9 +243,19 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                             onChatSelect={handleChatSelect}
                             activeChatId={activeSession?.id}
                             chatSessions={chatSessions}
-                            onSessionsUpdate={() => {
-                                // TanStack Query will automatically refetch and update the cache
-                                // No manual state management needed
+                            onSessionsUpdate={(updatedSessions) => {
+                                // Refetch chat sessions to get the latest data from the server
+                                refetchChatSessions();
+
+                                // If we have a new session and we're navigating to it,
+                                // optimistically set it as active to prevent "Chat Not Found" error
+                                if (updatedSessions && updatedSessions.length > 0 && chatId) {
+                                    const newSession = updatedSessions.find(s => s.id === chatId);
+                                    if (newSession) {
+                                        setActiveSession(newSession);
+                                        setError(null);
+                                    }
+                                }
                             }}
                         />
                     </div>
