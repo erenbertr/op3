@@ -18,6 +18,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     const router = useRouter();
     const pathname = usePathname();
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+    const [isClientReady, setIsClientReady] = useState(false);
 
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
@@ -33,14 +34,15 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         return 'workspace';
     }, [pathname]);
 
-    // Initialize user state (using useLayoutEffect for immediate effect)
-    React.useLayoutEffect(() => {
+    // Initialize user state on client side only to prevent hydration mismatch
+    React.useEffect(() => {
         const user = authService.getCurrentUser();
         if (user) {
             setCurrentUser(user);
         } else {
             router.push('/');
         }
+        setIsClientReady(true);
     }, [router]);
 
 
@@ -50,8 +52,17 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         router.push('/');
     };
 
-    // Don't show loading screen for layout - let content load individually
-    // This makes navigation feel more instant
+    // Show loading while client is initializing to prevent hydration mismatch
+    if (!isClientReady) {
+        return (
+            <div className="h-screen bg-background flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40 mx-auto"></div>
+                    <p className="text-muted-foreground">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!currentUser) {
         return null; // Will redirect to login

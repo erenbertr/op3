@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { WorkspaceLayout } from '../workspace-layout';
+// WorkspaceLayout removed - parent components handle layout wrapping
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
-import { authService } from '@/lib/auth';
+import { authService, AuthUser } from '@/lib/auth';
 import { ChatSession } from '@/lib/api';
 import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
 
@@ -19,10 +19,16 @@ interface ChatViewProps {
 export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [isClientReady, setIsClientReady] = useState(false);
     const { addToast } = useToast();
 
-    // Get current user
-    const user = authService.getCurrentUser();
+    // Initialize user state on client side only to prevent hydration mismatch
+    useEffect(() => {
+        const currentUser = authService.getCurrentUser();
+        setUser(currentUser);
+        setIsClientReady(true);
+    }, []);
 
     // Navigation helper
     const navigate = useCallback((path: string) => {
@@ -122,10 +128,22 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     // Redirect if no user - use useEffect to prevent SSR issues
     useEffect(() => {
-        if (!user) {
+        if (isClientReady && !user) {
             navigate('/');
         }
-    }, [user, navigate]);
+    }, [user, navigate, isClientReady]);
+
+    // Show loading while client is initializing to prevent hydration mismatch
+    if (!isClientReady) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
+                    <p className="text-muted-foreground">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     // Don't render if no user
     if (!user) {
@@ -166,95 +184,87 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     // Only show loading if we're loading workspace data AND don't have any chat sessions yet
     if (isLoading && chatSessions.length === 0) {
         return (
-            <WorkspaceLayout currentWorkspaceId={workspaceId}>
-                <div className="h-full flex items-center justify-center">
-                    <div className="text-center space-y-4">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
-                        <p className="text-muted-foreground">Loading chat...</p>
-                    </div>
+            <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
+                    <p className="text-muted-foreground">Loading chat...</p>
                 </div>
-            </WorkspaceLayout>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <WorkspaceLayout currentWorkspaceId={workspaceId}>
-                <div className="h-full flex items-center justify-center">
-                    <div className="text-center space-y-4 max-w-md">
-                        <h2 className="text-2xl font-bold text-destructive">Error</h2>
-                        <p className="text-muted-foreground">{error}</p>
-                        <button
-                            onClick={() => navigate(`/ws/${workspaceId}`)}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                        >
-                            Back to Workspace
-                        </button>
-                    </div>
+            <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4 max-w-md">
+                    <h2 className="text-2xl font-bold text-destructive">Error</h2>
+                    <p className="text-muted-foreground">{error}</p>
+                    <button
+                        onClick={() => navigate(`/ws/${workspaceId}`)}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                    >
+                        Back to Workspace
+                    </button>
                 </div>
-            </WorkspaceLayout>
+            </div>
         );
     }
 
     // Only show "Chat Not Found" error if we're looking for a specific chat that doesn't exist
     if (chatId && !activeSession && !isLoading) {
         return (
-            <WorkspaceLayout currentWorkspaceId={workspaceId}>
-                <div className="h-full flex items-center justify-center">
-                    <div className="text-center space-y-4 max-w-md">
-                        <h2 className="text-2xl font-bold">Chat Not Found</h2>
-                        <p className="text-muted-foreground">The chat session you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
-                        <button
-                            onClick={() => navigate(`/ws/${workspaceId}`)}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                        >
-                            Back to Workspace
-                        </button>
-                    </div>
+            <div className="h-full flex items-center justify-center">
+                <div className="text-center space-y-4 max-w-md">
+                    <h2 className="text-2xl font-bold">Chat Not Found</h2>
+                    <p className="text-muted-foreground">The chat session you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
+                    <button
+                        onClick={() => navigate(`/ws/${workspaceId}`)}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                    >
+                        Back to Workspace
+                    </button>
                 </div>
-            </WorkspaceLayout>
+            </div>
         );
     }
 
     return (
-        <WorkspaceLayout currentWorkspaceId={workspaceId}>
-            <div className="h-full">
-                <div className="container mx-auto h-full px-4">
-                    <div className="flex h-full">
-                        {/* Left Sidebar - Fixed width */}
-                        <div className="w-80 flex-shrink-0 h-full border-l border-border">
-                            <ChatSidebar
-                                userId={user?.id || ''}
-                                workspaceId={workspaceId}
-                                onNewChat={handleNewChat}
-                                onChatSelect={handleChatSelect}
-                                activeChatId={activeSession?.id}
-                                chatSessions={chatSessions}
-                                onSessionsUpdate={() => {
-                                    // TanStack Query will automatically refetch and update the cache
-                                    // No manual state management needed
-                                }}
-                            />
-                        </div>
+        <div className="h-full">
+            <div className="container mx-auto h-full px-4">
+                <div className="flex h-full">
+                    {/* Left Sidebar - Fixed width */}
+                    <div className="w-80 flex-shrink-0 h-full border-l border-border">
+                        <ChatSidebar
+                            userId={user?.id || ''}
+                            workspaceId={workspaceId}
+                            onNewChat={handleNewChat}
+                            onChatSelect={handleChatSelect}
+                            activeChatId={activeSession?.id}
+                            chatSessions={chatSessions}
+                            onSessionsUpdate={() => {
+                                // TanStack Query will automatically refetch and update the cache
+                                // No manual state management needed
+                            }}
+                        />
+                    </div>
 
-                        {/* Main Content Area */}
-                        <div className="flex-1 h-full border-r border-border">
-                            {activeSession ? (
-                                <ChatSessionComponent
-                                    session={activeSession}
-                                    personalities={personalities || []}
-                                    aiProviders={aiProviders || []}
-                                    onSessionUpdate={handleSessionUpdate}
-                                    userId={user?.id || ''}
-                                    className="h-full"
-                                />
-                            ) : (
-                                <EmptyChatState />
-                            )}
-                        </div>
+                    {/* Main Content Area */}
+                    <div className="flex-1 h-full border-r border-border">
+                        {activeSession ? (
+                            <ChatSessionComponent
+                                session={activeSession}
+                                personalities={personalities || []}
+                                aiProviders={aiProviders || []}
+                                onSessionUpdate={handleSessionUpdate}
+                                userId={user?.id || ''}
+                                className="h-full"
+                            />
+                        ) : (
+                            <EmptyChatState />
+                        )}
                     </div>
                 </div>
             </div>
-        </WorkspaceLayout>
+        </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
 import { WorkspaceSelection } from './workspace-selection';
@@ -11,8 +11,15 @@ export function WorkspaceSelectionView() {
     const user = authService.getCurrentUser();
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
 
+    // Use useEffect to handle navigation on client side only
+    useEffect(() => {
+        if (!user) {
+            router.push('/');
+        }
+    }, [user, router]);
+
+    // Don't render anything if no user (will redirect)
     if (!user) {
-        router.push('/');
         return null;
     }
 
