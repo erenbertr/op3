@@ -28,10 +28,35 @@ export function ChatSessionComponent({
     className,
     userId
 }: ChatSessionProps) {
-    // Use TanStack Query for messages
-    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '');
+    // Use TanStack Query for messages, but disable for new chats until first message is sent
+    const [hasInitialMessages, setHasInitialMessages] = useState(false);
+    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(
+        session?.id || '',
+        hasInitialMessages // Only enable query after we know there are messages
+    );
     const messages = messagesResult?.messages || [];
     const queryClient = useQueryClient();
+
+    // Check if this is a new chat (no messages) and disable query initially
+    React.useEffect(() => {
+        if (session?.id) {
+            // Check if we have any cached messages for this session
+            const cachedData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
+            if (cachedData && (cachedData as any).messages?.length > 0) {
+                setHasInitialMessages(true);
+            } else {
+                // For new chats, check the server once
+                apiClient.getChatMessages(session.id).then(result => {
+                    if (result.success && result.messages.length > 0) {
+                        setHasInitialMessages(true);
+                    }
+                }).catch(() => {
+                    // If error, assume new chat
+                    setHasInitialMessages(false);
+                });
+            }
+        }
+    }, [session?.id, queryClient]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
@@ -47,6 +72,7 @@ export function ChatSessionComponent({
         setStreamingMessage('');
         setIsStreaming(false);
         setPendingUserMessage(null);
+        setHasInitialMessages(false); // Reset query enablement for new session
 
         // Log session change
         console.log('🔄 Session changed to:', session?.id);
@@ -253,11 +279,8 @@ export function ChatSessionComponent({
                             return updatedData;
                         });
 
-                        // Invalidate the query to mark it as fresh but don't refetch
-                        queryClient.invalidateQueries({
-                            queryKey: cacheKey,
-                            refetchType: 'none' // Don't actually refetch, just mark as fresh
-                        });
+                        // Enable the query for future fetches now that we have messages
+                        setHasInitialMessages(true);
 
                         console.log('✅ Messages added to cache successfully');
 

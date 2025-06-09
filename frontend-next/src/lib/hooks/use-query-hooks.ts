@@ -112,7 +112,7 @@ export function useChatSessions(userId: string, workspaceId: string) {
     });
 }
 
-export function useChatMessages(sessionId: string) {
+export function useChatMessages(sessionId: string, enabled: boolean = true) {
     return useQuery({
         queryKey: queryKeys.chats.messages(sessionId),
         queryFn: async () => {
@@ -121,7 +121,7 @@ export function useChatMessages(sessionId: string) {
             console.log('📥 Server response for messages:', result);
             return result;
         },
-        enabled: !!sessionId,
+        enabled: !!sessionId && enabled,
         staleTime: Infinity, // Never consider data stale - rely on manual invalidation
         gcTime: 60 * 60 * 1000, // 60 minutes - keep in cache longer
         refetchOnMount: false, // Don't refetch when component mounts
