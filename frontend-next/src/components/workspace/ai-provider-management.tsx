@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Edit2, Trash2, Plus, Eye, EyeOff, TestTube } from 'lucide-react';
-import { apiClient, AIProviderConfig, AIProviderType } from '@/lib/api';
+import { AIProviderConfig, AIProviderType } from '@/lib/api';
+import { useAIProviders, useSaveAIProvider, useDeleteAIProvider, useTestAIProvider } from '@/lib/hooks/use-query-hooks';
 import { useToast } from '@/components/ui/toast';
 
 interface AIProviderManagementProps {
@@ -44,35 +45,27 @@ const DEFAULT_MODELS: Record<AIProviderType, string> = {
 };
 
 export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }, AIProviderManagementProps>(({ className }, ref) => {
-    const [providers, setProviders] = useState<AIProviderConfig[]>([]);
     const [editingProvider, setEditingProvider] = useState<EditingProvider | null>(null);
     const [deletingProviderId, setDeletingProviderId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
     const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
     const [testStatus, setTestStatus] = useState<Record<string, 'testing' | 'success' | 'error'>>({});
     const { addToast } = useToast();
 
-    const loadProviders = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const result = await apiClient.getAIProviders();
-            if (result.success) {
-                setProviders(result.providers);
-            } else {
-                setError('Failed to load AI providers');
-            }
-        } catch (error) {
-            console.error('Error loading AI providers:', error);
-            setError('Failed to load AI providers');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+    // Use TanStack Query for data fetching
+    const {
+        data: providers = [],
+        isLoading,
+        error: queryError
+    } = useAIProviders();
 
-    React.useEffect(() => {
-        loadProviders();
-    }, [loadProviders]);
+    // Use TanStack Query mutations
+    const saveProviderMutation = useSaveAIProvider();
+    const deleteProviderMutation = useDeleteAIProvider();
+    const testProviderMutation = useTestAIProvider();
+
+    const error = queryError?.message || saveProviderMutation.error?.message || deleteProviderMutation.error?.message || '';
+
+
 
     useImperativeHandle(ref, () => ({
         handleAddProvider
@@ -107,25 +100,20 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         if (!editingProvider) return;
 
         if (!editingProvider.name.trim()) {
-            setError('Provider name cannot be empty');
             return;
         }
 
         if (!editingProvider.apiKey.trim()) {
-            setError('API key cannot be empty');
             return;
         }
 
         if (!editingProvider.model.trim()) {
-            setError('Model cannot be empty');
             return;
         }
 
-        setIsLoading(true);
-        setError('');
-
         try {
             const providerData: AIProviderConfig = {
+                id: editingProvider.id,
                 type: editingProvider.type,
                 name: editingProvider.name.trim(),
                 apiKey: editingProvider.apiKey.trim(),
@@ -134,66 +122,35 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                 isActive: editingProvider.isActive
             };
 
-            if (editingProvider.id) {
-                // Update existing provider
-                const result = await apiClient.updateAIProvider(editingProvider.id, providerData);
-                if (result.success) {
-                    addToast({
-                        title: "Success",
-                        description: "AI provider updated successfully",
-                        variant: "success"
-                    });
-                } else {
-                    setError(result.message || 'Failed to update AI provider');
-                    return;
-                }
-            } else {
-                // Create new provider
-                const result = await apiClient.createAIProvider(providerData);
-                if (result.success) {
-                    addToast({
-                        title: "Success",
-                        description: "AI provider created successfully",
-                        variant: "success"
-                    });
-                } else {
-                    setError(result.message || 'Failed to create AI provider');
-                    return;
-                }
-            }
+            await saveProviderMutation.mutateAsync(providerData);
+
+            addToast({
+                title: "Success",
+                description: editingProvider.id ? "AI provider updated successfully" : "AI provider created successfully",
+                variant: "success"
+            });
 
             setEditingProvider(null);
-            loadProviders();
         } catch (error) {
+            // Error is handled by TanStack Query and displayed via error state
             console.error('Error saving AI provider:', error);
-            setError('Failed to save AI provider');
-        } finally {
-            setIsLoading(false);
         }
     };
 
     const handleDeleteProvider = async (providerId: string) => {
-        setIsLoading(true);
-        setError('');
-
         try {
-            const result = await apiClient.deleteAIProvider(providerId);
-            if (result.success) {
-                addToast({
-                    title: "Success",
-                    description: "AI provider deleted successfully",
-                    variant: "success"
-                });
-                setDeletingProviderId(null);
-                loadProviders();
-            } else {
-                setError(result.message || 'Failed to delete AI provider');
-            }
+            await deleteProviderMutation.mutateAsync(providerId);
+
+            addToast({
+                title: "Success",
+                description: "AI provider deleted successfully",
+                variant: "success"
+            });
+
+            setDeletingProviderId(null);
         } catch (error) {
+            // Error is handled by TanStack Query and displayed via error state
             console.error('Error deleting AI provider:', error);
-            setError('Failed to delete AI provider');
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -210,25 +167,31 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         setTestStatus(prev => ({ ...prev, [provider.id!]: 'testing' }));
 
         try {
-            const result = await apiClient.testAIProvider(provider.id);
-            setTestStatus(prev => ({
-                ...prev,
-                [provider.id!]: result.success ? 'success' : 'error'
-            }));
+            await testProviderMutation.mutateAsync(provider.id);
 
+            setTestStatus(prev => ({ ...prev, [provider.id!]: 'success' }));
             addToast({
-                title: result.success ? "Test Successful" : "Test Failed",
-                description: result.message,
-                variant: result.success ? "success" : "destructive"
+                title: "Test Successful",
+                description: "AI provider is working correctly",
+                variant: "success"
             });
-        } catch {
+        } catch (error) {
             setTestStatus(prev => ({ ...prev, [provider.id!]: 'error' }));
             addToast({
                 title: "Test Failed",
-                description: "Failed to test AI provider connection",
+                description: error instanceof Error ? error.message : "AI provider test failed",
                 variant: "destructive"
             });
         }
+
+        // Clear test status after 3 seconds
+        setTimeout(() => {
+            setTestStatus(prev => {
+                const newStatus = { ...prev };
+                delete newStatus[provider.id!];
+                return newStatus;
+            });
+        }, 3000);
     };
 
     const getProviderTypeLabel = (type: AIProviderType) => {
@@ -304,7 +267,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => handleTestProvider(provider)}
-                                                disabled={isLoading || testStatus[provider.id] === 'testing'}
+                                                disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending || testStatus[provider.id] === 'testing'}
                                             >
                                                 <TestTube className="h-4 w-4 mr-2" />
                                                 {testStatus[provider.id] === 'testing' ? 'Testing...' : 'Test'}
@@ -314,7 +277,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                             variant="outline"
                                             size="sm"
                                             onClick={() => handleEditProvider(provider)}
-                                            disabled={isLoading}
+                                            disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
                                         >
                                             <Edit2 className="h-4 w-4 mr-2" />
                                             Edit
@@ -323,7 +286,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                             variant="outline"
                                             size="sm"
                                             onClick={() => setDeletingProviderId(provider.id!)}
-                                            disabled={isLoading}
+                                            disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
                                             className="text-destructive hover:text-destructive"
                                         >
                                             <Trash2 className="h-4 w-4 mr-2" />
@@ -386,7 +349,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                 <Select
                                     value={editingProvider.type}
                                     onValueChange={handleProviderTypeChange}
-                                    disabled={isLoading}
+                                    disabled={saveProviderMutation.isPending}
                                 >
                                     <SelectTrigger>
                                         <SelectValue />
@@ -407,7 +370,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                     value={editingProvider.name}
                                     onChange={(e) => setEditingProvider(prev => prev ? { ...prev, name: e.target.value } : null)}
                                     placeholder="e.g., My OpenAI Provider"
-                                    disabled={isLoading}
+                                    disabled={saveProviderMutation.isPending}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -418,7 +381,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                     value={editingProvider.apiKey}
                                     onChange={(e) => setEditingProvider(prev => prev ? { ...prev, apiKey: e.target.value } : null)}
                                     placeholder="Enter your API key"
-                                    disabled={isLoading}
+                                    disabled={saveProviderMutation.isPending}
                                 />
                             </div>
                             <div className="space-y-2">
@@ -428,7 +391,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                     value={editingProvider.model}
                                     onChange={(e) => setEditingProvider(prev => prev ? { ...prev, model: e.target.value } : null)}
                                     placeholder="e.g., gpt-4o"
-                                    disabled={isLoading}
+                                    disabled={saveProviderMutation.isPending}
                                 />
                             </div>
                             {(editingProvider.type === 'custom' || editingProvider.type === 'replicate') && (
@@ -439,7 +402,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                         value={editingProvider.endpoint}
                                         onChange={(e) => setEditingProvider(prev => prev ? { ...prev, endpoint: e.target.value } : null)}
                                         placeholder="https://api.example.com"
-                                        disabled={isLoading}
+                                        disabled={saveProviderMutation.isPending}
                                     />
                                 </div>
                             )}
@@ -448,16 +411,16 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                     id="provider-active"
                                     checked={editingProvider.isActive}
                                     onCheckedChange={(checked) => setEditingProvider(prev => prev ? { ...prev, isActive: checked } : null)}
-                                    disabled={isLoading}
+                                    disabled={saveProviderMutation.isPending}
                                 />
                                 <Label htmlFor="provider-active">Active</Label>
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setEditingProvider(null)} disabled={isLoading}>
+                            <Button variant="outline" onClick={() => setEditingProvider(null)} disabled={saveProviderMutation.isPending}>
                                 Cancel
                             </Button>
-                            <Button onClick={handleSaveProvider} disabled={isLoading}>
+                            <Button onClick={handleSaveProvider} disabled={saveProviderMutation.isPending}>
                                 {editingProvider.id ? 'Save Changes' : 'Add Provider'}
                             </Button>
                         </DialogFooter>
@@ -476,13 +439,13 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setDeletingProviderId(null)} disabled={isLoading}>
+                            <Button variant="outline" onClick={() => setDeletingProviderId(null)} disabled={deleteProviderMutation.isPending}>
                                 Cancel
                             </Button>
                             <Button
                                 variant="destructive"
                                 onClick={() => handleDeleteProvider(deletingProviderId)}
-                                disabled={isLoading}
+                                disabled={deleteProviderMutation.isPending}
                             >
                                 Delete Provider
                             </Button>

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, DatabaseConfig } from '@/lib/api';
+import { apiClient, DatabaseConfig, AIProviderConfig } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 
 // Database hooks
@@ -222,11 +222,45 @@ export function useAIProviders() {
     });
 }
 
-// Statistics hooks
-export function useStatistics(workspaceId: string, userId: string, dateRange: Record<string, unknown>) {
-    return useQuery({
-        queryKey: queryKeys.statistics.byWorkspace(workspaceId, userId, dateRange),
-        queryFn: () => apiClient.getStatistics(workspaceId, userId, dateRange),
-        enabled: !!workspaceId && !!userId,
+export function useSaveAIProvider() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (providerData: AIProviderConfig) => {
+            return providerData.id
+                ? apiClient.updateAIProvider(providerData.id, providerData)
+                : apiClient.createAIProvider(providerData);
+        },
+        onSuccess: () => {
+            // Invalidate AI providers list
+            queryClient.invalidateQueries({ queryKey: queryKeys.aiProviders.all() });
+        },
     });
 }
+
+export function useDeleteAIProvider() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (providerId: string) => apiClient.deleteAIProvider(providerId),
+        onSuccess: () => {
+            // Invalidate AI providers list
+            queryClient.invalidateQueries({ queryKey: queryKeys.aiProviders.all() });
+        },
+    });
+}
+
+export function useTestAIProvider() {
+    return useMutation({
+        mutationFn: (providerId: string) => apiClient.testAIProvider(providerId),
+    });
+}
+
+// Statistics hooks - TODO: Implement when statistics API is available
+// export function useStatistics(workspaceId: string, userId: string, dateRange: Record<string, unknown>) {
+//     return useQuery({
+//         queryKey: queryKeys.statistics.byWorkspace(workspaceId, userId, dateRange),
+//         queryFn: () => apiClient.getStatistics(workspaceId, userId, dateRange),
+//         enabled: !!workspaceId && !!userId,
+//     });
+// }
