@@ -7,6 +7,7 @@ import { ChatView } from './chat/chat-view';
 import { authService } from '@/lib/auth';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { Loader2 } from 'lucide-react';
+import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 interface WorkspaceViewProps {
     workspaceId: string;
@@ -50,7 +51,7 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
                         <h2 className="text-2xl font-bold text-destructive">Error</h2>
                         <p className="text-muted-foreground">{error.message}</p>
                         <button
-                            onClick={() => router.push('/workspaces')}
+                            onClick={() => navigationUtils.pushState('/workspaces')}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                         >
                             Go to Workspaces
@@ -69,7 +70,7 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
                         <h2 className="text-2xl font-bold">Workspace Not Found</h2>
                         <p className="text-muted-foreground">The workspace you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
                         <button
-                            onClick={() => router.push('/workspaces')}
+                            onClick={() => navigationUtils.pushState('/workspaces')}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                         >
                             Go to Workspaces

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
 import { WorkspaceSetup } from './workspace-setup';
 import { authService } from '@/lib/auth';
+import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 export function CreateWorkspaceView() {
     const router = useRouter();
@@ -23,9 +24,9 @@ export function CreateWorkspaceView() {
                     userId={user.id}
                     onComplete={(workspace) => {
                         if (workspace) {
-                            router.push(`/ws/${workspace.id}`);
+                            navigationUtils.pushState(`/ws/${workspace.id}`);
                         } else {
-                            router.push('/workspaces');
+                            navigationUtils.pushState('/workspaces');
                         }
                     }}
                 />

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceLayout } from '@/components/workspace/workspace-layout';
 import { Button } from '@/components/ui/button';
 import { Settings, Bot, Plus } from 'lucide-react';
+import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 interface SettingsLayoutProps {
     children: React.ReactNode;
@@ -42,12 +43,12 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
     const activeTab = SETTINGS_TABS.find(tab => pathname === tab.path);
 
     const handleTabClick = (path: string) => {
-        router.push(path);
+        navigationUtils.pushState(path);
     };
 
     const handleAddProvider = () => {
         // Navigate to AI providers page and trigger add action
-        router.push('/settings/ai-providers?action=add');
+        navigationUtils.pushState('/settings/ai-providers?action=add');
     };
 
     return (

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
+import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 interface CreateChatViewProps {
     workspaceId: string;
@@ -44,7 +45,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                             description: "Workspace not found",
                             variant: "destructive"
                         });
-                        router.push('/workspaces');
+                        navigationUtils.pushState('/workspaces');
                     }
                 }
             } catch (error) {
@@ -54,7 +55,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                     description: "Failed to load workspace",
                     variant: "destructive"
                 });
-                router.push('/workspaces');
+                navigationUtils.pushState('/workspaces');
             }
         };
 
@@ -63,7 +64,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
 
     const handleCreateChat = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         const user = authService.getCurrentUser();
         if (!user) {
             router.push('/');
@@ -94,7 +95,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                     description: "Chat created successfully",
                     variant: "default"
                 });
-                router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
+                navigationUtils.pushState(`/ws/${workspaceId}/chat/${result.session.id}`);
             } else {
                 addToast({
                     title: "Error",
@@ -167,7 +168,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => router.push(`/ws/${workspaceId}`)}
+                                onClick={() => navigationUtils.pushState(`/ws/${workspaceId}`)}
                             >
                                 Cancel
                             </Button>
