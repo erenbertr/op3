@@ -31,6 +31,15 @@ export function ChatSessionComponent({
     // Use TanStack Query for messages
     const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '');
     const messages = messagesResult?.messages || [];
+
+    // Debug logging
+    React.useEffect(() => {
+        console.log('📨 Messages data updated:', {
+            messagesResult,
+            messagesCount: messages.length,
+            sessionId: session?.id
+        });
+    }, [messagesResult, messages.length, session?.id]);
     const queryClient = useQueryClient();
 
     const [isLoading, setIsLoading] = useState(false);
@@ -159,36 +168,29 @@ export function ChatSessionComponent({
                     }
                 },
                 (aiMessage) => {
-                    // Handle completion - use optimistic update instead of invalidating cache
-                    const currentUserMessage = pendingUserMessage;
+                    // Handle completion - keep messages visible by not clearing states immediately
+                    console.log('🔄 Streaming completed:', {
+                        pendingUserMessage,
+                        aiMessage,
+                        sessionId: session.id
+                    });
 
-                    setPendingUserMessage(null);
+                    // Don't clear states immediately - let the refetch happen first
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
 
-                    // Use optimistic update to add both user and AI messages without refetching
-                    if (currentUserMessage && aiMessage) {
-                        queryClient.setQueryData(
-                            queryKeys.chats.messages(session.id),
-                            (oldData: any) => {
-                                if (!oldData || !oldData.success) {
-                                    return {
-                                        success: true,
-                                        message: 'Messages retrieved successfully',
-                                        messages: [currentUserMessage, aiMessage]
-                                    };
-                                }
-
-                                // Add new messages to existing ones
-                                const existingMessages = oldData.messages || [];
-                                return {
-                                    ...oldData,
-                                    messages: [...existingMessages, currentUserMessage, aiMessage]
-                                };
-                            }
-                        );
-                    }
+                    // Invalidate and refetch messages, then clear pending state
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.chats.messages(session.id)
+                    }).then(() => {
+                        // Only clear pending message after refetch is complete
+                        console.log('✅ Refetch completed, clearing pending message');
+                        setPendingUserMessage(null);
+                    }).catch((error) => {
+                        console.error('❌ Refetch failed:', error);
+                        setPendingUserMessage(null);
+                    });
 
                     // Update session title if this is the first message and title is "New Chat"
                     if (messages.length === 0 && session?.title === 'New Chat') {
