@@ -43,16 +43,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id);
     const setActiveWorkspaceMutation = useSetActiveWorkspace();
 
-    // Memoized value to determine if we need to set active workspace
-    const shouldSetActiveWorkspace = React.useMemo(() => {
-        if (!workspacesResult?.success || !routeParams.workspaceId) return false;
 
-        const workspace = workspacesResult.workspaces.find(w => w.id === routeParams.workspaceId);
-        return workspace &&
-            !workspace.isActive &&
-            activeWorkspaceSetRef.current !== routeParams.workspaceId &&
-            !setActiveWorkspaceMutation.isPending;
-    }, [workspacesResult, routeParams.workspaceId, setActiveWorkspaceMutation.isPending]);
 
     // Parse route parameters from pathname
     const parseRoute = useCallback((path: string): { view: string; params: RouteParams } => {
@@ -99,13 +90,13 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         setRouteParams(params);
     }, [params]);
 
-    // Reset the active workspace ref when workspace ID changes
+    // Single effect to handle workspace selection and active workspace setting
     React.useLayoutEffect(() => {
-        activeWorkspaceSetRef.current = null;
-    }, [routeParams.workspaceId]);
+        // Reset the active workspace ref when workspace ID changes
+        if (activeWorkspaceSetRef.current !== routeParams.workspaceId) {
+            activeWorkspaceSetRef.current = null;
+        }
 
-    // Handle workspace selection and active workspace setting
-    React.useLayoutEffect(() => {
         if (workspacesResult?.success) {
             const workspaces = workspacesResult.workspaces;
 
@@ -114,6 +105,20 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 const workspace = workspaces.find(w => w.id === routeParams.workspaceId);
                 if (workspace) {
                     setCurrentWorkspace(workspace);
+
+                    // Calculate if we should set active workspace inline to avoid circular dependencies
+                    const needsActiveWorkspaceSet = workspace &&
+                        !workspace.isActive &&
+                        activeWorkspaceSetRef.current !== routeParams.workspaceId;
+
+                    // Set active workspace if needed (only once per workspace)
+                    if (needsActiveWorkspaceSet && !setActiveWorkspaceMutation.isPending) {
+                        activeWorkspaceSetRef.current = routeParams.workspaceId;
+                        setActiveWorkspaceMutation.mutate({
+                            workspaceId: routeParams.workspaceId,
+                            userId: currentUser.id
+                        });
+                    }
                 } else {
                     // Workspace not found, redirect to selection
                     navigationUtils.pushState('/workspaces');
@@ -126,18 +131,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 }
             }
         }
-    }, [workspacesResult, routeParams.workspaceId]);
-
-    // Separate effect for setting active workspace to prevent infinite loops
-    React.useLayoutEffect(() => {
-        if (shouldSetActiveWorkspace && routeParams.workspaceId && !setActiveWorkspaceMutation.isPending) {
-            activeWorkspaceSetRef.current = routeParams.workspaceId;
-            setActiveWorkspaceMutation.mutate({
-                workspaceId: routeParams.workspaceId,
-                userId: currentUser.id
-            });
-        }
-    }, [shouldSetActiveWorkspace, routeParams.workspaceId, currentUser.id, setActiveWorkspaceMutation]);
+    }, [workspacesResult, routeParams.workspaceId, currentUser.id, setActiveWorkspaceMutation]);
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
