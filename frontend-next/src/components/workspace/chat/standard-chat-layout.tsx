@@ -97,55 +97,41 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         // Note: TanStack Query will handle cache updates automatically
     }, [activeSession, saveActiveSession]);
 
-    const handleSessionDelete = useCallback((sessionId: string) => {
-        if (activeSession && activeSession.id === sessionId) {
-            setActiveSession(null);
-            saveActiveSession(null);
 
-            // Navigate back to the main chat view
-            router.push(`/ws/${workspaceId}`);
-        }
-        // Note: TanStack Query will handle cache updates automatically
-    }, [activeSession, workspaceId, router, saveActiveSession]);
 
     return (
-        <div className={`flex h-full ${className || ''}`}>
-            {/* Sidebar */}
-            <div className="w-80 border-r bg-muted/30">
-                <ChatSidebar
-                    sessions={chatSessions}
-                    activeSessionId={activeSession?.id || null}
-                    personalities={personalities}
-                    aiProviders={aiProviders}
-                    workspaceId={workspaceId}
-                    userId={userId}
-                    onSessionSelect={handleSessionSelect}
-                    onSessionDelete={handleSessionDelete}
-                    onNewChat={handleNewChat}
-                />
-            </div>
+        <div className={`h-full ${className || ''}`}>
+            <div className="container mx-auto h-full px-4">
+                <div className="flex h-full">
+                    {/* Sidebar */}
+                    <div className="w-80 border-r bg-muted/30">
+                        <ChatSidebar
+                            userId={userId}
+                            workspaceId={workspaceId}
+                            onNewChat={handleNewChat}
+                            onChatSelect={handleSessionSelect}
+                            activeChatId={activeSession?.id}
+                            chatSessions={chatSessions}
+                        />
+                    </div>
 
-            {/* Main chat area */}
-            <div className="flex-1 flex flex-col">
-                {activeSession ? (
-                    <ChatSessionComponent
-                        key={activeSession.id}
-                        session={activeSession}
-                        personalities={personalities}
-                        aiProviders={aiProviders}
-                        onSessionUpdate={handleSessionUpdate}
-                        userId={userId}
-                        className="h-full"
-                    />
-                ) : (
-                    <EmptyChatState
-                        personalities={personalities}
-                        aiProviders={aiProviders}
-                        workspaceId={workspaceId}
-                        userId={userId}
-                        onNewChat={handleNewChat}
-                    />
-                )}
+                    {/* Main chat area */}
+                    <div className="flex-1 flex flex-col">
+                        {activeSession ? (
+                            <ChatSessionComponent
+                                key={activeSession.id}
+                                session={activeSession}
+                                personalities={personalities}
+                                aiProviders={aiProviders}
+                                onSessionUpdate={handleSessionUpdate}
+                                userId={userId}
+                                className="h-full"
+                            />
+                        ) : (
+                            <EmptyChatState />
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

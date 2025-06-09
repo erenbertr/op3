@@ -18,10 +18,8 @@ export function PersonalitiesView() {
     return (
         <WorkspaceLayout>
             <div className="container mx-auto px-4 py-6">
-                <div className="max-w-6xl mx-auto">
-                    <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
-                    <PersonalitiesManagement userId={user.id} />
-                </div>
+                <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
+                <PersonalitiesManagement userId={user.id} />
             </div>
         </WorkspaceLayout>
     );

@@ -6,8 +6,7 @@ import { StandardChatLayout } from '@/components/workspace/chat/standard-chat-la
 import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
-import { ChatSidebar } from '@/components/workspace/chat/chat-sidebar';
-import { ChatSessionComponent } from '@/components/workspace/chat/chat-session';
+
 import { WorkspaceSettingsView } from '@/components/workspace/workspace-settings-view';
 import { AIProviderSettingsView } from '@/components/workspace/ai-provider-settings-view';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -281,11 +280,6 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
     const { addToast } = useToast();
 
     // Use TanStack Query for data fetching
-    const { data: personalitiesResult } = useQuery({
-        queryKey: ['personalities', currentUser.id],
-        queryFn: () => apiClient.getPersonalities(currentUser.id),
-    });
-
     const { data: aiProvidersResult } = useQuery({
         queryKey: ['ai-providers'],
         queryFn: () => apiClient.getAIProviders(),
@@ -296,15 +290,7 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
         queryFn: () => apiClient.getChatSessions(currentUser.id, workspaceId),
     });
 
-    // Derived state from queries (memoized to prevent unnecessary re-renders)
-    const personalities = React.useMemo(() =>
-        personalitiesResult?.success ? personalitiesResult.personalities : [],
-        [personalitiesResult]
-    );
-    const aiProviders = React.useMemo(() =>
-        aiProvidersResult?.success ? aiProvidersResult.providers : [],
-        [aiProvidersResult]
-    );
+
     const chatSessions = React.useMemo(() =>
         chatSessionsResult?.success ? chatSessionsResult.sessions || [] : [],
         [chatSessionsResult]
@@ -336,17 +322,7 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
         }
     }, [aiProvidersResult, addToast]);
 
-    const handleNewChat = (session: ChatSession) => {
-        navigationUtils.pushState(`/ws/${workspaceId}/chat/${session.id}`);
-    };
 
-    const handleChatSelect = (session: ChatSession) => {
-        navigationUtils.pushState(`/ws/${workspaceId}/chat/${session.id}`);
-    };
-
-    const handleSessionUpdate = (updatedSession: ChatSession) => {
-        setActiveSession(updatedSession);
-    };
 
     const isLoading = chatSessionsLoading;
 
@@ -379,35 +355,11 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
     }
 
     return (
-        <div className="h-full">
-            <div className="container mx-auto h-full px-4">
-                <div className="flex h-full">
-                    {/* Left Sidebar - Fixed width */}
-                    <div className="w-80 flex-shrink-0 h-full border-l border-border">
-                        <ChatSidebar
-                            userId={currentUser.id}
-                            workspaceId={workspaceId}
-                            onNewChat={handleNewChat}
-                            onChatSelect={handleChatSelect}
-                            activeChatId={activeSession.id}
-                            chatSessions={chatSessions}
-                        />
-                    </div>
-
-                    {/* Main Content Area */}
-                    <div className="flex-1 h-full border-r border-border">
-                        <ChatSessionComponent
-                            session={activeSession}
-                            personalities={personalities || []}
-                            aiProviders={aiProviders || []}
-                            onSessionUpdate={handleSessionUpdate}
-                            userId={currentUser.id}
-                            className="h-full"
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
+        <StandardChatLayout
+            workspaceId={workspaceId}
+            userId={currentUser.id}
+            className="h-full"
+        />
     );
 }
 

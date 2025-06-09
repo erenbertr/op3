@@ -241,13 +241,13 @@ export function AppWrapper() {
 
             {/* Main application content */}
             <main className="container mx-auto px-4 py-8">
+                <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold mb-2">{t('login.title')}</h2>
+                    <p className="text-muted-foreground">
+                        Setup completed successfully! Please sign in to continue.
+                    </p>
+                </div>
                 <div className="max-w-md mx-auto">
-                    <div className="text-center mb-8">
-                        <h2 className="text-2xl font-bold mb-2">{t('login.title')}</h2>
-                        <p className="text-muted-foreground">
-                            Setup completed successfully! Please sign in to continue.
-                        </p>
-                    </div>
                     <LoginForm onLogin={handleLogin} isLoading={isLoggingIn} />
                 </div>
             </main>

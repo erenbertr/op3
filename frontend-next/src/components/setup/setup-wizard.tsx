@@ -219,7 +219,7 @@ export function SetupWizard() {
                 </div>
 
                 {/* Horizontal Steps Overview */}
-                <div className="max-w-4xl mx-auto mb-8">
+                <div className="mb-8">
                     <div className="flex items-center justify-center gap-4 p-4">
                         {steps.map((step, index) => {
                             const isActive = index === currentStep;

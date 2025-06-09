@@ -18,19 +18,17 @@ export function CreateWorkspaceView() {
     return (
         <WorkspaceLayout>
             <div className="container mx-auto px-4 py-6">
-                <div className="max-w-4xl mx-auto">
-                    <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
-                    <WorkspaceSetup
-                        userId={user.id}
-                        onComplete={(workspace) => {
-                            if (workspace) {
-                                router.push(`/ws/${workspace.id}`);
-                            } else {
-                                router.push('/workspaces');
-                            }
-                        }}
-                    />
-                </div>
+                <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
+                <WorkspaceSetup
+                    userId={user.id}
+                    onComplete={(workspace) => {
+                        if (workspace) {
+                            router.push(`/ws/${workspace.id}`);
+                        } else {
+                            router.push('/workspaces');
+                        }
+                    }}
+                />
             </div>
         </WorkspaceLayout>
     );
