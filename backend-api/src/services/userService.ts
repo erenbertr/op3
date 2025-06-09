@@ -261,6 +261,61 @@ export class UserService {
     }
 
     /**
+     * Get user by email for authentication (public method)
+     */
+    public async getUserByEmailForAuth(email: string): Promise<User | null> {
+        return this.getUserByEmail(email);
+    }
+
+    /**
+     * Update user's last login time
+     */
+    public async updateLastLogin(userId: string): Promise<void> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            const now = new Date();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('users').updateOne(
+                        { id: userId },
+                        { $set: { lastLoginAt: now } }
+                    );
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'UPDATE users SET lastLoginAt = ? WHERE id = ?';
+                    await connection.execute(query, [now, userId]);
+                    break;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.run(
+                            'UPDATE users SET lastLoginAt = ? WHERE id = ?',
+                            [now.toISOString(), userId],
+                            (err: any) => {
+                                if (err) reject(err);
+                                else resolve();
+                            }
+                        );
+                    });
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+        } catch (error) {
+            console.error('Error updating last login:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Get user by email
      */
     private async getUserByEmail(email: string): Promise<User | null> {

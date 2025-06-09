@@ -5,6 +5,7 @@ import personalitiesRouter from './personalities';
 import chatRouter from './chat';
 import aiProvidersRouter from './ai-providers';
 import statisticsRouter from './statistics';
+import authRouter from './auth';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -12,6 +13,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Setup routes
     app.use(`${API_PREFIX}/setup`, setupRouter);
+
+    // Auth routes
+    app.use(`${API_PREFIX}/auth`, authRouter);
 
     // Workspace routes
     app.use(`${API_PREFIX}/workspace`, workspaceRouter);
@@ -36,6 +40,7 @@ export const setupRoutes = (app: Express): void => {
             description: 'Backend API for OP3 application setup and management',
             endpoints: {
                 setup: `${API_PREFIX}/setup`,
+                auth: `${API_PREFIX}/auth`,
                 workspace: `${API_PREFIX}/workspace`,
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,

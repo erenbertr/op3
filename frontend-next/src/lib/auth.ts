@@ -37,29 +37,48 @@ export class AuthService {
      */
     async login(credentials: LoginCredentials): Promise<LoginResponse> {
         try {
-            // Mock login logic - in real implementation, this would call the backend
-            console.log('Login attempt:', credentials);
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006/api/v1';
 
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(credentials),
+            });
 
-            // Mock successful login
-            const mockUser: AuthUser = {
-                id: 'user-' + Date.now(),
-                email: credentials.email,
-                hasCompletedWorkspaceSetup: false,
-                token: 'mock-jwt-token-' + Date.now()
-            };
+            const data = await response.json();
 
-            // Store in localStorage
-            this.setAuthData(mockUser);
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: data.error?.message || 'Login failed'
+                };
+            }
 
-            return {
-                success: true,
-                message: 'Login successful',
-                user: mockUser,
-                token: mockUser.token
-            };
+            if (data.success && data.user && data.token) {
+                const authUser: AuthUser = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    hasCompletedWorkspaceSetup: data.user.hasCompletedWorkspaceSetup,
+                    token: data.token
+                };
+
+                // Store in localStorage
+                this.setAuthData(authUser);
+
+                return {
+                    success: true,
+                    message: data.message,
+                    user: authUser,
+                    token: data.token
+                };
+            } else {
+                return {
+                    success: false,
+                    message: data.message || 'Login failed'
+                };
+            }
         } catch (error) {
             return {
                 success: false,
