@@ -336,9 +336,13 @@ class ApiClient {
         console.log(`🔗 [ApiClient.request:${requestId}] Options:`, options);
         console.log(`🔗 [ApiClient.request:${requestId}] Timestamp:`, new Date().toISOString());
 
+        // Get auth token from localStorage
+        const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+
         const config: RequestInit = {
             headers: {
                 'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
                 ...options.headers,
             },
             ...options,
@@ -598,10 +602,14 @@ class ApiClient {
         onError: (error: string) => void
     ): Promise<void> {
         try {
+            // Get auth token from localStorage
+            const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+
             const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}/ai-stream`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
                 },
                 body: JSON.stringify(request),
             });
