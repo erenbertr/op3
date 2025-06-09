@@ -22,6 +22,7 @@ type SetupStatus = SetupStatusResponse['setup'];
 export function AppWrapper() {
     const { t } = useI18n();
     const [isLoading, setIsLoading] = useState(true);
+    const [showSpinner, setShowSpinner] = useState(false);
     const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -31,6 +32,7 @@ export function AppWrapper() {
     const [currentView, setCurrentView] = useState<'workspace' | 'settings' | 'create' | 'selection' | 'personalities'>('workspace');
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
+    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
 
@@ -77,6 +79,34 @@ export function AppWrapper() {
     useEffect(() => {
         initializeApp();
     }, [initializeApp]);
+
+    // Handle delayed spinner display
+    useEffect(() => {
+        if (isLoading) {
+            // Reset spinner state when loading starts
+            setShowSpinner(false);
+
+            // Set timeout to show spinner after 3 seconds
+            spinnerTimeoutRef.current = setTimeout(() => {
+                setShowSpinner(true);
+            }, 3000);
+        } else {
+            // Clear timeout and hide spinner when loading completes
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+            setShowSpinner(false);
+        }
+
+        // Cleanup timeout on unmount
+        return () => {
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+        };
+    }, [isLoading]);
 
     const handleLogin = async (credentials: { email: string; password: string }) => {
         try {
@@ -191,13 +221,22 @@ export function AppWrapper() {
         setCurrentView('workspace');
     };
 
-    if (isLoading) {
+    if (isLoading && showSpinner) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                     <p className="text-muted-foreground">Loading application...</p>
                 </div>
+            </div>
+        );
+    }
+
+    // Show blank screen during initial 3 seconds of loading
+    if (isLoading && !showSpinner) {
+        return (
+            <div className="h-screen bg-background">
+                {/* Blank screen - no spinner yet */}
             </div>
         );
     }
