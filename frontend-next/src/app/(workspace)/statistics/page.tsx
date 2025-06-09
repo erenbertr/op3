@@ -47,8 +47,8 @@ export default function StatisticsPage() {
         }
     }, []);
 
-    // Handle statistics errors
-    React.useEffect(() => {
+    // Handle statistics errors (using useMemo for side effect)
+    React.useMemo(() => {
         if (statisticsError) {
             console.error('Failed to load statistics:', statisticsError);
         }

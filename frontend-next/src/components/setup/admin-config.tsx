@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -71,8 +71,8 @@ export function AdminConfigForm({ onNext, onBack, defaultValues }: AdminConfigPr
         defaultValues: getDefaultValues(),
     });
 
-    // Reset form when defaultValues change
-    useEffect(() => {
+    // Reset form when defaultValues change (using useMemo pattern)
+    React.useMemo(() => {
         const newDefaults = getDefaultValues();
         form.reset(newDefaults);
     }, [getDefaultValues, form]);

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -33,7 +33,8 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         return 'workspace';
     }, [pathname]);
 
-    useEffect(() => {
+    // Initialize user state (using useLayoutEffect for immediate effect)
+    React.useLayoutEffect(() => {
         const user = authService.getCurrentUser();
         if (user) {
             setCurrentUser(user);

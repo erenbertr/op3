@@ -1,12 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
-import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
-import { chatDataCache } from '@/lib/workspace-cache';
-import { useToast } from '@/components/ui/toast';
+import { ChatSession } from '@/lib/api';
+
+import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
 
 interface StandardChatLayoutProps {
     workspaceId: string;
@@ -20,10 +20,17 @@ const ACTIVE_SESSION_KEY = 'op3_active_chat_session';
 export function StandardChatLayout({ workspaceId, userId, className }: StandardChatLayoutProps) {
     const router = useRouter();
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-    const [personalities, setPersonalities] = useState<Personality[]>([]);
-    const [aiProviders, setAIProviders] = useState<AIProviderConfig[]>([]);
-    const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-    const { addToast } = useToast();
+    
+    // Use TanStack Query for data fetching
+    const { data: chatSessionsResult } = useChatSessions(userId, workspaceId);
+    const { data: personalitiesResult } = usePersonalities(userId);
+    const { data: aiProvidersResult } = useAIProviders();
+    
+    const chatSessions = chatSessionsResult?.sessions || [];
+    const personalities = personalitiesResult?.personalities || [];
+    const aiProviders = aiProvidersResult?.providers || [];
+    
+
 
     // Save active session to localStorage
     const saveActiveSession = useCallback((session: ChatSession | null) => {
@@ -34,6 +41,8 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                     userId: session.userId,
                     workspaceId: session.workspaceId,
                     title: session.title,
+                    personalityId: session.personalityId,
+                    aiProviderId: session.aiProviderId,
                     createdAt: session.createdAt,
                     updatedAt: session.updatedAt
                 }));
@@ -45,163 +54,98 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         }
     }, []);
 
-    // Load personalities and AI providers when component mounts
-    useEffect(() => {
-        const loadInitialData = async () => {
-            // Try to get data from cache first
-            const cachedData = chatDataCache.get(userId, workspaceId);
-            if (cachedData) {
-                setPersonalities(cachedData.personalities);
-                setAIProviders(cachedData.aiProviders);
-                setChatSessions(cachedData.chatSessions);
-
-                // Try to restore the previously active session
-                try {
-                    const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
-                    if (savedSessionStr) {
-                        const savedSession = JSON.parse(savedSessionStr);
-                        const existingSession = cachedData.chatSessions.find(s =>
-                            s.id === savedSession.id &&
-                            s.workspaceId === workspaceId &&
-                            s.userId === userId
-                        );
-                        if (existingSession) {
-                            setActiveSession(existingSession);
-                        } else {
-                            localStorage.removeItem(ACTIVE_SESSION_KEY);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error restoring active session from localStorage:', error);
-                    localStorage.removeItem(ACTIVE_SESSION_KEY);
-                }
-                return;
-            }
-
+    // Restore active session from localStorage when chat sessions are loaded
+    React.useMemo(() => {
+        if (chatSessions.length > 0 && !activeSession) {
             try {
-                // Load personalities, AI providers, and chat sessions in parallel
-                const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
-                    apiClient.getPersonalities(userId),
-                    apiClient.getAIProviders(),
-                    apiClient.getChatSessions(userId, workspaceId)
-                ]);
-
-                const personalities = personalitiesResult.success ? personalitiesResult.personalities : [];
-                const aiProviders = aiProvidersResult.success ? aiProvidersResult.providers : [];
-                const chatSessions = chatSessionsResult.success ? (chatSessionsResult.sessions || []) : [];
-
-                // Cache the data
-                chatDataCache.set(userId, workspaceId, {
-                    personalities,
-                    aiProviders,
-                    chatSessions
-                });
-
-                setPersonalities(personalities);
-                setAIProviders(aiProviders);
-                setChatSessions(chatSessions);
-
-                if (!aiProvidersResult.success) {
-                    console.error('Failed to load AI providers:', aiProvidersResult.message);
-                    addToast({
-                        title: "Warning",
-                        description: "Failed to load AI providers. Please check your configuration.",
-                        variant: "destructive"
-                    });
-                }
-
-                if (chatSessionsResult.success) {
-                    // Try to restore the previously active session
-                    try {
-                        const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
-                        if (savedSessionStr) {
-                            const savedSession = JSON.parse(savedSessionStr);
-                            const existingSession = chatSessions.find(s =>
-                                s.id === savedSession.id &&
-                                s.workspaceId === workspaceId &&
-                                s.userId === userId
-                            );
-                            if (existingSession) {
-                                setActiveSession(existingSession);
-                            } else {
-                                localStorage.removeItem(ACTIVE_SESSION_KEY);
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error restoring active session from localStorage:', error);
+                const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
+                if (savedSessionStr) {
+                    const savedSession = JSON.parse(savedSessionStr);
+                    const existingSession = chatSessions.find(s =>
+                        s.id === savedSession.id &&
+                        s.workspaceId === workspaceId &&
+                        s.userId === userId
+                    );
+                    if (existingSession) {
+                        setActiveSession(existingSession);
+                    } else {
                         localStorage.removeItem(ACTIVE_SESSION_KEY);
                     }
-                } else {
-                    console.error('Failed to load chat sessions:', chatSessionsResult.message);
                 }
             } catch (error) {
-                console.error('Error loading initial data:', error);
-                addToast({
-                    title: "Error",
-                    description: "Failed to load application data",
-                    variant: "destructive"
-                });
+                console.error('Error restoring active session from localStorage:', error);
+                localStorage.removeItem(ACTIVE_SESSION_KEY);
             }
-        };
-
-        loadInitialData();
-    }, [userId, workspaceId, addToast]);
+        }
+    }, [chatSessions, activeSession, workspaceId, userId]);
 
     const handleNewChat = (session: ChatSession) => {
         router.push(`/ws/${workspaceId}/chat/${session.id}`);
     };
 
-    const handleChatSelect = (session: ChatSession) => {
+    const handleSessionSelect = useCallback((session: ChatSession) => {
+        setActiveSession(session);
+        saveActiveSession(session);
         router.push(`/ws/${workspaceId}/chat/${session.id}`);
-    };
+    }, [workspaceId, router, saveActiveSession]);
 
-    const handleSessionUpdate = (updatedSession: ChatSession) => {
-        setActiveSession(updatedSession);
-        saveActiveSession(updatedSession);
-    };
+    const handleSessionUpdate = useCallback((updatedSession: ChatSession) => {
+        if (activeSession && activeSession.id === updatedSession.id) {
+            setActiveSession(updatedSession);
+            saveActiveSession(updatedSession);
+        }
+        // Note: TanStack Query will handle cache updates automatically
+    }, [activeSession, saveActiveSession]);
 
-    // Show the layout immediately with loading states for individual components
-    // This makes navigation feel more instant
+    const handleSessionDelete = useCallback((sessionId: string) => {
+        if (activeSession && activeSession.id === sessionId) {
+            setActiveSession(null);
+            saveActiveSession(null);
+            
+            // Navigate back to the main chat view
+            router.push(`/ws/${workspaceId}`);
+        }
+        // Note: TanStack Query will handle cache updates automatically
+    }, [activeSession, workspaceId, router, saveActiveSession]);
 
     return (
-        <div className={`h-full ${className || ''}`}>
-            <div className="container mx-auto h-full px-4">
-                <div className="flex h-full">
-                    {/* Left Sidebar - Fixed width */}
-                    <div className="w-80 flex-shrink-0 h-full border-l border-border">
-                        <ChatSidebar
-                            userId={userId}
-                            workspaceId={workspaceId}
-                            onNewChat={handleNewChat}
-                            onChatSelect={handleChatSelect}
-                            activeChatId={activeSession?.id}
-                            chatSessions={chatSessions}
-                            onSessionsUpdate={(sessions) => {
-                                setChatSessions(sessions);
-                                // Update cache when sessions change
-                                chatDataCache.updateChatSessions(userId, workspaceId, sessions);
-                            }}
-                        />
-                    </div>
+        <div className={`flex h-full ${className || ''}`}>
+            {/* Sidebar */}
+            <div className="w-80 border-r bg-muted/30">
+                <ChatSidebar
+                    sessions={chatSessions}
+                    activeSessionId={activeSession?.id || null}
+                    personalities={personalities}
+                    aiProviders={aiProviders}
+                    workspaceId={workspaceId}
+                    userId={userId}
+                    onSessionSelect={handleSessionSelect}
+                    onSessionDelete={handleSessionDelete}
+                    onNewChat={handleNewChat}
+                />
+            </div>
 
-                    {/* Main Content Area */}
-                    <div className="flex-1 h-full border-r border-border">
-                        {activeSession ? (
-                            <ChatSessionComponent
-                                session={activeSession}
-                                personalities={personalities || []}
-                                aiProviders={aiProviders || []}
-                                onSessionUpdate={handleSessionUpdate}
-                                userId={userId}
-                                className="h-full"
-                            />
-                        ) : (
-                            <div className="h-full flex items-center justify-center">
-                                <EmptyChatState />
-                            </div>
-                        )}
-                    </div>
-                </div>
+            {/* Main chat area */}
+            <div className="flex-1 flex flex-col">
+                {activeSession ? (
+                    <ChatSessionComponent
+                        key={activeSession.id}
+                        session={activeSession}
+                        personalities={personalities}
+                        aiProviders={aiProviders}
+                        onSessionUpdate={handleSessionUpdate}
+                        userId={userId}
+                        className="h-full"
+                    />
+                ) : (
+                    <EmptyChatState
+                        personalities={personalities}
+                        aiProviders={aiProviders}
+                        workspaceId={workspaceId}
+                        userId={userId}
+                        onNewChat={handleNewChat}
+                    />
+                )}
             </div>
         </div>
     );

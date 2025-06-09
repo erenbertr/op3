@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Edit2, Trash2, Loader2 } from 'lucide-react';
 import { authService } from '@/lib/auth';
-import { apiClient } from '@/lib/api';
+import { useWorkspaces, useUpdateWorkspace, useDeleteWorkspace } from '@/lib/hooks/use-query-hooks';
 import { useToast } from '@/components/ui/toast';
 
 interface EditingWorkspace {
@@ -21,73 +21,27 @@ interface EditingWorkspace {
 
 export function WorkspaceSettingsView() {
     const router = useRouter();
-    const [workspaces, setWorkspaces] = useState<any[]>([]);
     const [editingWorkspace, setEditingWorkspace] = useState<EditingWorkspace | null>(null);
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [showSpinner, setShowSpinner] = useState(false);
-    const [error, setError] = useState('');
-    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const { addToast } = useToast();
 
     const user = authService.getCurrentUser();
 
-    useEffect(() => {
+    // Redirect if no user
+    React.useLayoutEffect(() => {
         if (!user) {
             router.push('/');
-            return;
         }
-        loadWorkspaces();
     }, [user, router]);
 
-    // Handle delayed spinner display
-    useEffect(() => {
-        if (isLoading && workspaces.length === 0) {
-            // Reset spinner state when loading starts
-            setShowSpinner(false);
+    // Use TanStack Query hooks
+    const { data: workspacesResult, isLoading, error } = useWorkspaces(user?.id || '');
+    const updateWorkspaceMutation = useUpdateWorkspace();
+    const deleteWorkspaceMutation = useDeleteWorkspace();
 
-            // Set timeout to show spinner after 3 seconds
-            spinnerTimeoutRef.current = setTimeout(() => {
-                setShowSpinner(true);
-            }, 3000);
-        } else {
-            // Clear timeout and hide spinner when loading completes
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-            setShowSpinner(false);
-        }
+    const workspaces = workspacesResult?.workspaces || [];
 
-        // Cleanup timeout on unmount
-        return () => {
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-        };
-    }, [isLoading, workspaces.length]);
-
-    const loadWorkspaces = async () => {
-        if (!user) return;
-
-        try {
-            setIsLoading(true);
-            const result = await apiClient.getUserWorkspaces(user.id);
-            if (result.success) {
-                setWorkspaces(result.workspaces);
-            } else {
-                setError('Failed to load workspaces');
-            }
-        } catch (error) {
-            console.error('Error loading workspaces:', error);
-            setError('Failed to load workspaces');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleEditWorkspace = (workspace: any) => {
+    const handleEditWorkspace = (workspace: { id: string; name: string; workspaceRules: string }) => {
         setEditingWorkspace({
             id: workspace.id,
             name: workspace.name,
@@ -100,88 +54,86 @@ export function WorkspaceSettingsView() {
         if (!editingWorkspace || !user) return;
 
         if (!editingWorkspace.name.trim()) {
-            setError('Workspace name cannot be empty');
             return;
         }
 
-        setIsLoading(true);
-        setError('');
-
         try {
-            const result = await apiClient.updateWorkspace(editingWorkspace.id, {
+            await updateWorkspaceMutation.mutateAsync({
+                workspaceId: editingWorkspace.id,
                 name: editingWorkspace.name.trim(),
-                workspaceRules: editingWorkspace.workspaceRules.trim()
+                workspaceRules: editingWorkspace.workspaceRules.trim(),
+                userId: user.id
             });
 
-            if (result.success) {
-                setEditingWorkspace(null);
-                await loadWorkspaces();
-                addToast({
-                    title: "Success",
-                    description: "Workspace updated successfully",
-                    variant: "default"
-                });
-            } else {
-                setError(result.message || 'Failed to update workspace');
-            }
+            setEditingWorkspace(null);
+            addToast({
+                title: "Success",
+                description: "Workspace updated successfully",
+                variant: "default"
+            });
         } catch (error) {
             console.error('Error updating workspace:', error);
-            setError('Failed to update workspace');
-        } finally {
-            setIsLoading(false);
+            addToast({
+                title: "Error",
+                description: "Failed to update workspace",
+                variant: "destructive"
+            });
         }
     };
 
     const handleDeleteWorkspace = async (workspaceId: string) => {
         if (!user) return;
 
-        setIsLoading(true);
-        setError('');
-
         try {
-            const result = await apiClient.deleteWorkspace(workspaceId, user.id);
+            await deleteWorkspaceMutation.mutateAsync({
+                workspaceId,
+                userId: user.id
+            });
 
-            if (result.success) {
-                setDeletingWorkspaceId(null);
-                await loadWorkspaces();
-                addToast({
-                    title: "Success",
-                    description: "Workspace deleted successfully",
-                    variant: "default"
-                });
-            } else {
-                setError(result.message || 'Failed to delete workspace');
-            }
+            setDeletingWorkspaceId(null);
+            addToast({
+                title: "Success",
+                description: "Workspace deleted successfully",
+                variant: "default"
+            });
         } catch (error) {
             console.error('Error deleting workspace:', error);
-            setError('Failed to delete workspace');
-        } finally {
-            setIsLoading(false);
+            addToast({
+                title: "Error",
+                description: "Failed to delete workspace",
+                variant: "destructive"
+            });
         }
     };
 
-    // Show low opacity spinner after 3 seconds if still loading
-    if (isLoading && workspaces.length === 0 && showSpinner) {
+    // Show loading spinner
+    if (isLoading && workspaces.length === 0) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
+                <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
     }
 
-    // Show blank screen during initial 3 seconds of loading
-    if (isLoading && workspaces.length === 0 && !showSpinner) {
-        return <div></div>;
+    // Show error state
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center space-y-4">
+                    <p className="text-destructive">{error.message}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+                    >
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="space-y-4">
-            {/* Error Display */}
-            {error && (
-                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-                    <p className="text-destructive text-sm">{error}</p>
-                </div>
-            )}
 
             {/* Workspaces List */}
             <div className="space-y-4">

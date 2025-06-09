@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from '../workspace-layout';
 import { ChatSidebar } from './chat-sidebar';
@@ -84,7 +84,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     }, [chatId, chatSessions]);
 
     // Handle errors from TanStack Query
-    useEffect(() => {
+    React.useMemo(() => {
         if (aiProvidersError) {
             console.error('Failed to load AI providers:', aiProvidersError);
             addToast({

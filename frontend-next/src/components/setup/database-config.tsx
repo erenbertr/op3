@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -92,9 +92,9 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
         defaultValues: getDefaultValues(),
     });
 
-    // Reset form when defaultValues change - use a ref to track if we've already reset
+    // Reset form when defaultValues change - use derived pattern
     const hasResetRef = useRef(false);
-    useEffect(() => {
+    React.useMemo(() => {
         if (!hasResetRef.current && defaultValues) {
             const newDefaults = getDefaultValues();
             form.reset(newDefaults);

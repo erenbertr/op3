@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
     const router = useRouter();
 
-    useEffect(() => {
-        // Redirect to workspaces settings by default
+    // Immediate redirect using useLayoutEffect for routing
+    React.useLayoutEffect(() => {
         router.replace('/settings/workspaces');
     }, [router]);
 

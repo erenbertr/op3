@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
 
@@ -11,15 +11,14 @@ interface WorkspaceLayoutProps {
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     const router = useRouter();
 
-    useEffect(() => {
-        // Check if user is authenticated
+    // Auth check using useLayoutEffect for immediate redirect
+    React.useLayoutEffect(() => {
         const user = authService.getCurrentUser();
         if (!user) {
             router.push('/');
             return;
         }
 
-        // Check if user has completed workspace setup
         if (!user.hasCompletedWorkspaceSetup) {
             router.push('/');
             return;

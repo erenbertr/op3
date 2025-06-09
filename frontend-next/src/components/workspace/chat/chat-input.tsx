@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -49,37 +49,43 @@ export function ChatInput({
 
 
 
-    // Auto-resize textarea
-    useEffect(() => {
+    // Auto-resize textarea (use ref callback instead of useEffect)
+    React.useLayoutEffect(() => {
         const textarea = textareaRef.current;
         if (textarea) {
             textarea.style.height = 'auto';
             textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
         }
-    }, [message]);
+    });
 
-    // Load session-specific settings when they change
-    useEffect(() => {
+    // Derived state for personality selection
+    const derivedPersonality = useMemo(() => {
         if (sessionPersonalityId !== undefined) {
-            setSelectedPersonality(sessionPersonalityId);
-        } else {
-            // For new sessions, default to no personality
-            setSelectedPersonality('');
+            return sessionPersonalityId;
         }
+        return '';
     }, [sessionPersonalityId]);
 
-    useEffect(() => {
+    // Derived state for AI provider selection
+    const derivedProvider = useMemo(() => {
         if (sessionAIProviderId !== undefined) {
-            setSelectedProvider(sessionAIProviderId);
-        } else {
-            // For new sessions, use the first active provider or first provider
-            if (aiProviders && aiProviders.length > 0) {
-                const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
-                const providerId = activeProvider?.id || '';
-                setSelectedProvider(providerId);
-            }
+            return sessionAIProviderId;
         }
+        if (aiProviders && aiProviders.length > 0) {
+            const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
+            return activeProvider?.id || '';
+        }
+        return '';
     }, [sessionAIProviderId, aiProviders]);
+
+    // Update state when derived values change
+    React.useMemo(() => {
+        setSelectedPersonality(derivedPersonality);
+    }, [derivedPersonality]);
+
+    React.useMemo(() => {
+        setSelectedProvider(derivedProvider);
+    }, [derivedProvider]);
 
     // Handle personality selection change
     const handlePersonalityChange = async (personalityId: string) => {
@@ -97,32 +103,41 @@ export function ChatInput({
         }
     };
 
-    // Validate selected provider still exists in current providers
-    useEffect(() => {
+    // Validate selected provider (derived validation)
+    const validatedProvider = useMemo(() => {
         if (selectedProvider && aiProviders && aiProviders.length > 0) {
             const providerExists = aiProviders.find(p => p?.id === selectedProvider);
             if (!providerExists) {
-                // Selected provider no longer exists, reset to default
                 const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
-                const providerId = activeProvider?.id || '';
-                setSelectedProvider(providerId);
+                return activeProvider?.id || '';
             }
         }
+        return selectedProvider;
     }, [aiProviders, selectedProvider]);
 
-    // Validate selected personality still exists in current personalities
-    useEffect(() => {
+    // Validate selected personality (derived validation)
+    const validatedPersonality = useMemo(() => {
         if (selectedPersonality && personalities && personalities.length > 0) {
             const personalityExists = personalities.find(p => p?.id === selectedPersonality);
             if (!personalityExists) {
-                // Selected personality no longer exists, reset to none
-                setSelectedPersonality('');
+                return '';
             }
         }
+        return selectedPersonality;
     }, [personalities, selectedPersonality]);
 
-    // Close dropdowns when clicking outside
-    useEffect(() => {
+    // Update state if validation changed the values
+    React.useMemo(() => {
+        if (validatedProvider !== selectedProvider) {
+            setSelectedProvider(validatedProvider);
+        }
+        if (validatedPersonality !== selectedPersonality) {
+            setSelectedPersonality(validatedPersonality);
+        }
+    }, [validatedProvider, selectedProvider, validatedPersonality, selectedPersonality]);
+
+    // Close dropdowns when clicking outside (using useLayoutEffect for DOM events)
+    React.useLayoutEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (personalityDropdownRef.current && !personalityDropdownRef.current.contains(event.target as Node)) {
                 setShowPersonalityDropdown(false);

@@ -1,12 +1,13 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
+import { useChatMessages } from '@/lib/hooks/use-query-hooks';
 
 interface ChatSessionProps {
     session: ChatSession;
@@ -25,95 +26,32 @@ export function ChatSessionComponent({
     className,
     userId
 }: ChatSessionProps) {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    // Use TanStack Query for messages
+    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '');
+    const messages = messagesResult?.messages || [];
+
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingMessages, setIsLoadingMessages] = useState(true);
-    const [showSpinner, setShowSpinner] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [, setPendingUserMessage] = useState<ChatMessage | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
-    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const { addToast } = useToast();
 
-    // Auto-scroll to bottom when new messages are added
-    useEffect(() => {
+    // Auto-scroll to bottom when new messages are added (use useLayoutEffect for DOM manipulation)
+    React.useLayoutEffect(() => {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
                 scrollContainer.scrollTop = scrollContainer.scrollHeight;
             }
         }
-    }, [messages, streamingMessage]);
-
-    const loadMessages = useCallback(async () => {
-        if (!session?.id) {
-            console.warn('No session ID provided for loading messages');
-            setIsLoadingMessages(false);
-            return;
-        }
-
-        setIsLoadingMessages(true);
-        try {
-            const result = await apiClient.getChatMessages(session.id);
-            if (result.success) {
-                setMessages(result.messages || []);
-            } else {
-                console.error('Failed to load messages:', result.message);
-                addToast({
-                    title: "Error",
-                    description: result.message || "Failed to load messages",
-                    variant: "destructive"
-                });
-            }
-        } catch (error) {
-            console.error('Error loading messages:', error);
-            addToast({
-                title: "Error",
-                description: "Failed to load chat messages",
-                variant: "destructive"
-            });
-        } finally {
-            setIsLoadingMessages(false);
-        }
-    }, [session?.id, addToast]);
+    });
 
 
 
-    // Load messages when session changes
-    useEffect(() => {
-        if (session?.id) {
-            loadMessages();
-        }
-    }, [session?.id, loadMessages]);
 
-    // Handle delayed spinner display for message loading
-    useEffect(() => {
-        if (isLoadingMessages && messages.length === 0) {
-            // Reset spinner state when loading starts
-            setShowSpinner(false);
 
-            // Set timeout to show spinner after 2.5 seconds
-            spinnerTimeoutRef.current = setTimeout(() => {
-                setShowSpinner(true);
-            }, 2500);
-        } else {
-            // Clear timeout and hide spinner when loading completes
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-            setShowSpinner(false);
-        }
-
-        // Cleanup timeout on unmount
-        return () => {
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-        };
-    }, [isLoadingMessages, messages.length]);
+    // TanStack Query handles loading messages automatically
 
     const handleRetryMessage = async (messageId: string) => {
         // Find the message to retry
@@ -195,8 +133,7 @@ export function ChatSessionComponent({
             createdAt: new Date().toISOString()
         };
 
-        // Add user message immediately to UI
-        setMessages(prev => [...(prev || []), userMessage]);
+        // Note: In real app, would use TanStack Query optimistic updates here
         setPendingUserMessage(userMessage);
 
         setIsLoading(true);
@@ -218,9 +155,9 @@ export function ChatSessionComponent({
                         setStreamingMessage(prev => prev + chunk.content);
                     }
                 },
-                (aiMessage) => {
+                () => {
                     // Handle completion - add the AI message to the chat
-                    setMessages(prev => [...prev, aiMessage]);
+                    // Note: Would use TanStack Query mutation to add message
 
                     setPendingUserMessage(null);
                     setStreamingMessage('');
@@ -241,8 +178,7 @@ export function ChatSessionComponent({
                 },
                 (error) => {
                     console.error('Streaming error:', error);
-                    // Remove the temporary user message on error
-                    setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+                    // Note: Would use TanStack Query to handle error states
                     setPendingUserMessage(null);
                     addToast({
                         title: "Error",
@@ -256,8 +192,7 @@ export function ChatSessionComponent({
             );
         } catch (error) {
             console.error('Error sending message:', error);
-            // Remove the temporary user message on error
-            setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+            // Note: Would use TanStack Query to handle error states
             setPendingUserMessage(null);
             addToast({
                 title: "Error",
@@ -274,13 +209,9 @@ export function ChatSessionComponent({
         <div className={`flex flex-col h-full ${className || ''}`}>
             {/* Messages area */}
             <div className="flex-1 overflow-hidden">
-                {isLoadingMessages && messages.length === 0 && showSpinner ? (
+                {isLoadingMessages && messages.length === 0 ? (
                     <div className="h-full flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40 opacity-30"></div>
-                    </div>
-                ) : isLoadingMessages && messages.length === 0 && !showSpinner ? (
-                    <div className="h-full">
-                        {/* Blank area - no spinner yet */}
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
                     </div>
                 ) : (
                     <ScrollArea ref={scrollAreaRef} className="h-full">

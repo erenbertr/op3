@@ -1,12 +1,11 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
 import { StandardChatLayout } from './chat/standard-chat-layout';
 import { authService } from '@/lib/auth';
-import { apiClient } from '@/lib/api';
-import { workspaceCache } from '@/lib/workspace-cache';
+import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { Loader2 } from 'lucide-react';
 
 interface WorkspaceViewProps {
@@ -15,57 +14,20 @@ interface WorkspaceViewProps {
 
 export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
     const router = useRouter();
-    const [workspace, setWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const user = authService.getCurrentUser();
 
-    useEffect(() => {
-        const loadWorkspace = async () => {
-            const user = authService.getCurrentUser();
-            if (!user) {
-                router.push('/');
-                return;
-            }
+    // Redirect if no user
+    React.useLayoutEffect(() => {
+        if (!user) {
+            router.push('/');
+        }
+    }, [user, router]);
 
-            // Try to get workspace from cache first
-            const cachedWorkspace = workspaceCache.getWorkspace(user.id, workspaceId);
-            if (cachedWorkspace) {
-                setWorkspace(cachedWorkspace);
-                setIsLoading(false);
-                // Set as active workspace in background
-                apiClient.setActiveWorkspace(workspaceId, user.id).catch(console.error);
-                return;
-            }
+    // Use existing TanStack Query hook
+    const { data: workspacesResult, isLoading, error } = useWorkspaces(user?.id || '');
 
-            try {
-                setIsLoading(true);
-                const result = await apiClient.getUserWorkspaces(user.id);
-
-                if (result.success) {
-                    // Cache the workspaces
-                    workspaceCache.set(user.id, result.workspaces);
-
-                    const foundWorkspace = result.workspaces.find(w => w.id === workspaceId);
-                    if (foundWorkspace) {
-                        setWorkspace(foundWorkspace);
-                        // Set as active workspace
-                        await apiClient.setActiveWorkspace(workspaceId, user.id);
-                    } else {
-                        setError('Workspace not found');
-                    }
-                } else {
-                    setError('Failed to load workspace');
-                }
-            } catch (error) {
-                console.error('Error loading workspace:', error);
-                setError('Failed to load workspace');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadWorkspace();
-    }, [workspaceId, router]);
+    // Derived state
+    const workspace = workspacesResult?.workspaces?.find(w => w.id === workspaceId) || null;
 
     if (isLoading && !workspace) {
         return (
@@ -86,7 +48,7 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-4 max-w-md">
                         <h2 className="text-2xl font-bold text-destructive">Error</h2>
-                        <p className="text-muted-foreground">{error}</p>
+                        <p className="text-muted-foreground">{error.message}</p>
                         <button
                             onClick={() => router.push('/workspaces')}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -117,8 +79,6 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
             </WorkspaceLayout>
         );
     }
-
-    const user = authService.getCurrentUser();
 
     return (
         <WorkspaceLayout currentWorkspaceId={workspaceId}>

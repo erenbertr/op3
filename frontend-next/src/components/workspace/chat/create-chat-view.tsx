@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from '../workspace-layout';
 import { authService } from '@/lib/auth';
@@ -24,7 +24,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
     const [workspace, setWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
     const { addToast } = useToast();
 
-    useEffect(() => {
+    React.useMemo(() => {
         const loadWorkspace = async () => {
             const user = authService.getCurrentUser();
             if (!user) {

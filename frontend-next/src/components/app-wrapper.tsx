@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
@@ -9,25 +10,29 @@ import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
-import { apiClient, SetupStatusResponse } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 import { authService, AuthUser } from '@/lib/auth';
-import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
-import { useAsyncData } from '@/lib/hooks/use-async-data';
 import { Loader2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-type SetupStatus = SetupStatusResponse['setup'];
+
 
 export function AppWrapper() {
     const { t } = useI18n();
     const router = useRouter();
-    const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
 
-    // Use new hooks instead of useEffect patterns
-    const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
-    const setupDataFetcher = useAsyncData(React.useCallback(() => apiClient.getSetupStatus(), []));
+    // Use TanStack Query for setup status
+    const { data: setupResponse, isLoading: isLoadingSetup, error: setupError } = useQuery({
+        queryKey: ['setup-status'],
+        queryFn: () => apiClient.getSetupStatus(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        refetchOnWindowFocus: false,
+    });
+
+    // Derived state from query
+    const setupStatus = setupResponse?.setup || null;
 
 
 
@@ -58,46 +63,27 @@ export function AppWrapper() {
         }
     }, [router]);
 
-    const [hasInitialized, setHasInitialized] = useState(false);
-
-    // Initialize app on mount using useEffect
-    React.useEffect(() => {
-        if (hasInitialized) return;
-
-        const initializeApp = async () => {
-            try {
-                startLoading();
-
-                const setupResponse = await apiClient.getSetupStatus();
-
-                if (setupResponse.success && setupResponse.setup) {
-                    setSetupStatus(setupResponse.setup);
-
-                    if (setupResponse.setup.completed) {
-                        const user = authService.getCurrentUser();
-                        if (user) {
-                            setCurrentUser(user);
-                            if (!user.hasCompletedWorkspaceSetup) {
-                                setShowWorkspaceSetup(true);
-                            } else {
-                                await loadInitialWorkspace(user.id);
-                            }
-                        }
-                    }
+    // Initialize user state when setup is completed
+    React.useMemo(() => {
+        if (setupStatus?.completed && !currentUser) {
+            const user = authService.getCurrentUser();
+            if (user) {
+                setCurrentUser(user);
+                if (!user.hasCompletedWorkspaceSetup) {
+                    setShowWorkspaceSetup(true);
+                } else {
+                    loadInitialWorkspace(user.id);
                 }
-            } catch (error) {
-                console.error('Error initializing app:', error);
-            } finally {
-                setHasInitialized(true);
-                stopLoading();
             }
-        };
+        }
+    }, [setupStatus?.completed, currentUser, loadInitialWorkspace]);
 
-        initializeApp();
-    }, []);
+
+
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
 
     const handleLogin = async (credentials: { email: string; password: string }) => {
-        startLoading();
+        setIsLoggingIn(true);
 
         try {
             const result = await authService.login(credentials);
@@ -116,7 +102,7 @@ export function AppWrapper() {
         } catch (error) {
             console.error('Login failed:', error);
         } finally {
-            stopLoading();
+            setIsLoggingIn(false);
         }
     };
 
@@ -124,7 +110,6 @@ export function AppWrapper() {
         authService.logout();
         setCurrentUser(null);
         setShowWorkspaceSetup(false);
-        setupDataFetcher.reset();
     };
 
     const handleWorkspaceSetupComplete = (workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
@@ -149,7 +134,7 @@ export function AppWrapper() {
 
 
 
-    if (isLoading && showSpinner) {
+    if (isLoadingSetup) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
@@ -160,23 +145,14 @@ export function AppWrapper() {
         );
     }
 
-    // Show blank screen during initial 3 seconds of loading
-    if (isLoading && !showSpinner) {
-        return (
-            <div className="h-screen bg-background">
-                {/* Blank screen - no spinner yet */}
-            </div>
-        );
-    }
-
-    if (setupDataFetcher.error) {
+    if (setupError) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md">
                     <h1 className="text-2xl font-bold text-destructive">Error</h1>
-                    <p className="text-muted-foreground">{setupDataFetcher.error}</p>
+                    <p className="text-muted-foreground">{setupError.message}</p>
                     <button
-                        onClick={initializeApp}
+                        onClick={() => window.location.reload()}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                     >
                         Retry
@@ -259,16 +235,8 @@ export function AppWrapper() {
         );
     }
 
-    // If user is logged in and has completed workspace setup, redirect to workspaces
+    // If user is logged in and has completed workspace setup, show loading
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
-        // Redirect to workspaces page to let the user select or create a workspace
-        React.useLayoutEffect(() => {
-            const timeoutId = setTimeout(() => {
-                router.push('/workspaces');
-            }, 100);
-            return () => clearTimeout(timeoutId);
-        }, []);
-
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
@@ -304,7 +272,7 @@ export function AppWrapper() {
                             Setup completed successfully! Please sign in to continue.
                         </p>
                     </div>
-                    <LoginForm onLogin={handleLogin} isLoading={isLoading} />
+                    <LoginForm onLogin={handleLogin} isLoading={isLoggingIn} />
                 </div>
             </main>
         </div>

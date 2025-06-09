@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AIProviderManagement } from './ai-provider-management';
 import { authService } from '@/lib/auth';
@@ -12,7 +12,7 @@ export function AIProviderSettingsView() {
 
     const user = authService.getCurrentUser();
 
-    useEffect(() => {
+    React.useLayoutEffect(() => {
         if (!user) {
             router.push('/');
             return;
@@ -28,7 +28,7 @@ export function AIProviderSettingsView() {
                 router.replace('/settings/ai-providers');
             }, 100);
         }
-    }, [user]); // Removed router and searchParams from dependencies
+    }, [user, router, searchParams]);
 
     if (!user) {
         return null;

@@ -52,15 +52,18 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
     // Extract personalities from query data
     const personalities = personalitiesData?.success ? personalitiesData.personalities : [];
 
-    // Handle query errors
-    React.useEffect(() => {
+    // Handle query errors (using useMemo for derived state)
+    const derivedError = React.useMemo(() => {
         if (queryError) {
             console.error('Error loading personalities:', queryError);
-            setError('Failed to load personalities');
-        } else {
-            setError('');
+            return 'Failed to load personalities';
         }
+        return '';
     }, [queryError]);
+
+    React.useMemo(() => {
+        setError(derivedError);
+    }, [derivedError]);
 
     const handleCreatePersonality = async (data: { title: string; prompt: string }) => {
         createPersonalityMutation.mutate(

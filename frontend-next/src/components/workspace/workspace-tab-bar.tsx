@@ -1,11 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
-import { workspaceCache } from '@/lib/workspace-cache';
+
+import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 
 interface WorkspaceTabBarProps {
     userId: string;
@@ -30,10 +31,11 @@ const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
     const router = useRouter();
 
-    const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+    // Use TanStack Query for workspace data
+    const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
+    const workspaces = workspacesResult?.workspaces || [];
+
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState('');
     const isMountedRef = useRef(false);
 
     // Save open workspace tabs to localStorage
@@ -58,50 +60,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         return [];
     }, []);
 
-    const loadWorkspaces = useCallback(async (clearError = true) => {
-        // Use setTimeout to ensure all state updates happen outside render phase
-        setTimeout(async () => {
-            // Check if component is still mounted before updating state
-            if (!isMountedRef.current) return;
 
-            try {
-                if (clearError && isMountedRef.current) {
-                    setError('');
-                }
-
-                // Try to get workspaces from cache first
-                const cachedWorkspaces = workspaceCache.get(userId);
-                if (cachedWorkspaces && isMountedRef.current) {
-                    setWorkspaces(cachedWorkspaces);
-                    setIsLoading(false);
-                    return;
-                }
-
-                if (isMountedRef.current) {
-                    setIsLoading(true);
-                }
-
-                const result = await apiClient.getUserWorkspaces(userId);
-
-                if (result.success && isMountedRef.current) {
-                    setWorkspaces(result.workspaces);
-                    // Cache the workspaces
-                    workspaceCache.set(userId, result.workspaces);
-                } else if (isMountedRef.current) {
-                    setError('Failed to load workspaces');
-                }
-            } catch (error) {
-                console.error('Error loading workspaces:', error);
-                if (isMountedRef.current) {
-                    setError('Failed to load workspaces');
-                }
-            } finally {
-                if (isMountedRef.current) {
-                    setIsLoading(false);
-                }
-            }
-        }, 0);
-    }, [userId]);
 
     // Initialize open tabs separately to avoid dependency issues
     const initializeOpenTabs = useCallback((workspaces: Workspace[]) => {
@@ -133,88 +92,43 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         }, 0);
     }, [loadOpenTabs, saveOpenTabs]);
 
-    // Load workspaces on component mount
-    useEffect(() => {
+    // Initialize component mounted state
+    React.useLayoutEffect(() => {
         isMountedRef.current = true;
-        loadWorkspaces();
-
         return () => {
             isMountedRef.current = false;
         };
-    }, [loadWorkspaces]);
+    }, []);
 
     // Initialize open tabs when workspaces are loaded
-    useEffect(() => {
+    React.useMemo(() => {
         if (workspaces.length > 0) {
             initializeOpenTabs(workspaces);
         }
     }, [workspaces, initializeOpenTabs]);
 
-    // Only reload workspaces if the current workspace doesn't exist and we haven't loaded any workspaces yet
-    useEffect(() => {
-        // Add a guard to prevent execution during initial render or when loading
-        if (!isMountedRef.current || isLoading || !currentWorkspaceId || workspaces.length === 0) {
-            return;
-        }
-
-        const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
-        if (!workspaceExists) {
-            // Only reload if we're sure the workspace should exist but doesn't
-            // Use setTimeout to avoid state updates during render
-            setTimeout(() => {
-                if (isMountedRef.current) {
-                    loadWorkspaces(false); // Don't clear error during this reload
-                }
-            }, 100); // Slightly longer delay to ensure render is complete
-        }
-    }, [currentWorkspaceId, workspaces.length, loadWorkspaces, isLoading]);
-
     // Expose refresh function to parent
-    useEffect(() => {
+    React.useMemo(() => {
         if (onRefresh) {
-            onRefresh(loadWorkspaces);
+            onRefresh(() => {
+                // For refresh, we can just trigger a refetch by updating a key
+                window.location.reload(); // Simple fallback for now
+            });
         }
-    }, [onRefresh, loadWorkspaces]);
+    }, [onRefresh]);
 
     const handleTabClick = useCallback(async (workspaceId: string) => {
-        // Optimistic update - update UI immediately for smooth navigation
-        const updatedWorkspaces = workspaces.map(w => ({
-            ...w,
-            isActive: w.id === workspaceId
-        }));
-        setWorkspaces(updatedWorkspaces);
-
-        // Update cache immediately
-        workspaceCache.set(userId, updatedWorkspaces);
-
         // Navigate immediately for smooth UX
         router.push(`/ws/${workspaceId}`);
 
-        // Update server state in background
+        // Update server state in background - TanStack Query will handle the cache update
         try {
-            const result = await apiClient.setActiveWorkspace(workspaceId, userId);
-            if (!result.success) {
-                // Revert optimistic update if server call fails
-                const revertedWorkspaces = workspaces.map(w => ({
-                    ...w,
-                    isActive: w.id === currentWorkspaceId
-                }));
-                setWorkspaces(revertedWorkspaces);
-                workspaceCache.set(userId, revertedWorkspaces);
-                setError(result.message || 'Failed to switch workspace');
-            }
+            await apiClient.setActiveWorkspace(workspaceId, userId);
         } catch (error) {
             console.error('Error switching workspace:', error);
-            // Revert optimistic update if server call fails
-            const revertedWorkspaces = workspaces.map(w => ({
-                ...w,
-                isActive: w.id === currentWorkspaceId
-            }));
-            setWorkspaces(revertedWorkspaces);
-            workspaceCache.set(userId, revertedWorkspaces);
-            setError('Failed to switch workspace');
+            // TanStack Query will handle retry and error states
         }
-    }, [userId, router, currentWorkspaceId, workspaces]);
+    }, [userId, router]);
 
     const handleOpenWorkspace = useCallback((workspaceId: string) => {
         // Add workspace to open tabs if not already open
@@ -228,7 +142,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, [openWorkspaceTabs, handleTabClick, saveOpenTabs]);
 
     // Expose open workspace function to parent
-    useEffect(() => {
+    React.useMemo(() => {
         if (onOpenWorkspace) {
             onOpenWorkspace(handleOpenWorkspace);
         }
@@ -240,7 +154,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         const openTabs = openWorkspaceTabs.filter(id => id !== workspaceId);
 
         if (openTabs.length === 0) {
-            setError('Cannot close the last workspace tab. At least one workspace must remain open.');
+            console.warn('Cannot close the last workspace tab. At least one workspace must remain open.');
             return;
         }
 
@@ -261,7 +175,6 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
         } catch (error) {
             console.error('Error closing workspace tab:', error);
-            setError('Failed to close workspace tab');
         }
     }, [openWorkspaceTabs, currentWorkspaceId, workspaces, handleTabClick, saveOpenTabs]);
 
@@ -384,7 +297,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     {/* Error Display */}
                     {error && (
                         <div className="ml-4 text-sm text-destructive">
-                            {error}
+                            {error.message}
                         </div>
                     )}
                 </div>

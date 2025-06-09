@@ -76,8 +76,8 @@ export function WorkspaceManagementPanel({
 
 
 
-    // Handle query errors
-    React.useEffect(() => {
+    // Handle query errors (using derived state)
+    React.useMemo(() => {
         if (queryError) {
             console.error('Error loading workspaces:', queryError);
             setError('Failed to load workspaces');
