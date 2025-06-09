@@ -28,31 +28,42 @@ export function ChatSessionComponent({
     className,
     userId
 }: ChatSessionProps) {
-    // Use TanStack Query for messages, but disable for new chats until first message is sent
-    const [hasInitialMessages, setHasInitialMessages] = useState(false);
-    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(
-        session?.id || '',
-        hasInitialMessages // Only enable query after we know there are messages
-    );
-    const messages = messagesResult?.messages || [];
+    // Use local state for messages to avoid TanStack Query issues
+    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+    const [useLocalState, setUseLocalState] = useState(true);
+    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '', !useLocalState);
+
+    // Use local messages if we're in local state mode, otherwise use query result
+    const messages = useLocalState ? localMessages : (messagesResult?.messages || []);
     const queryClient = useQueryClient();
 
-    // Check if this is a new chat (no messages) and disable query initially
+    // Load messages from server when session changes
     React.useEffect(() => {
         if (session?.id) {
-            // Check if we have any cached messages for this session
+            console.log('🔄 Loading messages for session:', session.id);
+
+            // Check cache first
             const cachedData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
             if (cachedData && (cachedData as any).messages?.length > 0) {
-                setHasInitialMessages(true);
+                console.log('📦 Found cached messages:', (cachedData as any).messages.length);
+                setLocalMessages((cachedData as any).messages);
+                setUseLocalState(false); // Switch to query mode
             } else {
-                // For new chats, check the server once
+                // Check server
                 apiClient.getChatMessages(session.id).then(result => {
                     if (result.success && result.messages.length > 0) {
-                        setHasInitialMessages(true);
+                        console.log('📥 Found server messages:', result.messages.length);
+                        setLocalMessages(result.messages);
+                        setUseLocalState(false); // Switch to query mode
+                    } else {
+                        console.log('📝 New chat - using local state');
+                        setLocalMessages([]);
+                        setUseLocalState(true); // Stay in local mode
                     }
                 }).catch(() => {
-                    // If error, assume new chat
-                    setHasInitialMessages(false);
+                    console.log('❌ Error loading messages - using local state');
+                    setLocalMessages([]);
+                    setUseLocalState(true);
                 });
             }
         }
@@ -72,7 +83,8 @@ export function ChatSessionComponent({
         setStreamingMessage('');
         setIsStreaming(false);
         setPendingUserMessage(null);
-        setHasInitialMessages(false); // Reset query enablement for new session
+        setUseLocalState(true); // Reset to local state for new session
+        setLocalMessages([]); // Clear local messages
 
         // Log session change
         console.log('🔄 Session changed to:', session?.id);
@@ -279,8 +291,12 @@ export function ChatSessionComponent({
                             return updatedData;
                         });
 
-                        // Enable the query for future fetches now that we have messages
-                        setHasInitialMessages(true);
+                        // Add messages to local state and update cache
+                        setLocalMessages(prev => {
+                            const newMessages = [...prev, currentUserMessage, aiMessage];
+                            console.log('📝 Updated local messages:', newMessages.length);
+                            return newMessages;
+                        });
 
                         console.log('✅ Messages added to cache successfully');
 
@@ -346,7 +362,6 @@ export function ChatSessionComponent({
                 },
                 (error) => {
                     console.error('Streaming error:', error);
-                    // Note: Would use TanStack Query to handle error states
                     setPendingUserMessage(null);
                     addToast({
                         title: "Error",
@@ -360,7 +375,6 @@ export function ChatSessionComponent({
             );
         } catch (error) {
             console.error('Error sending message:', error);
-            // Note: Would use TanStack Query to handle error states
             setPendingUserMessage(null);
             addToast({
                 title: "Error",
