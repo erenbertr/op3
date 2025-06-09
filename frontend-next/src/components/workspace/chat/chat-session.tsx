@@ -37,6 +37,42 @@ export function ChatSessionComponent({
     const messages = localMessages;
     const queryClient = useQueryClient();
 
+    // Track current session to prevent unnecessary resets
+    const currentSessionRef = useRef<string | null>(null);
+
+    // Handle session ID changes (when switching to a different chat)
+    React.useEffect(() => {
+        if (session?.id && currentSessionRef.current !== session.id) {
+            console.log('🔄 Session ID changed, loading messages for:', session.id, 'previous:', currentSessionRef.current);
+            currentSessionRef.current = session.id;
+
+            // Check cache first
+            const cachedData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
+            if (cachedData && (cachedData as any).messages?.length > 0) {
+                console.log('📦 Found cached messages:', (cachedData as any).messages.length);
+                setLocalMessages((cachedData as any).messages);
+                console.log('🔒 Using cached messages in local state mode');
+            } else {
+                // Check server
+                apiClient.getChatMessages(session.id).then(result => {
+                    if (result.success && result.messages.length > 0) {
+                        console.log('📥 Found server messages:', result.messages.length);
+                        setLocalMessages(result.messages);
+                        console.log('🔒 Using server messages in local state mode');
+                    } else {
+                        console.log('📝 New chat - using local state');
+                        setLocalMessages([]);
+                    }
+                }).catch(() => {
+                    console.log('❌ Error loading messages - using local state');
+                    setLocalMessages([]);
+                });
+            }
+        } else if (session?.id) {
+            console.log('🔄 Same session, keeping current state:', session.id);
+        }
+    }, [session?.id, queryClient]); // Only depend on session ID, not the entire session object
+
     // Debug: Log when messages change
     React.useEffect(() => {
         console.log('📨 Messages state changed:', {
@@ -46,46 +82,6 @@ export function ChatSessionComponent({
             sessionId: session?.id
         });
     }, [messages.length, localMessages.length, messagesResult?.messages?.length, session?.id]);
-
-    // Track current session to prevent unnecessary resets
-    const currentSessionRef = useRef<string | null>(null);
-
-    // Load messages from server when session changes
-    React.useEffect(() => {
-        if (session?.id && currentSessionRef.current !== session.id) {
-            console.log('🔄 Loading messages for NEW session:', session.id, 'previous:', currentSessionRef.current);
-            currentSessionRef.current = session.id;
-
-            // Check cache first
-            const cachedData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
-            if (cachedData && (cachedData as any).messages?.length > 0) {
-                console.log('📦 Found cached messages:', (cachedData as any).messages.length);
-                setLocalMessages((cachedData as any).messages);
-                // Stay in local state mode - don't switch to query mode
-                console.log('🔒 Using cached messages in local state mode');
-            } else {
-                // Check server
-                apiClient.getChatMessages(session.id).then(result => {
-                    if (result.success && result.messages.length > 0) {
-                        console.log('📥 Found server messages:', result.messages.length);
-                        setLocalMessages(result.messages);
-                        // Stay in local state mode - don't switch to query mode
-                        console.log('🔒 Using server messages in local state mode');
-                    } else {
-                        console.log('📝 New chat - using local state');
-                        setLocalMessages([]);
-                        // Already in local mode
-                    }
-                }).catch(() => {
-                    console.log('❌ Error loading messages - using local state');
-                    setLocalMessages([]);
-                    // Already in local mode
-                });
-            }
-        } else if (session?.id) {
-            console.log('🔄 Same session, keeping current state:', session.id);
-        }
-    }, [session?.id, queryClient]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
