@@ -33,45 +33,20 @@ export function ChatSessionComponent({
     // Disable the query completely for now to prevent it from overriding local state
     const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '', false);
 
-    // Always use local messages to prevent query from overriding
-    const messages = localMessages;
     const queryClient = useQueryClient();
 
-    // Track current session to prevent unnecessary resets
-    const currentSessionRef = useRef<string | null>(null);
-
-    // Handle session ID changes (when switching to a different chat)
-    React.useEffect(() => {
-        if (session?.id && currentSessionRef.current !== session.id) {
-            console.log('🔄 Session ID changed, loading messages for:', session.id, 'previous:', currentSessionRef.current);
-            currentSessionRef.current = session.id;
-
-            // Check cache first
-            const cachedData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
-            if (cachedData && (cachedData as any).messages?.length > 0) {
-                console.log('📦 Found cached messages:', (cachedData as any).messages.length);
-                setLocalMessages((cachedData as any).messages);
-                console.log('🔒 Using cached messages in local state mode');
-            } else {
-                // Check server
-                apiClient.getChatMessages(session.id).then(result => {
-                    if (result.success && result.messages.length > 0) {
-                        console.log('📥 Found server messages:', result.messages.length);
-                        setLocalMessages(result.messages);
-                        console.log('🔒 Using server messages in local state mode');
-                    } else {
-                        console.log('📝 New chat - using local state');
-                        setLocalMessages([]);
-                    }
-                }).catch(() => {
-                    console.log('❌ Error loading messages - using local state');
-                    setLocalMessages([]);
-                });
-            }
-        } else if (session?.id) {
-            console.log('🔄 Same session, keeping current state:', session.id);
+    // Simple approach: Use TanStack Query messages when available, local messages when not
+    const messages = React.useMemo(() => {
+        // If we have query data and it's not empty, use it
+        if (messagesResult?.messages && messagesResult.messages.length > 0) {
+            console.log('📦 Using query messages:', messagesResult.messages.length);
+            return messagesResult.messages;
         }
-    }, [session?.id, queryClient]); // Only depend on session ID, not the entire session object
+
+        // Otherwise use local messages
+        console.log('📝 Using local messages:', localMessages.length);
+        return localMessages;
+    }, [messagesResult?.messages, localMessages]);
 
     // Debug: Log when messages change
     React.useEffect(() => {
