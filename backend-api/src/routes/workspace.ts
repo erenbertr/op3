@@ -108,6 +108,23 @@ router.get('/list/:userId', asyncHandler(async (req: Request, res: Response) => 
     res.json(result);
 }));
 
+// Get specific workspace by ID
+router.get('/:workspaceId/:userId', asyncHandler(async (req: Request, res: Response) => {
+    const { workspaceId, userId } = req.params;
+
+    if (!workspaceId) {
+        throw createError('Workspace ID is required', 400);
+    }
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    const result = await workspaceService.getWorkspace(workspaceId, userId);
+
+    res.json(result);
+}));
+
 // Update a workspace
 router.patch('/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
     const { workspaceId } = req.params;

@@ -33,11 +33,11 @@ export function useWorkspaces(userId: string, _componentName?: string) {
     });
 }
 
-export function useWorkspace(workspaceId: string) {
+export function useWorkspace(workspaceId: string, userId: string) {
     return useQuery({
         queryKey: queryKeys.workspaces.detail(workspaceId),
-        queryFn: () => apiClient.getWorkspace(workspaceId),
-        enabled: !!workspaceId,
+        queryFn: () => apiClient.getWorkspace(workspaceId, userId),
+        enabled: !!workspaceId && !!userId,
     });
 }
 
@@ -46,8 +46,8 @@ export function useCreateWorkspace() {
 
     return useMutation({
         mutationFn: (data: { name: string; templateType: string; workspaceRules: string; userId: string }) =>
-            apiClient.createWorkspace(data.name, data.templateType, data.workspaceRules, data.userId),
-        onSuccess: (data, variables) => {
+            apiClient.createWorkspace(data.userId, data.name, data.templateType, data.workspaceRules),
+        onSuccess: (_data, variables) => {
             // Invalidate and refetch workspaces
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.byUser(variables.userId) });
         },
@@ -59,8 +59,8 @@ export function useUpdateWorkspace() {
 
     return useMutation({
         mutationFn: (data: { workspaceId: string; name: string; workspaceRules: string; userId: string }) =>
-            apiClient.updateWorkspace(data.workspaceId, data.name, data.workspaceRules, data.userId),
-        onSuccess: (data, variables) => {
+            apiClient.updateWorkspace(data.workspaceId, data.userId, { name: data.name, workspaceRules: data.workspaceRules }),
+        onSuccess: (_data, variables) => {
             // Invalidate related queries
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.byUser(variables.userId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.detail(variables.workspaceId) });
@@ -74,7 +74,7 @@ export function useDeleteWorkspace() {
     return useMutation({
         mutationFn: (data: { workspaceId: string; userId: string }) =>
             apiClient.deleteWorkspace(data.workspaceId, data.userId),
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             // Invalidate workspaces list
             queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.byUser(variables.userId) });
         },
@@ -125,8 +125,8 @@ export function useCreateChatSession() {
 
     return useMutation({
         mutationFn: (data: { userId: string; workspaceId: string; title?: string }) =>
-            apiClient.createChatSession(data.userId, data.workspaceId, data.title),
-        onSuccess: (data, variables) => {
+            apiClient.createChatSession({ userId: data.userId, workspaceId: data.workspaceId, title: data.title }),
+        onSuccess: (_data, variables) => {
             // Invalidate chat sessions for this workspace
             queryClient.invalidateQueries({
                 queryKey: queryKeys.chats.byWorkspace(variables.userId, variables.workspaceId)
@@ -140,8 +140,8 @@ export function useDeleteChatSession() {
 
     return useMutation({
         mutationFn: (data: { sessionId: string; userId: string; workspaceId: string }) =>
-            apiClient.deleteChatSession(data.sessionId, data.userId),
-        onSuccess: (data, variables) => {
+            apiClient.deleteChatSession(data.sessionId),
+        onSuccess: (_data, variables) => {
             // Invalidate chat sessions and remove specific session from cache
             queryClient.invalidateQueries({
                 queryKey: queryKeys.chats.byWorkspace(variables.userId, variables.workspaceId)
@@ -173,8 +173,8 @@ export function useCreatePersonality() {
 
     return useMutation({
         mutationFn: (data: { title: string; prompt: string; userId: string }) =>
-            apiClient.createPersonality(data.title, data.prompt, data.userId),
-        onSuccess: (data, variables) => {
+            apiClient.createPersonality(data.userId, { title: data.title, prompt: data.prompt }),
+        onSuccess: (_data, variables) => {
             // Invalidate personalities list
             queryClient.invalidateQueries({ queryKey: queryKeys.personalities.byUser(variables.userId) });
         },
@@ -187,7 +187,7 @@ export function useUpdatePersonality() {
     return useMutation({
         mutationFn: (data: { personalityId: string; userId: string; title: string; prompt: string }) =>
             apiClient.updatePersonality(data.personalityId, data.userId, { title: data.title, prompt: data.prompt }),
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             // Invalidate personalities list and specific personality
             queryClient.invalidateQueries({ queryKey: queryKeys.personalities.byUser(variables.userId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.personalities.detail(variables.personalityId) });
@@ -201,7 +201,7 @@ export function useDeletePersonality() {
     return useMutation({
         mutationFn: (data: { personalityId: string; userId: string }) =>
             apiClient.deletePersonality(data.personalityId, data.userId),
-        onSuccess: (data, variables) => {
+        onSuccess: (_data, variables) => {
             // Invalidate personalities list and remove specific personality from cache
             queryClient.invalidateQueries({ queryKey: queryKeys.personalities.byUser(variables.userId) });
             queryClient.removeQueries({ queryKey: queryKeys.personalities.detail(variables.personalityId) });

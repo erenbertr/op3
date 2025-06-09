@@ -489,6 +489,10 @@ class ApiClient {
         return this.request<WorkspaceListResponse>(`/workspace/list/${userId}`);
     }
 
+    async getWorkspace(workspaceId: string, userId: string): Promise<{ success: boolean; workspace?: { id: string; name: string; templateType: WorkspaceTemplate; workspaceRules: string; isActive: boolean; createdAt: string }; message?: string }> {
+        return this.request<{ success: boolean; workspace?: { id: string; name: string; templateType: WorkspaceTemplate; workspaceRules: string; isActive: boolean; createdAt: string }; message?: string }>(`/workspace/${workspaceId}/${userId}`);
+    }
+
     async updateWorkspace(workspaceId: string, userId: string, updates: UpdateWorkspaceRequest): Promise<WorkspaceUpdateResponse> {
         return this.request<WorkspaceUpdateResponse>(`/workspace/${workspaceId}`, {
             method: 'PATCH',
