@@ -27,7 +27,7 @@ export function AppWrapper() {
 
     // Use new hooks instead of useEffect patterns
     const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
-    const setupDataFetcher = useAsyncData(apiClient.getSetupStatus);
+    const setupDataFetcher = useAsyncData(React.useCallback(() => apiClient.getSetupStatus(), []));
 
 
 
@@ -58,7 +58,11 @@ export function AppWrapper() {
         }
     }, [router]);
 
+    const [hasInitialized, setHasInitialized] = useState(false);
+
     const initializeApp = useCallback(async () => {
+        if (hasInitialized) return;
+
         startLoading();
 
         try {
@@ -83,17 +87,18 @@ export function AppWrapper() {
                     }
                 }
             }
+            setHasInitialized(true);
         } catch (error) {
             console.error('Error initializing app:', error);
         } finally {
             stopLoading();
         }
-    }, [startLoading, stopLoading, setupDataFetcher, loadInitialWorkspace]);
+    }, [hasInitialized, startLoading, stopLoading, setupDataFetcher.execute, setupDataFetcher.data, loadInitialWorkspace]);
 
     // Initialize app on mount - call directly instead of useEffect
     React.useLayoutEffect(() => {
         initializeApp();
-    }, [initializeApp]);
+    }, []);
 
     const handleLogin = async (credentials: { email: string; password: string }) => {
         startLoading();
@@ -256,7 +261,10 @@ export function AppWrapper() {
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
         // Redirect to workspaces page to let the user select or create a workspace
         React.useLayoutEffect(() => {
-            router.push('/workspaces');
+            const timeoutId = setTimeout(() => {
+                router.push('/workspaces');
+            }, 100);
+            return () => clearTimeout(timeoutId);
         }, []);
 
         return (

@@ -67,7 +67,7 @@ export class WebSocketService {
         this.currentUserId = userId;
 
         try {
-            const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3005/ws';
+            const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3006/ws';
             console.log('Attempting to connect to WebSocket:', wsUrl);
             this.ws = new WebSocket(wsUrl);
 
