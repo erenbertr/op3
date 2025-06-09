@@ -7,9 +7,8 @@ import { ChatMessageList } from './chat-message';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
-import { useChatMessages } from '@/lib/hooks/use-query-hooks';
-import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query-client';
+
+
 
 interface ChatSessionProps {
     session: ChatSession;
@@ -28,40 +27,41 @@ export function ChatSessionComponent({
     className,
     userId
 }: ChatSessionProps) {
-    // Use local state for messages to avoid TanStack Query issues
-    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
-    // Disable the query completely for now to prevent it from overriding local state
-    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '', false);
+    // Simple message state - always managed manually
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
-    const queryClient = useQueryClient();
 
-    // Simple approach: Use TanStack Query messages when available, local messages when not
-    const messages = React.useMemo(() => {
-        // If we have query data and it's not empty, use it
-        if (messagesResult?.messages && messagesResult.messages.length > 0) {
-            console.log('📦 Using query messages:', messagesResult.messages.length);
-            return messagesResult.messages;
-        }
 
-        // Otherwise use local messages
-        console.log('📝 Using local messages:', localMessages.length);
-        return localMessages;
-    }, [messagesResult?.messages, localMessages]);
-
-    // Debug: Log when messages change
+    // Load messages from server when session changes
     React.useEffect(() => {
-        console.log('📨 Messages state changed:', {
-            localMessagesCount: localMessages.length,
-            queryMessagesCount: messagesResult?.messages?.length || 0,
-            finalMessagesCount: messages.length,
-            sessionId: session?.id
-        });
-    }, [messages.length, localMessages.length, messagesResult?.messages?.length, session?.id]);
+        if (session?.id) {
+            console.log('🔄 Loading messages for session:', session.id);
+            setIsLoadingMessages(true);
+
+            apiClient.getChatMessages(session.id)
+                .then(result => {
+                    if (result.success) {
+                        console.log('📥 Loaded messages from server:', result.messages.length);
+                        setMessages(result.messages);
+                    } else {
+                        console.log('📝 No messages found, starting fresh');
+                        setMessages([]);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error loading messages:', error);
+                    setMessages([]);
+                })
+                .finally(() => {
+                    setIsLoadingMessages(false);
+                });
+        }
+    }, [session?.id]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const [isStreaming, setIsStreaming] = useState(false);
-    const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -77,7 +77,6 @@ export function ChatSessionComponent({
             setIsLoading(false);
             setStreamingMessage('');
             setIsStreaming(false);
-            setPendingUserMessage(null);
 
             console.log('🔄 Session changed to:', currentSessionId);
         }
@@ -86,11 +85,9 @@ export function ChatSessionComponent({
     // Debug logging
     React.useEffect(() => {
         console.log('📨 Messages data updated:', {
-            messagesResult,
             messagesCount: messages.length,
             sessionId: session?.id,
             isLoading: isLoadingMessages,
-            pendingUserMessage: !!pendingUserMessage,
             isStreaming,
             timestamp: new Date().toISOString()
         });
@@ -103,7 +100,7 @@ export function ChatSessionComponent({
                 content: m.content.substring(0, 50) + '...'
             })));
         }
-    }, [messagesResult, messages.length, session?.id, isLoadingMessages, pendingUserMessage, isStreaming]);
+    }, [messages.length, session?.id, isLoadingMessages, isStreaming]);
 
     // Auto-scroll to bottom when new messages are added (use useLayoutEffect for DOM manipulation)
     React.useLayoutEffect(() => {
@@ -201,8 +198,9 @@ export function ChatSessionComponent({
             createdAt: new Date().toISOString()
         };
 
-        // Note: In real app, would use TanStack Query optimistic updates here
-        setPendingUserMessage(userMessage);
+        // Immediately add user message to state
+        setMessages(prev => [...prev, userMessage]);
+        console.log('📝 Added user message to state');
 
         setIsLoading(true);
         setIsStreaming(true);
@@ -224,95 +222,22 @@ export function ChatSessionComponent({
                     }
                 },
                 (aiMessage) => {
-                    // Handle completion - keep messages visible by not clearing states immediately
+                    // Handle completion - add AI message to state
                     console.log('🔄 Streaming completed:', {
-                        pendingUserMessage,
                         aiMessage,
                         sessionId: session.id
                     });
 
-                    // Handle completion with optimistic update to prevent message refresh
-                    const currentUserMessage = pendingUserMessage;
-
-                    // Use optimistic update to add both messages without refetching
-                    if (currentUserMessage && aiMessage) {
-                        console.log('📝 Adding messages to cache optimistically:', {
-                            userMessage: currentUserMessage,
-                            aiMessage: aiMessage
-                        });
-
-                        // Use a more robust cache update that prevents overwrites
-                        const cacheKey = queryKeys.chats.messages(session.id);
-
-                        // First, cancel any ongoing queries to prevent race conditions
-                        queryClient.cancelQueries({ queryKey: cacheKey });
-
-                        // Then update the cache
-                        queryClient.setQueryData(cacheKey, (oldData: any) => {
-                            console.log('🔄 Updating cache with old data:', oldData);
-
-                            if (!oldData || !oldData.success) {
-                                const newData = {
-                                    success: true,
-                                    message: 'Messages retrieved successfully',
-                                    messages: [currentUserMessage, aiMessage]
-                                };
-                                console.log('📝 Creating new cache data:', newData);
-                                return newData;
-                            }
-
-                            // Check if messages already exist to prevent duplicates
-                            const existingMessages = oldData.messages || [];
-                            const userExists = existingMessages.some((m: any) => m.id === currentUserMessage.id);
-                            const aiExists = existingMessages.some((m: any) => m.id === aiMessage.id);
-
-                            if (userExists && aiExists) {
-                                console.log('📝 Messages already exist in cache, skipping update');
-                                return oldData;
-                            }
-
-                            // Add new messages to existing ones
-                            const newMessages = [...existingMessages];
-                            if (!userExists) newMessages.push(currentUserMessage);
-                            if (!aiExists) newMessages.push(aiMessage);
-
-                            const updatedData = {
-                                ...oldData,
-                                messages: newMessages
-                            };
-                            console.log('📝 Updated cache data:', updatedData);
-                            return updatedData;
-                        });
-
-                        // Add messages to local state and update cache
-                        setLocalMessages(prev => {
-                            const newMessages = [...prev, currentUserMessage, aiMessage];
-                            console.log('📝 Updated local messages:', newMessages.length);
-                            return newMessages;
-                        });
-
-                        // Keep using local state - don't switch to query mode yet
-                        // The query will be enabled when we reload the session or navigate away and back
-                        console.log('🔒 Keeping local state mode to prevent query override');
-
-                        console.log('✅ Messages added to cache successfully');
-
-                        // Log the current cache state
-                        const currentCacheData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
-                        console.log('📊 Current cache data after update:', currentCacheData);
-
-                    } else {
-                        console.log('❌ Missing data for optimistic update:', {
-                            hasUserMessage: !!currentUserMessage,
-                            hasAiMessage: !!aiMessage
-                        });
+                    if (aiMessage) {
+                        // Add AI message to state
+                        setMessages(prev => [...prev, aiMessage]);
+                        console.log('📝 Added AI message to state');
                     }
 
-                    // Clear states after cache update to prevent race conditions
+                    // Clear states after completion
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
-                    setPendingUserMessage(null);
 
                     // Update session with last used settings and title if needed
                     const updates: any = {};
@@ -359,7 +284,6 @@ export function ChatSessionComponent({
                 },
                 (error) => {
                     console.error('Streaming error:', error);
-                    setPendingUserMessage(null);
                     addToast({
                         title: "Error",
                         description: error || "Failed to send message",
@@ -372,7 +296,6 @@ export function ChatSessionComponent({
             );
         } catch (error) {
             console.error('Error sending message:', error);
-            setPendingUserMessage(null);
             addToast({
                 title: "Error",
                 description: "Failed to send message. Please try again.",
@@ -395,15 +318,15 @@ export function ChatSessionComponent({
                 ) : (
                     <ScrollArea ref={scrollAreaRef} className="h-full">
                         <div className="px-4 max-w-4xl mx-auto">
-                            <div className={messages.length === 0 && !pendingUserMessage ? "pt-16 flex justify-center" : ""}>
+                            <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
                                 <ChatMessageList
                                     messages={messages}
                                     personalities={personalities}
                                     aiProviders={aiProviders}
                                     streamingMessage={streamingMessage}
                                     isStreaming={isStreaming}
-                                    pendingUserMessage={pendingUserMessage}
-                                    className={messages.length === 0 && !pendingUserMessage ? "" : "py-4"}
+                                    pendingUserMessage={null}
+                                    className={messages.length === 0 ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
                                 />
                             </div>
