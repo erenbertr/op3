@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User } from 'lucide-react';
@@ -34,6 +34,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const isMountedRef = useRef(false);
 
     // Save open workspace tabs to localStorage
     const saveOpenTabs = useCallback((tabs: string[]) => {
@@ -58,64 +59,88 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, []);
 
     const loadWorkspaces = useCallback(async (clearError = true) => {
-        try {
-            if (clearError) {
-                setError('');
-            }
+        // Use setTimeout to ensure all state updates happen outside render phase
+        setTimeout(async () => {
+            // Check if component is still mounted before updating state
+            if (!isMountedRef.current) return;
 
-            // Try to get workspaces from cache first
-            const cachedWorkspaces = workspaceCache.get(userId);
-            if (cachedWorkspaces) {
-                setWorkspaces(cachedWorkspaces);
-                setIsLoading(false);
-                return;
-            }
+            try {
+                if (clearError && isMountedRef.current) {
+                    setError('');
+                }
 
-            setIsLoading(true);
-            const result = await apiClient.getUserWorkspaces(userId);
+                // Try to get workspaces from cache first
+                const cachedWorkspaces = workspaceCache.get(userId);
+                if (cachedWorkspaces && isMountedRef.current) {
+                    setWorkspaces(cachedWorkspaces);
+                    setIsLoading(false);
+                    return;
+                }
 
-            if (result.success) {
-                setWorkspaces(result.workspaces);
-                // Cache the workspaces
-                workspaceCache.set(userId, result.workspaces);
-            } else {
-                setError('Failed to load workspaces');
+                if (isMountedRef.current) {
+                    setIsLoading(true);
+                }
+
+                const result = await apiClient.getUserWorkspaces(userId);
+
+                if (result.success && isMountedRef.current) {
+                    setWorkspaces(result.workspaces);
+                    // Cache the workspaces
+                    workspaceCache.set(userId, result.workspaces);
+                } else if (isMountedRef.current) {
+                    setError('Failed to load workspaces');
+                }
+            } catch (error) {
+                console.error('Error loading workspaces:', error);
+                if (isMountedRef.current) {
+                    setError('Failed to load workspaces');
+                }
+            } finally {
+                if (isMountedRef.current) {
+                    setIsLoading(false);
+                }
             }
-        } catch (error) {
-            console.error('Error loading workspaces:', error);
-            setError('Failed to load workspaces');
-        } finally {
-            setIsLoading(false);
-        }
+        }, 0);
     }, [userId]);
 
     // Initialize open tabs separately to avoid dependency issues
     const initializeOpenTabs = useCallback((workspaces: Workspace[]) => {
-        setOpenWorkspaceTabs(currentTabs => {
-            // Only initialize if we don't have any tabs yet and we have workspaces
-            if (currentTabs.length === 0 && workspaces.length > 0) {
-                const savedTabs = loadOpenTabs();
-                const validSavedTabs = savedTabs.filter((tabId: string) =>
-                    workspaces.some(w => w.id === tabId)
-                );
+        // Use setTimeout to avoid state updates during render
+        setTimeout(() => {
+            // Check if component is still mounted before updating state
+            if (!isMountedRef.current) return;
 
-                if (validSavedTabs.length > 0) {
-                    saveOpenTabs(validSavedTabs);
-                    return validSavedTabs;
-                } else {
-                    // If no valid saved tabs, open all workspaces
-                    const allWorkspaceIds = workspaces.map(w => w.id);
-                    saveOpenTabs(allWorkspaceIds);
-                    return allWorkspaceIds;
+            setOpenWorkspaceTabs(currentTabs => {
+                // Only initialize if we don't have any tabs yet and we have workspaces
+                if (currentTabs.length === 0 && workspaces.length > 0) {
+                    const savedTabs = loadOpenTabs();
+                    const validSavedTabs = savedTabs.filter((tabId: string) =>
+                        workspaces.some(w => w.id === tabId)
+                    );
+
+                    if (validSavedTabs.length > 0) {
+                        saveOpenTabs(validSavedTabs);
+                        return validSavedTabs;
+                    } else {
+                        // If no valid saved tabs, open all workspaces
+                        const allWorkspaceIds = workspaces.map(w => w.id);
+                        saveOpenTabs(allWorkspaceIds);
+                        return allWorkspaceIds;
+                    }
                 }
-            }
-            return currentTabs;
-        });
+                return currentTabs;
+            });
+        }, 0);
     }, [loadOpenTabs, saveOpenTabs]);
 
     // Load workspaces on component mount
     useEffect(() => {
+        isMountedRef.current = true;
         loadWorkspaces();
+
+        return () => {
+            isMountedRef.current = false;
+        };
     }, [loadWorkspaces]);
 
     // Initialize open tabs when workspaces are loaded
@@ -127,17 +152,22 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     // Only reload workspaces if the current workspace doesn't exist and we haven't loaded any workspaces yet
     useEffect(() => {
-        if (currentWorkspaceId && workspaces.length > 0) {
-            const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
-            if (!workspaceExists) {
-                // Only reload if we're sure the workspace should exist but doesn't
-                // Use setTimeout to avoid state updates during render
-                setTimeout(() => {
-                    loadWorkspaces(false); // Don't clear error during this reload
-                }, 0);
-            }
+        // Add a guard to prevent execution during initial render or when loading
+        if (!isMountedRef.current || isLoading || !currentWorkspaceId || workspaces.length === 0) {
+            return;
         }
-    }, [currentWorkspaceId, workspaces.length, loadWorkspaces]);
+
+        const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
+        if (!workspaceExists) {
+            // Only reload if we're sure the workspace should exist but doesn't
+            // Use setTimeout to avoid state updates during render
+            setTimeout(() => {
+                if (isMountedRef.current) {
+                    loadWorkspaces(false); // Don't clear error during this reload
+                }
+            }, 100); // Slightly longer delay to ensure render is complete
+        }
+    }, [currentWorkspaceId, workspaces.length, loadWorkspaces, isLoading]);
 
     // Expose refresh function to parent
     useEffect(() => {
