@@ -16,18 +16,20 @@ export function useDatabaseConnectionTest() {
 }
 
 // Workspace hooks
-export function useWorkspaces(userId: string) {
+export function useWorkspaces(userId: string, _componentName?: string) {
     return useQuery({
         queryKey: queryKeys.workspaces.byUser(userId),
         queryFn: () => apiClient.getUserWorkspaces(userId),
         enabled: !!userId,
-        retry: 3, // Limit retries to prevent infinite loops
-        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
-        staleTime: 60 * 60 * 1000, // 1 hour - workspaces don't change often
-        gcTime: 2 * 60 * 60 * 1000, // 2 hours
-        refetchOnMount: false, // Don't refetch on mount if data exists
+        retry: 2,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 10 * 60 * 1000, // 10 minutes
+        refetchOnMount: false,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
+        refetchInterval: false,
+        refetchIntervalInBackground: false,
     });
 }
 

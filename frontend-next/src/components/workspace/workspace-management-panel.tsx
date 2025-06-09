@@ -66,7 +66,7 @@ export function WorkspaceManagementPanel({
         data: workspacesData,
         isLoading,
         error: queryError
-    } = useWorkspaces(userId);
+    } = useWorkspaces(userId, 'WorkspaceManagementPanel');
 
     const updateWorkspaceMutation = useUpdateWorkspace();
     const deleteWorkspaceMutation = useDeleteWorkspace();

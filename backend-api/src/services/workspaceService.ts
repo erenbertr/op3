@@ -30,6 +30,7 @@ export class WorkspaceService {
      * Create a new workspace for a user
      */
     public async createWorkspace(userId: string, request: CreateWorkspaceRequest): Promise<CreateWorkspaceResponse> {
+
         try {
             // Get existing workspaces to determine if this should be the active one
             const existingWorkspaces = await this.getUserWorkspaces(userId);
@@ -238,6 +239,8 @@ export class WorkspaceService {
      * Get all workspaces for a user
      */
     public async getUserWorkspaces(userId: string): Promise<WorkspaceListResponse> {
+
+
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
@@ -446,6 +449,7 @@ export class WorkspaceService {
 
             // Check if this is the user's only workspace
             const userWorkspaces = await this.getUserWorkspaces(userId);
+
             if (userWorkspaces.workspaces.length <= 1) {
                 return {
                     success: false,

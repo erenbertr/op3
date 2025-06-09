@@ -16,7 +16,7 @@ interface WorkspaceSelectionProps {
 
 export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspaceId, openWorkspace }: WorkspaceSelectionProps) {
     // Use TanStack Query for workspace data
-    const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
+    const { data: workspacesResult, isLoading, error } = useWorkspaces(userId, 'WorkspaceSelection');
     const workspaces = workspacesResult?.workspaces || [];
 
     const getTemplateIcon = (templateType: string) => {

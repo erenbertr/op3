@@ -19,15 +19,33 @@ import { Button } from '@/components/ui/button';
 
 export function AppWrapper() {
     const { t } = useI18n();
-    const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-    const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
+
+    // Initialize user state from auth service
+    const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+        return authService.getCurrentUser();
+    });
+
+    const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(() => {
+        const user = authService.getCurrentUser();
+        return user ? !user.hasCompletedWorkspaceSetup : false;
+    });
 
     // Use TanStack Query for setup status
     const { data: setupResponse, isLoading: isLoadingSetup, error: setupError } = useQuery({
         queryKey: ['setup-status'],
-        queryFn: () => apiClient.getSetupStatus(),
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        queryFn: () => {
+            console.error('🔧🔧🔧 [TERMINAL-LOG] Setup status query executing at', new Date().toISOString());
+            console.error('🔧🔧🔧 [TERMINAL-LOG] FORCE RECOMPILE TEST');
+            return apiClient.getSetupStatus();
+        },
+        staleTime: Infinity, // Never consider data stale - for debugging
+        gcTime: Infinity, // Never garbage collect - for debugging
+        refetchOnMount: false, // Don't refetch on mount if data exists
         refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchInterval: false, // Disable automatic refetching
+        refetchIntervalInBackground: false, // Disable background refetching
+        retry: 1, // Limit retries to prevent infinite loops
     });
 
     // Derived state from query
@@ -41,19 +59,7 @@ export function AppWrapper() {
 
     // Removed loadInitialWorkspace function - WorkspaceApplication handles its own navigation
 
-    // Initialize user state when setup is completed
-    React.useEffect(() => {
-        if (setupStatus?.completed && !currentUser) {
-            const user = authService.getCurrentUser();
-            if (user) {
-                setCurrentUser(user);
-                if (!user.hasCompletedWorkspaceSetup) {
-                    setShowWorkspaceSetup(true);
-                }
-                // WorkspaceApplication will handle navigation when rendered
-            }
-        }
-    }, [setupStatus?.completed, currentUser]);
+    // User state is now initialized directly in useState, no need for additional initialization
 
 
 

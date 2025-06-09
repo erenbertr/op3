@@ -31,12 +31,9 @@ const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
     const router = useRouter();
 
-    // TEMPORARILY DISABLED to fix infinite loop - TODO: Fix properly
-    // const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
-    // const workspaces = workspacesResult?.workspaces || [];
-    const workspaces: any[] = [];
-    const isLoading = false;
-    const error = null;
+    // Use TanStack Query for data fetching
+    const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
+    const workspaces = React.useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
 
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const isMountedRef = useRef(false);
@@ -104,18 +101,19 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, []);
 
     // Initialize open tabs when workspaces are loaded
-    React.useMemo(() => {
+    React.useEffect(() => {
         if (workspaces.length > 0) {
             initializeOpenTabs(workspaces);
         }
     }, [workspaces, initializeOpenTabs]);
 
     // Expose refresh function to parent
-    React.useMemo(() => {
+    React.useEffect(() => {
         if (onRefresh) {
             onRefresh(() => {
-                // For refresh, we can just trigger a refetch by updating a key
-                window.location.reload(); // Simple fallback for now
+                // Use TanStack Query's refetch instead of page reload
+                // The parent component should handle the actual refetch
+                console.log('Refresh requested - parent should handle refetch');
             });
         }
     }, [onRefresh]);
@@ -145,7 +143,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, [openWorkspaceTabs, handleTabClick, saveOpenTabs]);
 
     // Expose open workspace function to parent
-    React.useMemo(() => {
+    React.useEffect(() => {
         if (onOpenWorkspace) {
             onOpenWorkspace(handleOpenWorkspace);
         }

@@ -37,10 +37,13 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
 
     // Use TanStack Query for data fetching
-    const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id);
+    const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id, 'WorkspaceApplication');
 
     // Parse route parameters from pathname (memoized to prevent re-renders)
     const { currentView, routeParams } = React.useMemo(() => {
+        // Debug logging for pathname changes
+        console.error(`🔧🔧🔧 [TERMINAL-LOG] WorkspaceApplication pathname: "${currentPathname}" at ${new Date().toISOString()}`);
+
         const parseRoute = (path: string): { view: string; params: RouteParams } => {
             // Handle workspace routes
             const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
@@ -79,6 +82,9 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         };
 
         const { view, params } = parseRoute(currentPathname);
+
+        // Debug logging for view changes
+        console.error(`🔧🔧🔧 [TERMINAL-LOG] WorkspaceApplication view: "${view}" params:`, params);
 
         return {
             currentView: view,

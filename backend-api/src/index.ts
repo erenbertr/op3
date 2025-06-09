@@ -33,6 +33,14 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Debug endpoint for frontend logging
+app.post('/api/v1/debug-log', (req, res) => {
+    const { message, caller, timestamp } = req.body;
+    console.log(`🔍🔍🔍 [FRONTEND-DEBUG] ${message}`);
+    if (caller) console.log(`🔍🔍🔍 [FRONTEND-DEBUG] Called from: ${caller}`);
+    res.json({ success: true });
+});
+
 // Setup all API routes
 setupRoutes(app);
 
