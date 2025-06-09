@@ -72,6 +72,7 @@ export class AuthService {
      * Logout user and clear stored data
      */
     logout(): void {
+        if (typeof window === 'undefined') return;
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(AUTH_USER_KEY);
     }
@@ -80,6 +81,7 @@ export class AuthService {
      * Get current authenticated user from localStorage
      */
     getCurrentUser(): AuthUser | null {
+        if (typeof window === 'undefined') return null;
         try {
             const userStr = localStorage.getItem(AUTH_USER_KEY);
             const token = localStorage.getItem(AUTH_TOKEN_KEY);
@@ -109,6 +111,7 @@ export class AuthService {
      * Get auth token
      */
     getToken(): string | null {
+        if (typeof window === 'undefined') return null;
         return localStorage.getItem(AUTH_TOKEN_KEY);
     }
 
@@ -127,6 +130,7 @@ export class AuthService {
      * Store auth data in localStorage
      */
     private setAuthData(user: AuthUser): void {
+        if (typeof window === 'undefined') return;
         localStorage.setItem(AUTH_TOKEN_KEY, user.token);
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify({
             id: user.id,

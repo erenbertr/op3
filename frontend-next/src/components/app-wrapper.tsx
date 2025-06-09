@@ -252,11 +252,21 @@ export function AppWrapper() {
         );
     }
 
-    // If user is logged in and has completed workspace setup, let Next.js routing handle the pages
+    // If user is logged in and has completed workspace setup, redirect to workspaces
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
-        // For workspace routes, Next.js will handle routing via the (workspace) layout
-        // This allows proper client-side navigation without conflicts
-        return null;
+        // Redirect to workspaces page to let the user select or create a workspace
+        React.useLayoutEffect(() => {
+            router.push('/workspaces');
+        }, []);
+
+        return (
+            <div className="h-screen bg-background flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                    <p className="text-muted-foreground">Redirecting to workspace...</p>
+                </div>
+            </div>
+        );
     }
 
     // If setup is completed but user is not logged in, show login form

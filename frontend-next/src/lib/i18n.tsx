@@ -933,8 +933,13 @@ function subscribeToLocaleStorage(callback: () => void) {
 
 function getLocaleSnapshot(): Locale {
     if (typeof window === 'undefined') return 'en';
-    const savedLocale = localStorage.getItem('locale') as Locale;
-    return (savedLocale && ['en', 'tr', 'es', 'fr', 'de'].includes(savedLocale)) ? savedLocale : 'en';
+    try {
+        const savedLocale = localStorage.getItem('locale') as Locale;
+        return (savedLocale && ['en', 'tr', 'es', 'fr', 'de'].includes(savedLocale)) ? savedLocale : 'en';
+    } catch (error) {
+        console.warn('Failed to access localStorage for locale:', error);
+        return 'en';
+    }
 }
 
 function getServerLocaleSnapshot(): Locale {
@@ -950,13 +955,18 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     );
 
     const setLocale = (newLocale: Locale) => {
-        localStorage.setItem('locale', newLocale);
-        // Trigger storage event for cross-tab synchronization
-        window.dispatchEvent(new StorageEvent('storage', {
-            key: 'locale',
-            newValue: newLocale,
-            oldValue: localStorage.getItem('locale')
-        }));
+        if (typeof window === 'undefined') return;
+        try {
+            localStorage.setItem('locale', newLocale);
+            // Trigger storage event for cross-tab synchronization
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: 'locale',
+                newValue: newLocale,
+                oldValue: localStorage.getItem('locale')
+            }));
+        } catch (error) {
+            console.warn('Failed to save locale to localStorage:', error);
+        }
     };
 
     const t = (key: string): string => {
