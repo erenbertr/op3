@@ -90,25 +90,31 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
 
             {/* Message content */}
             <div className="space-y-2">
-                {/* Message header - only show for AI messages with provider/personality info */}
-                {isAssistant && (aiProvider || personality) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        {/* AI Provider badge */}
-                        {aiProvider && (
-                            <Badge variant="outline" className="text-xs">
-                                {aiProvider.name || aiProvider.type}
-                            </Badge>
-                        )}
+                {/* Status/Header area - maintain consistent spacing with streaming messages */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
+                    {/* Show badges for AI messages with provider/personality info */}
+                    {isAssistant && (aiProvider || personality) ? (
+                        <>
+                            {/* AI Provider badge */}
+                            {aiProvider && (
+                                <Badge variant="outline" className="text-xs">
+                                    {aiProvider.name || aiProvider.type}
+                                </Badge>
+                            )}
 
-                        {/* Personality badge */}
-                        {personality && (
-                            <Badge variant="secondary" className="text-xs">
-                                <Brain className="h-3 w-3 mr-1" />
-                                {personality.title}
-                            </Badge>
-                        )}
-                    </div>
-                )}
+                            {/* Personality badge */}
+                            {personality && (
+                                <Badge variant="secondary" className="text-xs">
+                                    <Brain className="h-3 w-3 mr-1" />
+                                    {personality.title}
+                                </Badge>
+                            )}
+                        </>
+                    ) : (
+                        /* Empty space to maintain consistent height */
+                        <div></div>
+                    )}
+                </div>
 
                 {/* Message content */}
                 <div className={cn("p-3 rounded-lg", !isAssistant && "bg-muted/30")}>
@@ -241,62 +247,45 @@ export function ChatMessageList({
                 />
             ))}
 
-            {/* Loading state when streaming but no content yet */}
-            {isStreaming && !streamingMessage && (
+            {/* Streaming message - unified component that maintains consistent spacing */}
+            {isStreaming && (
                 <div className="relative pb-4 mb-4">
                     <div className="space-y-2">
-                        {/* Typing indicator */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        {/* Status indicator - fixed height to prevent layout shift */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
                             <div className="flex items-center gap-1">
                                 <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
-                                <span>thinking...</span>
+                                <span>{streamingMessage ? 'typing...' : 'thinking...'}</span>
                             </div>
                         </div>
 
-                        {/* Loading dots */}
-                        <div className="p-3 rounded-lg">
-                            <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
-                                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Streaming message */}
-            {isStreaming && streamingMessage && (
-                <div className="relative pb-4 mb-4">
-
-                    {/* Message content */}
-                    <div className="space-y-2">
-                        {/* Typing indicator */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                            <div className="flex items-center gap-1">
-                                <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
-                                <span>typing...</span>
-                            </div>
-                        </div>
-
-                        {/* Message content */}
-                        <div className="p-3 rounded-lg">
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                                <div
-                                    dangerouslySetInnerHTML={{
-                                        __html: DOMPurify.sanitize(
-                                            marked.parse(streamingMessage + '<span class="inline-block w-2 h-4 bg-primary/50 animate-pulse ml-1"></span>', {
-                                                breaks: true,
-                                                gfm: true,
-                                            }) as string,
-                                            {
-                                                ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span'],
-                                                ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
-                                            }
-                                        )
-                                    }}
-                                />
-                            </div>
+                        {/* Message content area - maintains space even when empty */}
+                        <div className="p-3 rounded-lg min-h-[2rem]">
+                            {streamingMessage ? (
+                                <div className="prose prose-sm max-w-none dark:prose-invert">
+                                    <div
+                                        dangerouslySetInnerHTML={{
+                                            __html: DOMPurify.sanitize(
+                                                marked.parse(streamingMessage + '<span class="inline-block w-2 h-4 bg-primary/50 animate-pulse ml-1"></span>', {
+                                                    breaks: true,
+                                                    gfm: true,
+                                                }) as string,
+                                                {
+                                                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span'],
+                                                    ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+                                                }
+                                            )
+                                        }}
+                                    />
+                                </div>
+                            ) : (
+                                /* Loading dots when no content yet */
+                                <div className="flex items-center gap-1">
+                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
