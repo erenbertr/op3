@@ -4,7 +4,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 // WorkspaceLayout removed - parent components handle layout wrapping
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
-import { ChatSidebarSkeleton } from './chat-skeletons';
 import { authService, AuthUser } from '@/lib/auth';
 import { ChatSession } from '@/lib/api';
 import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
@@ -228,32 +227,28 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                 <div className="flex h-full">
                     {/* Left Sidebar - Fixed width */}
                     <div className="w-80 flex-shrink-0 h-full border-l border-border">
-                        {chatSessionsLoading && chatSessions.length === 0 ? (
-                            <ChatSidebarSkeleton />
-                        ) : (
-                            <ChatSidebar
-                                userId={user?.id || ''}
-                                workspaceId={workspaceId}
-                                onNewChat={handleNewChat}
-                                onChatSelect={handleChatSelect}
-                                activeChatId={activeSession?.id}
-                                chatSessions={chatSessions}
-                                onSessionsUpdate={(updatedSessions) => {
-                                    // Refetch chat sessions to get the latest data from the server
-                                    refetchChatSessions();
+                        <ChatSidebar
+                            userId={user?.id || ''}
+                            workspaceId={workspaceId}
+                            onNewChat={handleNewChat}
+                            onChatSelect={handleChatSelect}
+                            activeChatId={activeSession?.id}
+                            chatSessions={chatSessions}
+                            onSessionsUpdate={(updatedSessions) => {
+                                // Refetch chat sessions to get the latest data from the server
+                                refetchChatSessions();
 
-                                    // If we have a new session and we're navigating to it,
-                                    // optimistically set it as active to prevent "Chat Not Found" error
-                                    if (updatedSessions && updatedSessions.length > 0 && chatId) {
-                                        const newSession = updatedSessions.find(s => s.id === chatId);
-                                        if (newSession) {
-                                            setActiveSession(newSession);
-                                            setError(null);
-                                        }
+                                // If we have a new session and we're navigating to it,
+                                // optimistically set it as active to prevent "Chat Not Found" error
+                                if (updatedSessions && updatedSessions.length > 0 && chatId) {
+                                    const newSession = updatedSessions.find(s => s.id === chatId);
+                                    if (newSession) {
+                                        setActiveSession(newSession);
+                                        setError(null);
                                     }
-                                }}
-                            />
-                        )}
+                                }
+                            }}
+                        />
                     </div>
 
                     {/* Main Content Area */}
