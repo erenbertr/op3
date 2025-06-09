@@ -4,6 +4,7 @@ import { ChatService } from '../services/chatService';
 import { AIChatService } from '../services/aiChatService';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 import {
     CreateChatSessionRequest,
     SendMessageRequest,
@@ -14,6 +15,9 @@ import {
 const router = Router();
 const chatService = ChatService.getInstance();
 const aiChatService = AIChatService.getInstance();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
 // Create a new chat session
 router.post('/sessions', asyncHandler(async (req: Request, res: Response) => {

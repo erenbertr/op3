@@ -2,9 +2,13 @@ import { Router, Request, Response } from 'express';
 import { PersonalityService } from '../services/personalityService';
 import { CreatePersonalityRequest, UpdatePersonalityRequest } from '../types/personality';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const personalityService = new PersonalityService();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
 // Get all personalities for a user
 router.get('/:userId', asyncHandler(async (req: Request, res: Response) => {

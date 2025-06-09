@@ -1,10 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { AIProviderService } from '../services/aiProviderService';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 import { AIProviderConfig, AIProviderTestRequest } from '../types/ai-provider';
 
 const router = Router();
 const aiProviderService = AIProviderService.getInstance();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
 // Get all configured AI providers
 router.get('/', asyncHandler(async (req: Request, res: Response) => {

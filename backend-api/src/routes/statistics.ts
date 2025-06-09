@@ -2,20 +2,24 @@ import { Router, Request, Response } from 'express';
 import { StatisticsService } from '../services/statisticsService';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const statisticsService = StatisticsService.getInstance();
 
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
+
 // Get workspace statistics
 router.get('/workspace/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
     const { workspaceId } = req.params;
-    const { 
-        userId, 
-        dateRange, 
-        startDate, 
-        endDate 
-    } = req.query as { 
-        userId: string; 
+    const {
+        userId,
+        dateRange,
+        startDate,
+        endDate
+    } = req.query as {
+        userId: string;
         dateRange?: 'today' | 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'custom';
         startDate?: string;
         endDate?: string;

@@ -3,10 +3,14 @@ import { WorkspaceService } from '../services/workspaceService';
 import { UserService } from '../services/userService';
 import { CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../types/workspace';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
 const workspaceService = WorkspaceService.getInstance();
 const userService = UserService.getInstance();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
 // Create workspace for user
 router.post('/create', asyncHandler(async (req: Request, res: Response) => {
