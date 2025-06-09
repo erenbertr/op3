@@ -272,16 +272,11 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2">
-                                            <Switch
-                                                checked={provider.isActive}
-                                                onCheckedChange={() => handleToggleProvider(provider)}
-                                                disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
-                                            />
-                                            <span className="text-sm text-muted-foreground">
-                                                {provider.isActive ? 'Enabled' : 'Disabled'}
-                                            </span>
-                                        </div>
+                                        <Switch
+                                            checked={provider.isActive}
+                                            onCheckedChange={() => handleToggleProvider(provider)}
+                                            disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
+                                        />
                                         {provider.id && (
                                             <Button
                                                 variant="outline"
@@ -299,8 +294,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                             onClick={() => handleEditProvider(provider)}
                                             disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
                                         >
-                                            <Edit2 className="h-4 w-4 mr-2" />
-                                            Edit
+                                            <Edit2 className="h-4 w-4" />
                                         </Button>
                                         <Button
                                             variant="outline"
@@ -309,29 +303,21 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                             disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
                                             className="text-destructive hover:text-destructive"
                                         >
-                                            <Trash2 className="h-4 w-4 mr-2" />
-                                            Delete
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
                             </CardHeader>
-                            <CardContent className="pt-0">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <span>API Key:</span>
-                                    <code className="bg-muted px-2 py-1 rounded text-xs">
-                                        ••••••••••••••••
-                                    </code>
-                                    <span className="text-xs text-muted-foreground">(hidden for security)</span>
-                                </div>
-                                {provider.endpoint && (
-                                    <div className="mt-2 text-sm text-muted-foreground">
+                            {provider.endpoint && (
+                                <CardContent className="pt-0">
+                                    <div className="text-sm text-muted-foreground">
                                         <span>Endpoint: </span>
                                         <code className="bg-muted px-2 py-1 rounded text-xs">
                                             {provider.endpoint}
                                         </code>
                                     </div>
-                                )}
-                            </CardContent>
+                                </CardContent>
+                            )}
                         </Card>
                     ))
                 )}
