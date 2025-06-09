@@ -40,7 +40,6 @@ export function ApiMetadataTooltip({ metadata, className }: ApiMetadataTooltipPr
                         variant="ghost"
                         size="sm"
                         className={`h-6 w-6 p-0 ${className || ''}`}
-                        title="API call information"
                     >
                         <Info className="h-3 w-3" />
                     </Button>
@@ -48,46 +47,46 @@ export function ApiMetadataTooltip({ metadata, className }: ApiMetadataTooltipPr
                 <TooltipContent side="top" className="max-w-xs">
                     <div className="space-y-2 text-xs">
                         <div className="font-semibold border-b pb-1">API Call Information</div>
-                        
+
                         {metadata.provider && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Provider:</span>
                                 <span className="font-medium">{metadata.provider}</span>
                             </div>
                         )}
-                        
+
                         {metadata.model && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Model:</span>
                                 <span className="font-medium">{metadata.model}</span>
                             </div>
                         )}
-                        
+
                         {metadata.responseTimeMs && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Response Time:</span>
                                 <span className="font-medium">{formatDuration(metadata.responseTimeMs)}</span>
                             </div>
                         )}
-                        
+
                         {(metadata.inputTokens || metadata.outputTokens || metadata.totalTokens) && (
                             <div className="border-t pt-1">
                                 <div className="font-medium mb-1">Token Usage</div>
-                                
+
                                 {metadata.inputTokens && (
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Input:</span>
                                         <span>{formatTokens(metadata.inputTokens)}</span>
                                     </div>
                                 )}
-                                
+
                                 {metadata.outputTokens && (
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Output:</span>
                                         <span>{formatTokens(metadata.outputTokens)}</span>
                                     </div>
                                 )}
-                                
+
                                 {metadata.totalTokens && (
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Total:</span>
@@ -96,14 +95,14 @@ export function ApiMetadataTooltip({ metadata, className }: ApiMetadataTooltipPr
                                 )}
                             </div>
                         )}
-                        
+
                         {metadata.cost && (
                             <div className="flex justify-between border-t pt-1">
                                 <span className="text-muted-foreground">Cost:</span>
                                 <span className="font-medium">{formatCost(metadata.cost)}</span>
                             </div>
                         )}
-                        
+
                         {metadata.requestId && (
                             <div className="border-t pt-1">
                                 <div className="text-muted-foreground">Request ID:</div>

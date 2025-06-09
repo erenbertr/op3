@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
-import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 interface CreateChatViewProps {
     workspaceId: string;
@@ -45,7 +44,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                             description: "Workspace not found",
                             variant: "destructive"
                         });
-                        navigationUtils.pushState('/workspaces');
+                        router.push('/workspaces');
                     }
                 }
             } catch (error) {
@@ -55,7 +54,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                     description: "Failed to load workspace",
                     variant: "destructive"
                 });
-                navigationUtils.pushState('/workspaces');
+                router.push('/workspaces');
             }
         };
 
@@ -85,8 +84,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
             const result = await apiClient.createChatSession({
                 userId: user.id,
                 workspaceId,
-                title: title.trim(),
-                description: description.trim() || undefined
+                title: title.trim()
             });
 
             if (result.success && result.session) {
@@ -95,7 +93,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                     description: "Chat created successfully",
                     variant: "default"
                 });
-                navigationUtils.pushState(`/ws/${workspaceId}/chat/${result.session.id}`);
+                router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
             } else {
                 addToast({
                     title: "Error",
@@ -168,7 +166,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => navigationUtils.pushState(`/ws/${workspaceId}`)}
+                                onClick={() => router.push(`/ws/${workspaceId}`)}
                             >
                                 Cancel
                             </Button>

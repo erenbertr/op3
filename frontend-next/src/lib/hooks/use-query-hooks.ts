@@ -117,6 +117,12 @@ export function useChatMessages(sessionId: string) {
         queryKey: queryKeys.chats.messages(sessionId),
         queryFn: () => apiClient.getChatMessages(sessionId),
         enabled: !!sessionId,
+        staleTime: 30 * 60 * 1000, // 30 minutes - prevent frequent refetches
+        gcTime: 60 * 60 * 1000, // 60 minutes - keep in cache longer
+        refetchOnMount: false, // Don't refetch when component mounts
+        refetchOnWindowFocus: false, // Don't refetch when window gains focus
+        refetchOnReconnect: false, // Don't refetch on network reconnect
+        retry: 1, // Limit retries to prevent loops
     });
 }
 

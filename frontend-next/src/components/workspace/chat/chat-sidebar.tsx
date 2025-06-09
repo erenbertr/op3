@@ -9,7 +9,6 @@ import { Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
-import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 interface ChatSidebarProps {
     className?: string;
@@ -45,8 +44,8 @@ export function ChatSidebar({
     );
 
     const handleChatClick = (chat: ChatSession) => {
-        // Use client-side navigation
-        navigationUtils.pushState(`/ws/${workspaceId}/chat/${chat.id}`);
+        // Use Next.js router for consistent navigation
+        router.push(`/ws/${workspaceId}/chat/${chat.id}`);
         // Also call the callback for backward compatibility
         onChatSelect?.(chat);
     };
@@ -61,10 +60,12 @@ export function ChatSidebar({
             });
 
             if (result.success && result.session) {
-                // Update parent's sessions list
+                // Update parent's sessions list first
                 onSessionsUpdate?.([result.session, ...chatSessions]);
-                // Navigate to the new chat using client-side navigation
-                navigationUtils.pushState(`/ws/${workspaceId}/chat/${result.session.id}`);
+
+                // Navigate to the new chat using Next.js router
+                router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
+
                 // Also call the callback for backward compatibility
                 onNewChat?.(result.session);
             } else {
@@ -78,7 +79,7 @@ export function ChatSidebar({
             console.error('Error creating new chat:', error);
             addToast({
                 title: "Error",
-                description: "Failed to create new chat",
+                description: "Failed to create new chat. Please try again.",
                 variant: "destructive"
             });
         } finally {

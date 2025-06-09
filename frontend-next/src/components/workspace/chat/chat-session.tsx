@@ -31,15 +31,6 @@ export function ChatSessionComponent({
     // Use TanStack Query for messages
     const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '');
     const messages = messagesResult?.messages || [];
-
-    // Debug logging
-    React.useEffect(() => {
-        console.log('📨 Messages data updated:', {
-            messagesResult,
-            messagesCount: messages.length,
-            sessionId: session?.id
-        });
-    }, [messagesResult, messages.length, session?.id]);
     const queryClient = useQueryClient();
 
     const [isLoading, setIsLoading] = useState(false);
@@ -48,6 +39,27 @@ export function ChatSessionComponent({
     const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
+
+    // Clean up state when session changes
+    React.useEffect(() => {
+        // Reset all streaming states when session changes
+        setIsLoading(false);
+        setStreamingMessage('');
+        setIsStreaming(false);
+        setPendingUserMessage(null);
+    }, [session?.id]);
+
+    // Debug logging
+    React.useEffect(() => {
+        console.log('📨 Messages data updated:', {
+            messagesResult,
+            messagesCount: messages.length,
+            sessionId: session?.id,
+            isLoading: isLoadingMessages,
+            pendingUserMessage: !!pendingUserMessage,
+            isStreaming
+        });
+    }, [messagesResult, messages.length, session?.id, isLoadingMessages, pendingUserMessage, isStreaming]);
 
     // Auto-scroll to bottom when new messages are added (use useLayoutEffect for DOM manipulation)
     React.useLayoutEffect(() => {
@@ -178,10 +190,6 @@ export function ChatSessionComponent({
                     // Handle completion with optimistic update to prevent message refresh
                     const currentUserMessage = pendingUserMessage;
 
-                    setStreamingMessage('');
-                    setIsStreaming(false);
-                    setIsLoading(false);
-
                     // Use optimistic update to add both messages without refetching
                     if (currentUserMessage && aiMessage) {
                         console.log('📝 Adding messages to cache optimistically:', {
@@ -209,15 +217,19 @@ export function ChatSessionComponent({
                             }
                         );
 
-                        // Clear pending message after cache update
-                        setPendingUserMessage(null);
+                        console.log('✅ Messages added to cache successfully');
                     } else {
                         console.log('❌ Missing data for optimistic update:', {
                             hasUserMessage: !!currentUserMessage,
                             hasAiMessage: !!aiMessage
                         });
-                        setPendingUserMessage(null);
                     }
+
+                    // Clear states after cache update to prevent race conditions
+                    setStreamingMessage('');
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                    setPendingUserMessage(null);
 
                     // Update session with last used settings and title if needed
                     const updates: any = {};

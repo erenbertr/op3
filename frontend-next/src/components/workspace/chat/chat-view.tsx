@@ -271,6 +271,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                     <div className="flex-1 h-full border-r border-border">
                         {activeSession ? (
                             <ChatSessionComponent
+                                key={activeSession.id} // Force re-mount when session changes
                                 session={activeSession}
                                 personalities={personalities || []}
                                 aiProviders={aiProviders || []}
