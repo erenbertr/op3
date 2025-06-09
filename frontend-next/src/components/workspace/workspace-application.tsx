@@ -41,11 +41,11 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     // Parse route parameters from pathname (memoized to prevent re-renders)
     const { currentView, routeParams } = React.useMemo(() => {
         const parseRoute = (path: string): { view: string; params: RouteParams } => {
-            // Handle workspace routes
+            // Handle workspace routes - treat both workspace and chat routes as 'workspace' view
             const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
             if (wsMatch) {
                 return {
-                    view: wsMatch[2] ? 'chat' : 'workspace',
+                    view: 'workspace',
                     params: {
                         workspaceId: wsMatch[1],
                         chatId: wsMatch[2]
@@ -171,36 +171,40 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             <main className="flex-1 overflow-hidden">
                 {currentView === 'workspace' && routeParams.workspaceId && currentWorkspace && (
                     <>
-                        {currentWorkspace.templateType === 'standard-chat' ? (
-                            <ChatView
+                        {/* If we have a chatId, show the specific chat */}
+                        {routeParams.chatId ? (
+                            <ChatViewInternal
                                 workspaceId={routeParams.workspaceId}
-                            // No chatId provided - will show workspace overview with empty state
+                                chatId={routeParams.chatId}
+                                currentUser={currentUser}
                             />
                         ) : (
-                            <div className="container mx-auto px-4 py-8">
-                                <div className="text-center space-y-4">
-                                    <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
-                                    <p className="text-muted-foreground">
-                                        {currentWorkspace.templateType
-                                            ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
-                                            : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
-                                        }
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Current workspace ID: {routeParams.workspaceId}
-                                    </p>
-                                </div>
-                            </div>
+                            /* Otherwise show workspace overview */
+                            <>
+                                {currentWorkspace.templateType === 'standard-chat' ? (
+                                    <ChatView
+                                        workspaceId={routeParams.workspaceId}
+                                    // No chatId provided - will show workspace overview with empty state
+                                    />
+                                ) : (
+                                    <div className="container mx-auto px-4 py-8">
+                                        <div className="text-center space-y-4">
+                                            <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
+                                            <p className="text-muted-foreground">
+                                                {currentWorkspace.templateType
+                                                    ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
+                                                    : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
+                                                }
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Current workspace ID: {routeParams.workspaceId}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </>
-                )}
-
-                {currentView === 'chat' && routeParams.workspaceId && routeParams.chatId && (
-                    <ChatViewInternal
-                        workspaceId={routeParams.workspaceId}
-                        chatId={routeParams.chatId}
-                        currentUser={currentUser}
-                    />
                 )}
 
                 {currentView === 'settings-workspaces' && (
