@@ -192,15 +192,32 @@ export function ChatSessionComponent({
                         setPendingUserMessage(null);
                     });
 
+                    // Update session with last used settings and title if needed
+                    const updates: any = {};
+
+                    // Update last used provider and personality
+                    if (personalityId && personalityId !== session?.lastUsedPersonalityId) {
+                        updates.lastUsedPersonalityId = personalityId;
+                    }
+                    if (aiProviderId && aiProviderId !== session?.lastUsedAIProviderId) {
+                        updates.lastUsedAIProviderId = aiProviderId;
+                    }
+
                     // Update session title if this is the first message and title is "New Chat"
                     if (messages.length === 0 && session?.title === 'New Chat') {
-                        const newTitle = content.length > 50 ? content.substring(0, 50) + '...' : content;
-                        apiClient.updateChatSession(session.id, { title: newTitle }).then(updateResult => {
+                        updates.title = content.length > 50 ? content.substring(0, 50) + '...' : content;
+                    }
+
+                    // Apply updates if any
+                    if (Object.keys(updates).length > 0) {
+                        console.log('📝 Updating session with:', updates);
+                        apiClient.updateChatSession(session.id, updates).then(updateResult => {
                             if (updateResult.success && updateResult.session && onSessionUpdate) {
+                                console.log('✅ Session updated successfully:', updateResult.session);
                                 onSessionUpdate(updateResult.session);
                             }
                         }).catch(error => {
-                            console.error('Error updating session title:', error);
+                            console.error('❌ Error updating session:', error);
                         });
                     }
                 },

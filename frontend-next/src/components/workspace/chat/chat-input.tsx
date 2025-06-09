@@ -223,10 +223,10 @@ export function ChatInput({
     // Debug logging for provider selection
     React.useEffect(() => {
         console.log('🎯 Provider selection debug:', {
-            selectedProvider,
-            selectedProviderObj,
-            sessionAIProviderId,
-            derivedProvider,
+            sessionAIProviderId: sessionAIProviderId,
+            derivedProvider: derivedProvider,
+            selectedProvider: selectedProvider,
+            selectedProviderObj: selectedProviderObj ? { id: selectedProviderObj.id, name: selectedProviderObj.name } : null,
             aiProviders: aiProviders?.map(p => ({ id: p.id, name: p.name, isActive: p.isActive }))
         });
     }, [selectedProvider, selectedProviderObj, sessionAIProviderId, derivedProvider, aiProviders]);
