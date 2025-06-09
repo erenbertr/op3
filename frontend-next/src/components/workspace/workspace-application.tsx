@@ -15,7 +15,7 @@ import { LanguageSelector } from '@/components/language-selector';
 import { AuthUser } from '@/lib/auth';
 import { apiClient, ChatSession } from '@/lib/api';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
-import { useWorkspaces, useSetActiveWorkspace } from '@/lib/hooks/use-query-hooks';
+import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/toast';
 import { Loader2, LogOut, Settings, Bot, Plus } from 'lucide-react';
@@ -32,115 +32,66 @@ interface RouteParams {
 }
 
 export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplicationProps) {
-    const currentPathname = usePathnameHook(); // Use the new hook instead of state
-    const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
-    const [routeParams, setRouteParams] = useState<RouteParams>({});
+    const currentPathname = usePathnameHook();
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
-    const activeWorkspaceSetRef = useRef<string | null>(null); // Track which workspace we've set as active
 
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id);
-    const setActiveWorkspaceMutation = useSetActiveWorkspace();
 
-    // Create a stable callback for setting active workspace
-    const setActiveWorkspace = useCallback((workspaceId: string) => {
-        if (activeWorkspaceSetRef.current !== workspaceId && !setActiveWorkspaceMutation.isPending) {
-            activeWorkspaceSetRef.current = workspaceId;
-            setActiveWorkspaceMutation.mutate({
-                workspaceId,
-                userId: currentUser.id
-            });
-        }
-    }, [setActiveWorkspaceMutation, currentUser.id]);
-
-
-
-    // Parse route parameters from pathname
-    const parseRoute = useCallback((path: string): { view: string; params: RouteParams } => {
-        // Handle workspace routes
-        const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
-        if (wsMatch) {
-            return {
-                view: wsMatch[2] ? 'chat' : 'workspace',
-                params: {
-                    workspaceId: wsMatch[1],
-                    chatId: wsMatch[2]
-                }
-            };
-        }
-
-        // Handle settings routes
-        if (path.startsWith('/settings')) {
-            if (path === '/settings/workspaces') return { view: 'settings-workspaces', params: {} };
-            if (path === '/settings/ai-providers') return { view: 'settings-ai-providers', params: {} };
-            return { view: 'settings-workspaces', params: {} }; // Default to workspaces
-        }
-
-        // Handle other routes
-        if (path === '/workspaces') return { view: 'selection', params: {} };
-        if (path === '/personalities') return { view: 'personalities', params: {} };
-        if (path === '/add/workspace') return { view: 'create', params: {} };
-
-        const addChatMatch = path.match(/^\/add\/chat\/([^\/]+)$/);
-        if (addChatMatch) {
-            return {
-                view: 'create-chat',
-                params: { workspaceId: addChatMatch[1] }
-            };
-        }
-
-        // Default to workspace selection if no match
-        return { view: 'selection', params: {} };
-    }, []);
-
-    const { view: currentView, params } = parseRoute(currentPathname);
-
-    // Update route params when they change
-    React.useLayoutEffect(() => {
-        setRouteParams(params);
-    }, [params]);
-
-    // Effect to handle workspace selection
-    React.useLayoutEffect(() => {
-        if (workspacesResult?.success) {
-            const workspaces = workspacesResult.workspaces;
-
-            // If we have a specific workspace ID in the route, load that workspace
-            if (routeParams.workspaceId) {
-                const workspace = workspaces.find(w => w.id === routeParams.workspaceId);
-                if (workspace) {
-                    setCurrentWorkspace(workspace);
-                } else {
-                    // Workspace not found, redirect to selection
-                    navigationUtils.pushState('/workspaces');
-                }
-            } else {
-                // No specific workspace, find active one
-                const activeWorkspace = workspaces.find(w => w.isActive);
-                if (activeWorkspace) {
-                    setCurrentWorkspace(activeWorkspace);
-                }
+    // Parse route parameters from pathname (memoized to prevent re-renders)
+    const { currentView, routeParams, currentWorkspace } = React.useMemo(() => {
+        const parseRoute = (path: string): { view: string; params: RouteParams } => {
+            // Handle workspace routes
+            const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
+            if (wsMatch) {
+                return {
+                    view: wsMatch[2] ? 'chat' : 'workspace',
+                    params: {
+                        workspaceId: wsMatch[1],
+                        chatId: wsMatch[2]
+                    }
+                };
             }
-        }
-    }, [workspacesResult, routeParams.workspaceId]);
 
-    // Separate effect to handle setting active workspace (to avoid circular dependencies)
-    React.useLayoutEffect(() => {
-        // Reset the active workspace ref when workspace ID changes
-        if (activeWorkspaceSetRef.current !== routeParams.workspaceId) {
-            activeWorkspaceSetRef.current = null;
-        }
-
-        if (workspacesResult?.success && routeParams.workspaceId) {
-            const workspace = workspacesResult.workspaces.find(w => w.id === routeParams.workspaceId);
-
-            // Only set active workspace if workspace exists and is not already active
-            if (workspace && !workspace.isActive) {
-                setActiveWorkspace(routeParams.workspaceId);
+            // Handle settings routes
+            if (path.startsWith('/settings')) {
+                if (path === '/settings/workspaces') return { view: 'settings-workspaces', params: {} };
+                if (path === '/settings/ai-providers') return { view: 'settings-ai-providers', params: {} };
+                return { view: 'settings-workspaces', params: {} }; // Default to workspaces
             }
+
+            // Handle other routes
+            if (path === '/workspaces') return { view: 'selection', params: {} };
+            if (path === '/personalities') return { view: 'personalities', params: {} };
+            if (path === '/add/workspace') return { view: 'create', params: {} };
+
+            const addChatMatch = path.match(/^\/add\/chat\/([^\/]+)$/);
+            if (addChatMatch) {
+                return {
+                    view: 'create-chat',
+                    params: { workspaceId: addChatMatch[1] }
+                };
+            }
+
+            // Default to workspace selection if no match
+            return { view: 'selection', params: {} };
+        };
+
+        const { view, params } = parseRoute(currentPathname);
+
+        // Find current workspace if we have workspaces data and a workspace ID
+        let workspace = null;
+        if (workspacesResult?.success && params.workspaceId) {
+            workspace = workspacesResult.workspaces.find(w => w.id === params.workspaceId);
         }
-    }, [workspacesResult, routeParams.workspaceId, setActiveWorkspace]);
+
+        return {
+            currentView: view,
+            routeParams: params,
+            currentWorkspace: workspace
+        };
+    }, [currentPathname, workspacesResult]);
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
