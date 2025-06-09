@@ -323,14 +323,33 @@ class ApiClient {
         this.baseUrl = baseUrl;
     }
 
+    /**
+     * Validate token format (basic JWT structure check)
+     */
+    private isValidJWTFormat(token: string): boolean {
+        if (!token) return false;
+        const parts = token.split('.');
+        return parts.length === 3;
+    }
+
     private async request<T>(
         endpoint: string,
         options: RequestInit = {}
     ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
 
-        // Get auth token from localStorage
-        const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+        // Get auth token from localStorage and validate it
+        let token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+
+        // Validate token format (basic JWT check)
+        if (token && !this.isValidJWTFormat(token)) {
+            console.warn('Invalid token format detected, clearing authentication data');
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('op3_auth_token');
+                localStorage.removeItem('op3_auth_user');
+            }
+            token = null;
+        }
 
         const config: RequestInit = {
             headers: {
@@ -569,8 +588,18 @@ class ApiClient {
         onError: (error: string) => void
     ): Promise<void> {
         try {
-            // Get auth token from localStorage
-            const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+            // Get auth token from localStorage and validate it
+            let token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+
+            // Validate token format (basic JWT check)
+            if (token && !this.isValidJWTFormat(token)) {
+                console.warn('Invalid token format detected in streaming, clearing authentication data');
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('op3_auth_token');
+                    localStorage.removeItem('op3_auth_user');
+                }
+                token = null;
+            }
 
             const response = await fetch(`${this.baseUrl}/chat/sessions/${sessionId}/ai-stream`, {
                 method: 'POST',

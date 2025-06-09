@@ -127,6 +127,28 @@ export class AuthService {
     }
 
     /**
+     * Validate token format (basic JWT structure check)
+     */
+    private isValidJWTFormat(token: string): boolean {
+        if (!token) return false;
+        const parts = token.split('.');
+        return parts.length === 3;
+    }
+
+    /**
+     * Check if current token is valid and clear if not
+     */
+    validateAndCleanToken(): boolean {
+        const token = this.getToken();
+        if (token && !this.isValidJWTFormat(token)) {
+            console.warn('Invalid token format detected, clearing authentication data');
+            this.logout();
+            return false;
+        }
+        return !!token;
+    }
+
+    /**
      * Get auth token
      */
     getToken(): string | null {
