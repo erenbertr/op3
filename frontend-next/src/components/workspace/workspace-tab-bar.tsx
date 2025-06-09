@@ -181,18 +181,6 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
 
 
-    if (isLoading) {
-        return (
-            <div className="border-b bg-background">
-                <div className="container mx-auto px-4">
-                    <div className="flex items-center h-12">
-                        <div className="text-sm text-muted-foreground">Loading workspaces...</div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="border-b bg-background">
             <div className="container mx-auto px-4">
@@ -253,8 +241,8 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         <User className="h-4 w-4" />
                     </Button>
 
-                    {/* Workspace Tabs - Only show workspaces that are in openWorkspaceTabs */}
-                    {workspaces
+                    {/* Workspace Tabs - Only show workspaces that are in openWorkspaceTabs when not loading */}
+                    {!isLoading && workspaces
                         .filter(workspace => openWorkspaceTabs.includes(workspace.id))
                         .map((workspace) => (
                             <div
