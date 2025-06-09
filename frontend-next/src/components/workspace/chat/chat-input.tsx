@@ -78,12 +78,22 @@ export function ChatInput({
         return '';
     }, [sessionAIProviderId, aiProviders]);
 
-    // Update state when derived values change
-    React.useMemo(() => {
+    // Update state when derived values change - use useEffect instead of useMemo for side effects
+    React.useEffect(() => {
+        console.log('🔄 Updating selectedPersonality:', {
+            derivedPersonality,
+            currentSelected: selectedPersonality
+        });
         setSelectedPersonality(derivedPersonality);
     }, [derivedPersonality]);
 
-    React.useMemo(() => {
+    React.useEffect(() => {
+        console.log('🔄 Updating selectedProvider:', {
+            derivedProvider,
+            currentSelected: selectedProvider,
+            sessionAIProviderId,
+            aiProvidersCount: aiProviders?.length
+        });
         setSelectedProvider(derivedProvider);
     }, [derivedProvider]);
 
@@ -192,6 +202,17 @@ export function ChatInput({
 
     const selectedPersonalityObj = (personalities || []).find(p => p?.id === selectedPersonality);
     const selectedProviderObj = (aiProviders || []).find(p => p?.id === selectedProvider);
+
+    // Debug logging for provider selection
+    React.useEffect(() => {
+        console.log('🎯 Provider selection debug:', {
+            selectedProvider,
+            selectedProviderObj,
+            sessionAIProviderId,
+            derivedProvider,
+            aiProviders: aiProviders?.map(p => ({ id: p.id, name: p.name, isActive: p.isActive }))
+        });
+    }, [selectedProvider, selectedProviderObj, sessionAIProviderId, derivedProvider, aiProviders]);
 
     return (
         <div className={cn("w-full max-w-4xl mx-auto", className)}>
