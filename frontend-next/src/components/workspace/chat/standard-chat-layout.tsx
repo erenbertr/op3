@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
-import { ChatLayoutSkeleton } from './chat-skeletons';
+import { ChatInput } from './chat-input';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -137,7 +137,72 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
     };
 
     if (isLoadingData) {
-        return <ChatLayoutSkeleton />;
+        return (
+            <div className={`h-full ${className || ''}`}>
+                <div className="container mx-auto h-full px-4">
+                    <div className="flex h-full">
+                        {/* Left Sidebar - Fixed width */}
+                        <div className="w-80 flex-shrink-0 h-full border-l border-border">
+                            {/* Show skeleton sidebar */}
+                            <div className="flex flex-col h-full bg-background border-r border-border">
+                                <div className="px-4 py-4 border-b border-border flex-shrink-0">
+                                    <div className="relative mb-3">
+                                        <div className="h-9 w-full border rounded-md bg-muted animate-pulse"></div>
+                                    </div>
+                                    <div className="h-8 w-full border rounded-md bg-muted animate-pulse"></div>
+                                </div>
+                                <div className="flex-1 px-4 py-2">
+                                    <div className="space-y-2">
+                                        {Array.from({ length: 4 }).map((_, i) => (
+                                            <div key={i} className="p-2 space-y-1">
+                                                <div className="h-4 w-3/4 bg-muted animate-pulse rounded"></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Main Content Area */}
+                        <div className="flex-1 h-full border-r border-border">
+                            <div className="flex flex-col h-full">
+                                {/* Messages area skeleton */}
+                                <div className="flex-1 overflow-hidden">
+                                    <div className="px-4 max-w-4xl mx-auto">
+                                        <div className="py-4 space-y-4">
+                                            {Array.from({ length: 3 }).map((_, i) => (
+                                                <div key={i} className="space-y-2">
+                                                    <div className="p-3 rounded-lg bg-muted/30">
+                                                        <div className="space-y-2">
+                                                            <div className="h-4 w-full bg-muted animate-pulse rounded"></div>
+                                                            <div className="h-4 w-4/5 bg-muted animate-pulse rounded"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Real ChatInput - always show the same component */}
+                                <div className="flex-shrink-0 border-t bg-background">
+                                    <div className="px-4 py-4 max-w-4xl mx-auto">
+                                        <ChatInput
+                                            onSendMessage={async () => { }} // No-op during loading
+                                            personalities={personalities || []}
+                                            aiProviders={aiProviders || []}
+                                            isLoading={false}
+                                            placeholder="Start your conversation..."
+                                            disabled={true} // Disable during loading
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (

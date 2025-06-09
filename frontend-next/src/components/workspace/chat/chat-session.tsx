@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
-import { ChatMessagesSkeleton, ChatInputSkeleton } from './chat-skeletons';
+import { ChatMessagesSkeleton } from './chat-skeletons';
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -250,8 +250,21 @@ export function ChatSessionComponent({
                     </div>
                 </div>
 
-                {/* Input area - Fixed at bottom */}
-                <ChatInputSkeleton />
+                {/* Input area - Fixed at bottom - Show real input even during loading */}
+                <div className="flex-shrink-0 border-t bg-background">
+                    <div className="px-4 py-4 max-w-4xl mx-auto">
+                        <ChatInput
+                            onSendMessage={handleSendMessage}
+                            personalities={personalities}
+                            aiProviders={aiProviders}
+                            isLoading={isLoading}
+                            placeholder="Start your conversation..."
+                            sessionPersonalityId={session?.lastUsedPersonalityId}
+                            sessionAIProviderId={session?.lastUsedAIProviderId}
+                            onSettingsChange={handleSettingsChange}
+                        />
+                    </div>
+                </div>
             </div>
         );
     }

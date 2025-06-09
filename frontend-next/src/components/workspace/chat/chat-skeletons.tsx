@@ -58,47 +58,8 @@ export function ChatMessagesSkeleton() {
     );
 }
 
-// Chat input skeleton that matches the real ChatInput component structure
-export function ChatInputSkeleton() {
-    return (
-        <div className="flex-shrink-0 border-t bg-background">
-            <div className="px-4 py-4 max-w-4xl mx-auto">
-                <div className="w-full max-w-4xl mx-auto">
-                    <div className="space-y-4">
-                        {/* Main input area - matches the textarea + send button structure */}
-                        <div className="relative border rounded-lg bg-background">
-                            <div className="min-h-[60px] p-3 pr-12">
-                                <Skeleton className="h-4 w-3/4" />
-                                <Skeleton className="h-4 w-1/2 mt-2" />
-                            </div>
-                            {/* Send button skeleton */}
-                            <div className="absolute bottom-2 right-2">
-                                <Skeleton className="h-8 w-8 rounded-md" />
-                            </div>
-                        </div>
-
-                        {/* Controls row - matches the personality/provider/buttons structure */}
-                        <div className="flex items-center gap-3 text-sm">
-                            {/* Personality selection skeleton */}
-                            <div className="flex-1">
-                                <Skeleton className="h-10 w-full rounded-md" />
-                            </div>
-
-                            {/* AI Provider selection skeleton */}
-                            <div className="w-48">
-                                <Skeleton className="h-10 w-full rounded-md" />
-                            </div>
-
-                            {/* Toggle buttons skeleton */}
-                            <Skeleton className="h-8 w-8 rounded-md" />
-                            <Skeleton className="h-8 w-8 rounded-md" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
+// Note: ChatInputSkeleton removed - we now show the real ChatInput component
+// with empty data instead of a skeleton, since it doesn't require heavy loading
 
 // Chat sidebar skeleton that matches the real ChatSidebar component structure
 export function ChatSidebarSkeleton() {
@@ -197,6 +158,7 @@ export function WorkspaceManagementSkeleton() {
 }
 
 // Complete chat layout skeleton that matches the real StandardChatLayout structure
+// Note: ChatInput is NOT included in skeleton - it will be shown separately by the parent component
 export function ChatLayoutSkeleton() {
     return (
         <div className="h-full">
@@ -210,15 +172,12 @@ export function ChatLayoutSkeleton() {
                     {/* Main Content Area */}
                     <div className="flex-1 h-full border-r border-border">
                         <div className="flex flex-col h-full">
-                            {/* Messages area */}
+                            {/* Messages area - takes full height since input is handled separately */}
                             <div className="flex-1 overflow-hidden">
                                 <div className="h-full">
                                     <ChatMessagesSkeleton />
                                 </div>
                             </div>
-
-                            {/* Input area - Fixed at bottom */}
-                            <ChatInputSkeleton />
                         </div>
                     </div>
                 </div>
