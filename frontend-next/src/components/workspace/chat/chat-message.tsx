@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Brain, Copy, RotateCcw, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
-import { useToast } from '@/components/ui/toast';
 
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
@@ -23,20 +22,14 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
-    const { addToast } = useToast();
 
     // Copy to clipboard functionality
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(message.content);
 
-            // Show brief success feedback
+            // Show brief visual feedback with check icon
             setJustCopied(true);
-            addToast({
-                description: "Copied!",
-                variant: "success",
-                duration: 2000
-            });
 
             // Reset the copied state after a brief moment
             setTimeout(() => {
@@ -44,11 +37,6 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
             }, 1500);
         } catch (error) {
             console.error('Failed to copy message:', error);
-            addToast({
-                description: "Failed to copy message",
-                variant: "destructive",
-                duration: 3000
-            });
         }
     };
 
