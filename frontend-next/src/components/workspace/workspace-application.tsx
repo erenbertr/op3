@@ -12,11 +12,8 @@ import { AIProviderSettingsView } from '@/components/workspace/ai-provider-setti
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { AuthUser } from '@/lib/auth';
-import { apiClient, ChatSession } from '@/lib/api';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
-import { useQuery } from '@tanstack/react-query';
-import { useToast } from '@/components/ui/toast';
 import { Loader2, LogOut, Settings, Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -176,7 +173,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                             <ChatViewInternal
                                 workspaceId={routeParams.workspaceId}
                                 chatId={routeParams.chatId}
-                                currentUser={currentUser}
                             />
                         ) : (
                             /* Otherwise show workspace overview */
@@ -268,89 +264,10 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 interface ChatViewInternalProps {
     workspaceId: string;
     chatId: string;
-    currentUser: AuthUser;
 }
 
-function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternalProps) {
-    const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const { addToast } = useToast();
-
-    // Use TanStack Query for data fetching
-    const { data: aiProvidersResult } = useQuery({
-        queryKey: ['ai-providers'],
-        queryFn: () => apiClient.getAIProviders(),
-    });
-
-    const { data: chatSessionsResult, isLoading: chatSessionsLoading } = useQuery({
-        queryKey: ['chat-sessions', currentUser.id, workspaceId],
-        queryFn: () => apiClient.getChatSessions(currentUser.id, workspaceId),
-    });
-
-
-    const chatSessions = React.useMemo(() =>
-        chatSessionsResult?.success ? chatSessionsResult.sessions || [] : [],
-        [chatSessionsResult]
-    );
-
-    // Handle chat session selection and error handling
-    React.useLayoutEffect(() => {
-        if (chatSessions.length > 0) {
-            // Find the specific chat session
-            const foundSession = chatSessions.find((s: ChatSession) => s.id === chatId);
-            if (foundSession) {
-                setActiveSession(foundSession);
-                setError(null);
-            } else {
-                setError('Chat session not found');
-            }
-        }
-    }, [chatSessions, chatId]);
-
-    // Handle AI providers error
-    React.useLayoutEffect(() => {
-        if (aiProvidersResult && !aiProvidersResult.success) {
-            console.error('Failed to load AI providers');
-            addToast({
-                title: "Warning",
-                description: "Failed to load AI providers. Please check your configuration.",
-                variant: "destructive"
-            });
-        }
-    }, [aiProvidersResult, addToast]);
-
-
-
-    const isLoading = chatSessionsLoading;
-
-    if (isLoading) {
-        return (
-            <div className="h-full flex items-center justify-center">
-                <div className="text-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                    <p className="text-muted-foreground">Loading chat...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error || !activeSession) {
-        return (
-            <div className="h-full flex items-center justify-center">
-                <div className="text-center space-y-4 max-w-md">
-                    <h2 className="text-2xl font-bold text-destructive">Error</h2>
-                    <p className="text-muted-foreground">{error || 'Chat session not found'}</p>
-                    <button
-                        onClick={() => navigationUtils.pushState(`/ws/${workspaceId}`)}
-                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                    >
-                        Back to Workspace
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
+function ChatViewInternal({ workspaceId, chatId }: ChatViewInternalProps) {
+    // Simplified - just pass through to ChatView which handles all loading and error states
     return (
         <ChatView
             workspaceId={workspaceId}
