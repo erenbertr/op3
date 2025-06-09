@@ -119,6 +119,18 @@ export interface ChatMessage {
     personalityId?: string;
     aiProviderId?: string;
     createdAt: string;
+    apiMetadata?: ApiMetadata;
+}
+
+export interface ApiMetadata {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    responseTimeMs?: number;
+    model?: string;
+    provider?: string;
+    cost?: number;
+    requestId?: string;
 }
 
 export interface CreateChatSessionRequest {
@@ -182,6 +194,24 @@ export interface UpdateChatSessionSettingsResponse {
 export interface DeleteChatSessionResponse {
     success: boolean;
     message: string;
+}
+
+// Statistics types
+export interface WorkspaceStatistics {
+    totalMessages: number;
+    totalTokens: number;
+    totalCost: number;
+    averageResponseTime: number;
+    messagesByProvider: { [key: string]: number };
+    tokensByProvider: { [key: string]: number };
+    costByProvider: { [key: string]: number };
+    dailyUsage: { date: string; messages: number; tokens: number; cost: number }[];
+}
+
+export interface StatisticsResponse {
+    success: boolean;
+    message: string;
+    statistics?: WorkspaceStatistics;
 }
 
 export interface StreamChunk {
@@ -587,6 +617,74 @@ class ApiClient {
             console.error('Error in streaming chat:', error);
             onError(error instanceof Error ? error.message : 'Unknown error');
         }
+    }
+
+    // Statistics API methods
+    async getWorkspaceStatistics(
+        workspaceId: string,
+        userId: string,
+        dateRange: string = 'this-week',
+        startDate?: string,
+        endDate?: string
+    ): Promise<StatisticsResponse> {
+        const params = new URLSearchParams({
+            userId,
+            dateRange
+        });
+
+        if (startDate && endDate) {
+            params.append('startDate', startDate);
+            params.append('endDate', endDate);
+        }
+
+        return this.request<StatisticsResponse>(
+            `/statistics/workspace/${workspaceId}?${params.toString()}`
+        );
+    }
+
+    async getProviderStatistics(
+        workspaceId: string,
+        userId: string,
+        dateRange: string = 'this-week'
+    ): Promise<any> {
+        const params = new URLSearchParams({
+            userId,
+            dateRange
+        });
+
+        return this.request<any>(
+            `/statistics/workspace/${workspaceId}/providers?${params.toString()}`
+        );
+    }
+
+    async getUsageTrends(
+        workspaceId: string,
+        userId: string,
+        dateRange: string = 'this-week'
+    ): Promise<any> {
+        const params = new URLSearchParams({
+            userId,
+            dateRange
+        });
+
+        return this.request<any>(
+            `/statistics/workspace/${workspaceId}/trends?${params.toString()}`
+        );
+    }
+
+    async getSummaryStatistics(
+        workspaceId: string,
+        userId: string,
+        dateRange: string = 'this-week'
+    ): Promise<any> {
+        const params = new URLSearchParams({
+            userId,
+            dateRange
+        });
+
+        return this.request<any>(
+            `/statistics/workspace/${workspaceId}/summary?${params.toString()}`
+        );
     }
 }
 

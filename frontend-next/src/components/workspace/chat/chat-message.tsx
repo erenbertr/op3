@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, Copy, RotateCcw, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
+import { ApiMetadataTooltip } from './api-metadata-tooltip';
 
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
@@ -119,6 +120,10 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
             {/* Hover actions - positioned at top-right of container */}
             {isHovered && (
                 <div className="absolute top-2 right-2 flex gap-1 bg-background border rounded-md shadow-sm p-1">
+                    {/* API metadata tooltip - only for AI messages */}
+                    {isAssistant && message.apiMetadata && (
+                        <ApiMetadataTooltip metadata={message.apiMetadata} />
+                    )}
                     <Button
                         variant="ghost"
                         size="sm"

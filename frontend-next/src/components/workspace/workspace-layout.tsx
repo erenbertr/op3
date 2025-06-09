@@ -27,6 +27,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     // Determine current view from pathname
     const currentView = useMemo(() => {
         if (pathname.startsWith('/settings')) return 'settings';
+        if (pathname.startsWith('/statistics')) return 'statistics';
         if (pathname === '/workspaces') return 'selection';
         if (pathname === '/personalities') return 'personalities';
         if (pathname === '/add/workspace') return 'create';

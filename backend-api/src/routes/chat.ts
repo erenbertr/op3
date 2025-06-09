@@ -204,7 +204,8 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
                 role: 'assistant' as const,
                 personalityId,
                 aiProviderId,
-                createdAt: new Date()
+                createdAt: new Date(),
+                apiMetadata: streamResult.metadata
             };
 
             // Save AI message to database

@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X, FolderOpen, User } from 'lucide-react';
+import { Settings, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { workspaceCache } from '@/lib/workspace-cache';
 
 interface WorkspaceTabBarProps {
     userId: string;
-    currentView?: 'workspace' | 'settings' | 'create' | 'selection' | 'personalities';
+    currentView?: 'workspace' | 'settings' | 'create' | 'selection' | 'personalities' | 'statistics';
     currentWorkspaceId: string | null;
     onRefresh?: (refreshFn: () => void) => void;
     onOpenWorkspace?: (openWorkspaceFn: (workspaceId: string) => void) => void;
@@ -297,6 +297,20 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         title="Workspace Settings"
                     >
                         <Settings className="h-4 w-4" />
+                    </Button>
+
+                    {/* Statistics Tab */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push('/statistics')}
+                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'statistics'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : 'border-transparent hover:border-primary/50'
+                            }`}
+                        title="Usage Statistics"
+                    >
+                        <BarChart3 className="h-4 w-4" />
                     </Button>
 
                     {/* Workspace Selection Tab */}

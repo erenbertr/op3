@@ -1,5 +1,5 @@
 import { AIProviderConfig, AIProviderType } from '../types/ai-provider';
-import { ChatMessage } from '../types/chat';
+import { ChatMessage, ApiMetadata } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
@@ -25,6 +25,7 @@ export interface AIStreamChunk {
     content?: string;
     messageId?: string;
     error?: string;
+    metadata?: ApiMetadata;
 }
 
 export interface ConversationMessage {
@@ -59,7 +60,7 @@ export class AIChatService {
     public async generateStreamingResponse(
         request: StreamingChatRequest,
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         try {
             // Get AI provider configuration with encrypted keys for internal use
             const providers = this.aiProviderService.getProvidersWithEncryptedKeys();
@@ -188,8 +189,9 @@ export class AIChatService {
         userMessage: string,
         conversationHistory: ConversationMessage[],
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const messageId = crypto.randomUUID();
+        const startTime = Date.now();
 
         onChunk({
             type: 'start',
@@ -200,20 +202,42 @@ export class AIChatService {
         const fullConversation = [...conversationHistory, { role: 'user' as const, content: userMessage }];
 
         try {
+            let result: { success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata };
+
             switch (provider.type) {
                 case 'openai':
-                    return await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk);
+                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk);
+                    break;
                 case 'anthropic':
-                    return await this.streamFromAnthropic(provider, fullConversation, messageId, onChunk);
+                    result = await this.streamFromAnthropic(provider, fullConversation, messageId, onChunk);
+                    break;
                 case 'google':
-                    return await this.streamFromGoogle(provider, fullConversation, messageId, onChunk);
+                    result = await this.streamFromGoogle(provider, fullConversation, messageId, onChunk);
+                    break;
                 case 'replicate':
-                    return await this.streamFromReplicate(provider, fullConversation, messageId, onChunk);
+                    result = await this.streamFromReplicate(provider, fullConversation, messageId, onChunk);
+                    break;
                 case 'custom':
-                    return await this.streamFromCustom(provider, fullConversation, messageId, onChunk);
+                    result = await this.streamFromCustom(provider, fullConversation, messageId, onChunk);
+                    break;
                 default:
                     throw new Error(`Unsupported provider type: ${provider.type}`);
             }
+
+            // Add timing metadata
+            const responseTimeMs = Date.now() - startTime;
+            const metadata: ApiMetadata = {
+                ...result.metadata,
+                responseTimeMs,
+                provider: provider.name || provider.type,
+                model: provider.model,
+                requestId: messageId
+            };
+
+            return {
+                ...result,
+                metadata
+            };
         } catch (error) {
             onChunk({
                 type: 'error',
@@ -235,7 +259,7 @@ export class AIChatService {
         conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
@@ -264,7 +288,7 @@ export class AIChatService {
             throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processOpenAIStream(response, messageId, onChunk);
+        return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
     }
 
     /**
@@ -273,8 +297,9 @@ export class AIChatService {
     private async processOpenAIStream(
         response: Response,
         messageId: string,
-        onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+        onChunk: (chunk: AIStreamChunk) => void,
+        model: string
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
             throw new Error('No response body reader available');
@@ -282,6 +307,8 @@ export class AIChatService {
 
         const decoder = new TextDecoder();
         let finalContent = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
 
         try {
             while (true) {
@@ -295,14 +322,23 @@ export class AIChatService {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6);
                         if (data === '[DONE]') {
+                            const metadata: ApiMetadata = {
+                                inputTokens,
+                                outputTokens,
+                                totalTokens: inputTokens + outputTokens,
+                                model
+                            };
+
                             onChunk({
                                 type: 'end',
-                                messageId
+                                messageId,
+                                metadata
                             });
                             return {
                                 success: true,
                                 message: 'Response generated successfully',
-                                finalContent
+                                finalContent,
+                                metadata
                             };
                         }
 
@@ -317,6 +353,12 @@ export class AIChatService {
                                     content
                                 });
                             }
+
+                            // Capture token usage if available
+                            if (parsed.usage) {
+                                inputTokens = parsed.usage.prompt_tokens || 0;
+                                outputTokens = parsed.usage.completion_tokens || 0;
+                            }
                         } catch (parseError) {
                             // Skip invalid JSON chunks
                             continue;
@@ -325,15 +367,24 @@ export class AIChatService {
                 }
             }
 
+            const metadata: ApiMetadata = {
+                inputTokens,
+                outputTokens,
+                totalTokens: inputTokens + outputTokens,
+                model
+            };
+
             onChunk({
                 type: 'end',
-                messageId
+                messageId,
+                metadata
             });
 
             return {
                 success: true,
                 message: 'Response generated successfully',
-                finalContent
+                finalContent,
+                metadata
             };
         } finally {
             reader.releaseLock();
@@ -348,7 +399,7 @@ export class AIChatService {
         conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.anthropic.com';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
@@ -385,7 +436,7 @@ export class AIChatService {
             throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processAnthropicStream(response, messageId, onChunk);
+        return await this.processAnthropicStream(response, messageId, onChunk, provider.model);
     }
 
     /**
@@ -394,8 +445,9 @@ export class AIChatService {
     private async processAnthropicStream(
         response: Response,
         messageId: string,
-        onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+        onChunk: (chunk: AIStreamChunk) => void,
+        model: string
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
             throw new Error('No response body reader available');
@@ -403,6 +455,8 @@ export class AIChatService {
 
         const decoder = new TextDecoder();
         let finalContent = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
 
         try {
             while (true) {
@@ -430,15 +484,28 @@ export class AIChatService {
                                     });
                                 }
                             } else if (parsed.type === 'message_stop') {
+                                const metadata: ApiMetadata = {
+                                    inputTokens,
+                                    outputTokens,
+                                    totalTokens: inputTokens + outputTokens,
+                                    model
+                                };
+
                                 onChunk({
                                     type: 'end',
-                                    messageId
+                                    messageId,
+                                    metadata
                                 });
                                 return {
                                     success: true,
                                     message: 'Response generated successfully',
-                                    finalContent
+                                    finalContent,
+                                    metadata
                                 };
+                            } else if (parsed.type === 'message_start' && parsed.message?.usage) {
+                                // Capture token usage from message start
+                                inputTokens = parsed.message.usage.input_tokens || 0;
+                                outputTokens = parsed.message.usage.output_tokens || 0;
                             }
                         } catch (parseError) {
                             // Skip invalid JSON chunks
@@ -448,15 +515,24 @@ export class AIChatService {
                 }
             }
 
+            const metadata: ApiMetadata = {
+                inputTokens,
+                outputTokens,
+                totalTokens: inputTokens + outputTokens,
+                model
+            };
+
             onChunk({
                 type: 'end',
-                messageId
+                messageId,
+                metadata
             });
 
             return {
                 success: true,
                 message: 'Response generated successfully',
-                finalContent
+                finalContent,
+                metadata
             };
         } finally {
             reader.releaseLock();
@@ -471,7 +547,7 @@ export class AIChatService {
         conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         // For now, implement a simple non-streaming response for Google
         // Google's Gemini API streaming implementation can be added later
         const endpoint = provider.endpoint || 'https://generativelanguage.googleapis.com';
@@ -517,15 +593,22 @@ export class AIChatService {
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
+        const metadata: ApiMetadata = {
+            model: provider.model,
+            totalTokens: Math.ceil(content.length / 4) // Rough estimate for Google
+        };
+
         onChunk({
             type: 'end',
-            messageId
+            messageId,
+            metadata
         });
 
         return {
             success: true,
             message: 'Response generated successfully',
-            finalContent: content
+            finalContent: content,
+            metadata
         };
     }
 
@@ -537,7 +620,7 @@ export class AIChatService {
         conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         // Replicate streaming implementation
         const endpoint = provider.endpoint || 'https://api.replicate.com';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
@@ -570,7 +653,7 @@ export class AIChatService {
             throw new Error(`Replicate API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processReplicateStream(response, messageId, onChunk);
+        return await this.processReplicateStream(response, messageId, onChunk, provider.model);
     }
 
     /**
@@ -579,8 +662,9 @@ export class AIChatService {
     private async processReplicateStream(
         response: Response,
         messageId: string,
-        onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+        onChunk: (chunk: AIStreamChunk) => void,
+        model: string
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
             throw new Error('No response body reader available');
@@ -618,14 +702,21 @@ export class AIChatService {
                             }
 
                             if (parsed.status === 'succeeded') {
+                                const metadata: ApiMetadata = {
+                                    model,
+                                    totalTokens: Math.ceil(finalContent.length / 4) // Rough estimate
+                                };
+
                                 onChunk({
                                     type: 'end',
-                                    messageId
+                                    messageId,
+                                    metadata
                                 });
                                 return {
                                     success: true,
                                     message: 'Response generated successfully',
-                                    finalContent
+                                    finalContent,
+                                    metadata
                                 };
                             }
                         } catch (parseError) {
@@ -636,15 +727,22 @@ export class AIChatService {
                 }
             }
 
+            const metadata: ApiMetadata = {
+                model,
+                totalTokens: Math.ceil(finalContent.length / 4) // Rough estimate
+            };
+
             onChunk({
                 type: 'end',
-                messageId
+                messageId,
+                metadata
             });
 
             return {
                 success: true,
                 message: 'Response generated successfully',
-                finalContent
+                finalContent,
+                metadata
             };
         } finally {
             reader.releaseLock();
@@ -659,7 +757,7 @@ export class AIChatService {
         conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
-    ): Promise<{ success: boolean; message: string; finalContent?: string }> {
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         // Custom provider implementation - assumes OpenAI-compatible API
         if (!provider.endpoint) {
             throw new Error('Custom provider requires an endpoint');
@@ -693,6 +791,6 @@ export class AIChatService {
         }
 
         // Use OpenAI stream processing for custom providers (assuming compatibility)
-        return await this.processOpenAIStream(response, messageId, onChunk);
+        return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
     }
 }

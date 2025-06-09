@@ -17,6 +17,18 @@ export interface ChatMessage {
     personalityId?: string;
     aiProviderId?: string;
     createdAt: Date;
+    apiMetadata?: ApiMetadata;
+}
+
+export interface ApiMetadata {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    responseTimeMs?: number;
+    model?: string;
+    provider?: string;
+    cost?: number;
+    requestId?: string;
 }
 
 export interface CreateChatSessionRequest {

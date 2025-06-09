@@ -4,6 +4,7 @@ import workspaceRouter from './workspace';
 import personalitiesRouter from './personalities';
 import chatRouter from './chat';
 import aiProvidersRouter from './ai-providers';
+import statisticsRouter from './statistics';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -24,6 +25,9 @@ export const setupRoutes = (app: Express): void => {
     // AI Providers routes
     app.use(`${API_PREFIX}/ai-providers`, aiProvidersRouter);
 
+    // Statistics routes
+    app.use(`${API_PREFIX}/statistics`, statisticsRouter);
+
     // API info endpoint
     app.get(`${API_PREFIX}`, (req, res) => {
         res.json({
@@ -36,6 +40,7 @@ export const setupRoutes = (app: Express): void => {
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,
                 aiProviders: `${API_PREFIX}/ai-providers`,
+                statistics: `${API_PREFIX}/statistics`,
                 health: '/health'
             }
         });

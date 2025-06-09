@@ -564,6 +564,7 @@ export class ChatService {
                     personalityId TEXT,
                     aiProviderId TEXT,
                     createdAt TEXT NOT NULL,
+                    apiMetadata TEXT,
                     FOREIGN KEY (sessionId) REFERENCES chat_sessions(id)
                 )
             `, (err: any) => {
@@ -574,8 +575,8 @@ export class ChatService {
 
                 // Insert message
                 db.run(`
-                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     message.id,
                     message.sessionId,
@@ -583,7 +584,8 @@ export class ChatService {
                     message.role,
                     message.personalityId,
                     message.aiProviderId,
-                    message.createdAt.toISOString()
+                    message.createdAt.toISOString(),
+                    message.apiMetadata ? JSON.stringify(message.apiMetadata) : null
                 ], (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -745,7 +747,8 @@ export class ChatService {
             role: message.role,
             personalityId: message.personalityId,
             aiProviderId: message.aiProviderId,
-            createdAt: message.createdAt
+            createdAt: message.createdAt,
+            apiMetadata: message.apiMetadata
         });
     }
 
@@ -848,15 +851,16 @@ export class ChatService {
                 personalityId VARCHAR(36),
                 aiProviderId VARCHAR(36),
                 createdAt DATETIME NOT NULL,
+                apiMetadata JSON,
                 INDEX idx_sessionId (sessionId),
                 INDEX idx_createdAt (createdAt)
             )
         `);
 
         await connection.execute(`
-            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt]);
+            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null]);
     }
 
     private async getUserChatSessionsSQL(connection: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
@@ -942,7 +946,8 @@ export class ChatService {
                 role: message.role,
                 personalityId: message.personalityId,
                 aiProviderId: message.aiProviderId,
-                createdAt: message.createdAt.toISOString()
+                createdAt: message.createdAt.toISOString(),
+                apiMetadata: message.apiMetadata
             }]);
 
         if (error) throw error;
@@ -1044,6 +1049,15 @@ export class ChatService {
     }
 
     private mapSQLChatMessage(row: any): ChatMessage {
+        let apiMetadata = undefined;
+        if (row.apiMetadata) {
+            try {
+                apiMetadata = JSON.parse(row.apiMetadata);
+            } catch (error) {
+                console.warn('Failed to parse apiMetadata:', error);
+            }
+        }
+
         return {
             id: row.id,
             sessionId: row.sessionId,
@@ -1051,7 +1065,8 @@ export class ChatService {
             role: row.role,
             personalityId: row.personalityId,
             aiProviderId: row.aiProviderId,
-            createdAt: new Date(row.createdAt)
+            createdAt: new Date(row.createdAt),
+            apiMetadata
         };
     }
 
@@ -1076,7 +1091,8 @@ export class ChatService {
             role: doc.role,
             personalityId: doc.personalityId,
             aiProviderId: doc.aiProviderId,
-            createdAt: doc.createdAt
+            createdAt: doc.createdAt,
+            apiMetadata: doc.apiMetadata
         };
     }
 
@@ -1101,7 +1117,8 @@ export class ChatService {
             role: row.role,
             personalityId: row.personalityId,
             aiProviderId: row.aiProviderId,
-            createdAt: new Date(row.createdAt)
+            createdAt: new Date(row.createdAt),
+            apiMetadata: row.apiMetadata
         };
     }
 }
