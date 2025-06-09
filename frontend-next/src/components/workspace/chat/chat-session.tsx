@@ -8,6 +8,8 @@ import { ChatMessageList } from './chat-message';
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import { useChatMessages } from '@/lib/hooks/use-query-hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-client';
 
 interface ChatSessionProps {
     session: ChatSession;
@@ -29,11 +31,12 @@ export function ChatSessionComponent({
     // Use TanStack Query for messages
     const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '');
     const messages = messagesResult?.messages || [];
+    const queryClient = useQueryClient();
 
     const [isLoading, setIsLoading] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const [isStreaming, setIsStreaming] = useState(false);
-    const [, setPendingUserMessage] = useState<ChatMessage | null>(null);
+    const [pendingUserMessage, setPendingUserMessage] = useState<ChatMessage | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -156,13 +159,16 @@ export function ChatSessionComponent({
                     }
                 },
                 () => {
-                    // Handle completion - add the AI message to the chat
-                    // Note: Would use TanStack Query mutation to add message
-
+                    // Handle completion - invalidate query to refetch messages
                     setPendingUserMessage(null);
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
+
+                    // Invalidate messages query to refetch updated data from database
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.chats.messages(session.id)
+                    });
 
                     // Update session title if this is the first message and title is "New Chat"
                     if (messages.length === 0 && session?.title === 'New Chat') {
@@ -216,14 +222,15 @@ export function ChatSessionComponent({
                 ) : (
                     <ScrollArea ref={scrollAreaRef} className="h-full">
                         <div className="px-4 max-w-4xl mx-auto">
-                            <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
+                            <div className={messages.length === 0 && !pendingUserMessage ? "pt-16 flex justify-center" : ""}>
                                 <ChatMessageList
                                     messages={messages}
                                     personalities={personalities}
                                     aiProviders={aiProviders}
                                     streamingMessage={streamingMessage}
                                     isStreaming={isStreaming}
-                                    className={messages.length === 0 ? "" : "py-4"}
+                                    pendingUserMessage={pendingUserMessage}
+                                    className={messages.length === 0 && !pendingUserMessage ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
                                 />
                             </div>

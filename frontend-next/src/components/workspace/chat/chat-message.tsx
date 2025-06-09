@@ -158,6 +158,7 @@ interface ChatMessageListProps {
     aiProviders: AIProviderConfig[];
     streamingMessage?: string;
     isStreaming?: boolean;
+    pendingUserMessage?: ChatMessageType | null;
     className?: string;
     onRetry?: (messageId: string) => void;
 }
@@ -168,6 +169,7 @@ export function ChatMessageList({
     aiProviders = [],
     streamingMessage,
     isStreaming,
+    pendingUserMessage,
     className,
     onRetry
 }: ChatMessageListProps) {
@@ -179,7 +181,13 @@ export function ChatMessageList({
         return aiProviderId && aiProviders ? aiProviders.find(p => p?.id === aiProviderId) : undefined;
     };
 
-    if (!messages || messages.length === 0) {
+    // Combine saved messages with pending user message
+    const allMessages = [...messages];
+    if (pendingUserMessage) {
+        allMessages.push(pendingUserMessage);
+    }
+
+    if (!allMessages || allMessages.length === 0) {
         return (
             <div className={cn("text-center space-y-6 max-w-md", className)}>
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
@@ -225,7 +233,7 @@ export function ChatMessageList({
 
     return (
         <div className={cn("p-4", className)}>
-            {(messages || []).map((message) => (
+            {allMessages.map((message) => (
                 <ChatMessage
                     key={message.id}
                     message={message}

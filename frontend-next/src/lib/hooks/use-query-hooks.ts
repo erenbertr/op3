@@ -152,6 +152,25 @@ export function useDeleteChatSession() {
     });
 }
 
+export function useSendMessage() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: { sessionId: string; content: string; personalityId?: string; aiProviderId?: string }) =>
+            apiClient.sendMessage(data.sessionId, {
+                content: data.content,
+                personalityId: data.personalityId,
+                aiProviderId: data.aiProviderId
+            }),
+        onSuccess: (_data, variables) => {
+            // Invalidate messages for this session to refetch updated data
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.chats.messages(variables.sessionId)
+            });
+        },
+    });
+}
+
 // Personality hooks
 export function usePersonalities(userId: string) {
     return useQuery({
