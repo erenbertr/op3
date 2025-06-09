@@ -129,7 +129,6 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                         size="sm"
                         className="h-6 w-6 p-0"
                         onClick={handleCopy}
-                        title={justCopied ? "Copied!" : "Copy message"}
                     >
                         {justCopied ? (
                             <Check className="h-3 w-3 text-green-600" />
@@ -142,7 +141,6 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                         size="sm"
                         className="h-6 w-6 p-0"
                         onClick={handleRetry}
-                        title="Retry message"
                     >
                         <RotateCcw className="h-3 w-3" />
                     </Button>
