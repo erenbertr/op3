@@ -258,11 +258,11 @@ export function useTestAIProvider() {
     });
 }
 
-// Statistics hooks - TODO: Implement when statistics API is available
-// export function useStatistics(workspaceId: string, userId: string, dateRange: Record<string, unknown>) {
-//     return useQuery({
-//         queryKey: queryKeys.statistics.byWorkspace(workspaceId, userId, dateRange),
-//         queryFn: () => apiClient.getStatistics(workspaceId, userId, dateRange),
-//         enabled: !!workspaceId && !!userId,
-//     });
-// }
+// Statistics hooks
+export function useStatistics(workspaceId: string, userId: string, options: { range: string; startDate?: string; endDate?: string }) {
+    return useQuery({
+        queryKey: queryKeys.statistics.byWorkspace(workspaceId, userId, options),
+        queryFn: () => apiClient.getStatistics(workspaceId, userId, options),
+        enabled: !!workspaceId && !!userId,
+    });
+}

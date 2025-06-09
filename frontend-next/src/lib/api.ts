@@ -722,6 +722,21 @@ class ApiClient {
             `/statistics/workspace/${workspaceId}/summary?${params.toString()}`
         );
     }
+
+    // Unified statistics method for the hook
+    async getStatistics(
+        workspaceId: string,
+        userId: string,
+        options: { range: string; startDate?: string; endDate?: string }
+    ): Promise<StatisticsResponse> {
+        return this.getWorkspaceStatistics(
+            workspaceId,
+            userId,
+            options.range,
+            options.startDate,
+            options.endDate
+        );
+    }
 }
 
 export const apiClient = new ApiClient();
