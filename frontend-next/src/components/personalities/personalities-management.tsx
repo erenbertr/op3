@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,10 +34,12 @@ interface PersonalitiesManagementProps {
 export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps) {
     const [personalities, setPersonalities] = useState<Personality[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showSpinner, setShowSpinner] = useState(false);
     const [error, setError] = useState('');
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [editingPersonality, setEditingPersonality] = useState<Personality | null>(null);
     const [deletingPersonality, setDeletingPersonality] = useState<Personality | null>(null);
+    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
 
@@ -63,6 +65,34 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
     useEffect(() => {
         loadPersonalities();
     }, [userId, loadPersonalities]);
+
+    // Handle delayed spinner display
+    useEffect(() => {
+        if (isLoading && personalities.length === 0) {
+            // Reset spinner state when loading starts
+            setShowSpinner(false);
+
+            // Set timeout to show spinner after 3 seconds
+            spinnerTimeoutRef.current = setTimeout(() => {
+                setShowSpinner(true);
+            }, 3000);
+        } else {
+            // Clear timeout and hide spinner when loading completes
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+            setShowSpinner(false);
+        }
+
+        // Cleanup timeout on unmount
+        return () => {
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+        };
+    }, [isLoading, personalities.length]);
 
     const handleCreatePersonality = async (data: { title: string; prompt: string }) => {
         try {
@@ -127,13 +157,69 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
         window.open('https://prompts.chat/', '_blank', 'noopener,noreferrer');
     };
 
-    if (isLoading) {
+    // Show low opacity spinner after 3 seconds if still loading
+    if (isLoading && personalities.length === 0 && showSpinner) {
         return (
-            <div className="flex items-center justify-center py-12">
-                <div className="text-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                    <p className="text-muted-foreground">Loading personalities...</p>
+            <div className="space-y-6">
+                {/* Header with actions */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                        <p className="text-muted-foreground">
+                            Create and manage AI personalities with custom prompts and instructions.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={openInspirationsLink}
+                            className="flex items-center gap-2"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Inspirations
+                        </Button>
+                        <Button className="flex items-center gap-2" disabled>
+                            <Plus className="h-4 w-4" />
+                            Create Personality
+                        </Button>
+                    </div>
                 </div>
+
+                {/* Low opacity spinner in center */}
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin opacity-30" />
+                </div>
+            </div>
+        );
+    }
+
+    // Show blank screen during initial 3 seconds of loading
+    if (isLoading && personalities.length === 0 && !showSpinner) {
+        return (
+            <div className="space-y-6">
+                {/* Header with actions */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                        <p className="text-muted-foreground">
+                            Create and manage AI personalities with custom prompts and instructions.
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={openInspirationsLink}
+                            className="flex items-center gap-2"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Inspirations
+                        </Button>
+                        <Button className="flex items-center gap-2" disabled>
+                            <Plus className="h-4 w-4" />
+                            Create Personality
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Blank content area - no spinner yet */}
             </div>
         );
     }

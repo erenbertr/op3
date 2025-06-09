@@ -28,10 +28,12 @@ export function ChatSessionComponent({
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+    const [showSpinner, setShowSpinner] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const [isStreaming, setIsStreaming] = useState(false);
     const [, setPendingUserMessage] = useState<ChatMessage | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const { addToast } = useToast();
 
     // Auto-scroll to bottom when new messages are added
@@ -84,6 +86,34 @@ export function ChatSessionComponent({
             loadMessages();
         }
     }, [session?.id, loadMessages]);
+
+    // Handle delayed spinner display for message loading
+    useEffect(() => {
+        if (isLoadingMessages && messages.length === 0) {
+            // Reset spinner state when loading starts
+            setShowSpinner(false);
+
+            // Set timeout to show spinner after 2.5 seconds
+            spinnerTimeoutRef.current = setTimeout(() => {
+                setShowSpinner(true);
+            }, 2500);
+        } else {
+            // Clear timeout and hide spinner when loading completes
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+            setShowSpinner(false);
+        }
+
+        // Cleanup timeout on unmount
+        return () => {
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+        };
+    }, [isLoadingMessages, messages.length]);
 
     const handleRetryMessage = async (messageId: string) => {
         // Find the message to retry
@@ -244,9 +274,13 @@ export function ChatSessionComponent({
         <div className={`flex flex-col h-full ${className || ''}`}>
             {/* Messages area */}
             <div className="flex-1 overflow-hidden">
-                {isLoadingMessages ? (
+                {isLoadingMessages && messages.length === 0 && showSpinner ? (
                     <div className="h-full flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40 opacity-30"></div>
+                    </div>
+                ) : isLoadingMessages && messages.length === 0 && !showSpinner ? (
+                    <div className="h-full">
+                        {/* Blank area - no spinner yet */}
                     </div>
                 ) : (
                     <ScrollArea ref={scrollAreaRef} className="h-full">

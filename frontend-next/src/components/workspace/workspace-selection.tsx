@@ -1,9 +1,8 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { WorkspaceSelectionSkeleton } from './chat/chat-skeletons';
-import { MessageSquare, Kanban, Network } from 'lucide-react';
+import { MessageSquare, Kanban, Network, Loader2 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
 interface WorkspaceSelectionProps {
@@ -25,7 +24,9 @@ interface Workspace {
 export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspaceId, openWorkspace }: WorkspaceSelectionProps) {
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showSpinner, setShowSpinner] = useState(false);
     const [error, setError] = useState('');
+    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
 
 
@@ -49,6 +50,34 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
     useEffect(() => {
         loadWorkspaces();
     }, [userId, loadWorkspaces]);
+
+    // Handle delayed spinner display
+    useEffect(() => {
+        if (isLoading && workspaces.length === 0) {
+            // Reset spinner state when loading starts
+            setShowSpinner(false);
+
+            // Set timeout to show spinner after 3 seconds
+            spinnerTimeoutRef.current = setTimeout(() => {
+                setShowSpinner(true);
+            }, 3000);
+        } else {
+            // Clear timeout and hide spinner when loading completes
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+            setShowSpinner(false);
+        }
+
+        // Cleanup timeout on unmount
+        return () => {
+            if (spinnerTimeoutRef.current) {
+                clearTimeout(spinnerTimeoutRef.current);
+                spinnerTimeoutRef.current = null;
+            }
+        };
+    }, [isLoading, workspaces.length]);
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {
@@ -102,8 +131,39 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
         }
     };
 
-    if (isLoading) {
-        return <WorkspaceSelectionSkeleton />;
+    // Show low opacity spinner after 3 seconds if still loading
+    if (isLoading && workspaces.length === 0 && showSpinner) {
+        return (
+            <>
+                {/* Error Display */}
+                {error && (
+                    <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+                        <p className="text-destructive text-sm">{error}</p>
+                    </div>
+                )}
+
+                {/* Low opacity spinner in center */}
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin opacity-30" />
+                </div>
+            </>
+        );
+    }
+
+    // Show blank screen during initial 3 seconds of loading
+    if (isLoading && workspaces.length === 0 && !showSpinner) {
+        return (
+            <>
+                {/* Error Display */}
+                {error && (
+                    <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+                        <p className="text-destructive text-sm">{error}</p>
+                    </div>
+                )}
+
+                {/* Blank content area - no spinner yet */}
+            </>
+        );
     }
 
     return (
