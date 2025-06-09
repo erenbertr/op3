@@ -1,16 +1,33 @@
 import { useSyncExternalStore } from 'react';
 
+// Global state for pathname tracking
+let currentPathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+const listeners = new Set<() => void>();
+
+// Notify all listeners of pathname changes
+function notifyListeners() {
+    const newPathname = window.location.pathname;
+    if (newPathname !== currentPathname) {
+        currentPathname = newPathname;
+        listeners.forEach(listener => listener());
+    }
+}
+
 /**
- * Subscribe to browser navigation changes (popstate events)
+ * Subscribe to browser navigation changes
  */
 function subscribeToPathname(callback: () => void) {
+    listeners.add(callback);
+
     const handlePopState = () => {
-        callback();
+        notifyListeners();
     };
 
+    // Listen to both popstate and our custom navigation events
     window.addEventListener('popstate', handlePopState);
-    
+
     return () => {
+        listeners.delete(callback);
         window.removeEventListener('popstate', handlePopState);
     };
 }
@@ -20,7 +37,7 @@ function subscribeToPathname(callback: () => void) {
  */
 function getPathnameSnapshot(): string {
     if (typeof window === 'undefined') return '/';
-    return window.location.pathname;
+    return currentPathname;
 }
 
 /**
@@ -48,11 +65,13 @@ export function usePathname() {
 export const navigationUtils = {
     pushState: (url: string) => {
         window.history.pushState(null, '', url);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        // Manually trigger the notification since pushState doesn't fire popstate
+        notifyListeners();
     },
-    
+
     replaceState: (url: string) => {
         window.history.replaceState(null, '', url);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        // Manually trigger the notification since replaceState doesn't fire popstate
+        notifyListeners();
     }
 };
