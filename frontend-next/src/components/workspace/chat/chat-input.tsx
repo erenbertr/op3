@@ -194,17 +194,26 @@ export function ChatInput({
                 selectedPersonality || undefined,
                 selectedProvider || undefined
             );
+
+            // Keep focus on textarea after sending message
+            setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 0);
         } catch (error) {
             console.error('Error sending message:', error);
             // Restore message on error
             setMessage(content);
+            // Refocus on error too
+            setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 0);
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
+    const handleKeyDown = async (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e);
+            await handleSubmit(e);
         }
     };
 
