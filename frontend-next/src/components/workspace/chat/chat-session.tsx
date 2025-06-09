@@ -158,17 +158,36 @@ export function ChatSessionComponent({
                         setStreamingMessage(prev => prev + chunk.content);
                     }
                 },
-                () => {
-                    // Handle completion - invalidate query to refetch messages
+                (aiMessage) => {
+                    // Handle completion - use optimistic update instead of invalidating cache
+                    const currentUserMessage = pendingUserMessage;
+
                     setPendingUserMessage(null);
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
 
-                    // Invalidate messages query to refetch updated data from database
-                    queryClient.invalidateQueries({
-                        queryKey: queryKeys.chats.messages(session.id)
-                    });
+                    // Use optimistic update to add both user and AI messages without refetching
+                    if (currentUserMessage && aiMessage) {
+                        queryClient.setQueryData(
+                            queryKeys.chats.messages(session.id),
+                            (oldData: any) => {
+                                if (!oldData || !oldData.success) {
+                                    return {
+                                        success: true,
+                                        messages: [currentUserMessage, aiMessage]
+                                    };
+                                }
+
+                                // Add new messages to existing ones
+                                const existingMessages = oldData.messages || [];
+                                return {
+                                    ...oldData,
+                                    messages: [...existingMessages, currentUserMessage, aiMessage]
+                                };
+                            }
+                        );
+                    }
 
                     // Update session title if this is the first message and title is "New Chat"
                     if (messages.length === 0 && session?.title === 'New Chat') {
