@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Edit, Trash2, ExternalLink, User, Loader2 } from 'lucide-react';
 import { apiClient, Personality } from '@/lib/api';
+import { useAsyncData } from '@/lib/hooks/use-async-data';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 import { PersonalityForm } from './personality-form';
 
 interface PersonalitiesManagementProps {
@@ -33,66 +35,41 @@ interface PersonalitiesManagementProps {
 
 export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps) {
     const [personalities, setPersonalities] = useState<Personality[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showSpinner, setShowSpinner] = useState(false);
     const [error, setError] = useState('');
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [editingPersonality, setEditingPersonality] = useState<Personality | null>(null);
     const [deletingPersonality, setDeletingPersonality] = useState<Personality | null>(null);
-    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Use new hooks instead of useEffect patterns
+    const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
+    const personalitiesLoader = useAsyncData(apiClient.getPersonalities);
 
 
 
-    useEffect(() => {
-        const loadPersonalities = async () => {
-            try {
-                setIsLoading(true);
-                setError('');
-                const result = await apiClient.getPersonalities(userId);
+    const loadPersonalities = useCallback(async () => {
+        startLoading();
+        setError('');
 
-                if (result.success) {
-                    setPersonalities(result.personalities);
-                } else {
-                    setError(result.message || 'Failed to load personalities');
-                }
-            } catch (error) {
-                console.error('Error loading personalities:', error);
-                setError('Failed to load personalities');
-            } finally {
-                setIsLoading(false);
+        try {
+            await personalitiesLoader.execute(userId);
+
+            if (personalitiesLoader.data?.success) {
+                setPersonalities(personalitiesLoader.data.personalities);
+            } else {
+                setError(personalitiesLoader.error || 'Failed to load personalities');
             }
-        };
-
-        loadPersonalities();
-    }, [userId]);
-
-    // Handle delayed spinner display
-    useEffect(() => {
-        if (isLoading && personalities.length === 0) {
-            // Reset spinner state when loading starts
-            setShowSpinner(false);
-
-            // Set timeout to show spinner after 3 seconds
-            spinnerTimeoutRef.current = setTimeout(() => {
-                setShowSpinner(true);
-            }, 3000);
-        } else {
-            // Clear timeout and hide spinner when loading completes
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-            setShowSpinner(false);
+        } catch (error) {
+            console.error('Error loading personalities:', error);
+            setError('Failed to load personalities');
+        } finally {
+            stopLoading();
         }
+    }, [userId, startLoading, stopLoading, personalitiesLoader]);
 
-        // Cleanup timeout on unmount
-        return () => {
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-        };
-    }, [isLoading, personalities.length]);
+    // Load personalities when userId changes
+    React.useLayoutEffect(() => {
+        loadPersonalities();
+    }, [loadPersonalities]);
 
     const handleCreatePersonality = async (data: { title: string; prompt: string }) => {
         try {

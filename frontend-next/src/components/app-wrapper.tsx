@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
@@ -11,6 +11,8 @@ import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
 import { apiClient, SetupStatusResponse } from '@/lib/api';
 import { authService, AuthUser } from '@/lib/auth';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { useAsyncData } from '@/lib/hooks/use-async-data';
 import { Loader2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -19,34 +21,55 @@ type SetupStatus = SetupStatusResponse['setup'];
 export function AppWrapper() {
     const { t } = useI18n();
     const router = useRouter();
-    const pathname = usePathname();
-    const [isLoading, setIsLoading] = useState(true);
-    const [showSpinner, setShowSpinner] = useState(false);
     const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
-    const spinnerTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Use new hooks instead of useEffect patterns
+    const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
+    const setupDataFetcher = useAsyncData(apiClient.getSetupStatus);
 
 
 
 
 
 
+
+    const loadInitialWorkspace = useCallback(async (userId: string) => {
+        try {
+            const result = await apiClient.getUserWorkspaces(userId);
+            if (result.success && result.workspaces.length > 0) {
+                const activeWorkspace = result.workspaces.find(w => w.isActive);
+                if (activeWorkspace) {
+                    // Navigate to the active workspace (client-side)
+                    router.push(`/ws/${activeWorkspace.id}`);
+                } else {
+                    // Navigate to workspace selection if no active workspace
+                    router.push('/workspaces');
+                }
+            } else {
+                // Navigate to create workspace if no workspaces exist
+                router.push('/add/workspace');
+            }
+        } catch (error) {
+            console.error('Error loading initial workspace:', error);
+            // Fallback to workspace selection
+            router.push('/workspaces');
+        }
+    }, [router]);
 
     const initializeApp = useCallback(async () => {
+        startLoading();
+
         try {
-            setIsLoading(true);
-            setError(null);
-
             // Check setup status first
-            const response = await apiClient.getSetupStatus();
+            await setupDataFetcher.execute();
 
-            if (response.success && response.setup) {
-                setSetupStatus(response.setup);
+            if (setupDataFetcher.data?.success && setupDataFetcher.data.setup) {
+                setSetupStatus(setupDataFetcher.data.setup);
 
                 // If setup is completed, check for existing authentication
-                if (response.setup.completed) {
+                if (setupDataFetcher.data.setup.completed) {
                     const user = authService.getCurrentUser();
                     if (user) {
                         setCurrentUser(user);
@@ -59,52 +82,23 @@ export function AppWrapper() {
                         }
                     }
                 }
-            } else {
-                setError('Failed to check setup status');
             }
         } catch (error) {
             console.error('Error initializing app:', error);
-            setError(error instanceof Error ? error.message : 'Unknown error occurred');
         } finally {
-            setIsLoading(false);
+            stopLoading();
         }
-    }, []);
+    }, [startLoading, stopLoading, setupDataFetcher, loadInitialWorkspace]);
 
-    useEffect(() => {
+    // Initialize app on mount - call directly instead of useEffect
+    React.useLayoutEffect(() => {
         initializeApp();
     }, [initializeApp]);
 
-    // Handle delayed spinner display
-    useEffect(() => {
-        if (isLoading) {
-            // Reset spinner state when loading starts
-            setShowSpinner(false);
-
-            // Set timeout to show spinner after 3 seconds
-            spinnerTimeoutRef.current = setTimeout(() => {
-                setShowSpinner(true);
-            }, 3000);
-        } else {
-            // Clear timeout and hide spinner when loading completes
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-            setShowSpinner(false);
-        }
-
-        // Cleanup timeout on unmount
-        return () => {
-            if (spinnerTimeoutRef.current) {
-                clearTimeout(spinnerTimeoutRef.current);
-                spinnerTimeoutRef.current = null;
-            }
-        };
-    }, [isLoading]);
-
     const handleLogin = async (credentials: { email: string; password: string }) => {
+        startLoading();
+
         try {
-            setIsLoading(true);
             const result = await authService.login(credentials);
 
             if (result.success && result.user) {
@@ -117,13 +111,11 @@ export function AppWrapper() {
                     // Load initial workspace for authenticated user
                     await loadInitialWorkspace(result.user.id);
                 }
-            } else {
-                setError(result.message || 'Login failed');
             }
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Login failed');
+            console.error('Login failed:', error);
         } finally {
-            setIsLoading(false);
+            stopLoading();
         }
     };
 
@@ -131,7 +123,7 @@ export function AppWrapper() {
         authService.logout();
         setCurrentUser(null);
         setShowWorkspaceSetup(false);
-        setError(null);
+        setupDataFetcher.reset();
     };
 
     const handleWorkspaceSetupComplete = (workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
@@ -154,28 +146,7 @@ export function AppWrapper() {
         }
     };
 
-    const loadInitialWorkspace = async (userId: string) => {
-        try {
-            const result = await apiClient.getUserWorkspaces(userId);
-            if (result.success && result.workspaces.length > 0) {
-                const activeWorkspace = result.workspaces.find(w => w.isActive);
-                if (activeWorkspace) {
-                    // Navigate to the active workspace (client-side)
-                    router.push(`/ws/${activeWorkspace.id}`);
-                } else {
-                    // Navigate to workspace selection if no active workspace
-                    router.push('/workspaces');
-                }
-            } else {
-                // Navigate to create workspace if no workspaces exist
-                router.push('/add/workspace');
-            }
-        } catch (error) {
-            console.error('Error loading initial workspace:', error);
-            // Fallback to workspace selection
-            router.push('/workspaces');
-        }
-    };
+
 
     if (isLoading && showSpinner) {
         return (
@@ -197,12 +168,12 @@ export function AppWrapper() {
         );
     }
 
-    if (error) {
+    if (setupDataFetcher.error) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md">
                     <h1 className="text-2xl font-bold text-destructive">Error</h1>
-                    <p className="text-muted-foreground">{error}</p>
+                    <p className="text-muted-foreground">{setupDataFetcher.error}</p>
                     <button
                         onClick={initializeApp}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"

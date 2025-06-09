@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useSyncExternalStore, ReactNode } from 'react';
 
 type Locale = 'en' | 'tr' | 'es' | 'fr' | 'de';
 
@@ -917,20 +917,46 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-    const [locale, setLocaleState] = useState<Locale>('en');
-
-    useEffect(() => {
-        // Load locale from localStorage
-        const savedLocale = localStorage.getItem('locale') as Locale;
-        if (savedLocale && ['en', 'tr', 'es', 'fr', 'de'].includes(savedLocale)) {
-            setLocaleState(savedLocale);
+// External store for localStorage locale management
+function subscribeToLocaleStorage(callback: () => void) {
+    const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'locale') {
+            callback();
         }
-    }, []);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+}
+
+function getLocaleSnapshot(): Locale {
+    if (typeof window === 'undefined') return 'en';
+    const savedLocale = localStorage.getItem('locale') as Locale;
+    return (savedLocale && ['en', 'tr', 'es', 'fr', 'de'].includes(savedLocale)) ? savedLocale : 'en';
+}
+
+function getServerLocaleSnapshot(): Locale {
+    return 'en'; // Default for SSR
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+    // Use useSyncExternalStore for localStorage synchronization
+    const locale = useSyncExternalStore(
+        subscribeToLocaleStorage,
+        getLocaleSnapshot,
+        getServerLocaleSnapshot
+    );
 
     const setLocale = (newLocale: Locale) => {
-        setLocaleState(newLocale);
         localStorage.setItem('locale', newLocale);
+        // Trigger storage event for cross-tab synchronization
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: 'locale',
+            newValue: newLocale,
+            oldValue: localStorage.getItem('locale')
+        }));
     };
 
     const t = (key: string): string => {

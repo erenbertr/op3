@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from '../workspace-layout';
 import { ChatSidebar } from './chat-sidebar';
@@ -8,6 +8,7 @@ import { ChatSessionComponent } from './chat-session';
 import { authService } from '@/lib/auth';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { chatDataCache } from '@/lib/workspace-cache';
+
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
 
@@ -93,8 +94,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         loadWorkspaceData();
     }, [workspaceId, addToast]); // Removed router from dependencies
 
-    // Separate effect to handle chat session changes - this should be fast
-    useEffect(() => {
+    // Handle chat session changes using callback approach
+    const updateActiveSession = useCallback(() => {
         if (chatSessions.length > 0) {
             const foundSession = chatSessions.find(s => s.id === chatId);
             if (foundSession) {
@@ -119,6 +120,11 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
             }
         }
     }, [chatId, chatSessions]);
+
+    // Update active session when dependencies change
+    React.useLayoutEffect(() => {
+        updateActiveSession();
+    }, [updateActiveSession]);
 
     const handleNewChat = (session: ChatSession) => {
         router.push(`/ws/${workspaceId}/chat/${session.id}`);

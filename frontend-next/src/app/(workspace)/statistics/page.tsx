@@ -1,13 +1,14 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { WorkspaceLayout } from '@/components/workspace/workspace-layout';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, BarChart3, Clock, DollarSign, Zap } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { useAsyncData } from '@/lib/hooks/use-async-data';
 
 interface StatisticsData {
     totalMessages: number;
@@ -22,20 +23,23 @@ interface StatisticsData {
 type DateRange = 'today' | 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'custom';
 
 export default function StatisticsPage() {
-    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<DateRange>('this-week');
     const [statistics, setStatistics] = useState<StatisticsData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [showSpinner, setShowSpinner] = useState(false);
 
-    useEffect(() => {
+    // Use new hooks instead of useEffect patterns
+    const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
+    const statisticsLoader = useAsyncData(apiClient.getWorkspaceStatistics);
+
+    // Initialize user and workspace data
+    React.useLayoutEffect(() => {
         const user = authService.getCurrentUser();
         if (user) {
             setCurrentUser(user);
             // Get current workspace from URL or localStorage
             const pathParts = window.location.pathname.split('/');
-            let workspaceId = pathParts.find(part => part.startsWith('ws-')) ||
+            const workspaceId = pathParts.find(part => part.startsWith('ws-')) ||
                 pathParts.find(part => part.length > 30 && part.includes('-')) || // UUID pattern
                 localStorage.getItem('currentWorkspaceId');
 
@@ -44,44 +48,32 @@ export default function StatisticsPage() {
         }
     }, []);
 
-    useEffect(() => {
-        // Show spinner after 3 seconds delay
-        const timer = setTimeout(() => {
-            setShowSpinner(true);
-        }, 3000);
-
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
+    // Load statistics when dependencies change
+    React.useLayoutEffect(() => {
         if (currentUser && currentWorkspaceId) {
             loadStatistics();
         }
-    }, [currentUser, currentWorkspaceId, dateRange]);
+    }, [currentUser, currentWorkspaceId, dateRange, loadStatistics]);
 
-    const loadStatistics = async () => {
+    const loadStatistics = useCallback(async () => {
         if (!currentUser || !currentWorkspaceId) {
             console.log('Missing user or workspace:', { currentUser: !!currentUser, currentWorkspaceId });
             return;
         }
 
         console.log('Loading statistics for:', { workspaceId: currentWorkspaceId, userId: currentUser.id, dateRange });
-        setIsLoading(true);
+        startLoading();
+
         try {
-            const result = await apiClient.getWorkspaceStatistics(
-                currentWorkspaceId,
-                currentUser.id,
-                dateRange
-            );
+            await statisticsLoader.execute(currentWorkspaceId, currentUser.id, dateRange);
 
-            console.log('Statistics API result:', result);
+            console.log('Statistics API result:', statisticsLoader.data);
 
-            if (result.success && result.statistics) {
-                console.log('Setting statistics data:', result.statistics);
-                setStatistics(result.statistics);
+            if (statisticsLoader.data?.success && statisticsLoader.data.statistics) {
+                console.log('Setting statistics data:', statisticsLoader.data.statistics);
+                setStatistics(statisticsLoader.data.statistics);
             } else {
-                console.error('Failed to load statistics:', result.message);
-                console.log('API response details:', result);
+                console.error('Failed to load statistics:', statisticsLoader.error);
                 // Show empty data with message
                 const emptyData: StatisticsData = {
                     totalMessages: 0,
@@ -108,9 +100,9 @@ export default function StatisticsPage() {
             };
             setStatistics(emptyData);
         } finally {
-            setIsLoading(false);
+            stopLoading();
         }
-    };
+    }, [currentUser, currentWorkspaceId, dateRange, startLoading, stopLoading, statisticsLoader]);
 
     const formatNumber = (num: number) => {
         return num.toLocaleString();
@@ -341,7 +333,7 @@ export default function StatisticsPage() {
                                             </CardHeader>
                                             <CardContent>
                                                 <div className="h-64 flex items-end justify-between gap-2 p-4">
-                                                    {statistics.dailyUsage.map((day, index) => (
+                                                    {statistics.dailyUsage.map((day) => (
                                                         <div key={day.date} className="flex flex-col items-center gap-2 flex-1">
                                                             <div className="flex flex-col items-center gap-1 w-full">
                                                                 <div
