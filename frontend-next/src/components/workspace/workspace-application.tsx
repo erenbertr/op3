@@ -40,9 +40,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
     // Parse route parameters from pathname (memoized to prevent re-renders)
     const { currentView, routeParams } = React.useMemo(() => {
-        // Debug logging for pathname changes
-        console.error(`🔧🔧🔧 [TERMINAL-LOG] WorkspaceApplication pathname: "${currentPathname}" at ${new Date().toISOString()}`);
-
         const parseRoute = (path: string): { view: string; params: RouteParams } => {
             // Handle workspace routes
             const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);

@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { WorkspaceLayout } from '../workspace-layout';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent } from './chat-session';
@@ -18,7 +17,6 @@ interface ChatViewProps {
 }
 
 export function ChatView({ workspaceId, chatId }: ChatViewProps) {
-    const router = useRouter();
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [error, setError] = useState<string | null>(null);
     const { addToast } = useToast();
@@ -26,48 +24,32 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     // Get current user
     const user = authService.getCurrentUser();
 
-    // TEMPORARILY DISABLED to fix infinite loop - TODO: Fix properly
-    // const {
-    //     data: personalitiesData,
-    //     isLoading: personalitiesLoading,
-    //     error: personalitiesError
-    // } = usePersonalities(user?.id || '');
+    // Navigation helper
+    const navigate = useCallback((path: string) => {
+        if (typeof window !== 'undefined') {
+            window.history.pushState({}, '', path);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+    }, []);
 
-    // const {
-    //     data: aiProvidersData,
-    //     isLoading: aiProvidersLoading,
-    //     error: aiProvidersError
-    // } = useAIProviders();
+    // Use real API calls with proper error handling
+    const {
+        data: personalitiesData,
+        isLoading: personalitiesLoading,
+        error: personalitiesError
+    } = usePersonalities(user?.id || '');
 
-    // const {
-    //     data: chatSessionsData,
-    //     isLoading: chatSessionsLoading,
-    //     error: chatSessionsError
-    // } = useChatSessions(user?.id || '', workspaceId);
+    const {
+        data: aiProvidersData,
+        isLoading: aiProvidersLoading,
+        error: aiProvidersError
+    } = useAIProviders();
 
-    // Mock data to prevent errors - create a mock chat session for the current chatId
-    const personalitiesData = { success: true, personalities: [] };
-    const personalitiesLoading = false;
-    const personalitiesError = null;
-
-    const aiProvidersData = { success: true, providers: [] };
-    const aiProvidersLoading = false;
-    const aiProvidersError = null;
-
-    // Create a mock chat session to prevent errors
-    const mockChatSession = {
-        id: chatId,
-        userId: user?.id || '',
-        workspaceId: workspaceId,
-        title: 'Mock Chat Session',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        messages: []
-    };
-
-    const chatSessionsData = { success: true, sessions: [mockChatSession] };
-    const chatSessionsLoading = false;
-    const chatSessionsError = null;
+    const {
+        data: chatSessionsData,
+        isLoading: chatSessionsLoading,
+        error: chatSessionsError
+    } = useChatSessions(user?.id || '', workspaceId);
 
     // Extract data from query results
     const personalities = personalitiesData?.success ? personalitiesData.personalities : [];
@@ -133,14 +115,20 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         updateActiveSession();
     }, [updateActiveSession]);
 
-    // Redirect if no user
+    // Redirect if no user - use useEffect to prevent SSR issues
+    useEffect(() => {
+        if (!user) {
+            navigate('/');
+        }
+    }, [user, navigate]);
+
+    // Don't render if no user
     if (!user) {
-        router.push('/');
         return null;
     }
 
     const handleNewChat = (session: ChatSession) => {
-        router.push(`/ws/${workspaceId}/chat/${session.id}`);
+        navigate(`/ws/${workspaceId}/chat/${session.id}`);
     };
 
     const handleChatSelect = (session: ChatSession) => {
@@ -149,7 +137,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         setError(null);
 
         // Navigate to the chat
-        router.push(`/ws/${workspaceId}/chat/${session.id}`);
+        navigate(`/ws/${workspaceId}/chat/${session.id}`);
     };
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {
@@ -192,7 +180,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                         <h2 className="text-2xl font-bold text-destructive">Error</h2>
                         <p className="text-muted-foreground">{error}</p>
                         <button
-                            onClick={() => router.push(`/ws/${workspaceId}`)}
+                            onClick={() => navigate(`/ws/${workspaceId}`)}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                         >
                             Back to Workspace
@@ -211,7 +199,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                         <h2 className="text-2xl font-bold">Chat Not Found</h2>
                         <p className="text-muted-foreground">The chat session you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
                         <button
-                            onClick={() => router.push(`/ws/${workspaceId}`)}
+                            onClick={() => navigate(`/ws/${workspaceId}`)}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                         >
                             Back to Workspace
