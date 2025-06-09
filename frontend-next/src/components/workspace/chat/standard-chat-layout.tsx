@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
+import { chatDataCache } from '@/lib/workspace-cache';
 import { useToast } from '@/components/ui/toast';
 
 interface StandardChatLayoutProps {
@@ -21,7 +22,6 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [personalities, setPersonalities] = useState<Personality[]>([]);
     const [aiProviders, setAIProviders] = useState<AIProviderConfig[]>([]);
-    const [isLoadingData, setIsLoadingData] = useState(true);
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const { addToast } = useToast();
 
@@ -73,7 +73,16 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
     }, [workspaceId, userId]);
 
     const loadInitialData = useCallback(async () => {
-        setIsLoadingData(true);
+        // Try to get data from cache first
+        const cachedData = chatDataCache.get(userId, workspaceId);
+        if (cachedData) {
+            setPersonalities(cachedData.personalities);
+            setAIProviders(cachedData.aiProviders);
+            setChatSessions(cachedData.chatSessions);
+            // Try to restore the previously active session
+            await restoreActiveSession(cachedData.chatSessions);
+            return;
+        }
         try {
             // Load personalities, AI providers, and chat sessions in parallel
             const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
@@ -82,13 +91,22 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                 apiClient.getChatSessions(userId, workspaceId)
             ]);
 
-            if (personalitiesResult.success) {
-                setPersonalities(personalitiesResult.personalities);
-            }
+            const personalities = personalitiesResult.success ? personalitiesResult.personalities : [];
+            const aiProviders = aiProvidersResult.success ? aiProvidersResult.providers : [];
+            const chatSessions = chatSessionsResult.success ? (chatSessionsResult.sessions || []) : [];
 
-            if (aiProvidersResult.success) {
-                setAIProviders(aiProvidersResult.providers);
-            } else {
+            // Cache the data
+            chatDataCache.set(userId, workspaceId, {
+                personalities,
+                aiProviders,
+                chatSessions
+            });
+
+            setPersonalities(personalities);
+            setAIProviders(aiProviders);
+            setChatSessions(chatSessions);
+
+            if (!aiProvidersResult.success) {
                 console.error('Failed to load AI providers:', aiProvidersResult.message);
                 addToast({
                     title: "Warning",
@@ -98,10 +116,8 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
             }
 
             if (chatSessionsResult.success) {
-                const sessions = chatSessionsResult.sessions || [];
-                setChatSessions(sessions);
                 // Try to restore the previously active session
-                await restoreActiveSession(sessions);
+                await restoreActiveSession(chatSessions);
             } else {
                 console.error('Failed to load chat sessions:', chatSessionsResult.message);
             }
@@ -112,8 +128,6 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                 description: "Failed to load application data",
                 variant: "destructive"
             });
-        } finally {
-            setIsLoadingData(false);
         }
     }, [userId, workspaceId, addToast, restoreActiveSession]);
 
@@ -135,47 +149,8 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         saveActiveSession(updatedSession);
     };
 
-    if (isLoadingData) {
-        return (
-            <div className={`h-full ${className || ''}`}>
-                <div className="container mx-auto h-full px-4">
-                    <div className="flex h-full">
-                        {/* Left Sidebar - Fixed width */}
-                        <div className="w-80 flex-shrink-0 h-full border-l border-border">
-                            {/* Show skeleton sidebar */}
-                            <div className="flex flex-col h-full bg-background border-r border-border">
-                                <div className="px-4 py-4 border-b border-border flex-shrink-0">
-                                    <div className="relative mb-3">
-                                        <div className="h-9 w-full border rounded-md bg-muted animate-pulse"></div>
-                                    </div>
-                                    <div className="h-8 w-full border rounded-md bg-muted animate-pulse"></div>
-                                </div>
-                                <div className="flex-1 px-4 py-2">
-                                    <div className="space-y-2">
-                                        {Array.from({ length: 4 }).map((_, i) => (
-                                            <div key={i} className="p-2 space-y-1">
-                                                <div className="h-4 w-3/4 bg-muted animate-pulse rounded"></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Main Content Area */}
-                        <div className="flex-1 h-full border-r border-border">
-                            <div className="flex flex-col h-full">
-                                {/* Messages area - simple spinner during loading */}
-                                <div className="flex-1 overflow-hidden flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Show the layout immediately with loading states for individual components
+    // This makes navigation feel more instant
 
     return (
         <div className={`h-full ${className || ''}`}>
@@ -190,7 +165,11 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                             onChatSelect={handleChatSelect}
                             activeChatId={activeSession?.id}
                             chatSessions={chatSessions}
-                            onSessionsUpdate={setChatSessions}
+                            onSessionsUpdate={(sessions) => {
+                                setChatSessions(sessions);
+                                // Update cache when sessions change
+                                chatDataCache.updateChatSessions(userId, workspaceId, sessions);
+                            }}
                         />
                     </div>
 

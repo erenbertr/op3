@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { workspaceCache } from '@/lib/workspace-cache';
 
 interface WorkspaceTabBarProps {
     userId: string;
@@ -58,13 +59,23 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     const loadWorkspaces = useCallback(async () => {
         try {
-            setIsLoading(true);
             setError('');
 
+            // Try to get workspaces from cache first
+            const cachedWorkspaces = workspaceCache.get(userId);
+            if (cachedWorkspaces) {
+                setWorkspaces(cachedWorkspaces);
+                setIsLoading(false);
+                return;
+            }
+
+            setIsLoading(true);
             const result = await apiClient.getUserWorkspaces(userId);
 
             if (result.success) {
                 setWorkspaces(result.workspaces);
+                // Cache the workspaces
+                workspaceCache.set(userId, result.workspaces);
             } else {
                 setError('Failed to load workspaces');
             }
@@ -107,15 +118,16 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         }
     }, [workspaces, initializeOpenTabs]);
 
-    // Reload workspaces when currentWorkspaceId changes and it's not in the current list
+    // Only reload workspaces if the current workspace doesn't exist and we haven't loaded any workspaces yet
     useEffect(() => {
-        if (currentWorkspaceId) {
+        if (currentWorkspaceId && workspaces.length > 0) {
             const workspaceExists = workspaces.some(w => w.id === currentWorkspaceId);
-            if (!workspaceExists && workspaces.length > 0) {
+            if (!workspaceExists) {
+                // Only reload if we're sure the workspace should exist but doesn't
                 loadWorkspaces();
             }
         }
-    }, [currentWorkspaceId, loadWorkspaces, workspaces]);
+    }, [currentWorkspaceId, workspaces.length]);
 
     // Expose refresh function to parent
     useEffect(() => {
@@ -125,25 +137,44 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, [onRefresh, loadWorkspaces]);
 
     const handleTabClick = useCallback(async (workspaceId: string) => {
+        // Optimistic update - update UI immediately for smooth navigation
+        const updatedWorkspaces = workspaces.map(w => ({
+            ...w,
+            isActive: w.id === workspaceId
+        }));
+        setWorkspaces(updatedWorkspaces);
+
+        // Update cache immediately
+        workspaceCache.set(userId, updatedWorkspaces);
+
+        // Navigate immediately for smooth UX
+        router.push(`/ws/${workspaceId}`);
+
+        // Update server state in background
         try {
             const result = await apiClient.setActiveWorkspace(workspaceId, userId);
-
-            if (result.success) {
-                // Update local workspace state to reflect the change
-                setWorkspaces(prev => prev.map(w => ({
+            if (!result.success) {
+                // Revert optimistic update if server call fails
+                const revertedWorkspaces = workspaces.map(w => ({
                     ...w,
-                    isActive: w.id === workspaceId
-                })));
-                // Navigate to the workspace using Next.js router
-                router.push(`/ws/${workspaceId}`);
-            } else {
+                    isActive: w.id === currentWorkspaceId
+                }));
+                setWorkspaces(revertedWorkspaces);
+                workspaceCache.set(userId, revertedWorkspaces);
                 setError(result.message || 'Failed to switch workspace');
             }
         } catch (error) {
             console.error('Error switching workspace:', error);
+            // Revert optimistic update if server call fails
+            const revertedWorkspaces = workspaces.map(w => ({
+                ...w,
+                isActive: w.id === currentWorkspaceId
+            }));
+            setWorkspaces(revertedWorkspaces);
+            workspaceCache.set(userId, revertedWorkspaces);
             setError('Failed to switch workspace');
         }
-    }, [userId, router]);
+    }, [userId, router, currentWorkspaceId, workspaces]);
 
     const handleOpenWorkspace = useCallback((workspaceId: string) => {
         // Add workspace to open tabs if not already open

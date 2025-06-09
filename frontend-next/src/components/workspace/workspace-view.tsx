@@ -6,6 +6,7 @@ import { WorkspaceLayout } from './workspace-layout';
 import { StandardChatLayout } from './chat/standard-chat-layout';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
+import { workspaceCache } from '@/lib/workspace-cache';
 import { Loader2 } from 'lucide-react';
 
 interface WorkspaceViewProps {
@@ -26,11 +27,24 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
                 return;
             }
 
+            // Try to get workspace from cache first
+            const cachedWorkspace = workspaceCache.getWorkspace(user.id, workspaceId);
+            if (cachedWorkspace) {
+                setWorkspace(cachedWorkspace);
+                setIsLoading(false);
+                // Set as active workspace in background
+                apiClient.setActiveWorkspace(workspaceId, user.id).catch(console.error);
+                return;
+            }
+
             try {
                 setIsLoading(true);
                 const result = await apiClient.getUserWorkspaces(user.id);
-                
+
                 if (result.success) {
+                    // Cache the workspaces
+                    workspaceCache.set(user.id, result.workspaces);
+
                     const foundWorkspace = result.workspaces.find(w => w.id === workspaceId);
                     if (foundWorkspace) {
                         setWorkspace(foundWorkspace);
@@ -53,12 +67,12 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
         loadWorkspace();
     }, [workspaceId, router]);
 
-    if (isLoading) {
+    if (isLoading && !workspace) {
         return (
             <WorkspaceLayout currentWorkspaceId={workspaceId}>
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-4">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
                         <p className="text-muted-foreground">Loading workspace...</p>
                     </div>
                 </div>
