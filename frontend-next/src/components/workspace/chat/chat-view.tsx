@@ -23,6 +23,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [error, setError] = useState<string | null>(null);
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isClientReady, setIsClientReady] = useState(false);
+    const [showNotFoundError, setShowNotFoundError] = useState(false);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
 
@@ -80,6 +81,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
             if (foundSession) {
                 setActiveSession(foundSession);
                 setError(null);
+                setShowNotFoundError(false);
                 // Save to localStorage for persistence
                 try {
                     localStorage.setItem('op3_active_chat_session', JSON.stringify({
@@ -94,15 +96,28 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                     console.error('Error saving active session to localStorage:', error);
                 }
             } else {
-                setError('Chat session not found');
-                setActiveSession(null);
+                // Don't set error immediately - wait a bit for new chats to be created
+                // Only set error if we're not currently loading chat sessions
+                if (!chatSessionsLoading) {
+                    // Delay showing the error to give time for new chats to be created
+                    setTimeout(() => {
+                        // Double-check that the chat still doesn't exist
+                        const stillNotFound = !chatSessions.find(s => s.id === chatId);
+                        if (stillNotFound) {
+                            setError('Chat session not found');
+                            setActiveSession(null);
+                            setShowNotFoundError(true);
+                        }
+                    }, 1000); // 1 second delay
+                }
             }
         } else if (!chatId) {
             // Workspace overview - no specific chat, show empty state
             setActiveSession(null);
             setError(null);
+            setShowNotFoundError(false);
         }
-    }, [chatId, chatSessions]);
+    }, [chatId, chatSessions, chatSessionsLoading]);
 
     // Handle errors from TanStack Query
     React.useMemo(() => {
@@ -219,7 +234,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     // Only show "Chat Not Found" error if we're looking for a specific chat that doesn't exist
     // Add a small buffer to prevent race conditions when creating new chats
-    if (chatId && !activeSession && !isLoading && chatSessions.length > 0) {
+    if (chatId && !activeSession && !isLoading && chatSessions.length > 0 && showNotFoundError) {
         return (
             <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4 max-w-md">
@@ -261,6 +276,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                     if (newSession) {
                                         setActiveSession(newSession);
                                         setError(null);
+                                        setShowNotFoundError(false);
                                     }
                                 }
                             }}

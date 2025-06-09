@@ -197,6 +197,7 @@ export function ChatSessionComponent({
                             aiMessage: aiMessage
                         });
 
+                        // Use a more robust cache update that prevents overwrites
                         queryClient.setQueryData(
                             queryKeys.chats.messages(session.id),
                             (oldData: any) => {
@@ -208,16 +209,35 @@ export function ChatSessionComponent({
                                     };
                                 }
 
-                                // Add new messages to existing ones
+                                // Check if messages already exist to prevent duplicates
                                 const existingMessages = oldData.messages || [];
+                                const userExists = existingMessages.some((m: any) => m.id === currentUserMessage.id);
+                                const aiExists = existingMessages.some((m: any) => m.id === aiMessage.id);
+
+                                if (userExists && aiExists) {
+                                    console.log('📝 Messages already exist in cache, skipping update');
+                                    return oldData;
+                                }
+
+                                // Add new messages to existing ones
+                                const newMessages = [...existingMessages];
+                                if (!userExists) newMessages.push(currentUserMessage);
+                                if (!aiExists) newMessages.push(aiMessage);
+
                                 return {
                                     ...oldData,
-                                    messages: [...existingMessages, currentUserMessage, aiMessage]
+                                    messages: newMessages
                                 };
                             }
                         );
 
                         console.log('✅ Messages added to cache successfully');
+
+                        // Disable automatic refetching for this session temporarily
+                        queryClient.cancelQueries({
+                            queryKey: queryKeys.chats.messages(session.id)
+                        });
+
                     } else {
                         console.log('❌ Missing data for optimistic update:', {
                             hasUserMessage: !!currentUserMessage,

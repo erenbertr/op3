@@ -9,6 +9,8 @@ import { Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-client';
 
 interface ChatSidebarProps {
     className?: string;
@@ -37,6 +39,7 @@ export function ChatSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const { addToast } = useToast();
+    const queryClient = useQueryClient();
 
     // Filter chats based on search query
     const filteredChats = (chatSessions || []).filter(chat =>
@@ -60,6 +63,11 @@ export function ChatSidebar({
             });
 
             if (result.success && result.session) {
+                // Invalidate and refetch chat sessions to get the latest data
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.chats.byWorkspace(userId, workspaceId)
+                });
+
                 // Update parent's sessions list first
                 onSessionsUpdate?.([result.session, ...chatSessions]);
 
