@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+
 import { Switch } from '@/components/ui/switch';
 import { Edit2, Trash2, Plus, TestTube } from 'lucide-react';
 import { AIProviderConfig, AIProviderType } from '@/lib/api';
@@ -154,6 +154,26 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         }
     };
 
+    const handleToggleProvider = async (provider: AIProviderConfig) => {
+        try {
+            const updatedProvider: AIProviderConfig = {
+                ...provider,
+                isActive: !provider.isActive
+            };
+
+            await saveProviderMutation.mutateAsync(updatedProvider);
+
+            addToast({
+                title: "Success",
+                description: `AI provider ${updatedProvider.isActive ? 'enabled' : 'disabled'} successfully`,
+                variant: "success"
+            });
+        } catch (error) {
+            // Error is handled by TanStack Query and displayed via error state
+            console.error('Error toggling AI provider:', error);
+        }
+    };
+
 
 
     const handleTestProvider = async (provider: AIProviderConfig) => {
@@ -243,20 +263,25 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <div>
-                                            <div className="flex items-center gap-2">
-                                                <CardTitle className="text-lg">
-                                                    {provider.name}
-                                                </CardTitle>
-                                                <Badge variant={provider.isActive ? "default" : "secondary"}>
-                                                    {provider.isActive ? "Active" : "Inactive"}
-                                                </Badge>
-                                            </div>
+                                            <CardTitle className="text-lg">
+                                                {provider.name}
+                                            </CardTitle>
                                             <CardDescription>
                                                 {getProviderTypeLabel(provider.type)} • {provider.model}
                                             </CardDescription>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={provider.isActive}
+                                                onCheckedChange={() => handleToggleProvider(provider)}
+                                                disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending}
+                                            />
+                                            <span className="text-sm text-muted-foreground">
+                                                {provider.isActive ? 'Enabled' : 'Disabled'}
+                                            </span>
+                                        </div>
                                         {provider.id && (
                                             <Button
                                                 variant="outline"
