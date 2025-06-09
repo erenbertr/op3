@@ -115,7 +115,12 @@ export function useChatSessions(userId: string, workspaceId: string) {
 export function useChatMessages(sessionId: string) {
     return useQuery({
         queryKey: queryKeys.chats.messages(sessionId),
-        queryFn: () => apiClient.getChatMessages(sessionId),
+        queryFn: async () => {
+            console.log('🔄 Fetching messages from server for session:', sessionId);
+            const result = await apiClient.getChatMessages(sessionId);
+            console.log('📥 Server response for messages:', result);
+            return result;
+        },
         enabled: !!sessionId,
         staleTime: Infinity, // Never consider data stale - rely on manual invalidation
         gcTime: 60 * 60 * 1000, // 60 minutes - keep in cache longer
@@ -125,6 +130,7 @@ export function useChatMessages(sessionId: string) {
         refetchInterval: false, // Disable automatic refetching
         retry: 1, // Limit retries to prevent loops
         notifyOnChangeProps: ['data', 'error'], // Only notify on data/error changes
+        structuralSharing: false, // Disable structural sharing to prevent cache overwrites
     });
 }
 

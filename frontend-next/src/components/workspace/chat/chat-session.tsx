@@ -47,6 +47,9 @@ export function ChatSessionComponent({
         setStreamingMessage('');
         setIsStreaming(false);
         setPendingUserMessage(null);
+
+        // Log session change
+        console.log('🔄 Session changed to:', session?.id);
     }, [session?.id]);
 
     // Debug logging
@@ -208,38 +211,53 @@ export function ChatSessionComponent({
                         });
 
                         // Use a more robust cache update that prevents overwrites
-                        queryClient.setQueryData(
-                            queryKeys.chats.messages(session.id),
-                            (oldData: any) => {
-                                if (!oldData || !oldData.success) {
-                                    return {
-                                        success: true,
-                                        message: 'Messages retrieved successfully',
-                                        messages: [currentUserMessage, aiMessage]
-                                    };
-                                }
+                        const cacheKey = queryKeys.chats.messages(session.id);
 
-                                // Check if messages already exist to prevent duplicates
-                                const existingMessages = oldData.messages || [];
-                                const userExists = existingMessages.some((m: any) => m.id === currentUserMessage.id);
-                                const aiExists = existingMessages.some((m: any) => m.id === aiMessage.id);
+                        // First, cancel any ongoing queries to prevent race conditions
+                        queryClient.cancelQueries({ queryKey: cacheKey });
 
-                                if (userExists && aiExists) {
-                                    console.log('📝 Messages already exist in cache, skipping update');
-                                    return oldData;
-                                }
+                        // Then update the cache
+                        queryClient.setQueryData(cacheKey, (oldData: any) => {
+                            console.log('🔄 Updating cache with old data:', oldData);
 
-                                // Add new messages to existing ones
-                                const newMessages = [...existingMessages];
-                                if (!userExists) newMessages.push(currentUserMessage);
-                                if (!aiExists) newMessages.push(aiMessage);
-
-                                return {
-                                    ...oldData,
-                                    messages: newMessages
+                            if (!oldData || !oldData.success) {
+                                const newData = {
+                                    success: true,
+                                    message: 'Messages retrieved successfully',
+                                    messages: [currentUserMessage, aiMessage]
                                 };
+                                console.log('📝 Creating new cache data:', newData);
+                                return newData;
                             }
-                        );
+
+                            // Check if messages already exist to prevent duplicates
+                            const existingMessages = oldData.messages || [];
+                            const userExists = existingMessages.some((m: any) => m.id === currentUserMessage.id);
+                            const aiExists = existingMessages.some((m: any) => m.id === aiMessage.id);
+
+                            if (userExists && aiExists) {
+                                console.log('📝 Messages already exist in cache, skipping update');
+                                return oldData;
+                            }
+
+                            // Add new messages to existing ones
+                            const newMessages = [...existingMessages];
+                            if (!userExists) newMessages.push(currentUserMessage);
+                            if (!aiExists) newMessages.push(aiMessage);
+
+                            const updatedData = {
+                                ...oldData,
+                                messages: newMessages
+                            };
+                            console.log('📝 Updated cache data:', updatedData);
+                            return updatedData;
+                        });
+
+                        // Invalidate the query to mark it as fresh but don't refetch
+                        queryClient.invalidateQueries({
+                            queryKey: cacheKey,
+                            refetchType: 'none' // Don't actually refetch, just mark as fresh
+                        });
 
                         console.log('✅ Messages added to cache successfully');
 
