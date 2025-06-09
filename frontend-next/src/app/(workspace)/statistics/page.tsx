@@ -77,9 +77,11 @@ export default function StatisticsPage() {
             console.log('Statistics API result:', result);
 
             if (result.success && result.statistics) {
+                console.log('Setting statistics data:', result.statistics);
                 setStatistics(result.statistics);
             } else {
                 console.error('Failed to load statistics:', result.message);
+                console.log('API response details:', result);
                 // Show empty data with message
                 const emptyData: StatisticsData = {
                     totalMessages: 0,
@@ -143,7 +145,7 @@ export default function StatisticsPage() {
     return (
         <WorkspaceLayout currentWorkspaceId={currentWorkspaceId}>
             <div className="h-full flex">
-                <div className="w-full max-w-7xl mx-auto h-full">
+                <div className="container mx-auto px-4 h-full">
                     <div className="py-6 space-y-6">
                         {/* Header */}
                         <div className="flex items-center justify-between">
