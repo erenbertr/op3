@@ -175,6 +175,7 @@ export function ChatSessionComponent({
                                 if (!oldData || !oldData.success) {
                                     return {
                                         success: true,
+                                        message: 'Messages retrieved successfully',
                                         messages: [currentUserMessage, aiMessage]
                                     };
                                 }
