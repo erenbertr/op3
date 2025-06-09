@@ -7,6 +7,7 @@ import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent } from './chat-session';
 import { authService } from '@/lib/auth';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
+import { chatDataCache } from '@/lib/workspace-cache';
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
 
@@ -25,17 +26,27 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [error, setError] = useState<string | null>(null);
     const { addToast } = useToast();
 
+    // Load workspace-level data (personalities, AI providers, chat sessions) only once
     useEffect(() => {
-        const loadChatData = async () => {
+        const loadWorkspaceData = async () => {
             const user = authService.getCurrentUser();
             if (!user) {
                 router.push('/');
                 return;
             }
 
+            // Try to get data from cache first
+            const cachedData = chatDataCache.get(user.id, workspaceId);
+            if (cachedData) {
+                setPersonalities(cachedData.personalities);
+                setAIProviders(cachedData.aiProviders);
+                setChatSessions(cachedData.chatSessions);
+                return;
+            }
+
             try {
                 setIsLoading(true);
-                
+
                 // Load all required data in parallel
                 const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
                     apiClient.getPersonalities(user.id),
@@ -43,13 +54,22 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                     apiClient.getChatSessions(user.id, workspaceId)
                 ]);
 
-                if (personalitiesResult.success) {
-                    setPersonalities(personalitiesResult.personalities);
-                }
+                const personalities = personalitiesResult.success ? personalitiesResult.personalities : [];
+                const aiProviders = aiProvidersResult.success ? aiProvidersResult.providers : [];
+                const chatSessions = chatSessionsResult.success ? (chatSessionsResult.sessions || []) : [];
 
-                if (aiProvidersResult.success) {
-                    setAIProviders(aiProvidersResult.providers);
-                } else {
+                // Cache the data
+                chatDataCache.set(user.id, workspaceId, {
+                    personalities,
+                    aiProviders,
+                    chatSessions
+                });
+
+                setPersonalities(personalities);
+                setAIProviders(aiProviders);
+                setChatSessions(chatSessions);
+
+                if (!aiProvidersResult.success) {
                     console.error('Failed to load AI providers:', aiProvidersResult.message);
                     addToast({
                         title: "Warning",
@@ -58,55 +78,76 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                     });
                 }
 
-                if (chatSessionsResult.success) {
-                    const sessions = chatSessionsResult.sessions || [];
-                    setChatSessions(sessions);
-                    
-                    // Find the specific chat session
-                    const foundSession = sessions.find(s => s.id === chatId);
-                    if (foundSession) {
-                        setActiveSession(foundSession);
-                        // Save to localStorage for persistence
-                        try {
-                            localStorage.setItem('op3_active_chat_session', JSON.stringify({
-                                id: foundSession.id,
-                                userId: foundSession.userId,
-                                workspaceId: foundSession.workspaceId,
-                                title: foundSession.title,
-                                createdAt: foundSession.createdAt,
-                                updatedAt: foundSession.updatedAt
-                            }));
-                        } catch (error) {
-                            console.error('Error saving active session to localStorage:', error);
-                        }
-                    } else {
-                        setError('Chat session not found');
-                    }
-                } else {
+                if (!chatSessionsResult.success) {
                     console.error('Failed to load chat sessions:', chatSessionsResult.message);
                     setError('Failed to load chat sessions');
                 }
             } catch (error) {
-                console.error('Error loading chat data:', error);
-                setError('Failed to load chat data');
+                console.error('Error loading workspace data:', error);
+                setError('Failed to load workspace data');
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadChatData();
-    }, [workspaceId, chatId, router, addToast]);
+        loadWorkspaceData();
+    }, [workspaceId, router, addToast]);
+
+    // Separate effect to handle chat session changes - this should be fast
+    useEffect(() => {
+        if (chatSessions.length > 0) {
+            const foundSession = chatSessions.find(s => s.id === chatId);
+            if (foundSession) {
+                setActiveSession(foundSession);
+                setError(null);
+                // Save to localStorage for persistence
+                try {
+                    localStorage.setItem('op3_active_chat_session', JSON.stringify({
+                        id: foundSession.id,
+                        userId: foundSession.userId,
+                        workspaceId: foundSession.workspaceId,
+                        title: foundSession.title,
+                        createdAt: foundSession.createdAt,
+                        updatedAt: foundSession.updatedAt
+                    }));
+                } catch (error) {
+                    console.error('Error saving active session to localStorage:', error);
+                }
+            } else {
+                setError('Chat session not found');
+                setActiveSession(null);
+            }
+        }
+    }, [chatId, chatSessions]);
 
     const handleNewChat = (session: ChatSession) => {
         router.push(`/ws/${workspaceId}/chat/${session.id}`);
     };
 
     const handleChatSelect = (session: ChatSession) => {
+        // Optimistic update - set active session immediately for instant UI feedback
+        setActiveSession(session);
+        setError(null);
+
+        // Navigate to the chat
         router.push(`/ws/${workspaceId}/chat/${session.id}`);
     };
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {
         setActiveSession(updatedSession);
+
+        // Update the session in the sessions list
+        const updatedSessions = chatSessions.map(s =>
+            s.id === updatedSession.id ? updatedSession : s
+        );
+        setChatSessions(updatedSessions);
+
+        // Update cache
+        const user = authService.getCurrentUser();
+        if (user) {
+            chatDataCache.updateChatSessions(user.id, workspaceId, updatedSessions);
+        }
+
         // Update localStorage
         try {
             localStorage.setItem('op3_active_chat_session', JSON.stringify({
@@ -122,12 +163,13 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         }
     };
 
-    if (isLoading) {
+    // Only show loading if we're loading workspace data AND don't have any chat sessions yet
+    if (isLoading && chatSessions.length === 0) {
         return (
             <WorkspaceLayout currentWorkspaceId={workspaceId}>
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-4">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
                         <p className="text-muted-foreground">Loading chat...</p>
                     </div>
                 </div>
@@ -189,7 +231,13 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 onChatSelect={handleChatSelect}
                                 activeChatId={activeSession.id}
                                 chatSessions={chatSessions}
-                                onSessionsUpdate={setChatSessions}
+                                onSessionsUpdate={(sessions) => {
+                                    setChatSessions(sessions);
+                                    // Update cache when sessions change
+                                    if (user) {
+                                        chatDataCache.updateChatSessions(user.id, workspaceId, sessions);
+                                    }
+                                }}
                             />
                         </div>
 
