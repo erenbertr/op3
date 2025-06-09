@@ -280,7 +280,10 @@ export class AIChatService {
                 messages,
                 stream: true,
                 max_tokens: 2000,
-                temperature: 0.7
+                temperature: 0.7,
+                stream_options: {
+                    include_usage: true
+                }
             })
         });
 
@@ -288,7 +291,7 @@ export class AIChatService {
             throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
+        return await this.processOpenAIStream(response, messageId, onChunk, provider.model, conversationHistory);
     }
 
     /**
@@ -298,7 +301,8 @@ export class AIChatService {
         response: Response,
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
-        model: string
+        model: string,
+        conversationHistory: ConversationMessage[] = []
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
@@ -354,8 +358,14 @@ export class AIChatService {
                                 });
                             }
 
-                            // Capture token usage if available
+                            // Capture token usage if available (OpenAI includes this in final chunk)
                             if (parsed.usage) {
+                                inputTokens = parsed.usage.prompt_tokens || 0;
+                                outputTokens = parsed.usage.completion_tokens || 0;
+                            }
+
+                            // Also check for finish_reason to capture final usage
+                            if (parsed.choices?.[0]?.finish_reason && parsed.usage) {
                                 inputTokens = parsed.usage.prompt_tokens || 0;
                                 outputTokens = parsed.usage.completion_tokens || 0;
                             }
@@ -365,6 +375,16 @@ export class AIChatService {
                         }
                     }
                 }
+            }
+
+            // If no token usage was captured, estimate based on content length
+            if (inputTokens === 0 && outputTokens === 0) {
+                // Rough estimation: ~4 characters per token for English text
+                const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+                const estimatedOutputTokens = Math.ceil(finalContent.length / 4);
+
+                inputTokens = estimatedInputTokens;
+                outputTokens = estimatedOutputTokens;
             }
 
             const metadata: ApiMetadata = {
@@ -436,7 +456,7 @@ export class AIChatService {
             throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processAnthropicStream(response, messageId, onChunk, provider.model);
+        return await this.processAnthropicStream(response, messageId, onChunk, provider.model, conversationHistory);
     }
 
     /**
@@ -446,7 +466,8 @@ export class AIChatService {
         response: Response,
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
-        model: string
+        model: string,
+        conversationHistory: ConversationMessage[] = []
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
@@ -484,6 +505,16 @@ export class AIChatService {
                                     });
                                 }
                             } else if (parsed.type === 'message_stop') {
+                                // If no token usage was captured, estimate based on content length
+                                if (inputTokens === 0 && outputTokens === 0) {
+                                    // Rough estimation: ~4 characters per token for English text
+                                    const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+                                    const estimatedOutputTokens = Math.ceil(finalContent.length / 4);
+
+                                    inputTokens = estimatedInputTokens;
+                                    outputTokens = estimatedOutputTokens;
+                                }
+
                                 const metadata: ApiMetadata = {
                                     inputTokens,
                                     outputTokens,
@@ -513,6 +544,16 @@ export class AIChatService {
                         }
                     }
                 }
+            }
+
+            // If no token usage was captured, estimate based on content length
+            if (inputTokens === 0 && outputTokens === 0) {
+                // Rough estimation: ~4 characters per token for English text
+                const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+                const estimatedOutputTokens = Math.ceil(finalContent.length / 4);
+
+                inputTokens = estimatedInputTokens;
+                outputTokens = estimatedOutputTokens;
             }
 
             const metadata: ApiMetadata = {
@@ -593,9 +634,14 @@ export class AIChatService {
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
+        const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+        const estimatedOutputTokens = Math.ceil(content.length / 4);
+
         const metadata: ApiMetadata = {
             model: provider.model,
-            totalTokens: Math.ceil(content.length / 4) // Rough estimate for Google
+            inputTokens: estimatedInputTokens,
+            outputTokens: estimatedOutputTokens,
+            totalTokens: estimatedInputTokens + estimatedOutputTokens
         };
 
         onChunk({
@@ -653,7 +699,7 @@ export class AIChatService {
             throw new Error(`Replicate API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processReplicateStream(response, messageId, onChunk, provider.model);
+        return await this.processReplicateStream(response, messageId, onChunk, provider.model, conversationHistory);
     }
 
     /**
@@ -663,7 +709,8 @@ export class AIChatService {
         response: Response,
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
-        model: string
+        model: string,
+        conversationHistory: ConversationMessage[] = []
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
@@ -702,9 +749,14 @@ export class AIChatService {
                             }
 
                             if (parsed.status === 'succeeded') {
+                                const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+                                const estimatedOutputTokens = Math.ceil(finalContent.length / 4);
+
                                 const metadata: ApiMetadata = {
                                     model,
-                                    totalTokens: Math.ceil(finalContent.length / 4) // Rough estimate
+                                    inputTokens: estimatedInputTokens,
+                                    outputTokens: estimatedOutputTokens,
+                                    totalTokens: estimatedInputTokens + estimatedOutputTokens
                                 };
 
                                 onChunk({
@@ -727,9 +779,14 @@ export class AIChatService {
                 }
             }
 
+            const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+            const estimatedOutputTokens = Math.ceil(finalContent.length / 4);
+
             const metadata: ApiMetadata = {
                 model,
-                totalTokens: Math.ceil(finalContent.length / 4) // Rough estimate
+                inputTokens: estimatedInputTokens,
+                outputTokens: estimatedOutputTokens,
+                totalTokens: estimatedInputTokens + estimatedOutputTokens
             };
 
             onChunk({
@@ -782,7 +839,10 @@ export class AIChatService {
                 messages,
                 stream: true,
                 max_tokens: 2000,
-                temperature: 0.7
+                temperature: 0.7,
+                stream_options: {
+                    include_usage: true
+                }
             })
         });
 
@@ -791,6 +851,6 @@ export class AIChatService {
         }
 
         // Use OpenAI stream processing for custom providers (assuming compatibility)
-        return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
+        return await this.processOpenAIStream(response, messageId, onChunk, provider.model, conversationHistory);
     }
 }

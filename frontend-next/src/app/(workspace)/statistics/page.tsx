@@ -35,7 +35,11 @@ export default function StatisticsPage() {
             setCurrentUser(user);
             // Get current workspace from URL or localStorage
             const pathParts = window.location.pathname.split('/');
-            const workspaceId = pathParts.find(part => part.startsWith('ws-')) || localStorage.getItem('currentWorkspaceId');
+            let workspaceId = pathParts.find(part => part.startsWith('ws-')) ||
+                pathParts.find(part => part.length > 30 && part.includes('-')) || // UUID pattern
+                localStorage.getItem('currentWorkspaceId');
+
+            console.log('Detected workspace ID:', workspaceId, 'from path:', window.location.pathname);
             setCurrentWorkspaceId(workspaceId);
         }
     }, []);
@@ -56,8 +60,12 @@ export default function StatisticsPage() {
     }, [currentUser, currentWorkspaceId, dateRange]);
 
     const loadStatistics = async () => {
-        if (!currentUser || !currentWorkspaceId) return;
+        if (!currentUser || !currentWorkspaceId) {
+            console.log('Missing user or workspace:', { currentUser: !!currentUser, currentWorkspaceId });
+            return;
+        }
 
+        console.log('Loading statistics for:', { workspaceId: currentWorkspaceId, userId: currentUser.id, dateRange });
         setIsLoading(true);
         try {
             const result = await apiClient.getWorkspaceStatistics(
@@ -66,12 +74,14 @@ export default function StatisticsPage() {
                 dateRange
             );
 
+            console.log('Statistics API result:', result);
+
             if (result.success && result.statistics) {
                 setStatistics(result.statistics);
             } else {
                 console.error('Failed to load statistics:', result.message);
-                // Fallback to mock data if API fails
-                const mockData: StatisticsData = {
+                // Show empty data with message
+                const emptyData: StatisticsData = {
                     totalMessages: 0,
                     totalTokens: 0,
                     totalCost: 0,
@@ -80,7 +90,7 @@ export default function StatisticsPage() {
                     tokensByProvider: {},
                     dailyUsage: []
                 };
-                setStatistics(mockData);
+                setStatistics(emptyData);
             }
         } catch (error) {
             console.error('Error loading statistics:', error);
@@ -133,7 +143,7 @@ export default function StatisticsPage() {
     return (
         <WorkspaceLayout currentWorkspaceId={currentWorkspaceId}>
             <div className="h-full flex">
-                <div className="container mx-auto h-full">
+                <div className="w-full max-w-7xl mx-auto h-full">
                     <div className="py-6 space-y-6">
                         {/* Header */}
                         <div className="flex items-center justify-between">
@@ -178,172 +188,195 @@ export default function StatisticsPage() {
                         {/* Statistics Content */}
                         {statistics && (
                             <div className="space-y-6">
-                                {/* Overview Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {/* No Data Message */}
+                                {statistics.totalMessages === 0 && (
                                     <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
-                                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatNumber(statistics.totalMessages)}</div>
-                                            <p className="text-xs text-muted-foreground">
-                                                {getDateRangeLabel(dateRange)}
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
-                                            <Zap className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatNumber(statistics.totalTokens)}</div>
-                                            <p className="text-xs text-muted-foreground">
-                                                Input + Output tokens
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-                                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatCurrency(statistics.totalCost)}</div>
-                                            <p className="text-xs text-muted-foreground">
-                                                Estimated API costs
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-                                            <Clock className="h-4 w-4 text-muted-foreground" />
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="text-2xl font-bold">{formatDuration(statistics.averageResponseTime)}</div>
-                                            <p className="text-xs text-muted-foreground">
-                                                Average API response time
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Provider Breakdown */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Messages by Provider</CardTitle>
-                                            <CardDescription>
-                                                Distribution of messages across AI providers
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-3">
-                                                {Object.entries(statistics.messagesByProvider).map(([provider, count]) => (
-                                                    <div key={provider} className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium">{provider}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                                                                <div
-                                                                    className="h-full bg-primary rounded-full"
-                                                                    style={{
-                                                                        width: `${(count / statistics.totalMessages) * 100}%`
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-sm text-muted-foreground w-8 text-right">
-                                                                {count}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                        <CardContent className="py-8">
+                                            <div className="text-center">
+                                                <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                                <h3 className="text-lg font-semibold mb-2">No Usage Data Yet</h3>
+                                                <p className="text-muted-foreground mb-4">
+                                                    Start chatting with AI assistants to see your usage statistics here.
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Statistics will show token usage, costs, response times, and more once you begin using AI features.
+                                                </p>
                                             </div>
                                         </CardContent>
                                     </Card>
+                                )}
 
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Tokens by Provider</CardTitle>
-                                            <CardDescription>
-                                                Token usage distribution across providers
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-3">
-                                                {Object.entries(statistics.tokensByProvider).map(([provider, tokens]) => (
-                                                    <div key={provider} className="flex items-center justify-between">
-                                                        <span className="text-sm font-medium">{provider}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                {/* Statistics Cards - only show if there's data */}
+                                {statistics.totalMessages > 0 && (
+                                    <>
+                                        {/* Overview Cards */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <Card>
+                                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                    <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+                                                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="text-2xl font-bold">{formatNumber(statistics.totalMessages)}</div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getDateRangeLabel(dateRange)}
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card>
+                                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                    <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
+                                                    <Zap className="h-4 w-4 text-muted-foreground" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="text-2xl font-bold">{formatNumber(statistics.totalTokens)}</div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Input + Output tokens
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card>
+                                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                    <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+                                                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="text-2xl font-bold">{formatCurrency(statistics.totalCost)}</div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Estimated API costs
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card>
+                                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                                    <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+                                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="text-2xl font-bold">{formatDuration(statistics.averageResponseTime)}</div>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Average API response time
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+
+                                        {/* Provider Breakdown */}
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle>Messages by Provider</CardTitle>
+                                                    <CardDescription>
+                                                        Distribution of messages across AI providers
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="space-y-3">
+                                                        {Object.entries(statistics.messagesByProvider).map(([provider, count]) => (
+                                                            <div key={provider} className="flex items-center justify-between">
+                                                                <span className="text-sm font-medium">{provider}</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-primary rounded-full"
+                                                                            style={{
+                                                                                width: `${(count / statistics.totalMessages) * 100}%`
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-sm text-muted-foreground w-8 text-right">
+                                                                        {count}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card>
+                                                <CardHeader>
+                                                    <CardTitle>Tokens by Provider</CardTitle>
+                                                    <CardDescription>
+                                                        Token usage distribution across providers
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="space-y-3">
+                                                        {Object.entries(statistics.tokensByProvider).map(([provider, tokens]) => (
+                                                            <div key={provider} className="flex items-center justify-between">
+                                                                <span className="text-sm font-medium">{provider}</span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full bg-primary rounded-full"
+                                                                            style={{
+                                                                                width: `${(tokens / statistics.totalTokens) * 100}%`
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <span className="text-sm text-muted-foreground w-12 text-right">
+                                                                        {formatNumber(tokens)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+
+                                        {/* Daily Usage Chart */}
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Daily Usage Trend</CardTitle>
+                                                <CardDescription>
+                                                    Messages and token usage over time
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="h-64 flex items-end justify-between gap-2 p-4">
+                                                    {statistics.dailyUsage.map((day, index) => (
+                                                        <div key={day.date} className="flex flex-col items-center gap-2 flex-1">
+                                                            <div className="flex flex-col items-center gap-1 w-full">
                                                                 <div
-                                                                    className="h-full bg-primary rounded-full"
+                                                                    className="bg-primary/20 rounded-t w-full min-h-[4px]"
                                                                     style={{
-                                                                        width: `${(tokens / statistics.totalTokens) * 100}%`
+                                                                        height: `${(day.messages / Math.max(...statistics.dailyUsage.map(d => d.messages))) * 100}px`
                                                                     }}
+                                                                    title={`${day.messages} messages`}
+                                                                />
+                                                                <div
+                                                                    className="bg-primary rounded-t w-full min-h-[4px]"
+                                                                    style={{
+                                                                        height: `${(day.tokens / Math.max(...statistics.dailyUsage.map(d => d.tokens))) * 80}px`
+                                                                    }}
+                                                                    title={`${formatNumber(day.tokens)} tokens`}
                                                                 />
                                                             </div>
-                                                            <span className="text-sm text-muted-foreground w-12 text-right">
-                                                                {formatNumber(tokens)}
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
                                                             </span>
                                                         </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Daily Usage Chart */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Daily Usage Trend</CardTitle>
-                                        <CardDescription>
-                                            Messages and token usage over time
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="h-64 flex items-end justify-between gap-2 p-4">
-                                            {statistics.dailyUsage.map((day, index) => (
-                                                <div key={day.date} className="flex flex-col items-center gap-2 flex-1">
-                                                    <div className="flex flex-col items-center gap-1 w-full">
-                                                        <div
-                                                            className="bg-primary/20 rounded-t w-full min-h-[4px]"
-                                                            style={{
-                                                                height: `${(day.messages / Math.max(...statistics.dailyUsage.map(d => d.messages))) * 100}px`
-                                                            }}
-                                                            title={`${day.messages} messages`}
-                                                        />
-                                                        <div
-                                                            className="bg-primary rounded-t w-full min-h-[4px]"
-                                                            style={{
-                                                                height: `${(day.tokens / Math.max(...statistics.dailyUsage.map(d => d.tokens))) * 80}px`
-                                                            }}
-                                                            title={`${formatNumber(day.tokens)} tokens`}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })}
-                                                    </span>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
-                                        <div className="flex justify-center gap-4 mt-4 text-xs text-muted-foreground">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-3 h-3 bg-primary rounded"></div>
-                                                <span>Tokens</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-3 h-3 bg-primary/20 rounded"></div>
-                                                <span>Messages</span>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                                <div className="flex justify-center gap-4 mt-4 text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 bg-primary rounded"></div>
+                                                        <span>Tokens</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 bg-primary/20 rounded"></div>
+                                                        <span>Messages</span>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
