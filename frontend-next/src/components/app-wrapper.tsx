@@ -33,14 +33,7 @@ export function AppWrapper() {
     // Use TanStack Query for setup status
     const { data: setupResponse, isLoading: isLoadingSetup, error: setupError } = useQuery({
         queryKey: ['setup-status'],
-        queryFn: () => {
-            console.error('🔧🔧🔧 [TERMINAL-LOG] Setup status query executing at', new Date().toISOString());
-            console.error('🔧🔧🔧 [TERMINAL-LOG] FORCE RECOMPILE TEST');
-            return apiClient.getSetupStatus();
-        },
-        staleTime: Infinity, // Never consider data stale - for debugging
-        gcTime: Infinity, // Never garbage collect - for debugging
-        refetchOnMount: false, // Don't refetch on mount if data exists
+        queryFn: () => apiClient.getSetupStatus(),
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         refetchInterval: false, // Disable automatic refetching
@@ -81,7 +74,7 @@ export function AppWrapper() {
                 // WorkspaceApplication will handle navigation when rendered
             }
         } catch (error) {
-            console.error('Login failed:', error);
+            // Login failed - error will be handled by the login form
         } finally {
             setIsLoggingIn(false);
         }
@@ -93,8 +86,7 @@ export function AppWrapper() {
         setShowWorkspaceSetup(false);
     };
 
-    const handleWorkspaceSetupComplete = (workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
-        console.log('Workspace setup completed:', workspace);
+    const handleWorkspaceSetupComplete = (_workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
         setShowWorkspaceSetup(false);
 
         // Update user state to reflect completed workspace setup

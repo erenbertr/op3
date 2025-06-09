@@ -328,13 +328,6 @@ class ApiClient {
         options: RequestInit = {}
     ): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
-        const requestId = Math.random().toString(36).substr(2, 9);
-
-        console.log(`🔗 [ApiClient.request:${requestId}] Starting request`);
-        console.log(`🔗 [ApiClient.request:${requestId}] URL:`, url);
-        console.log(`🔗 [ApiClient.request:${requestId}] Endpoint:`, endpoint);
-        console.log(`🔗 [ApiClient.request:${requestId}] Options:`, options);
-        console.log(`🔗 [ApiClient.request:${requestId}] Timestamp:`, new Date().toISOString());
 
         // Get auth token from localStorage
         const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
@@ -348,27 +341,17 @@ class ApiClient {
             ...options,
         };
 
-        console.log(`🔗 [ApiClient.request:${requestId}] Final config:`, config);
-
         try {
-            console.log(`🔗 [ApiClient.request:${requestId}] Calling fetch...`);
             const response = await fetch(url, config);
-            console.log(`🔗 [ApiClient.request:${requestId}] Fetch completed, status:`, response.status);
-            console.log(`🔗 [ApiClient.request:${requestId}] Response headers:`, Object.fromEntries(response.headers.entries()));
 
             if (!response.ok) {
-                console.log(`❌ [ApiClient.request:${requestId}] Response not OK, parsing error...`);
                 const errorData = await response.json().catch(() => ({}));
-                console.log(`❌ [ApiClient.request:${requestId}] Error data:`, errorData);
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
-            console.log(`🔗 [ApiClient.request:${requestId}] Parsing JSON response...`);
             const result = await response.json();
-            console.log(`✅ [ApiClient.request:${requestId}] Request successful:`, result);
             return result;
         } catch (error) {
-            console.error(`❌ [ApiClient.request:${requestId}] Request failed:`, error);
             throw error;
         }
     }
@@ -484,23 +467,7 @@ class ApiClient {
     }
 
     async getUserWorkspaces(userId: string): Promise<WorkspaceListResponse> {
-        console.log('🌐 [ApiClient.getUserWorkspaces] Called with userId:', userId);
-        console.log('🌐 [ApiClient.getUserWorkspaces] Timestamp:', new Date().toISOString());
-        console.log('🌐 [ApiClient.getUserWorkspaces] Stack trace:', new Error().stack);
-
-        const endpoint = `/workspace/list/${userId}`;
-        console.log('🌐 [ApiClient.getUserWorkspaces] Endpoint:', endpoint);
-        console.log('🌐 [ApiClient.getUserWorkspaces] Full URL:', `${this.baseUrl}${endpoint}`);
-
-        try {
-            console.log('🌐 [ApiClient.getUserWorkspaces] Making request...');
-            const result = await this.request<WorkspaceListResponse>(endpoint);
-            console.log('✅ [ApiClient.getUserWorkspaces] Request successful:', result);
-            return result;
-        } catch (error) {
-            console.error('❌ [ApiClient.getUserWorkspaces] Request failed:', error);
-            throw error;
-        }
+        return this.request<WorkspaceListResponse>(`/workspace/list/${userId}`);
     }
 
     async updateWorkspace(workspaceId: string, userId: string, updates: UpdateWorkspaceRequest): Promise<WorkspaceUpdateResponse> {
@@ -649,13 +616,12 @@ class ApiClient {
                                 return;
                             }
                         } catch (error) {
-                            console.error('Error parsing SSE data:', error);
+                            // Ignore parsing errors for malformed SSE data
                         }
                     }
                 }
             }
         } catch (error) {
-            console.error('Error in streaming chat:', error);
             onError(error instanceof Error ? error.message : 'Unknown error');
         }
     }
