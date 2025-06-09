@@ -28,7 +28,7 @@ export function AIProviderSettingsView() {
                 router.replace('/settings/ai-providers');
             }, 100);
         }
-    }, [user, router, searchParams]);
+    }, [user]); // Removed router and searchParams from dependencies
 
     if (!user) {
         return null;

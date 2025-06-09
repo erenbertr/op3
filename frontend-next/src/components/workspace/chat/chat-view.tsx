@@ -91,7 +91,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         };
 
         loadWorkspaceData();
-    }, [workspaceId, router, addToast]);
+    }, [workspaceId, addToast]); // Removed router from dependencies
 
     // Separate effect to handle chat session changes - this should be fast
     useEffect(() => {

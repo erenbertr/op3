@@ -141,7 +141,7 @@ export function WorkspaceApplication({ currentUser, pathname: initialPathname, o
         };
 
         loadWorkspaces();
-    }, [currentUser.id, routeParams.workspaceId, router]);
+    }, [currentUser.id, routeParams.workspaceId]); // Removed router from dependencies
 
     // Navigation functions that update URL without page reload
     const navigateToWorkspace = useCallback((workspaceId: string) => {

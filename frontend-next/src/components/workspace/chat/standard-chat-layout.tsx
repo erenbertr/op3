@@ -45,96 +45,107 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         }
     }, []);
 
-    // Restore active session from localStorage
-    const restoreActiveSession = useCallback(async (sessions: ChatSession[]) => {
-        try {
-            const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
-            if (!savedSessionStr) return;
+    // Load personalities and AI providers when component mounts
+    useEffect(() => {
+        const loadInitialData = async () => {
+            // Try to get data from cache first
+            const cachedData = chatDataCache.get(userId, workspaceId);
+            if (cachedData) {
+                setPersonalities(cachedData.personalities);
+                setAIProviders(cachedData.aiProviders);
+                setChatSessions(cachedData.chatSessions);
 
-            const savedSession = JSON.parse(savedSessionStr);
-
-            // Check if the saved session still exists in the current workspace
-            const existingSession = sessions.find(s =>
-                s.id === savedSession.id &&
-                s.workspaceId === workspaceId &&
-                s.userId === userId
-            );
-
-            if (existingSession) {
-                setActiveSession(existingSession);
-            } else {
-                // Session no longer exists, clear localStorage
-                localStorage.removeItem(ACTIVE_SESSION_KEY);
+                // Try to restore the previously active session
+                try {
+                    const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
+                    if (savedSessionStr) {
+                        const savedSession = JSON.parse(savedSessionStr);
+                        const existingSession = cachedData.chatSessions.find(s =>
+                            s.id === savedSession.id &&
+                            s.workspaceId === workspaceId &&
+                            s.userId === userId
+                        );
+                        if (existingSession) {
+                            setActiveSession(existingSession);
+                        } else {
+                            localStorage.removeItem(ACTIVE_SESSION_KEY);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error restoring active session from localStorage:', error);
+                    localStorage.removeItem(ACTIVE_SESSION_KEY);
+                }
+                return;
             }
-        } catch (error) {
-            console.error('Error restoring active session from localStorage:', error);
-            localStorage.removeItem(ACTIVE_SESSION_KEY);
-        }
-    }, [workspaceId, userId]);
 
-    const loadInitialData = useCallback(async () => {
-        // Try to get data from cache first
-        const cachedData = chatDataCache.get(userId, workspaceId);
-        if (cachedData) {
-            setPersonalities(cachedData.personalities);
-            setAIProviders(cachedData.aiProviders);
-            setChatSessions(cachedData.chatSessions);
-            // Try to restore the previously active session
-            await restoreActiveSession(cachedData.chatSessions);
-            return;
-        }
-        try {
-            // Load personalities, AI providers, and chat sessions in parallel
-            const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
-                apiClient.getPersonalities(userId),
-                apiClient.getAIProviders(),
-                apiClient.getChatSessions(userId, workspaceId)
-            ]);
+            try {
+                // Load personalities, AI providers, and chat sessions in parallel
+                const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
+                    apiClient.getPersonalities(userId),
+                    apiClient.getAIProviders(),
+                    apiClient.getChatSessions(userId, workspaceId)
+                ]);
 
-            const personalities = personalitiesResult.success ? personalitiesResult.personalities : [];
-            const aiProviders = aiProvidersResult.success ? aiProvidersResult.providers : [];
-            const chatSessions = chatSessionsResult.success ? (chatSessionsResult.sessions || []) : [];
+                const personalities = personalitiesResult.success ? personalitiesResult.personalities : [];
+                const aiProviders = aiProvidersResult.success ? aiProvidersResult.providers : [];
+                const chatSessions = chatSessionsResult.success ? (chatSessionsResult.sessions || []) : [];
 
-            // Cache the data
-            chatDataCache.set(userId, workspaceId, {
-                personalities,
-                aiProviders,
-                chatSessions
-            });
+                // Cache the data
+                chatDataCache.set(userId, workspaceId, {
+                    personalities,
+                    aiProviders,
+                    chatSessions
+                });
 
-            setPersonalities(personalities);
-            setAIProviders(aiProviders);
-            setChatSessions(chatSessions);
+                setPersonalities(personalities);
+                setAIProviders(aiProviders);
+                setChatSessions(chatSessions);
 
-            if (!aiProvidersResult.success) {
-                console.error('Failed to load AI providers:', aiProvidersResult.message);
+                if (!aiProvidersResult.success) {
+                    console.error('Failed to load AI providers:', aiProvidersResult.message);
+                    addToast({
+                        title: "Warning",
+                        description: "Failed to load AI providers. Please check your configuration.",
+                        variant: "destructive"
+                    });
+                }
+
+                if (chatSessionsResult.success) {
+                    // Try to restore the previously active session
+                    try {
+                        const savedSessionStr = localStorage.getItem(ACTIVE_SESSION_KEY);
+                        if (savedSessionStr) {
+                            const savedSession = JSON.parse(savedSessionStr);
+                            const existingSession = chatSessions.find(s =>
+                                s.id === savedSession.id &&
+                                s.workspaceId === workspaceId &&
+                                s.userId === userId
+                            );
+                            if (existingSession) {
+                                setActiveSession(existingSession);
+                            } else {
+                                localStorage.removeItem(ACTIVE_SESSION_KEY);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error restoring active session from localStorage:', error);
+                        localStorage.removeItem(ACTIVE_SESSION_KEY);
+                    }
+                } else {
+                    console.error('Failed to load chat sessions:', chatSessionsResult.message);
+                }
+            } catch (error) {
+                console.error('Error loading initial data:', error);
                 addToast({
-                    title: "Warning",
-                    description: "Failed to load AI providers. Please check your configuration.",
+                    title: "Error",
+                    description: "Failed to load application data",
                     variant: "destructive"
                 });
             }
+        };
 
-            if (chatSessionsResult.success) {
-                // Try to restore the previously active session
-                await restoreActiveSession(chatSessions);
-            } else {
-                console.error('Failed to load chat sessions:', chatSessionsResult.message);
-            }
-        } catch (error) {
-            console.error('Error loading initial data:', error);
-            addToast({
-                title: "Error",
-                description: "Failed to load application data",
-                variant: "destructive"
-            });
-        }
-    }, [userId, workspaceId, addToast, restoreActiveSession]);
-
-    // Load personalities and AI providers when component mounts
-    useEffect(() => {
         loadInitialData();
-    }, [userId, loadInitialData]);
+    }, [userId, workspaceId, addToast]);
 
     const handleNewChat = (session: ChatSession) => {
         router.push(`/ws/${workspaceId}/chat/${session.id}`);

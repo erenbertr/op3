@@ -43,28 +43,28 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
 
 
 
-    const loadPersonalities = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            setError('');
-            const result = await apiClient.getPersonalities(userId);
-
-            if (result.success) {
-                setPersonalities(result.personalities);
-            } else {
-                setError(result.message || 'Failed to load personalities');
-            }
-        } catch (error) {
-            console.error('Error loading personalities:', error);
-            setError('Failed to load personalities');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [userId]);
-
     useEffect(() => {
+        const loadPersonalities = async () => {
+            try {
+                setIsLoading(true);
+                setError('');
+                const result = await apiClient.getPersonalities(userId);
+
+                if (result.success) {
+                    setPersonalities(result.personalities);
+                } else {
+                    setError(result.message || 'Failed to load personalities');
+                }
+            } catch (error) {
+                console.error('Error loading personalities:', error);
+                setError('Failed to load personalities');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         loadPersonalities();
-    }, [userId, loadPersonalities]);
+    }, [userId]);
 
     // Handle delayed spinner display
     useEffect(() => {
