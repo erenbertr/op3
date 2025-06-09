@@ -40,7 +40,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id);
 
     // Parse route parameters from pathname (memoized to prevent re-renders)
-    const { currentView, routeParams, currentWorkspace } = React.useMemo(() => {
+    const { currentView, routeParams } = React.useMemo(() => {
         const parseRoute = (path: string): { view: string; params: RouteParams } => {
             // Handle workspace routes
             const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
@@ -80,18 +80,19 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
         const { view, params } = parseRoute(currentPathname);
 
-        // Find current workspace if we have workspaces data and a workspace ID
-        let workspace = null;
-        if (workspacesResult?.success && params.workspaceId) {
-            workspace = workspacesResult.workspaces.find(w => w.id === params.workspaceId);
-        }
-
         return {
             currentView: view,
-            routeParams: params,
-            currentWorkspace: workspace
+            routeParams: params
         };
-    }, [currentPathname, workspacesResult]);
+    }, [currentPathname]);
+
+    // Find current workspace separately to avoid workspacesResult dependency in main useMemo
+    const currentWorkspace = React.useMemo(() => {
+        if (workspacesResult?.success && routeParams.workspaceId) {
+            return workspacesResult.workspaces.find(w => w.id === routeParams.workspaceId) || null;
+        }
+        return null;
+    }, [workspacesResult, routeParams.workspaceId]);
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {

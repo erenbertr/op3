@@ -42,7 +42,7 @@ export function AppWrapper() {
     // Removed loadInitialWorkspace function - WorkspaceApplication handles its own navigation
 
     // Initialize user state when setup is completed
-    React.useMemo(() => {
+    React.useEffect(() => {
         if (setupStatus?.completed && !currentUser) {
             const user = authService.getCurrentUser();
             if (user) {
