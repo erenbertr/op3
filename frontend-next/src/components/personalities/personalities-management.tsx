@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,9 +24,8 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Plus, Edit, Trash2, ExternalLink, User, Loader2 } from 'lucide-react';
-import { apiClient, Personality } from '@/lib/api';
-import { useAsyncData } from '@/lib/hooks/use-async-data';
-import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { Personality } from '@/lib/api';
+import { usePersonalities, useCreatePersonality, useUpdatePersonality, useDeletePersonality } from '@/lib/hooks/use-query-hooks';
 import { PersonalityForm } from './personality-form';
 
 interface PersonalitiesManagementProps {
@@ -34,95 +33,102 @@ interface PersonalitiesManagementProps {
 }
 
 export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps) {
-    const [personalities, setPersonalities] = useState<Personality[]>([]);
     const [error, setError] = useState('');
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [editingPersonality, setEditingPersonality] = useState<Personality | null>(null);
     const [deletingPersonality, setDeletingPersonality] = useState<Personality | null>(null);
 
-    // Use new hooks instead of useEffect patterns
-    const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
-    const personalitiesLoader = useAsyncData(apiClient.getPersonalities);
+    // Use TanStack Query hooks
+    const {
+        data: personalitiesData,
+        isLoading,
+        error: queryError
+    } = usePersonalities(userId);
 
+    const createPersonalityMutation = useCreatePersonality();
+    const updatePersonalityMutation = useUpdatePersonality();
+    const deletePersonalityMutation = useDeletePersonality();
 
+    // Extract personalities from query data
+    const personalities = personalitiesData?.success ? personalitiesData.personalities : [];
 
-    const loadPersonalities = useCallback(async () => {
-        startLoading();
-        setError('');
-
-        try {
-            await personalitiesLoader.execute(userId);
-
-            if (personalitiesLoader.data?.success) {
-                setPersonalities(personalitiesLoader.data.personalities);
-            } else {
-                setError(personalitiesLoader.error || 'Failed to load personalities');
-            }
-        } catch (error) {
-            console.error('Error loading personalities:', error);
+    // Handle query errors
+    React.useEffect(() => {
+        if (queryError) {
+            console.error('Error loading personalities:', queryError);
             setError('Failed to load personalities');
-        } finally {
-            stopLoading();
+        } else {
+            setError('');
         }
-    }, [userId, startLoading, stopLoading, personalitiesLoader]);
-
-    // Load personalities when userId changes
-    React.useLayoutEffect(() => {
-        loadPersonalities();
-    }, [loadPersonalities]);
+    }, [queryError]);
 
     const handleCreatePersonality = async (data: { title: string; prompt: string }) => {
-        try {
-            const result = await apiClient.createPersonality(userId, data);
-
-            if (result.success && result.personality) {
-                setPersonalities(prev => [result.personality!, ...prev]);
-                setIsCreateDialogOpen(false);
-            } else {
-                setError(result.message || 'Failed to create personality');
+        createPersonalityMutation.mutate(
+            { title: data.title, prompt: data.prompt, userId },
+            {
+                onSuccess: (result) => {
+                    if (result.success) {
+                        setIsCreateDialogOpen(false);
+                        setError('');
+                    } else {
+                        setError(result.message || 'Failed to create personality');
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error creating personality:', error);
+                    setError('Failed to create personality');
+                }
             }
-        } catch (error) {
-            console.error('Error creating personality:', error);
-            setError('Failed to create personality');
-        }
+        );
     };
 
     const handleUpdatePersonality = async (data: { title: string; prompt: string }) => {
         if (!editingPersonality) return;
 
-        try {
-            const result = await apiClient.updatePersonality(editingPersonality.id, userId, data);
-
-            if (result.success && result.personality) {
-                setPersonalities(prev =>
-                    prev.map(p => p.id === editingPersonality.id ? result.personality! : p)
-                );
-                setEditingPersonality(null);
-            } else {
-                setError(result.message || 'Failed to update personality');
+        updatePersonalityMutation.mutate(
+            {
+                personalityId: editingPersonality.id,
+                userId,
+                title: data.title,
+                prompt: data.prompt
+            },
+            {
+                onSuccess: (result) => {
+                    if (result.success) {
+                        setEditingPersonality(null);
+                        setError('');
+                    } else {
+                        setError(result.message || 'Failed to update personality');
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error updating personality:', error);
+                    setError('Failed to update personality');
+                }
             }
-        } catch (error) {
-            console.error('Error updating personality:', error);
-            setError('Failed to update personality');
-        }
+        );
     };
 
     const handleDeletePersonality = async () => {
         if (!deletingPersonality) return;
 
-        try {
-            const result = await apiClient.deletePersonality(deletingPersonality.id, userId);
-
-            if (result.success) {
-                setPersonalities(prev => prev.filter(p => p.id !== deletingPersonality.id));
-                setDeletingPersonality(null);
-            } else {
-                setError(result.message || 'Failed to delete personality');
+        deletePersonalityMutation.mutate(
+            { personalityId: deletingPersonality.id, userId },
+            {
+                onSuccess: (result) => {
+                    if (result.success) {
+                        setDeletingPersonality(null);
+                        setError('');
+                    } else {
+                        setError(result.message || 'Failed to delete personality');
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error deleting personality:', error);
+                    setError('Failed to delete personality');
+                }
             }
-        } catch (error) {
-            console.error('Error deleting personality:', error);
-            setError('Failed to delete personality');
-        }
+        );
     };
 
     const truncateText = (text: string, maxLength: number = 150) => {
@@ -134,8 +140,8 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
         window.open('https://prompts.chat/', '_blank', 'noopener,noreferrer');
     };
 
-    // Show low opacity spinner after 3 seconds if still loading
-    if (isLoading && personalities.length === 0 && showSpinner) {
+    // Show loading state
+    if (isLoading && personalities.length === 0) {
         return (
             <div className="space-y-6">
                 {/* Header with actions */}
@@ -161,42 +167,10 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                     </div>
                 </div>
 
-                {/* Low opacity spinner in center */}
+                {/* Loading spinner */}
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin opacity-30" />
+                    <Loader2 className="h-8 w-8 animate-spin opacity-50" />
                 </div>
-            </div>
-        );
-    }
-
-    // Show blank screen during initial 3 seconds of loading
-    if (isLoading && personalities.length === 0 && !showSpinner) {
-        return (
-            <div className="space-y-6">
-                {/* Header with actions */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="space-y-1">
-                        <p className="text-muted-foreground">
-                            Create and manage AI personalities with custom prompts and instructions.
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={openInspirationsLink}
-                            className="flex items-center gap-2"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            Inspirations
-                        </Button>
-                        <Button className="flex items-center gap-2" disabled>
-                            <Plus className="h-4 w-4" />
-                            Create Personality
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Blank content area - no spinner yet */}
             </div>
         );
     }

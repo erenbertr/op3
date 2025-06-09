@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from '../workspace-layout';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent } from './chat-session';
 import { authService } from '@/lib/auth';
-import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
-import { chatDataCache } from '@/lib/workspace-cache';
+import { ChatSession } from '@/lib/api';
+import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
 
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
@@ -20,79 +20,41 @@ interface ChatViewProps {
 export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const router = useRouter();
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-    const [personalities, setPersonalities] = useState<Personality[]>([]);
-    const [aiProviders, setAIProviders] = useState<AIProviderConfig[]>([]);
-    const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { addToast } = useToast();
 
-    // Load workspace-level data (personalities, AI providers, chat sessions) only once
-    useEffect(() => {
-        const loadWorkspaceData = async () => {
-            const user = authService.getCurrentUser();
-            if (!user) {
-                router.push('/');
-                return;
-            }
+    // Get current user
+    const user = authService.getCurrentUser();
 
-            // Try to get data from cache first
-            const cachedData = chatDataCache.get(user.id, workspaceId);
-            if (cachedData) {
-                setPersonalities(cachedData.personalities);
-                setAIProviders(cachedData.aiProviders);
-                setChatSessions(cachedData.chatSessions);
-                return;
-            }
+    // Use TanStack Query for data fetching - always call hooks
+    const {
+        data: personalitiesData,
+        isLoading: personalitiesLoading,
+        error: personalitiesError
+    } = usePersonalities(user?.id || '');
 
-            try {
-                setIsLoading(true);
+    const {
+        data: aiProvidersData,
+        isLoading: aiProvidersLoading,
+        error: aiProvidersError
+    } = useAIProviders();
 
-                // Load all required data in parallel
-                const [personalitiesResult, aiProvidersResult, chatSessionsResult] = await Promise.all([
-                    apiClient.getPersonalities(user.id),
-                    apiClient.getAIProviders(),
-                    apiClient.getChatSessions(user.id, workspaceId)
-                ]);
+    const {
+        data: chatSessionsData,
+        isLoading: chatSessionsLoading,
+        error: chatSessionsError
+    } = useChatSessions(user?.id || '', workspaceId);
 
-                const personalities = personalitiesResult.success ? personalitiesResult.personalities : [];
-                const aiProviders = aiProvidersResult.success ? aiProvidersResult.providers : [];
-                const chatSessions = chatSessionsResult.success ? (chatSessionsResult.sessions || []) : [];
+    // Extract data from query results
+    const personalities = personalitiesData?.success ? personalitiesData.personalities : [];
+    const aiProviders = aiProvidersData?.success ? aiProvidersData.providers : [];
+    const chatSessions = useMemo(() =>
+        chatSessionsData?.success ? (chatSessionsData.sessions || []) : [],
+        [chatSessionsData]
+    );
 
-                // Cache the data
-                chatDataCache.set(user.id, workspaceId, {
-                    personalities,
-                    aiProviders,
-                    chatSessions
-                });
-
-                setPersonalities(personalities);
-                setAIProviders(aiProviders);
-                setChatSessions(chatSessions);
-
-                if (!aiProvidersResult.success) {
-                    console.error('Failed to load AI providers:', aiProvidersResult.message);
-                    addToast({
-                        title: "Warning",
-                        description: "Failed to load AI providers. Please check your configuration.",
-                        variant: "destructive"
-                    });
-                }
-
-                if (!chatSessionsResult.success) {
-                    console.error('Failed to load chat sessions:', chatSessionsResult.message);
-                    setError('Failed to load chat sessions');
-                }
-            } catch (error) {
-                console.error('Error loading workspace data:', error);
-                setError('Failed to load workspace data');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadWorkspaceData();
-    }, [workspaceId, addToast]); // Removed router from dependencies
+    // Handle loading state
+    const isLoading = personalitiesLoading || aiProvidersLoading || chatSessionsLoading;
 
     // Handle chat session changes using callback approach
     const updateActiveSession = useCallback(() => {
@@ -121,10 +83,37 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         }
     }, [chatId, chatSessions]);
 
+    // Handle errors from TanStack Query
+    useEffect(() => {
+        if (aiProvidersError) {
+            console.error('Failed to load AI providers:', aiProvidersError);
+            addToast({
+                title: "Warning",
+                description: "Failed to load AI providers. Please check your configuration.",
+                variant: "destructive"
+            });
+        }
+
+        if (chatSessionsError) {
+            console.error('Failed to load chat sessions:', chatSessionsError);
+            setError('Failed to load chat sessions');
+        }
+
+        if (personalitiesError) {
+            console.error('Failed to load personalities:', personalitiesError);
+        }
+    }, [aiProvidersError, chatSessionsError, personalitiesError, addToast]);
+
     // Update active session when dependencies change
     React.useLayoutEffect(() => {
         updateActiveSession();
     }, [updateActiveSession]);
+
+    // Redirect if no user
+    if (!user) {
+        router.push('/');
+        return null;
+    }
 
     const handleNewChat = (session: ChatSession) => {
         router.push(`/ws/${workspaceId}/chat/${session.id}`);
@@ -141,18 +130,6 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {
         setActiveSession(updatedSession);
-
-        // Update the session in the sessions list
-        const updatedSessions = chatSessions.map(s =>
-            s.id === updatedSession.id ? updatedSession : s
-        );
-        setChatSessions(updatedSessions);
-
-        // Update cache
-        const user = authService.getCurrentUser();
-        if (user) {
-            chatDataCache.updateChatSessions(user.id, workspaceId, updatedSessions);
-        }
 
         // Update localStorage
         try {
@@ -208,7 +185,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-4 max-w-md">
                         <h2 className="text-2xl font-bold">Chat Not Found</h2>
-                        <p className="text-muted-foreground">The chat session you're looking for doesn't exist or you don't have access to it.</p>
+                        <p className="text-muted-foreground">The chat session you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
                         <button
                             onClick={() => router.push(`/ws/${workspaceId}`)}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -220,8 +197,6 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
             </WorkspaceLayout>
         );
     }
-
-    const user = authService.getCurrentUser();
 
     return (
         <WorkspaceLayout currentWorkspaceId={workspaceId}>
@@ -237,12 +212,9 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 onChatSelect={handleChatSelect}
                                 activeChatId={activeSession.id}
                                 chatSessions={chatSessions}
-                                onSessionsUpdate={(sessions) => {
-                                    setChatSessions(sessions);
-                                    // Update cache when sessions change
-                                    if (user) {
-                                        chatDataCache.updateChatSessions(user.id, workspaceId, sessions);
-                                    }
+                                onSessionsUpdate={() => {
+                                    // TanStack Query will automatically refetch and update the cache
+                                    // No manual state management needed
                                 }}
                             />
                         </div>

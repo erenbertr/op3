@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
 // Note: ChatMessageSkeleton removed - using simple spinner instead of skeleton for message loading
 
@@ -124,8 +123,10 @@ export function ChatLayoutSkeleton() {
                         <div className="flex flex-col h-full">
                             {/* Messages area - takes full height since input is handled separately */}
                             <div className="flex-1 overflow-hidden">
-                                <div className="h-full">
-                                    <ChatMessagesSkeleton />
+                                <div className="h-full p-4 space-y-4">
+                                    <Skeleton className="h-16 w-3/4" />
+                                    <Skeleton className="h-16 w-2/3 ml-auto" />
+                                    <Skeleton className="h-16 w-4/5" />
                                 </div>
                             </div>
                         </div>

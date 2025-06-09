@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle, XCircle, Database } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { apiClient, DatabaseConfig } from '@/lib/api';
+import { DatabaseConfig } from '@/lib/api';
+import { useDatabaseConnectionTest } from '@/lib/hooks/use-query-hooks';
 
 // Create schema function that takes translation function
 const createDatabaseSchema = (t: (key: string) => string) => z.object({
@@ -42,9 +43,11 @@ interface DatabaseConfigProps {
 
 export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseConfigProps) {
     const { t } = useI18n();
-    const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [connectionMessage, setConnectionMessage] = useState('');
+
+    // Use TanStack Query for database connection testing
+    const connectionTestMutation = useDatabaseConnectionTest();
 
     const databaseSchema = createDatabaseSchema(t);
 
@@ -89,20 +92,25 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
         defaultValues: getDefaultValues(),
     });
 
-    // Reset form when defaultValues change
+    // Reset form when defaultValues change - use a ref to track if we've already reset
+    const hasResetRef = useRef(false);
     useEffect(() => {
-        const newDefaults = getDefaultValues();
-        form.reset(newDefaults);
-    }, [getDefaultValues, form]);
+        if (!hasResetRef.current && defaultValues) {
+            const newDefaults = getDefaultValues();
+            form.reset(newDefaults);
+            hasResetRef.current = true;
+        }
+    }, [defaultValues, getDefaultValues, form]);
 
     const watchedType = form.watch('type');
-    const watchedValues = form.watch();
 
-    // Clear connection status when form values change (but not when connectionStatus changes)
-    useEffect(() => {
-        setConnectionStatus('idle');
-        setConnectionMessage('');
-    }, [watchedValues.type, watchedValues.database, watchedValues.connectionString, watchedValues.host, watchedValues.port, watchedValues.username, watchedValues.password, watchedValues.url, watchedValues.apiKey, watchedValues.projectId, watchedValues.authToken]);
+    // Clear connection status when specific form values change
+    const clearConnectionStatus = useCallback(() => {
+        if (connectionStatus !== 'idle') {
+            setConnectionStatus('idle');
+            setConnectionMessage('');
+        }
+    }, [connectionStatus]);
 
     const testConnection = async () => {
         const formData = form.getValues();
@@ -206,26 +214,26 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
             config.ssl = formData.ssl;
         }
 
-        setIsTestingConnection(true);
+        // Reset connection status
         setConnectionMessage('');
         setConnectionStatus('idle');
 
-        try {
-            const result = await apiClient.testDatabaseConnection(config);
-
-            if (result.success) {
-                setConnectionStatus('success');
-                setConnectionMessage(result.message);
-            } else {
+        // Use TanStack Query mutation for connection testing
+        connectionTestMutation.mutate(config, {
+            onSuccess: (result) => {
+                if (result.success) {
+                    setConnectionStatus('success');
+                    setConnectionMessage(result.message);
+                } else {
+                    setConnectionStatus('error');
+                    setConnectionMessage(result.message);
+                }
+            },
+            onError: (error) => {
                 setConnectionStatus('error');
-                setConnectionMessage(result.message);
+                setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
             }
-        } catch (error) {
-            setConnectionStatus('error');
-            setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
-        } finally {
-            setIsTestingConnection(false);
-        }
+        });
     };
 
     const onSubmit = async (data: DatabaseFormData) => {
@@ -263,25 +271,23 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
             config.ssl = data.ssl;
         }
 
-        // Test connection first
-        setIsTestingConnection(true);
-        try {
-            const result = await apiClient.testDatabaseConnection(config);
-
-            if (result.success) {
-                setConnectionStatus('success');
-                setConnectionMessage(result.message);
-                onNext(config);
-            } else {
+        // Test connection first using TanStack Query
+        connectionTestMutation.mutate(config, {
+            onSuccess: (result) => {
+                if (result.success) {
+                    setConnectionStatus('success');
+                    setConnectionMessage(result.message);
+                    onNext(config);
+                } else {
+                    setConnectionStatus('error');
+                    setConnectionMessage(result.message);
+                }
+            },
+            onError: (error) => {
                 setConnectionStatus('error');
-                setConnectionMessage(result.message);
+                setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
             }
-        } catch (error) {
-            setConnectionStatus('error');
-            setConnectionMessage(error instanceof Error ? error.message : t('validation.connection.failed'));
-        } finally {
-            setIsTestingConnection(false);
-        }
+        });
     };
 
     const renderDatabaseFields = () => {
@@ -305,10 +311,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 form.clearErrors('connectionString');
                                             }
                                             // Reset connection status
-                                            if (connectionStatus !== 'idle') {
-                                                setConnectionStatus('idle');
-                                                setConnectionMessage('');
-                                            }
+                                            clearConnectionStatus();
                                         }}
                                     />
                                 </FormControl>
@@ -339,10 +342,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.url) {
                                                     form.clearErrors('url');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -366,10 +366,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.apiKey) {
                                                     form.clearErrors('apiKey');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -398,10 +395,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.url) {
                                                     form.clearErrors('url');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -425,10 +419,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.authToken) {
                                                     form.clearErrors('authToken');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -457,10 +448,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.projectId) {
                                                     form.clearErrors('projectId');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -484,10 +472,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.apiKey) {
                                                     form.clearErrors('apiKey');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -515,10 +500,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                             if (form.formState.errors.connectionString) {
                                                 form.clearErrors('connectionString');
                                             }
-                                            if (connectionStatus !== 'idle') {
-                                                setConnectionStatus('idle');
-                                                setConnectionMessage('');
-                                            }
+                                            clearConnectionStatus();
                                         }}
                                     />
                                 </FormControl>
@@ -546,10 +528,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.url) {
                                                     form.clearErrors('url');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -573,10 +552,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.authToken) {
                                                     form.clearErrors('authToken');
                                                 }
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -607,11 +583,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                     if (form.formState.errors.host) {
                                                         form.clearErrors('host');
                                                     }
-                                                    // Reset connection status
-                                                    if (connectionStatus !== 'idle') {
-                                                        setConnectionStatus('idle');
-                                                        setConnectionMessage('');
-                                                    }
+                                                    clearConnectionStatus();
                                                 }}
                                             />
                                         </FormControl>
@@ -637,11 +609,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                     if (form.formState.errors.port) {
                                                         form.clearErrors('port');
                                                     }
-                                                    // Reset connection status
-                                                    if (connectionStatus !== 'idle') {
-                                                        setConnectionStatus('idle');
-                                                        setConnectionMessage('');
-                                                    }
+                                                    clearConnectionStatus();
                                                 }}
                                             />
                                         </FormControl>
@@ -665,11 +633,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                     if (form.formState.errors.username) {
                                                         form.clearErrors('username');
                                                     }
-                                                    // Reset connection status
-                                                    if (connectionStatus !== 'idle') {
-                                                        setConnectionStatus('idle');
-                                                        setConnectionMessage('');
-                                                    }
+                                                    clearConnectionStatus();
                                                 }}
                                             />
                                         </FormControl>
@@ -692,11 +656,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                     if (form.formState.errors.password) {
                                                         form.clearErrors('password');
                                                     }
-                                                    // Reset connection status
-                                                    if (connectionStatus !== 'idle') {
-                                                        setConnectionStatus('idle');
-                                                        setConnectionMessage('');
-                                                    }
+                                                    clearConnectionStatus();
                                                 }}
                                             />
                                         </FormControl>
@@ -789,11 +749,7 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                                 if (form.formState.errors.database) {
                                                     form.clearErrors('database');
                                                 }
-                                                // Reset connection status
-                                                if (connectionStatus !== 'idle') {
-                                                    setConnectionStatus('idle');
-                                                    setConnectionMessage('');
-                                                }
+                                                clearConnectionStatus();
                                             }}
                                         />
                                     </FormControl>
@@ -838,9 +794,9 @@ export function DatabaseConfigForm({ onNext, onBack, defaultValues }: DatabaseCo
                                 type="button"
                                 variant="outline"
                                 onClick={testConnection}
-                                disabled={isTestingConnection}
+                                disabled={connectionTestMutation.isPending}
                             >
-                                {isTestingConnection ? (
+                                {connectionTestMutation.isPending ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                         {t('status.testing')}

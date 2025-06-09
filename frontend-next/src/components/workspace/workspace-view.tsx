@@ -105,7 +105,7 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-4 max-w-md">
                         <h2 className="text-2xl font-bold">Workspace Not Found</h2>
-                        <p className="text-muted-foreground">The workspace you're looking for doesn't exist or you don't have access to it.</p>
+                        <p className="text-muted-foreground">The workspace you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
                         <button
                             onClick={() => router.push('/workspaces')}
                             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"

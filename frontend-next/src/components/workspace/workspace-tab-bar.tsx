@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -29,7 +29,7 @@ const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 
 export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
     const router = useRouter();
-    const pathname = usePathname();
+
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);

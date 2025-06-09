@@ -1,13 +1,12 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { authService, AuthUser } from '@/lib/auth';
-import { apiClient } from '@/lib/api';
-import { Loader2, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceLayoutProps {
@@ -19,8 +18,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     const router = useRouter();
     const pathname = usePathname();
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-    const [currentWorkspace, setCurrentWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
 
@@ -39,30 +37,10 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         const user = authService.getCurrentUser();
         if (user) {
             setCurrentUser(user);
-            setIsLoading(false);
-            if (currentWorkspaceId) {
-                loadWorkspaceDetails(currentWorkspaceId);
-            }
         } else {
             router.push('/');
         }
-    }, [currentWorkspaceId, router]);
-
-    const loadWorkspaceDetails = async (workspaceId: string): Promise<void> => {
-        if (!currentUser) return;
-
-        try {
-            const result = await apiClient.getUserWorkspaces(currentUser.id);
-            if (result.success) {
-                const workspace = result.workspaces.find(w => w.id === workspaceId);
-                if (workspace) {
-                    setCurrentWorkspace(workspace);
-                }
-            }
-        } catch (error) {
-            console.error('Error loading workspace details:', error);
-        }
-    };
+    }, [router]);
 
 
 

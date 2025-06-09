@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n";
 import { ToastProvider } from "@/components/ui/toast";
+import { QueryProvider } from "@/components/query-provider";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -30,18 +31,20 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                <ThemeProvider
-                    attribute="class"
-                    defaultTheme="system"
-                    enableSystem
-                    disableTransitionOnChange
-                >
-                    <ToastProvider>
-                        <I18nProvider>
-                            {children}
-                        </I18nProvider>
-                    </ToastProvider>
-                </ThemeProvider>
+                <QueryProvider>
+                    <ThemeProvider
+                        attribute="class"
+                        defaultTheme="system"
+                        enableSystem
+                        disableTransitionOnChange
+                    >
+                        <ToastProvider>
+                            <I18nProvider>
+                                {children}
+                            </I18nProvider>
+                        </ToastProvider>
+                    </ThemeProvider>
+                </QueryProvider>
             </body>
         </html>
     );

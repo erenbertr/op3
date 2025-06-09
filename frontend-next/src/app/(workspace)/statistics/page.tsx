@@ -1,24 +1,14 @@
 "use client"
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { WorkspaceLayout } from '@/components/workspace/workspace-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, BarChart3, Clock, DollarSign, Zap } from 'lucide-react';
 import { authService } from '@/lib/auth';
-import { apiClient } from '@/lib/api';
-import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
-import { useAsyncData } from '@/lib/hooks/use-async-data';
+import { useStatistics } from '@/lib/hooks/use-query-hooks';
 
-interface StatisticsData {
-    totalMessages: number;
-    totalTokens: number;
-    totalCost: number;
-    averageResponseTime: number;
-    messagesByProvider: { [key: string]: number };
-    tokensByProvider: { [key: string]: number };
-    dailyUsage: { date: string; messages: number; tokens: number }[];
-}
+
 
 type DateRange = 'today' | 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'custom';
 
@@ -26,11 +16,20 @@ export default function StatisticsPage() {
     const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
     const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<DateRange>('this-week');
-    const [statistics, setStatistics] = useState<StatisticsData | null>(null);
 
-    // Use new hooks instead of useEffect patterns
-    const { isLoading, showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
-    const statisticsLoader = useAsyncData(apiClient.getWorkspaceStatistics);
+    // Use TanStack Query for statistics
+    const {
+        data: statisticsData,
+        isLoading,
+        error: statisticsError
+    } = useStatistics(
+        currentWorkspaceId || '',
+        currentUser?.id || '',
+        { range: dateRange }
+    );
+
+    // Extract statistics from query data
+    const statistics = statisticsData?.success ? statisticsData.statistics : null;
 
     // Initialize user and workspace data
     React.useLayoutEffect(() => {
@@ -48,61 +47,12 @@ export default function StatisticsPage() {
         }
     }, []);
 
-    // Load statistics when dependencies change
-    React.useLayoutEffect(() => {
-        if (currentUser && currentWorkspaceId) {
-            loadStatistics();
+    // Handle statistics errors
+    React.useEffect(() => {
+        if (statisticsError) {
+            console.error('Failed to load statistics:', statisticsError);
         }
-    }, [currentUser, currentWorkspaceId, dateRange, loadStatistics]);
-
-    const loadStatistics = useCallback(async () => {
-        if (!currentUser || !currentWorkspaceId) {
-            console.log('Missing user or workspace:', { currentUser: !!currentUser, currentWorkspaceId });
-            return;
-        }
-
-        console.log('Loading statistics for:', { workspaceId: currentWorkspaceId, userId: currentUser.id, dateRange });
-        startLoading();
-
-        try {
-            await statisticsLoader.execute(currentWorkspaceId, currentUser.id, dateRange);
-
-            console.log('Statistics API result:', statisticsLoader.data);
-
-            if (statisticsLoader.data?.success && statisticsLoader.data.statistics) {
-                console.log('Setting statistics data:', statisticsLoader.data.statistics);
-                setStatistics(statisticsLoader.data.statistics);
-            } else {
-                console.error('Failed to load statistics:', statisticsLoader.error);
-                // Show empty data with message
-                const emptyData: StatisticsData = {
-                    totalMessages: 0,
-                    totalTokens: 0,
-                    totalCost: 0,
-                    averageResponseTime: 0,
-                    messagesByProvider: {},
-                    tokensByProvider: {},
-                    dailyUsage: []
-                };
-                setStatistics(emptyData);
-            }
-        } catch (error) {
-            console.error('Error loading statistics:', error);
-            // Fallback to empty data on error
-            const emptyData: StatisticsData = {
-                totalMessages: 0,
-                totalTokens: 0,
-                totalCost: 0,
-                averageResponseTime: 0,
-                messagesByProvider: {},
-                tokensByProvider: {},
-                dailyUsage: []
-            };
-            setStatistics(emptyData);
-        } finally {
-            stopLoading();
-        }
-    }, [currentUser, currentWorkspaceId, dateRange, startLoading, stopLoading, statisticsLoader]);
+    }, [statisticsError]);
 
     const formatNumber = (num: number) => {
         return num.toLocaleString();
@@ -171,11 +121,7 @@ export default function StatisticsPage() {
                         {/* Loading State */}
                         {isLoading && !statistics && (
                             <div className="h-96 flex items-center justify-center">
-                                {showSpinner ? (
-                                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40 opacity-30"></div>
-                                ) : (
-                                    <div></div>
-                                )}
+                                <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40 opacity-50"></div>
                             </div>
                         )}
 
