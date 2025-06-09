@@ -1,8 +1,15 @@
 import { useSyncExternalStore } from 'react';
 
 // Global state for pathname tracking
-let currentPathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+let currentPathname = '/';
 const listeners = new Set<() => void>();
+
+// Initialize pathname on first access
+function initializePathname() {
+    if (typeof window !== 'undefined') {
+        currentPathname = window.location.pathname;
+    }
+}
 
 // Notify all listeners of pathname changes
 function notifyListeners() {
@@ -17,6 +24,11 @@ function notifyListeners() {
  * Subscribe to browser navigation changes
  */
 function subscribeToPathname(callback: () => void) {
+    // Ensure pathname is initialized when first subscriber is added
+    if (listeners.size === 0) {
+        initializePathname();
+    }
+
     listeners.add(callback);
 
     const handlePopState = () => {
@@ -37,6 +49,11 @@ function subscribeToPathname(callback: () => void) {
  */
 function getPathnameSnapshot(): string {
     if (typeof window === 'undefined') return '/';
+    // Always get the latest pathname to ensure accuracy
+    const latestPathname = window.location.pathname;
+    if (latestPathname !== currentPathname) {
+        currentPathname = latestPathname;
+    }
     return currentPathname;
 }
 
