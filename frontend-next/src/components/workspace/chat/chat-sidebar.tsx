@@ -42,8 +42,9 @@ export function ChatSidebar({
     );
 
     const handleChatClick = (chat: ChatSession) => {
-        // Use router navigation for direct URL access
-        router.push(`/ws/${workspaceId}/chat/${chat.id}`);
+        // Use client-side navigation for smooth transitions
+        window.history.pushState(null, '', `/ws/${workspaceId}/chat/${chat.id}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
         // Also call the callback for backward compatibility
         onChatSelect?.(chat);
     };
@@ -60,8 +61,9 @@ export function ChatSidebar({
             if (result.success && result.session) {
                 // Update parent's sessions list
                 onSessionsUpdate?.([result.session, ...chatSessions]);
-                // Navigate to the new chat
-                router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
+                // Navigate to the new chat using client-side routing
+                window.history.pushState(null, '', `/ws/${workspaceId}/chat/${result.session.id}`);
+                window.dispatchEvent(new PopStateEvent('popstate'));
                 // Also call the callback for backward compatibility
                 onNewChat?.(result.session);
             } else {

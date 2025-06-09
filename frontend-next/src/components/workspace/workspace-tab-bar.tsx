@@ -134,8 +134,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     ...w,
                     isActive: w.id === workspaceId
                 })));
-                // Navigate to the workspace
-                router.push(`/ws/${workspaceId}`);
+                // Navigate to the workspace using client-side routing
+                window.history.pushState(null, '', `/ws/${workspaceId}`);
+                // Trigger a popstate event to update the app
+                window.dispatchEvent(new PopStateEvent('popstate'));
             } else {
                 setError(result.message || 'Failed to switch workspace');
             }
@@ -143,7 +145,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             console.error('Error switching workspace:', error);
             setError('Failed to switch workspace');
         }
-    }, [userId, router]);
+    }, [userId]);
 
     const handleOpenWorkspace = useCallback((workspaceId: string) => {
         // Add workspace to open tabs if not already open
@@ -218,7 +220,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/settings/workspaces')}
+                        onClick={() => {
+                            window.history.pushState(null, '', '/settings/workspaces');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
+                        }}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'settings'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -232,7 +237,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/workspaces')}
+                        onClick={() => {
+                            window.history.pushState(null, '', '/workspaces');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
+                        }}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'selection'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -246,7 +254,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/personalities')}
+                        onClick={() => {
+                            window.history.pushState(null, '', '/personalities');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
+                        }}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'personalities'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -289,7 +300,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/add/workspace')}
+                        onClick={() => {
+                            window.history.pushState(null, '', '/add/workspace');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
+                        }}
                         className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
                         title="Create New Workspace"
                     >

@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
@@ -17,7 +16,6 @@ interface StandardChatLayoutProps {
 const ACTIVE_SESSION_KEY = 'op3_active_chat_session';
 
 export function StandardChatLayout({ workspaceId, userId, className }: StandardChatLayoutProps) {
-    const router = useRouter();
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [personalities, setPersonalities] = useState<Personality[]>([]);
     const [aiProviders, setAIProviders] = useState<AIProviderConfig[]>([]);
@@ -123,11 +121,13 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
     }, [userId, loadInitialData]);
 
     const handleNewChat = (session: ChatSession) => {
-        router.push(`/ws/${workspaceId}/chat/${session.id}`);
+        window.history.pushState(null, '', `/ws/${workspaceId}/chat/${session.id}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
     };
 
     const handleChatSelect = (session: ChatSession) => {
-        router.push(`/ws/${workspaceId}/chat/${session.id}`);
+        window.history.pushState(null, '', `/ws/${workspaceId}/chat/${session.id}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
     };
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {

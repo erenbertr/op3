@@ -1,9 +1,11 @@
 "use client"
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
+import { WorkspaceApplication } from '@/components/workspace/workspace-application';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -16,6 +18,8 @@ type SetupStatus = SetupStatusResponse['setup'];
 
 export function AppWrapper() {
     const { t } = useI18n();
+    const router = useRouter();
+    const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(true);
     const [showSpinner, setShowSpinner] = useState(false);
     const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
@@ -144,9 +148,9 @@ export function AppWrapper() {
             authService.updateUser({ hasCompletedWorkspaceSetup: true });
         }
 
-        // Redirect to the new workspace if created
+        // Navigate to the new workspace if created (client-side)
         if (workspace) {
-            window.location.href = `/ws/${workspace.id}`;
+            router.push(`/ws/${workspace.id}`);
         }
     };
 
@@ -156,20 +160,20 @@ export function AppWrapper() {
             if (result.success && result.workspaces.length > 0) {
                 const activeWorkspace = result.workspaces.find(w => w.isActive);
                 if (activeWorkspace) {
-                    // Redirect to the active workspace
-                    window.location.href = `/ws/${activeWorkspace.id}`;
+                    // Navigate to the active workspace (client-side)
+                    router.push(`/ws/${activeWorkspace.id}`);
                 } else {
-                    // Redirect to workspace selection if no active workspace
-                    window.location.href = '/workspaces';
+                    // Navigate to workspace selection if no active workspace
+                    router.push('/workspaces');
                 }
             } else {
-                // Redirect to create workspace if no workspaces exist
-                window.location.href = '/add/workspace';
+                // Navigate to create workspace if no workspaces exist
+                router.push('/add/workspace');
             }
         } catch (error) {
             console.error('Error loading initial workspace:', error);
             // Fallback to workspace selection
-            window.location.href = '/workspaces';
+            router.push('/workspaces');
         }
     };
 
@@ -277,43 +281,14 @@ export function AppWrapper() {
         );
     }
 
-    // If user is logged in and has completed workspace setup, redirect to appropriate workspace
+    // If user is logged in and has completed workspace setup, show workspace application
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
-        // Check if we need to redirect to a workspace
-        const shouldRedirectToWorkspace = async () => {
-            try {
-                const result = await apiClient.getUserWorkspaces(currentUser.id);
-                if (result.success && result.workspaces.length > 0) {
-                    const activeWorkspace = result.workspaces.find(w => w.isActive);
-                    if (activeWorkspace) {
-                        // Redirect to the active workspace
-                        window.location.href = `/ws/${activeWorkspace.id}`;
-                    } else {
-                        // Redirect to workspace selection if no active workspace
-                        window.location.href = '/workspaces';
-                    }
-                } else {
-                    // Redirect to create workspace if no workspaces exist
-                    window.location.href = '/add/workspace';
-                }
-            } catch (error) {
-                console.error('Error loading workspaces for redirect:', error);
-                // Fallback to workspace selection
-                window.location.href = '/workspaces';
-            }
-        };
-
-        // Trigger redirect
-        shouldRedirectToWorkspace();
-
-        // Show loading while redirecting
         return (
-            <div className="h-screen bg-background flex items-center justify-center">
-                <div className="text-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                    <p className="text-muted-foreground">Redirecting to workspace...</p>
-                </div>
-            </div>
+            <WorkspaceApplication
+                currentUser={currentUser}
+                pathname={pathname}
+                onLogout={handleLogout}
+            />
         );
     }
 
