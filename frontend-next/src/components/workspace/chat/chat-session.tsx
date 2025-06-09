@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
-import { ChatMessagesSkeleton } from './chat-skeletons';
+import { ChatMessagesSkeleton, ChatInputSkeleton } from './chat-skeletons';
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -242,10 +242,16 @@ export function ChatSessionComponent({
 
     if (isLoadingMessages) {
         return (
-            <div className="flex-1 flex flex-col h-full">
+            <div className={`flex flex-col h-full ${className || ''}`}>
+                {/* Messages area */}
                 <div className="flex-1 overflow-hidden">
-                    <ChatMessagesSkeleton />
+                    <div className="h-full">
+                        <ChatMessagesSkeleton />
+                    </div>
                 </div>
+
+                {/* Input area - Fixed at bottom */}
+                <ChatInputSkeleton />
             </div>
         );
     }
