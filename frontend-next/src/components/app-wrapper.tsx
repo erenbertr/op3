@@ -60,43 +60,39 @@ export function AppWrapper() {
 
     const [hasInitialized, setHasInitialized] = useState(false);
 
-    const initializeApp = useCallback(async () => {
+    // Initialize app on mount using useEffect
+    React.useEffect(() => {
         if (hasInitialized) return;
 
-        startLoading();
+        const initializeApp = async () => {
+            try {
+                startLoading();
 
-        try {
-            // Check setup status first
-            await setupDataFetcher.execute();
+                const setupResponse = await apiClient.getSetupStatus();
 
-            if (setupDataFetcher.data?.success && setupDataFetcher.data.setup) {
-                setSetupStatus(setupDataFetcher.data.setup);
+                if (setupResponse.success && setupResponse.setup) {
+                    setSetupStatus(setupResponse.setup);
 
-                // If setup is completed, check for existing authentication
-                if (setupDataFetcher.data.setup.completed) {
-                    const user = authService.getCurrentUser();
-                    if (user) {
-                        setCurrentUser(user);
-                        // Check if user needs workspace setup
-                        if (!user.hasCompletedWorkspaceSetup) {
-                            setShowWorkspaceSetup(true);
-                        } else {
-                            // Load initial workspace for authenticated user
-                            await loadInitialWorkspace(user.id);
+                    if (setupResponse.setup.completed) {
+                        const user = authService.getCurrentUser();
+                        if (user) {
+                            setCurrentUser(user);
+                            if (!user.hasCompletedWorkspaceSetup) {
+                                setShowWorkspaceSetup(true);
+                            } else {
+                                await loadInitialWorkspace(user.id);
+                            }
                         }
                     }
                 }
+            } catch (error) {
+                console.error('Error initializing app:', error);
+            } finally {
+                setHasInitialized(true);
+                stopLoading();
             }
-            setHasInitialized(true);
-        } catch (error) {
-            console.error('Error initializing app:', error);
-        } finally {
-            stopLoading();
-        }
-    }, [hasInitialized, startLoading, stopLoading, setupDataFetcher.execute, setupDataFetcher.data, loadInitialWorkspace]);
+        };
 
-    // Initialize app on mount - call directly instead of useEffect
-    React.useLayoutEffect(() => {
         initializeApp();
     }, []);
 
@@ -189,6 +185,12 @@ export function AppWrapper() {
             </div>
         );
     }
+
+
+
+
+
+
 
     // If setup is not completed, show setup wizard
     if (!setupStatus?.completed) {
