@@ -11,6 +11,8 @@ import {
     ChatMessagesResponse,
     UpdateChatSessionRequest,
     UpdateChatSessionResponse,
+    UpdateChatSessionSettingsRequest,
+    UpdateChatSessionSettingsResponse,
     DeleteChatSessionResponse
 } from '../types/chat';
 
@@ -195,6 +197,44 @@ export class ChatService {
             return {
                 success: false,
                 message: `Failed to update chat session: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
+     * Update chat session settings (personality and AI provider preferences)
+     */
+    public async updateChatSessionSettings(sessionId: string, request: UpdateChatSessionSettingsRequest): Promise<UpdateChatSessionSettingsResponse> {
+        try {
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    message: 'Chat session not found'
+                };
+            }
+
+            // Update session settings
+            if (request.lastUsedPersonalityId !== undefined) {
+                session.lastUsedPersonalityId = request.lastUsedPersonalityId;
+            }
+            if (request.lastUsedAIProviderId !== undefined) {
+                session.lastUsedAIProviderId = request.lastUsedAIProviderId;
+            }
+            session.updatedAt = new Date();
+
+            await this.updateChatSessionInDb(session);
+
+            return {
+                success: true,
+                message: 'Chat session settings updated successfully',
+                session
+            };
+        } catch (error) {
+            console.error('Error updating chat session settings:', error);
+            return {
+                success: false,
+                message: `Failed to update chat session settings: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
         }
     }
@@ -479,6 +519,8 @@ export class ChatService {
                     userId TEXT NOT NULL,
                     workspaceId TEXT NOT NULL,
                     title TEXT NOT NULL,
+                    lastUsedPersonalityId TEXT,
+                    lastUsedAIProviderId TEXT,
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL,
                     FOREIGN KEY (userId) REFERENCES users(id)
@@ -491,13 +533,15 @@ export class ChatService {
 
                 // Insert session
                 db.run(`
-                    INSERT INTO chat_sessions (id, userId, workspaceId, title, createdAt, updatedAt)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, createdAt, updatedAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     session.id,
                     session.userId,
                     session.workspaceId,
                     session.title,
+                    session.lastUsedPersonalityId || null,
+                    session.lastUsedAIProviderId || null,
                     session.createdAt.toISOString(),
                     session.updatedAt.toISOString()
                 ], (err: any) => {
@@ -632,8 +676,8 @@ export class ChatService {
     private async updateChatSessionSQLite(db: any, session: ChatSession): Promise<void> {
         return new Promise((resolve, reject) => {
             db.run(
-                'UPDATE chat_sessions SET title = ?, updatedAt = ? WHERE id = ?',
-                [session.title, session.updatedAt.toISOString(), session.id],
+                'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, updatedAt = ? WHERE id = ?',
+                [session.title, session.lastUsedPersonalityId || null, session.lastUsedAIProviderId || null, session.updatedAt.toISOString(), session.id],
                 (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -682,6 +726,8 @@ export class ChatService {
             userId: session.userId,
             workspaceId: session.workspaceId,
             title: session.title,
+            lastUsedPersonalityId: session.lastUsedPersonalityId,
+            lastUsedAIProviderId: session.lastUsedAIProviderId,
             createdAt: session.createdAt,
             updatedAt: session.updatedAt
         });
@@ -743,7 +789,14 @@ export class ChatService {
         const collection = db.collection('chat_sessions');
         await collection.updateOne(
             { _id: session.id },
-            { $set: { title: session.title, updatedAt: session.updatedAt } }
+            {
+                $set: {
+                    title: session.title,
+                    lastUsedPersonalityId: session.lastUsedPersonalityId,
+                    lastUsedAIProviderId: session.lastUsedAIProviderId,
+                    updatedAt: session.updatedAt
+                }
+            }
         );
     }
 
@@ -768,6 +821,8 @@ export class ChatService {
                 userId VARCHAR(36) NOT NULL,
                 workspaceId VARCHAR(36) NOT NULL,
                 title VARCHAR(255) NOT NULL,
+                lastUsedPersonalityId VARCHAR(36),
+                lastUsedAIProviderId VARCHAR(36),
                 createdAt DATETIME NOT NULL,
                 updatedAt DATETIME NOT NULL,
                 INDEX idx_userId (userId),
@@ -777,9 +832,9 @@ export class ChatService {
         `);
 
         await connection.execute(`
-            INSERT INTO chat_sessions (id, userId, workspaceId, title, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `, [session.id, session.userId, session.workspaceId, session.title, session.createdAt, session.updatedAt]);
+            INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [session.id, session.userId, session.workspaceId, session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.createdAt, session.updatedAt]);
     }
 
     private async saveChatMessageSQL(connection: any, message: ChatMessage): Promise<void> {
@@ -844,8 +899,8 @@ export class ChatService {
 
     private async updateChatSessionSQL(connection: any, session: ChatSession): Promise<void> {
         await connection.execute(
-            'UPDATE chat_sessions SET title = ?, updatedAt = ? WHERE id = ?',
-            [session.title, session.updatedAt, session.id]
+            'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, updatedAt = ? WHERE id = ?',
+            [session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.updatedAt, session.id]
         );
     }
 
@@ -868,6 +923,8 @@ export class ChatService {
                 userId: session.userId,
                 workspaceId: session.workspaceId,
                 title: session.title,
+                lastUsedPersonalityId: session.lastUsedPersonalityId,
+                lastUsedAIProviderId: session.lastUsedAIProviderId,
                 createdAt: session.createdAt.toISOString(),
                 updatedAt: session.updatedAt.toISOString()
             }]);
@@ -943,6 +1000,8 @@ export class ChatService {
             .from('chat_sessions')
             .update({
                 title: session.title,
+                lastUsedPersonalityId: session.lastUsedPersonalityId,
+                lastUsedAIProviderId: session.lastUsedAIProviderId,
                 updatedAt: session.updatedAt.toISOString()
             })
             .eq('id', session.id);
@@ -977,6 +1036,8 @@ export class ChatService {
             userId: row.userId,
             workspaceId: row.workspaceId,
             title: row.title,
+            lastUsedPersonalityId: row.lastUsedPersonalityId,
+            lastUsedAIProviderId: row.lastUsedAIProviderId,
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
         };
@@ -1000,6 +1061,8 @@ export class ChatService {
             userId: doc.userId,
             workspaceId: doc.workspaceId,
             title: doc.title,
+            lastUsedPersonalityId: doc.lastUsedPersonalityId,
+            lastUsedAIProviderId: doc.lastUsedAIProviderId,
             createdAt: doc.createdAt,
             updatedAt: doc.updatedAt
         };
@@ -1023,6 +1086,8 @@ export class ChatService {
             userId: row.userId,
             workspaceId: row.workspaceId,
             title: row.title,
+            lastUsedPersonalityId: row.lastUsedPersonalityId,
+            lastUsedAIProviderId: row.lastUsedAIProviderId,
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
         };

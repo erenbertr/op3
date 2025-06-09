@@ -75,19 +75,7 @@ export function ChatSessionComponent({
         }
     }, [session?.id, addToast]);
 
-    // Get the last used AI provider for this session
-    const getLastUsedAIProvider = useCallback(() => {
-        if (!messages || messages.length === 0) return undefined;
 
-        // Find the most recent user message with an AI provider
-        for (let i = messages.length - 1; i >= 0; i--) {
-            const message = messages[i];
-            if (message.role === 'user' && message.aiProviderId) {
-                return message.aiProviderId;
-            }
-        }
-        return undefined;
-    }, [messages]);
 
     // Load messages when session changes
     useEffect(() => {
@@ -124,6 +112,29 @@ export function ChatSessionComponent({
                     );
                 }
             }
+        }
+    };
+
+    const handleSettingsChange = async (personalityId?: string, aiProviderId?: string) => {
+        if (!session?.id) return;
+
+        try {
+            const result = await apiClient.updateChatSessionSettings(session.id, {
+                lastUsedPersonalityId: personalityId,
+                lastUsedAIProviderId: aiProviderId
+            });
+
+            if (result.success && result.session) {
+                // Update the session in parent component
+                onSessionUpdate?.(result.session);
+            }
+        } catch (error) {
+            console.error('Error updating session settings:', error);
+            addToast({
+                title: "Error",
+                description: "Failed to save session preferences",
+                variant: "destructive"
+            });
         }
     };
 
@@ -269,7 +280,9 @@ export function ChatSessionComponent({
                         aiProviders={aiProviders}
                         isLoading={isLoading}
                         placeholder={messages.length === 0 ? "Start your conversation..." : "Type your message here..."}
-                        defaultAIProviderId={getLastUsedAIProvider()}
+                        sessionPersonalityId={session?.lastUsedPersonalityId}
+                        sessionAIProviderId={session?.lastUsedAIProviderId}
+                        onSettingsChange={handleSettingsChange}
                     />
                 </div>
             </div>

@@ -16,7 +16,9 @@ interface ChatInputProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
-    defaultAIProviderId?: string;
+    sessionPersonalityId?: string;
+    sessionAIProviderId?: string;
+    onSettingsChange?: (personalityId?: string, aiProviderId?: string) => Promise<void>;
 }
 
 export function ChatInput({
@@ -27,7 +29,9 @@ export function ChatInput({
     placeholder = "Type your message here...",
     className,
     disabled = false,
-    defaultAIProviderId
+    sessionPersonalityId,
+    sessionAIProviderId,
+    onSettingsChange
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -43,9 +47,7 @@ export function ChatInput({
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
     const providerDropdownRef = useRef<HTMLDivElement>(null);
 
-    // Constants for localStorage keys
-    const LAST_AI_PROVIDER_KEY = 'op3-last-ai-provider';
-    const LAST_PERSONALITY_KEY = 'op3-last-personality';
+
 
     // Auto-resize textarea
     useEffect(() => {
@@ -56,84 +58,65 @@ export function ChatInput({
         }
     }, [message]);
 
-    // Load saved selections from localStorage on mount
+    // Load session-specific settings when they change
     useEffect(() => {
-        try {
-            const savedPersonality = localStorage.getItem(LAST_PERSONALITY_KEY);
-
-            // For AI provider, prioritize session default over localStorage
-            if (defaultAIProviderId) {
-                setSelectedProvider(defaultAIProviderId);
-            } else {
-                const savedProvider = localStorage.getItem(LAST_AI_PROVIDER_KEY);
-                if (savedProvider) {
-                    setSelectedProvider(savedProvider);
-                }
-            }
-
-            if (savedPersonality) {
-                setSelectedPersonality(savedPersonality);
-            }
-        } catch (error) {
-            console.error('Error loading saved selections from localStorage:', error);
+        if (sessionPersonalityId !== undefined) {
+            setSelectedPersonality(sessionPersonalityId);
+        } else {
+            // For new sessions, default to no personality
+            setSelectedPersonality('');
         }
-    }, [defaultAIProviderId]);
+    }, [sessionPersonalityId]);
 
-    // Set default AI provider if none selected and none saved
     useEffect(() => {
-        if (aiProviders && aiProviders.length > 0 && !selectedProvider) {
-            let providerId = '';
-
-            // Priority: 1. Session-specific default, 2. Active provider, 3. First provider
-            if (defaultAIProviderId && aiProviders.find(p => p?.id === defaultAIProviderId)) {
-                providerId = defaultAIProviderId;
-            } else {
+        if (sessionAIProviderId !== undefined) {
+            setSelectedProvider(sessionAIProviderId);
+        } else {
+            // For new sessions, use the first active provider or first provider
+            if (aiProviders && aiProviders.length > 0) {
                 const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
-                providerId = activeProvider?.id || '';
-            }
-
-            setSelectedProvider(providerId);
-
-            // Save as default for future sessions
-            try {
-                localStorage.setItem(LAST_AI_PROVIDER_KEY, providerId);
-            } catch (error) {
-                console.error('Error saving default AI provider to localStorage:', error);
+                const providerId = activeProvider?.id || '';
+                setSelectedProvider(providerId);
             }
         }
-    }, [aiProviders, selectedProvider, defaultAIProviderId]);
+    }, [sessionAIProviderId, aiProviders]);
 
-    // Validate saved provider still exists in current providers
+    // Handle personality selection change
+    const handlePersonalityChange = async (personalityId: string) => {
+        setSelectedPersonality(personalityId);
+        if (onSettingsChange) {
+            await onSettingsChange(personalityId || undefined, selectedProvider || undefined);
+        }
+    };
+
+    // Handle AI provider selection change
+    const handleProviderChange = async (providerId: string) => {
+        setSelectedProvider(providerId);
+        if (onSettingsChange) {
+            await onSettingsChange(selectedPersonality || undefined, providerId || undefined);
+        }
+    };
+
+    // Validate selected provider still exists in current providers
     useEffect(() => {
         if (selectedProvider && aiProviders && aiProviders.length > 0) {
             const providerExists = aiProviders.find(p => p?.id === selectedProvider);
             if (!providerExists) {
-                // Saved provider no longer exists, reset to default
+                // Selected provider no longer exists, reset to default
                 const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
                 const providerId = activeProvider?.id || '';
                 setSelectedProvider(providerId);
-
-                try {
-                    localStorage.setItem(LAST_AI_PROVIDER_KEY, providerId);
-                } catch (error) {
-                    console.error('Error updating AI provider in localStorage:', error);
-                }
             }
         }
     }, [aiProviders, selectedProvider]);
 
-    // Validate saved personality still exists in current personalities
+    // Validate selected personality still exists in current personalities
     useEffect(() => {
         if (selectedPersonality && personalities && personalities.length > 0) {
             const personalityExists = personalities.find(p => p?.id === selectedPersonality);
             if (!personalityExists) {
-                // Saved personality no longer exists, reset to none
+                // Selected personality no longer exists, reset to none
                 setSelectedPersonality('');
-                try {
-                    localStorage.removeItem(LAST_PERSONALITY_KEY);
-                } catch (error) {
-                    console.error('Error removing invalid personality from localStorage:', error);
-                }
             }
         }
     }, [personalities, selectedPersonality]);
@@ -254,14 +237,9 @@ export function ChatInput({
                                     <div
                                         className="px-3 py-2 hover:bg-accent cursor-pointer"
                                         onClick={() => {
-                                            setSelectedPersonality('');
+                                            handlePersonalityChange('');
                                             setShowPersonalityDropdown(false);
                                             setPersonalitySearch('');
-                                            try {
-                                                localStorage.removeItem(LAST_PERSONALITY_KEY);
-                                            } catch (error) {
-                                                console.error('Error removing personality from localStorage:', error);
-                                            }
                                         }}
                                     >
                                         <div className="font-medium">No personality</div>
@@ -272,14 +250,9 @@ export function ChatInput({
                                             key={personality.id}
                                             className="px-3 py-2 hover:bg-accent cursor-pointer"
                                             onClick={() => {
-                                                setSelectedPersonality(personality.id);
+                                                handlePersonalityChange(personality.id);
                                                 setShowPersonalityDropdown(false);
                                                 setPersonalitySearch('');
-                                                try {
-                                                    localStorage.setItem(LAST_PERSONALITY_KEY, personality.id);
-                                                } catch (error) {
-                                                    console.error('Error saving personality to localStorage:', error);
-                                                }
                                             }}
                                         >
                                             <div className="font-medium">{personality?.title || 'Untitled'}</div>
@@ -334,14 +307,9 @@ export function ChatInput({
                                             className="px-3 py-2 hover:bg-accent cursor-pointer"
                                             onClick={() => {
                                                 const providerId = provider.id || '';
-                                                setSelectedProvider(providerId);
+                                                handleProviderChange(providerId);
                                                 setShowProviderDropdown(false);
                                                 setProviderSearch('');
-                                                try {
-                                                    localStorage.setItem(LAST_AI_PROVIDER_KEY, providerId);
-                                                } catch (error) {
-                                                    console.error('Error saving AI provider to localStorage:', error);
-                                                }
                                             }}
                                         >
                                             <div className="font-medium">{provider?.name || provider?.type || 'Unknown Provider'}</div>

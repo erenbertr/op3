@@ -135,14 +135,6 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         saveActiveSession(updatedSession);
     };
 
-    const handleSessionDelete = (sessionId: string) => {
-        // If the deleted session is the active one, clear it
-        if (activeSession?.id === sessionId) {
-            setActiveSession(null);
-            saveActiveSession(null);
-        }
-    };
-
     if (isLoadingData) {
         return (
             <div className="flex h-full items-center justify-center">

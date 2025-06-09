@@ -105,6 +105,8 @@ export interface ChatSession {
     userId: string;
     workspaceId: string;
     title: string;
+    lastUsedPersonalityId?: string;
+    lastUsedAIProviderId?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -166,9 +168,27 @@ export interface UpdateChatSessionResponse {
     session?: ChatSession;
 }
 
+export interface UpdateChatSessionSettingsRequest {
+    lastUsedPersonalityId?: string;
+    lastUsedAIProviderId?: string;
+}
+
+export interface UpdateChatSessionSettingsResponse {
+    success: boolean;
+    message: string;
+    session?: ChatSession;
+}
+
 export interface DeleteChatSessionResponse {
     success: boolean;
     message: string;
+}
+
+export interface StreamChunk {
+    type: 'chunk' | 'error' | 'complete';
+    content?: string;
+    error?: string;
+    message?: ChatMessage;
 }
 
 export interface SetupStatusResponse {
@@ -493,6 +513,13 @@ class ApiClient {
         });
     }
 
+    async updateChatSessionSettings(sessionId: string, request: UpdateChatSessionSettingsRequest): Promise<UpdateChatSessionSettingsResponse> {
+        return this.request<UpdateChatSessionSettingsResponse>(`/chat/sessions/${sessionId}/settings`, {
+            method: 'PATCH',
+            body: JSON.stringify(request),
+        });
+    }
+
     async deleteChatSession(sessionId: string): Promise<DeleteChatSessionResponse> {
         return this.request<DeleteChatSessionResponse>(`/chat/sessions/${sessionId}`, {
             method: 'DELETE',
@@ -503,7 +530,7 @@ class ApiClient {
     async streamChatMessage(
         sessionId: string,
         request: SendMessageRequest & { userId: string },
-        onChunk: (chunk: any) => void,
+        onChunk: (chunk: StreamChunk) => void,
         onComplete: (message: ChatMessage) => void,
         onError: (error: string) => void
     ): Promise<void> {

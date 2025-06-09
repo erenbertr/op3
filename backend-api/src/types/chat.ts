@@ -3,6 +3,8 @@ export interface ChatSession {
     userId: string;
     workspaceId: string;
     title: string;
+    lastUsedPersonalityId?: string;
+    lastUsedAIProviderId?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -56,6 +58,17 @@ export interface ChatMessagesResponse {
 
 export interface UpdateChatSessionRequest {
     title?: string;
+}
+
+export interface UpdateChatSessionSettingsRequest {
+    lastUsedPersonalityId?: string;
+    lastUsedAIProviderId?: string;
+}
+
+export interface UpdateChatSessionSettingsResponse {
+    success: boolean;
+    message: string;
+    session?: ChatSession;
 }
 
 export interface UpdateChatSessionResponse {

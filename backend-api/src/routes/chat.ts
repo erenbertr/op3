@@ -7,7 +7,8 @@ import { createError } from '../utils/errorHandler';
 import {
     CreateChatSessionRequest,
     SendMessageRequest,
-    UpdateChatSessionRequest
+    UpdateChatSessionRequest,
+    UpdateChatSessionSettingsRequest
 } from '../types/chat';
 
 const router = Router();
@@ -96,6 +97,23 @@ router.patch('/sessions/:sessionId', asyncHandler(async (req: Request, res: Resp
 
     const result = await chatService.updateChatSession(sessionId, {
         title
+    });
+
+    res.json(result);
+}));
+
+// Update chat session settings (personality and AI provider preferences)
+router.patch('/sessions/:sessionId/settings', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const { lastUsedPersonalityId, lastUsedAIProviderId }: UpdateChatSessionSettingsRequest = req.body;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.updateChatSessionSettings(sessionId, {
+        lastUsedPersonalityId,
+        lastUsedAIProviderId
     });
 
     res.json(result);
