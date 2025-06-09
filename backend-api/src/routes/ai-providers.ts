@@ -154,8 +154,8 @@ router.post('/:id/test', asyncHandler(async (req: Request, res: Response) => {
     }
 
     try {
-        // Get the provider
-        const providers = aiProviderService.getProviders();
+        // Get the provider with encrypted API keys (for internal use)
+        const providers = aiProviderService.getProvidersWithEncryptedKeys();
         const provider = providers.find(p => p.id === id);
 
         if (!provider) {
