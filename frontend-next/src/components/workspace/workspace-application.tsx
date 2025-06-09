@@ -13,7 +13,7 @@ import { AIProviderSettingsView } from '@/components/workspace/ai-provider-setti
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { AuthUser } from '@/lib/auth';
-import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
+import { apiClient, ChatSession } from '@/lib/api';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces, useSetActiveWorkspace } from '@/lib/hooks/use-query-hooks';
 import { useQuery } from '@tanstack/react-query';
@@ -42,6 +42,17 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id);
     const setActiveWorkspaceMutation = useSetActiveWorkspace();
+
+    // Create a stable callback for setting active workspace
+    const setActiveWorkspace = useCallback((workspaceId: string) => {
+        if (activeWorkspaceSetRef.current !== workspaceId && !setActiveWorkspaceMutation.isPending) {
+            activeWorkspaceSetRef.current = workspaceId;
+            setActiveWorkspaceMutation.mutate({
+                workspaceId,
+                userId: currentUser.id
+            });
+        }
+    }, [setActiveWorkspaceMutation, currentUser.id]);
 
 
 
@@ -90,13 +101,8 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         setRouteParams(params);
     }, [params]);
 
-    // Single effect to handle workspace selection and active workspace setting
+    // Effect to handle workspace selection
     React.useLayoutEffect(() => {
-        // Reset the active workspace ref when workspace ID changes
-        if (activeWorkspaceSetRef.current !== routeParams.workspaceId) {
-            activeWorkspaceSetRef.current = null;
-        }
-
         if (workspacesResult?.success) {
             const workspaces = workspacesResult.workspaces;
 
@@ -105,20 +111,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 const workspace = workspaces.find(w => w.id === routeParams.workspaceId);
                 if (workspace) {
                     setCurrentWorkspace(workspace);
-
-                    // Calculate if we should set active workspace inline to avoid circular dependencies
-                    const needsActiveWorkspaceSet = workspace &&
-                        !workspace.isActive &&
-                        activeWorkspaceSetRef.current !== routeParams.workspaceId;
-
-                    // Set active workspace if needed (only once per workspace)
-                    if (needsActiveWorkspaceSet && !setActiveWorkspaceMutation.isPending) {
-                        activeWorkspaceSetRef.current = routeParams.workspaceId;
-                        setActiveWorkspaceMutation.mutate({
-                            workspaceId: routeParams.workspaceId,
-                            userId: currentUser.id
-                        });
-                    }
                 } else {
                     // Workspace not found, redirect to selection
                     navigationUtils.pushState('/workspaces');
@@ -131,7 +123,24 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 }
             }
         }
-    }, [workspacesResult, routeParams.workspaceId, currentUser.id, setActiveWorkspaceMutation]);
+    }, [workspacesResult, routeParams.workspaceId]);
+
+    // Separate effect to handle setting active workspace (to avoid circular dependencies)
+    React.useLayoutEffect(() => {
+        // Reset the active workspace ref when workspace ID changes
+        if (activeWorkspaceSetRef.current !== routeParams.workspaceId) {
+            activeWorkspaceSetRef.current = null;
+        }
+
+        if (workspacesResult?.success && routeParams.workspaceId) {
+            const workspace = workspacesResult.workspaces.find(w => w.id === routeParams.workspaceId);
+
+            // Only set active workspace if workspace exists and is not already active
+            if (workspace && !workspace.isActive) {
+                setActiveWorkspace(routeParams.workspaceId);
+            }
+        }
+    }, [workspacesResult, routeParams.workspaceId, setActiveWorkspace]);
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
