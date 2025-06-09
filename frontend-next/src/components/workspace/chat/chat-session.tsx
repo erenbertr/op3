@@ -57,8 +57,18 @@ export function ChatSessionComponent({
             sessionId: session?.id,
             isLoading: isLoadingMessages,
             pendingUserMessage: !!pendingUserMessage,
-            isStreaming
+            isStreaming,
+            timestamp: new Date().toISOString()
         });
+
+        // Log individual messages for debugging
+        if (messages.length > 0) {
+            console.log('📝 Current messages in state:', messages.map(m => ({
+                id: m.id,
+                role: m.role,
+                content: m.content.substring(0, 50) + '...'
+            })));
+        }
     }, [messagesResult, messages.length, session?.id, isLoadingMessages, pendingUserMessage, isStreaming]);
 
     // Auto-scroll to bottom when new messages are added (use useLayoutEffect for DOM manipulation)
@@ -233,10 +243,9 @@ export function ChatSessionComponent({
 
                         console.log('✅ Messages added to cache successfully');
 
-                        // Disable automatic refetching for this session temporarily
-                        queryClient.cancelQueries({
-                            queryKey: queryKeys.chats.messages(session.id)
-                        });
+                        // Log the current cache state
+                        const currentCacheData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
+                        console.log('📊 Current cache data after update:', currentCacheData);
 
                     } else {
                         console.log('❌ Missing data for optimistic update:', {

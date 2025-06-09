@@ -266,19 +266,46 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                             chatSessions={chatSessions}
                             isLoading={chatSessionsLoading}
                             onSessionsUpdate={(updatedSessions) => {
-                                // Refetch chat sessions to get the latest data from the server
-                                refetchChatSessions();
+                                console.log('📝 onSessionsUpdate called:', {
+                                    updatedSessions,
+                                    chatId,
+                                    currentActiveSession: activeSession?.id
+                                });
 
-                                // If we have a new session and we're navigating to it,
-                                // optimistically set it as active to prevent "Chat Not Found" error
-                                if (updatedSessions && updatedSessions.length > 0 && chatId) {
-                                    const newSession = updatedSessions.find(s => s.id === chatId);
-                                    if (newSession) {
-                                        setActiveSession(newSession);
-                                        setError(null);
-                                        setShowNotFoundError(false);
+                                // Update the TanStack Query cache optimistically
+                                if (updatedSessions && updatedSessions.length > 0) {
+                                    queryClient.setQueryData(
+                                        queryKeys.chats.byWorkspace(user?.id || '', workspaceId),
+                                        (oldData: any) => {
+                                            if (!oldData) {
+                                                return {
+                                                    success: true,
+                                                    message: 'Chat sessions retrieved successfully',
+                                                    sessions: updatedSessions
+                                                };
+                                            }
+                                            return {
+                                                ...oldData,
+                                                sessions: updatedSessions
+                                            };
+                                        }
+                                    );
+
+                                    // If we have a new session and we're navigating to it,
+                                    // optimistically set it as active to prevent "Chat Not Found" error
+                                    if (chatId) {
+                                        const newSession = updatedSessions.find(s => s.id === chatId);
+                                        if (newSession) {
+                                            console.log('📝 Setting active session optimistically:', newSession);
+                                            setActiveSession(newSession);
+                                            setError(null);
+                                            setShowNotFoundError(false);
+                                        }
                                     }
                                 }
+
+                                // Refetch chat sessions to get the latest data from the server (but don't wait for it)
+                                setTimeout(() => refetchChatSessions(), 100);
                             }}
                         />
                     </div>

@@ -63,16 +63,20 @@ export function ChatSidebar({
             });
 
             if (result.success && result.session) {
-                // Invalidate and refetch chat sessions to get the latest data
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.chats.byWorkspace(userId, workspaceId)
-                });
+                console.log('✅ Chat created successfully:', result.session);
 
-                // Update parent's sessions list first
+                // Update parent's sessions list first (this will trigger optimistic update)
                 onSessionsUpdate?.([result.session, ...chatSessions]);
 
                 // Navigate to the new chat using Next.js router
                 router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
+
+                // Invalidate and refetch chat sessions to get the latest data (delayed)
+                setTimeout(() => {
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.chats.byWorkspace(userId, workspaceId)
+                    });
+                }, 500);
 
                 // Also call the callback for backward compatibility
                 onNewChat?.(result.session);
