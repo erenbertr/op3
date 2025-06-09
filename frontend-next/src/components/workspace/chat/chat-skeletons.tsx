@@ -4,59 +4,9 @@ import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
-// Individual message skeleton that matches the real ChatMessage component structure
-export function ChatMessageSkeleton({ isUser = false }: { isUser?: boolean }) {
-    return (
-        <div className="relative group pb-4 mb-4">
-            <div className="space-y-2">
-                {/* AI message header skeleton - matches the badges structure */}
-                {!isUser && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        {/* AI Provider badge skeleton */}
-                        <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">
-                            <Skeleton className="h-3 w-16" />
-                        </div>
-                        {/* Personality badge skeleton */}
-                        <div className="inline-flex items-center rounded-md bg-secondary px-2.5 py-0.5 text-xs font-semibold">
-                            <Skeleton className="h-3 w-3 mr-1 rounded-full" />
-                            <Skeleton className="h-3 w-20" />
-                        </div>
-                    </div>
-                )}
+// Note: ChatMessageSkeleton removed - using simple spinner instead of skeleton for message loading
 
-                {/* Message content skeleton - matches the real message structure */}
-                <div className={cn("p-3 rounded-lg", !isUser && "bg-muted/30")}>
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-full" />
-                        <Skeleton className="h-4 w-4/5" />
-                        {!isUser && <Skeleton className="h-4 w-3/4" />}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Multiple messages skeleton that matches the real ChatMessageList structure
-export function ChatMessagesSkeleton() {
-    return (
-        <div className="px-4 max-w-4xl mx-auto">
-            <div className="py-4">
-                {/* User message */}
-                <ChatMessageSkeleton isUser={true} />
-
-                {/* AI response */}
-                <ChatMessageSkeleton isUser={false} />
-
-                {/* User message */}
-                <ChatMessageSkeleton isUser={true} />
-
-                {/* AI response */}
-                <ChatMessageSkeleton isUser={false} />
-            </div>
-        </div>
-    );
-}
+// Note: ChatMessagesSkeleton removed - using simple spinner instead of skeleton for message loading
 
 // Note: ChatInputSkeleton removed - we now show the real ChatInput component
 // with empty data instead of a skeleton, since it doesn't require heavy loading

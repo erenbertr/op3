@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
-import { ChatMessagesSkeleton } from './chat-skeletons';
+// Removed ChatMessagesSkeleton import - using simple spinner instead
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -245,8 +245,8 @@ export function ChatSessionComponent({
             {/* Messages area */}
             <div className="flex-1 overflow-hidden">
                 {isLoadingMessages ? (
-                    <div className="h-full">
-                        <ChatMessagesSkeleton />
+                    <div className="h-full flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
                     </div>
                 ) : (
                     <ScrollArea ref={scrollAreaRef} className="h-full">

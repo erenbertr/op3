@@ -165,22 +165,9 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                         {/* Main Content Area */}
                         <div className="flex-1 h-full border-r border-border">
                             <div className="flex flex-col h-full">
-                                {/* Messages area skeleton - full height since no input during loading */}
-                                <div className="flex-1 overflow-hidden">
-                                    <div className="px-4 max-w-4xl mx-auto">
-                                        <div className="py-4 space-y-4">
-                                            {Array.from({ length: 3 }).map((_, i) => (
-                                                <div key={i} className="space-y-2">
-                                                    <div className="p-3 rounded-lg bg-muted/30">
-                                                        <div className="space-y-2">
-                                                            <div className="h-4 w-full bg-muted animate-pulse rounded"></div>
-                                                            <div className="h-4 w-4/5 bg-muted animate-pulse rounded"></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                {/* Messages area - simple spinner during loading */}
+                                <div className="flex-1 overflow-hidden flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
                                 </div>
                             </div>
                         </div>
