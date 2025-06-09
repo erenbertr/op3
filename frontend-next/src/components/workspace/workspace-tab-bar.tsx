@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
+import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 
@@ -29,8 +29,6 @@ interface Workspace {
 const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 
 export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
-    const router = useRouter();
-
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
     const workspaces = React.useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
@@ -120,7 +118,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     const handleTabClick = useCallback(async (workspaceId: string) => {
         // Navigate immediately for smooth UX
-        router.push(`/ws/${workspaceId}`);
+        navigationUtils.pushState(`/ws/${workspaceId}`);
 
         // Update server state in background - TanStack Query will handle the cache update
         try {
@@ -129,7 +127,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             console.error('Error switching workspace:', error);
             // TanStack Query will handle retry and error states
         }
-    }, [userId, router]);
+    }, [userId]);
 
     const handleOpenWorkspace = useCallback((workspaceId: string) => {
         // Add workspace to open tabs if not already open
@@ -203,7 +201,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/settings/workspaces')}
+                        onClick={() => navigationUtils.pushState('/settings/workspaces')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'settings'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -217,7 +215,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/statistics')}
+                        onClick={() => navigationUtils.pushState('/statistics')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'statistics'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -231,7 +229,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/workspaces')}
+                        onClick={() => navigationUtils.pushState('/workspaces')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'selection'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -245,7 +243,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/personalities')}
+                        onClick={() => navigationUtils.pushState('/personalities')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'personalities'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -288,7 +286,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/add/workspace')}
+                        onClick={() => navigationUtils.pushState('/add/workspace')}
                         className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
                         title="Create New Workspace"
                     >

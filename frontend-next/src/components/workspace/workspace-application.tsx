@@ -79,9 +79,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
         const { view, params } = parseRoute(currentPathname);
 
-        // Debug logging for view changes
-        console.error(`🔧🔧🔧 [TERMINAL-LOG] WorkspaceApplication view: "${view}" params:`, params);
-
         return {
             currentView: view,
             routeParams: params
