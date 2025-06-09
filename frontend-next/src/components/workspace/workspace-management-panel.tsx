@@ -11,6 +11,7 @@ import { Edit2, Trash2, MessageSquare, Kanban, Network, Settings, Bot, Plus } fr
 import { apiClient, UpdateWorkspaceRequest } from '@/lib/api';
 import { WorkspaceRulesModal } from './workspace-rules-modal';
 import { AIProviderManagement } from './ai-provider-management';
+import { WorkspaceManagementSkeleton } from './chat/chat-skeletons';
 
 interface WorkspaceManagementPanelProps {
     userId: string;
@@ -192,14 +193,7 @@ export function WorkspaceManagementPanel({
     };
 
     if (isLoading && workspaces.length === 0) {
-        return (
-            <div className="flex items-center justify-center py-8">
-                <div className="text-center space-y-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-muted-foreground">Loading...</p>
-                </div>
-            </div>
-        );
+        return <WorkspaceManagementSkeleton />;
     }
 
     const renderTabContent = () => {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { WorkspaceSelectionSkeleton } from './chat/chat-skeletons';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
@@ -102,14 +103,7 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-8">
-                <div className="text-center space-y-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-muted-foreground">Loading workspaces...</p>
-                </div>
-            </div>
-        );
+        return <WorkspaceSelectionSkeleton />;
     }
 
     return (

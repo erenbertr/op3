@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
+import { ChatLayoutSkeleton } from './chat-skeletons';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -136,14 +137,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
     };
 
     if (isLoadingData) {
-        return (
-            <div className="flex h-full items-center justify-center">
-                <div className="text-center space-y-3">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-sm text-muted-foreground">Loading chat interface...</p>
-                </div>
-            </div>
-        );
+        return <ChatLayoutSkeleton />;
     }
 
     return (
