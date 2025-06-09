@@ -26,7 +26,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
 
     // Determine current view from pathname
     const getCurrentView = useCallback(() => {
-        if (pathname === '/settings') return 'settings';
+        if (pathname.startsWith('/settings')) return 'settings';
         if (pathname === '/workspaces') return 'selection';
         if (pathname === '/personalities') return 'personalities';
         if (pathname === '/add/workspace') return 'create';

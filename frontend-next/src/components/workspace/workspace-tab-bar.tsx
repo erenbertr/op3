@@ -218,7 +218,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push('/settings')}
+                        onClick={() => router.push('/settings/workspaces')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'settings'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'

@@ -1,7 +1,15 @@
 "use client"
 
-import { SettingsView } from '@/components/workspace/settings-view';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SettingsPage() {
-    return <SettingsView />;
+    const router = useRouter();
+
+    useEffect(() => {
+        // Redirect to workspaces settings by default
+        router.replace('/settings/workspaces');
+    }, [router]);
+
+    return null;
 }
