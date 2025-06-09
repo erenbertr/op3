@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, FolderOpen, User } from 'lucide-react';
 import { apiClient } from '@/lib/api';
@@ -9,11 +10,6 @@ interface WorkspaceTabBarProps {
     userId: string;
     currentView?: 'workspace' | 'settings' | 'create' | 'selection' | 'personalities';
     currentWorkspaceId: string | null;
-    onWorkspaceChange?: (workspaceId: string) => Promise<void> | void;
-    onShowSettings?: () => void;
-    onShowCreateWorkspace?: () => void;
-    onShowWorkspaceSelection?: () => void;
-    onShowPersonalities?: () => void;
     onRefresh?: (refreshFn: () => void) => void;
     onOpenWorkspace?: (openWorkspaceFn: (workspaceId: string) => void) => void;
 }
@@ -30,7 +26,9 @@ interface Workspace {
 // Key for storing open workspace tabs in localStorage
 const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 
-export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onWorkspaceChange, onShowSettings, onShowCreateWorkspace, onShowWorkspaceSelection, onShowPersonalities, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
+export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
+    const router = useRouter();
+    const pathname = usePathname();
     const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -127,8 +125,6 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     }, [onRefresh, loadWorkspaces]);
 
     const handleTabClick = useCallback(async (workspaceId: string) => {
-        // Always allow the click to go through - let the parent decide if action is needed
-        // This fixes the issue where clicking on a newly created workspace doesn't work
         try {
             const result = await apiClient.setActiveWorkspace(workspaceId, userId);
 
@@ -138,8 +134,8 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     ...w,
                     isActive: w.id === workspaceId
                 })));
-                // Let parent handle the workspace change
-                await onWorkspaceChange?.(workspaceId);
+                // Navigate to the workspace
+                router.push(`/ws/${workspaceId}`);
             } else {
                 setError(result.message || 'Failed to switch workspace');
             }
@@ -147,7 +143,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             console.error('Error switching workspace:', error);
             setError('Failed to switch workspace');
         }
-    }, [userId, onWorkspaceChange]);
+    }, [userId, router]);
 
     const handleOpenWorkspace = useCallback((workspaceId: string) => {
         // Add workspace to open tabs if not already open
@@ -222,7 +218,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onShowSettings}
+                        onClick={() => router.push('/settings')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'settings'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -236,7 +232,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onShowWorkspaceSelection}
+                        onClick={() => router.push('/workspaces')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'selection'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -250,7 +246,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onShowPersonalities}
+                        onClick={() => router.push('/personalities')}
                         className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'personalities'
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
@@ -293,7 +289,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onShowCreateWorkspace}
+                        onClick={() => router.push('/add/workspace')}
                         className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
                         title="Create New Workspace"
                     >

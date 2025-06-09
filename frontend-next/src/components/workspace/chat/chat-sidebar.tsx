@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -30,6 +31,7 @@ export function ChatSidebar({
     chatSessions = [],
     onSessionsUpdate
 }: ChatSidebarProps) {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const { addToast } = useToast();
@@ -40,6 +42,9 @@ export function ChatSidebar({
     );
 
     const handleChatClick = (chat: ChatSession) => {
+        // Use router navigation for direct URL access
+        router.push(`/ws/${workspaceId}/chat/${chat.id}`);
+        // Also call the callback for backward compatibility
         onChatSelect?.(chat);
     };
 
@@ -55,6 +60,9 @@ export function ChatSidebar({
             if (result.success && result.session) {
                 // Update parent's sessions list
                 onSessionsUpdate?.([result.session, ...chatSessions]);
+                // Navigate to the new chat
+                router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
+                // Also call the callback for backward compatibility
                 onNewChat?.(result.session);
             } else {
                 addToast({
