@@ -175,37 +175,76 @@ export function ChatSessionComponent({
                         sessionId: session.id
                     });
 
-                    // Don't clear states immediately - let the refetch happen first
+                    // Handle completion with optimistic update to prevent message refresh
+                    const currentUserMessage = pendingUserMessage;
+
                     setStreamingMessage('');
                     setIsStreaming(false);
                     setIsLoading(false);
 
-                    // Invalidate and refetch messages, then clear pending state
-                    queryClient.invalidateQueries({
-                        queryKey: queryKeys.chats.messages(session.id)
-                    }).then(() => {
-                        // Only clear pending message after refetch is complete
-                        console.log('✅ Refetch completed, clearing pending message');
+                    // Use optimistic update to add both messages without refetching
+                    if (currentUserMessage && aiMessage) {
+                        console.log('📝 Adding messages to cache optimistically:', {
+                            userMessage: currentUserMessage,
+                            aiMessage: aiMessage
+                        });
+
+                        queryClient.setQueryData(
+                            queryKeys.chats.messages(session.id),
+                            (oldData: any) => {
+                                if (!oldData || !oldData.success) {
+                                    return {
+                                        success: true,
+                                        message: 'Messages retrieved successfully',
+                                        messages: [currentUserMessage, aiMessage]
+                                    };
+                                }
+
+                                // Add new messages to existing ones
+                                const existingMessages = oldData.messages || [];
+                                return {
+                                    ...oldData,
+                                    messages: [...existingMessages, currentUserMessage, aiMessage]
+                                };
+                            }
+                        );
+
+                        // Clear pending message after cache update
                         setPendingUserMessage(null);
-                    }).catch((error) => {
-                        console.error('❌ Refetch failed:', error);
+                    } else {
+                        console.log('❌ Missing data for optimistic update:', {
+                            hasUserMessage: !!currentUserMessage,
+                            hasAiMessage: !!aiMessage
+                        });
                         setPendingUserMessage(null);
-                    });
+                    }
 
                     // Update session with last used settings and title if needed
                     const updates: any = {};
 
+                    console.log('🔍 Checking session updates:', {
+                        personalityId,
+                        aiProviderId,
+                        currentPersonality: session?.lastUsedPersonalityId,
+                        currentProvider: session?.lastUsedAIProviderId,
+                        messagesLength: messages.length,
+                        sessionTitle: session?.title
+                    });
+
                     // Update last used provider and personality
                     if (personalityId && personalityId !== session?.lastUsedPersonalityId) {
                         updates.lastUsedPersonalityId = personalityId;
+                        console.log('📝 Will update personality:', personalityId);
                     }
                     if (aiProviderId && aiProviderId !== session?.lastUsedAIProviderId) {
                         updates.lastUsedAIProviderId = aiProviderId;
+                        console.log('📝 Will update AI provider:', aiProviderId);
                     }
 
                     // Update session title if this is the first message and title is "New Chat"
                     if (messages.length === 0 && session?.title === 'New Chat') {
                         updates.title = content.length > 50 ? content.substring(0, 50) + '...' : content;
+                        console.log('📝 Will update title:', updates.title);
                     }
 
                     // Apply updates if any
@@ -219,6 +258,8 @@ export function ChatSessionComponent({
                         }).catch(error => {
                             console.error('❌ Error updating session:', error);
                         });
+                    } else {
+                        console.log('ℹ️ No session updates needed');
                     }
                 },
                 (error) => {

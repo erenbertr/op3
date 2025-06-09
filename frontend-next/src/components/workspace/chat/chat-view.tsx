@@ -7,6 +7,8 @@ import { ChatSessionComponent, EmptyChatState } from './chat-session';
 import { authService, AuthUser } from '@/lib/auth';
 import { ChatSession } from '@/lib/api';
 import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-client';
 
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
@@ -22,6 +24,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isClientReady, setIsClientReady] = useState(false);
     const { addToast } = useToast();
+    const queryClient = useQueryClient();
 
     // Initialize user state on client side only to prevent hydration mismatch
     useEffect(() => {
@@ -165,21 +168,33 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     };
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {
+        console.log('🔄 Updating active session:', updatedSession);
         setActiveSession(updatedSession);
 
-        // Update localStorage
+        // Update localStorage with complete session data
         try {
-            localStorage.setItem('op3_active_chat_session', JSON.stringify({
-                id: updatedSession.id,
-                userId: updatedSession.userId,
-                workspaceId: updatedSession.workspaceId,
-                title: updatedSession.title,
-                createdAt: updatedSession.createdAt,
-                updatedAt: updatedSession.updatedAt
-            }));
+            localStorage.setItem('op3_active_chat_session', JSON.stringify(updatedSession));
         } catch (error) {
             console.error('Error saving active session to localStorage:', error);
         }
+
+        // Also update the session in the chat sessions list cache
+        queryClient.setQueryData(
+            queryKeys.chats.byWorkspace(user?.id || '', workspaceId),
+            (oldData: any) => {
+                if (!oldData || !oldData.success) return oldData;
+
+                const sessions = oldData.sessions || [];
+                const updatedSessions = sessions.map((s: ChatSession) =>
+                    s.id === updatedSession.id ? updatedSession : s
+                );
+
+                return {
+                    ...oldData,
+                    sessions: updatedSessions
+                };
+            }
+        );
     };
 
     // Remove the full-screen loading state - we'll show structure immediately
