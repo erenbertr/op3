@@ -37,10 +37,25 @@ export function ChatSessionComponent({
     const messages = useLocalState ? localMessages : (messagesResult?.messages || []);
     const queryClient = useQueryClient();
 
+    // Debug: Log when messages change
+    React.useEffect(() => {
+        console.log('📨 Messages state changed:', {
+            useLocalState,
+            localMessagesCount: localMessages.length,
+            queryMessagesCount: messagesResult?.messages?.length || 0,
+            finalMessagesCount: messages.length,
+            sessionId: session?.id
+        });
+    }, [messages.length, useLocalState, localMessages.length, messagesResult?.messages?.length, session?.id]);
+
+    // Track current session to prevent unnecessary resets
+    const currentSessionRef = useRef<string | null>(null);
+
     // Load messages from server when session changes
     React.useEffect(() => {
-        if (session?.id) {
-            console.log('🔄 Loading messages for session:', session.id);
+        if (session?.id && currentSessionRef.current !== session.id) {
+            console.log('🔄 Loading messages for NEW session:', session.id, 'previous:', currentSessionRef.current);
+            currentSessionRef.current = session.id;
 
             // Check cache first
             const cachedData = queryClient.getQueryData(queryKeys.chats.messages(session.id));
@@ -66,6 +81,8 @@ export function ChatSessionComponent({
                     setUseLocalState(true);
                 });
             }
+        } else if (session?.id) {
+            console.log('🔄 Same session, keeping current state:', session.id);
         }
     }, [session?.id, queryClient]);
 
@@ -78,16 +95,20 @@ export function ChatSessionComponent({
 
     // Clean up state when session changes
     React.useEffect(() => {
-        // Reset all streaming states when session changes
-        setIsLoading(false);
-        setStreamingMessage('');
-        setIsStreaming(false);
-        setPendingUserMessage(null);
-        setUseLocalState(true); // Reset to local state for new session
-        setLocalMessages([]); // Clear local messages
+        // Only reset if session actually changed (not just component re-mount)
+        const currentSessionId = session?.id;
+        console.log('🔄 Session effect triggered for:', currentSessionId);
 
-        // Log session change
-        console.log('🔄 Session changed to:', session?.id);
+        // Don't clear state if it's the same session
+        if (currentSessionId) {
+            // Reset streaming states but preserve messages for same session
+            setIsLoading(false);
+            setStreamingMessage('');
+            setIsStreaming(false);
+            setPendingUserMessage(null);
+
+            console.log('🔄 Session changed to:', currentSessionId);
+        }
     }, [session?.id]);
 
     // Debug logging
