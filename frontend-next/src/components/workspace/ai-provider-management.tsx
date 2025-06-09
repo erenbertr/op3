@@ -53,10 +53,13 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
 
     // Use TanStack Query for data fetching
     const {
-        data: providers = [],
+        data: providersResponse,
         isLoading,
         error: queryError
     } = useAIProviders();
+
+    // Extract providers array from response
+    const providers = providersResponse?.providers || [];
 
     // Use TanStack Query mutations
     const saveProviderMutation = useSaveAIProvider();
@@ -80,7 +83,6 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
             endpoint: '',
             isActive: true
         });
-        setError('');
     };
 
     const handleEditProvider = (provider: AIProviderConfig) => {
@@ -93,7 +95,6 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
             endpoint: provider.endpoint || '',
             isActive: provider.isActive
         });
-        setError('');
     };
 
     const handleSaveProvider = async () => {
