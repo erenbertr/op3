@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
-import { WorkspaceApplication } from '@/components/workspace/workspace-application';
+
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { useI18n } from '@/lib/i18n';
@@ -281,15 +281,11 @@ export function AppWrapper() {
         );
     }
 
-    // If user is logged in and has completed workspace setup, show workspace application
+    // If user is logged in and has completed workspace setup, let Next.js routing handle the pages
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
-        return (
-            <WorkspaceApplication
-                currentUser={currentUser}
-                pathname={pathname}
-                onLogout={handleLogout}
-            />
-        );
+        // For workspace routes, Next.js will handle routing via the (workspace) layout
+        // This allows proper client-side navigation without conflicts
+        return null;
     }
 
     // If setup is completed but user is not logged in, show login form

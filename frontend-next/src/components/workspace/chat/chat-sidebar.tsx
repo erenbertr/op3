@@ -42,9 +42,8 @@ export function ChatSidebar({
     );
 
     const handleChatClick = (chat: ChatSession) => {
-        // Use client-side navigation for smooth transitions
-        window.history.pushState(null, '', `/ws/${workspaceId}/chat/${chat.id}`);
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        // Use Next.js router for client-side navigation
+        router.push(`/ws/${workspaceId}/chat/${chat.id}`);
         // Also call the callback for backward compatibility
         onChatSelect?.(chat);
     };
@@ -61,9 +60,8 @@ export function ChatSidebar({
             if (result.success && result.session) {
                 // Update parent's sessions list
                 onSessionsUpdate?.([result.session, ...chatSessions]);
-                // Navigate to the new chat using client-side routing
-                window.history.pushState(null, '', `/ws/${workspaceId}/chat/${result.session.id}`);
-                window.dispatchEvent(new PopStateEvent('popstate'));
+                // Navigate to the new chat using Next.js router
+                router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
                 // Also call the callback for backward compatibility
                 onNewChat?.(result.session);
             } else {
