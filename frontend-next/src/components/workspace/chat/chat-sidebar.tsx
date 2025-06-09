@@ -178,7 +178,7 @@ export function ChatSidebar({
                         <div className="space-y-4">
                             {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
                                 <div key={groupName} className="space-y-1">
-                                    <h3 className="text-xs font-medium text-muted-foreground px-2 py-1">
+                                    <h3 className="text-xs font-medium text-muted-foreground px-2 py-1 select-none">
                                         {groupName}
                                     </h3>
                                     <div className="space-y-1">
@@ -186,7 +186,7 @@ export function ChatSidebar({
                                             <button
                                                 key={chat.id}
                                                 className={cn(
-                                                    "w-full text-left px-3 py-3 rounded-md transition-colors",
+                                                    "w-full text-left px-3 py-3 rounded-md transition-colors select-none",
                                                     "hover:bg-accent hover:text-accent-foreground",
                                                     "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                                                     activeChatId === chat.id

@@ -99,7 +99,7 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
                 {workspaces.map((workspace) => (
                     <Card
                         key={workspace.id}
-                        className={`cursor-pointer transition-all duration-200 hover:shadow-md ${workspace.id === currentWorkspaceId
+                        className={`cursor-pointer transition-all duration-200 hover:shadow-md select-none ${workspace.id === currentWorkspaceId
                             ? 'border-primary'
                             : 'hover:border-primary/50'
                             }`}

@@ -230,7 +230,7 @@ export function ChatInput({
                     <div className="relative flex-1" ref={personalityDropdownRef}>
                         <button
                             type="button"
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 select-none"
                             onClick={() => setShowPersonalityDropdown(!showPersonalityDropdown)}
                         >
                             <span className="text-muted-foreground">
@@ -250,7 +250,7 @@ export function ChatInput({
                                 </div>
                                 <div className="max-h-40 overflow-y-auto">
                                     <div
-                                        className="px-3 py-2 hover:bg-accent cursor-pointer"
+                                        className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
                                         onClick={() => {
                                             handlePersonalityChange('');
                                             setShowPersonalityDropdown(false);
@@ -263,7 +263,7 @@ export function ChatInput({
                                     {filteredPersonalities.map((personality) => (
                                         <div
                                             key={personality.id}
-                                            className="px-3 py-2 hover:bg-accent cursor-pointer"
+                                            className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
                                             onClick={() => {
                                                 handlePersonalityChange(personality.id);
                                                 setShowPersonalityDropdown(false);
@@ -290,7 +290,7 @@ export function ChatInput({
                     <div className="relative w-48" ref={providerDropdownRef}>
                         <button
                             type="button"
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 select-none"
                             onClick={() => setShowProviderDropdown(!showProviderDropdown)}
                         >
                             {selectedProviderObj ? (
@@ -319,7 +319,7 @@ export function ChatInput({
                                     {filteredProviders.map((provider) => (
                                         <div
                                             key={provider.id}
-                                            className="px-3 py-2 hover:bg-accent cursor-pointer"
+                                            className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
                                             onClick={() => {
                                                 const providerId = provider.id || '';
                                                 handleProviderChange(providerId);

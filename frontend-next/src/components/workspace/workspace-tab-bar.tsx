@@ -247,7 +247,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         .map((workspace) => (
                             <div
                                 key={workspace.id}
-                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                     ? 'bg-primary/10 border-primary text-primary'
                                     : 'hover:bg-muted border-transparent hover:border-primary/50'
                                     }`}

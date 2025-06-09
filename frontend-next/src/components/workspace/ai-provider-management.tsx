@@ -258,7 +258,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                     </Card>
                 ) : (
                     providers.map((provider) => (
-                        <Card key={provider.id}>
+                        <Card key={provider.id} className="select-none">
                             <CardHeader className="pb-3">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">

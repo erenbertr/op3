@@ -404,7 +404,7 @@ function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
                             <Button
                                 key={tab.id}
                                 variant={currentView === tab.id ? "default" : "ghost"}
-                                className={`w-full justify-start h-auto p-3 ${currentView === tab.id
+                                className={`w-full justify-start h-auto p-3 select-none ${currentView === tab.id
                                     ? "bg-primary text-primary-foreground"
                                     : "hover:bg-muted"
                                     }`}
