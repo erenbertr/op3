@@ -30,23 +30,22 @@ export function ChatSessionComponent({
 }: ChatSessionProps) {
     // Use local state for messages to avoid TanStack Query issues
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
-    const [useLocalState, setUseLocalState] = useState(true);
-    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '', !useLocalState);
+    // Disable the query completely for now to prevent it from overriding local state
+    const { data: messagesResult, isLoading: isLoadingMessages } = useChatMessages(session?.id || '', false);
 
-    // Use local messages if we're in local state mode, otherwise use query result
-    const messages = useLocalState ? localMessages : (messagesResult?.messages || []);
+    // Always use local messages to prevent query from overriding
+    const messages = localMessages;
     const queryClient = useQueryClient();
 
     // Debug: Log when messages change
     React.useEffect(() => {
         console.log('📨 Messages state changed:', {
-            useLocalState,
             localMessagesCount: localMessages.length,
             queryMessagesCount: messagesResult?.messages?.length || 0,
             finalMessagesCount: messages.length,
             sessionId: session?.id
         });
-    }, [messages.length, useLocalState, localMessages.length, messagesResult?.messages?.length, session?.id]);
+    }, [messages.length, localMessages.length, messagesResult?.messages?.length, session?.id]);
 
     // Track current session to prevent unnecessary resets
     const currentSessionRef = useRef<string | null>(null);
@@ -62,23 +61,25 @@ export function ChatSessionComponent({
             if (cachedData && (cachedData as any).messages?.length > 0) {
                 console.log('📦 Found cached messages:', (cachedData as any).messages.length);
                 setLocalMessages((cachedData as any).messages);
-                setUseLocalState(false); // Switch to query mode
+                // Stay in local state mode - don't switch to query mode
+                console.log('🔒 Using cached messages in local state mode');
             } else {
                 // Check server
                 apiClient.getChatMessages(session.id).then(result => {
                     if (result.success && result.messages.length > 0) {
                         console.log('📥 Found server messages:', result.messages.length);
                         setLocalMessages(result.messages);
-                        setUseLocalState(false); // Switch to query mode
+                        // Stay in local state mode - don't switch to query mode
+                        console.log('🔒 Using server messages in local state mode');
                     } else {
                         console.log('📝 New chat - using local state');
                         setLocalMessages([]);
-                        setUseLocalState(true); // Stay in local mode
+                        // Already in local mode
                     }
                 }).catch(() => {
                     console.log('❌ Error loading messages - using local state');
                     setLocalMessages([]);
-                    setUseLocalState(true);
+                    // Already in local mode
                 });
             }
         } else if (session?.id) {
@@ -318,6 +319,10 @@ export function ChatSessionComponent({
                             console.log('📝 Updated local messages:', newMessages.length);
                             return newMessages;
                         });
+
+                        // Keep using local state - don't switch to query mode yet
+                        // The query will be enabled when we reload the session or navigate away and back
+                        console.log('🔒 Keeping local state mode to prevent query override');
 
                         console.log('✅ Messages added to cache successfully');
 
