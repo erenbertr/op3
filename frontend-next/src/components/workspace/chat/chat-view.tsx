@@ -234,6 +234,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                             onChatSelect={handleChatSelect}
                             activeChatId={activeSession?.id}
                             chatSessions={chatSessions}
+                            isLoading={chatSessionsLoading}
                             onSessionsUpdate={(updatedSessions) => {
                                 // Refetch chat sessions to get the latest data from the server
                                 refetchChatSessions();

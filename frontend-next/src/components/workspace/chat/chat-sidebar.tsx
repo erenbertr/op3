@@ -20,6 +20,7 @@ interface ChatSidebarProps {
     activeChatId?: string;
     chatSessions?: ChatSession[];
     onSessionsUpdate?: (sessions: ChatSession[]) => void;
+    isLoading?: boolean;
 }
 
 export function ChatSidebar({
@@ -30,7 +31,8 @@ export function ChatSidebar({
     onChatSelect,
     activeChatId,
     chatSessions = [],
-    onSessionsUpdate
+    onSessionsUpdate,
+    isLoading = false
 }: ChatSidebarProps) {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
@@ -163,17 +165,20 @@ export function ChatSidebar({
             <ScrollArea className="flex-1">
                 <div className="px-4 py-2">
                     {filteredChats.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">
-                                {searchQuery ? 'No chats found' : 'No chats yet'}
-                            </p>
-                            {!searchQuery && (
-                                <p className="text-xs mt-1">
-                                    Start a new conversation
+                        // Only show empty state if we're not loading
+                        !isLoading ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">
+                                    {searchQuery ? 'No chats found' : 'No chats yet'}
                                 </p>
-                            )}
-                        </div>
+                                {!searchQuery && (
+                                    <p className="text-xs mt-1">
+                                        Start a new conversation
+                                    </p>
+                                )}
+                            </div>
+                        ) : null
                     ) : (
                         <div className="space-y-4">
                             {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
