@@ -240,57 +240,34 @@ export function ChatSessionComponent({
         }
     };
 
-    if (isLoadingMessages) {
-        return (
-            <div className={`flex flex-col h-full ${className || ''}`}>
-                {/* Messages area */}
-                <div className="flex-1 overflow-hidden">
-                    <div className="h-full">
-                        <ChatMessagesSkeleton />
-                    </div>
-                </div>
-
-                {/* Input area - Fixed at bottom - Show real input even during loading */}
-                <div className="flex-shrink-0 border-t bg-background">
-                    <div className="px-4 py-4 max-w-4xl mx-auto">
-                        <ChatInput
-                            onSendMessage={handleSendMessage}
-                            personalities={personalities}
-                            aiProviders={aiProviders}
-                            isLoading={isLoading}
-                            placeholder="Start your conversation..."
-                            sessionPersonalityId={session?.lastUsedPersonalityId}
-                            sessionAIProviderId={session?.lastUsedAIProviderId}
-                            onSettingsChange={handleSettingsChange}
-                        />
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className={`flex flex-col h-full ${className || ''}`}>
             {/* Messages area */}
             <div className="flex-1 overflow-hidden">
-                <ScrollArea ref={scrollAreaRef} className="h-full">
-                    <div className="px-4 max-w-4xl mx-auto">
-                        <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
-                            <ChatMessageList
-                                messages={messages}
-                                personalities={personalities}
-                                aiProviders={aiProviders}
-                                streamingMessage={streamingMessage}
-                                isStreaming={isStreaming}
-                                className={messages.length === 0 ? "" : "py-4"}
-                                onRetry={handleRetryMessage}
-                            />
-                        </div>
+                {isLoadingMessages ? (
+                    <div className="h-full">
+                        <ChatMessagesSkeleton />
                     </div>
-                </ScrollArea>
+                ) : (
+                    <ScrollArea ref={scrollAreaRef} className="h-full">
+                        <div className="px-4 max-w-4xl mx-auto">
+                            <div className={messages.length === 0 ? "pt-16 flex justify-center" : ""}>
+                                <ChatMessageList
+                                    messages={messages}
+                                    personalities={personalities}
+                                    aiProviders={aiProviders}
+                                    streamingMessage={streamingMessage}
+                                    isStreaming={isStreaming}
+                                    className={messages.length === 0 ? "" : "py-4"}
+                                    onRetry={handleRetryMessage}
+                                />
+                            </div>
+                        </div>
+                    </ScrollArea>
+                )}
             </div>
 
-            {/* Input area - Fixed at bottom */}
+            {/* Input area - Fixed at bottom - ALWAYS the same component */}
             <div className="flex-shrink-0 border-t bg-background">
                 <div className="px-4 py-4 max-w-4xl mx-auto">
                     <ChatInput

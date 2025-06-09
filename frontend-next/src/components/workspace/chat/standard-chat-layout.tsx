@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
-import { ChatInput } from './chat-input';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -166,7 +165,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                         {/* Main Content Area */}
                         <div className="flex-1 h-full border-r border-border">
                             <div className="flex flex-col h-full">
-                                {/* Messages area skeleton */}
+                                {/* Messages area skeleton - full height since no input during loading */}
                                 <div className="flex-1 overflow-hidden">
                                     <div className="px-4 max-w-4xl mx-auto">
                                         <div className="py-4 space-y-4">
@@ -181,20 +180,6 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
                                                 </div>
                                             ))}
                                         </div>
-                                    </div>
-                                </div>
-
-                                {/* Real ChatInput - always show the same component */}
-                                <div className="flex-shrink-0 border-t bg-background">
-                                    <div className="px-4 py-4 max-w-4xl mx-auto">
-                                        <ChatInput
-                                            onSendMessage={async () => { }} // No-op during loading
-                                            personalities={personalities || []}
-                                            aiProviders={aiProviders || []}
-                                            isLoading={false}
-                                            placeholder="Start your conversation..."
-                                            disabled={true} // Disable during loading
-                                        />
                                     </div>
                                 </div>
                             </div>
