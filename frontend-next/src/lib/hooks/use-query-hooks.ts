@@ -21,6 +21,13 @@ export function useWorkspaces(userId: string) {
         queryKey: queryKeys.workspaces.byUser(userId),
         queryFn: () => apiClient.getUserWorkspaces(userId),
         enabled: !!userId,
+        retry: 3, // Limit retries to prevent infinite loops
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+        staleTime: 60 * 60 * 1000, // 1 hour - workspaces don't change often
+        gcTime: 2 * 60 * 60 * 1000, // 2 hours
+        refetchOnMount: false, // Don't refetch on mount if data exists
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 }
 
@@ -78,10 +85,11 @@ export function useSetActiveWorkspace() {
     return useMutation({
         mutationFn: (data: { workspaceId: string; userId: string }) =>
             apiClient.setActiveWorkspace(data.workspaceId, data.userId),
-        onSuccess: (data, variables) => {
-            // Invalidate active workspace query
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.active(variables.userId) });
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.byUser(variables.userId) });
+        onSuccess: (_data, variables) => {
+            // Only invalidate after successful mutation, with a small delay to prevent rapid refetching
+            setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.byUser(variables.userId) });
+            }, 100);
         },
     });
 }
@@ -92,6 +100,13 @@ export function useChatSessions(userId: string, workspaceId: string) {
         queryKey: queryKeys.chats.byWorkspace(userId, workspaceId),
         queryFn: () => apiClient.getChatSessions(userId, workspaceId),
         enabled: !!userId && !!workspaceId,
+        retry: 3, // Limit retries to prevent infinite loops
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+        staleTime: 10 * 60 * 1000, // 10 minutes
+        gcTime: 30 * 60 * 1000, // 30 minutes
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 }
 
@@ -141,6 +156,13 @@ export function usePersonalities(userId: string) {
         queryKey: queryKeys.personalities.byUser(userId),
         queryFn: () => apiClient.getPersonalities(userId),
         enabled: !!userId,
+        retry: 3, // Limit retries to prevent infinite loops
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+        staleTime: 30 * 60 * 1000, // 30 minutes
+        gcTime: 60 * 60 * 1000, // 60 minutes
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 }
 
@@ -190,6 +212,13 @@ export function useAIProviders() {
     return useQuery({
         queryKey: queryKeys.aiProviders.all(),
         queryFn: () => apiClient.getAIProviders(),
+        retry: 3, // Limit retries to prevent infinite loops
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+        staleTime: 60 * 60 * 1000, // 1 hour - AI providers rarely change
+        gcTime: 2 * 60 * 60 * 1000, // 2 hours
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 }
 

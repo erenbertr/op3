@@ -9,7 +9,7 @@ interface QueryProviderProps {
 }
 
 export function QueryProvider({ children }: QueryProviderProps) {
-    // Create a stable QueryClient instance
+    // Create a stable QueryClient instance with proper caching
     const [queryClient] = useState(() => new QueryClient({
         defaultOptions: {
             queries: {

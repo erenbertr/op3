@@ -70,7 +70,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         }
     }, []);
 
-    React.useMemo(() => {
+    React.useEffect(() => {
         loadProviders();
     }, [loadProviders]);
 

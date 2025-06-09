@@ -20,16 +20,16 @@ const ACTIVE_SESSION_KEY = 'op3_active_chat_session';
 export function StandardChatLayout({ workspaceId, userId, className }: StandardChatLayoutProps) {
     const router = useRouter();
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-    
+
     // Use TanStack Query for data fetching
     const { data: chatSessionsResult } = useChatSessions(userId, workspaceId);
     const { data: personalitiesResult } = usePersonalities(userId);
     const { data: aiProvidersResult } = useAIProviders();
-    
+
     const chatSessions = chatSessionsResult?.sessions || [];
     const personalities = personalitiesResult?.personalities || [];
     const aiProviders = aiProvidersResult?.providers || [];
-    
+
 
 
     // Save active session to localStorage
@@ -101,7 +101,7 @@ export function StandardChatLayout({ workspaceId, userId, className }: StandardC
         if (activeSession && activeSession.id === sessionId) {
             setActiveSession(null);
             saveActiveSession(null);
-            
+
             // Navigate back to the main chat view
             router.push(`/ws/${workspaceId}`);
         }

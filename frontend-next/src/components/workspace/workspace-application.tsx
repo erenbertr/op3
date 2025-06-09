@@ -15,7 +15,8 @@ import { LanguageSelector } from '@/components/language-selector';
 import { AuthUser } from '@/lib/auth';
 import { apiClient, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
-import { useAsyncData } from '@/lib/hooks/use-async-data';
+import { useWorkspaces, useSetActiveWorkspace } from '@/lib/hooks/use-query-hooks';
+import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/toast';
 import { Loader2, LogOut, Settings, Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,9 +37,22 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const [routeParams, setRouteParams] = useState<RouteParams>({});
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
+    const activeWorkspaceSetRef = useRef<string | null>(null); // Track which workspace we've set as active
 
-    // Use async data hook for workspace loading
-    const workspaceLoader = useAsyncData(apiClient.getUserWorkspaces);
+    // Use TanStack Query for data fetching
+    const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id);
+    const setActiveWorkspaceMutation = useSetActiveWorkspace();
+
+    // Memoized value to determine if we need to set active workspace
+    const shouldSetActiveWorkspace = React.useMemo(() => {
+        if (!workspacesResult?.success || !routeParams.workspaceId) return false;
+
+        const workspace = workspacesResult.workspaces.find(w => w.id === routeParams.workspaceId);
+        return workspace &&
+            !workspace.isActive &&
+            activeWorkspaceSetRef.current !== routeParams.workspaceId &&
+            !setActiveWorkspaceMutation.isPending;
+    }, [workspacesResult, routeParams.workspaceId, setActiveWorkspaceMutation.isPending]);
 
     // Parse route parameters from pathname
     const parseRoute = useCallback((path: string): { view: string; params: RouteParams } => {
@@ -85,40 +99,45 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         setRouteParams(params);
     }, [params]);
 
-    // Load workspace data using callback approach
-    const loadWorkspaces = useCallback(async () => {
-        try {
-            await workspaceLoader.execute(currentUser.id);
+    // Reset the active workspace ref when workspace ID changes
+    React.useLayoutEffect(() => {
+        activeWorkspaceSetRef.current = null;
+    }, [routeParams.workspaceId]);
 
-            if (workspaceLoader.data?.success) {
-                // If we have a specific workspace ID in the route, load that workspace
-                if (routeParams.workspaceId) {
-                    const workspace = workspaceLoader.data.workspaces.find(w => w.id === routeParams.workspaceId);
-                    if (workspace) {
-                        setCurrentWorkspace(workspace);
-                        // Set as active workspace
-                        await apiClient.setActiveWorkspace(routeParams.workspaceId, currentUser.id);
-                    } else {
-                        // Workspace not found, redirect to selection
-                        navigationUtils.pushState('/workspaces');
-                    }
+    // Handle workspace selection and active workspace setting
+    React.useLayoutEffect(() => {
+        if (workspacesResult?.success) {
+            const workspaces = workspacesResult.workspaces;
+
+            // If we have a specific workspace ID in the route, load that workspace
+            if (routeParams.workspaceId) {
+                const workspace = workspaces.find(w => w.id === routeParams.workspaceId);
+                if (workspace) {
+                    setCurrentWorkspace(workspace);
                 } else {
-                    // No specific workspace, find active one
-                    const activeWorkspace = workspaceLoader.data.workspaces.find(w => w.isActive);
-                    if (activeWorkspace) {
-                        setCurrentWorkspace(activeWorkspace);
-                    }
+                    // Workspace not found, redirect to selection
+                    navigationUtils.pushState('/workspaces');
+                }
+            } else {
+                // No specific workspace, find active one
+                const activeWorkspace = workspaces.find(w => w.isActive);
+                if (activeWorkspace) {
+                    setCurrentWorkspace(activeWorkspace);
                 }
             }
-        } catch (error) {
-            console.error('Error loading workspaces:', error);
         }
-    }, [currentUser.id, routeParams.workspaceId, workspaceLoader]);
+    }, [workspacesResult, routeParams.workspaceId]);
 
-    // Load workspaces when dependencies change
+    // Separate effect for setting active workspace to prevent infinite loops
     React.useLayoutEffect(() => {
-        loadWorkspaces();
-    }, [loadWorkspaces]);
+        if (shouldSetActiveWorkspace && routeParams.workspaceId && !setActiveWorkspaceMutation.isPending) {
+            activeWorkspaceSetRef.current = routeParams.workspaceId;
+            setActiveWorkspaceMutation.mutate({
+                workspaceId: routeParams.workspaceId,
+                userId: currentUser.id
+            });
+        }
+    }, [shouldSetActiveWorkspace, routeParams.workspaceId, currentUser.id, setActiveWorkspaceMutation]);
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
@@ -129,12 +148,28 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         navigationUtils.pushState('/workspaces');
     }, []);
 
-    if (workspaceLoader.isLoading) {
+    // Show loading state
+    if (workspacesLoading) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                    <p className="text-muted-foreground">Loading workspace...</p>
+                    <p className="text-muted-foreground">Loading workspaces...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error state
+    if (workspacesError) {
+        return (
+            <div className="h-screen bg-background flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <h2 className="text-2xl font-bold text-destructive">Error</h2>
+                    <p className="text-muted-foreground">{workspacesError.message}</p>
+                    <Button onClick={() => window.location.reload()}>
+                        Retry
+                    </Button>
                 </div>
             </div>
         );
@@ -171,7 +206,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             <div className="flex-shrink-0">
                 <WorkspaceTabBar
                     userId={currentUser.id}
-                    currentView={currentView.startsWith('settings') ? 'settings' : currentView}
+                    currentView={currentView.startsWith('settings') ? 'settings' : currentView as 'workspace' | 'settings' | 'create' | 'selection' | 'personalities' | 'statistics'}
                     currentWorkspaceId={routeParams.workspaceId || null}
                     onRefresh={setRefreshWorkspaces}
                     onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
@@ -281,67 +316,64 @@ interface ChatViewInternalProps {
 
 function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternalProps) {
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-    const [personalities, setPersonalities] = useState<Personality[]>([]);
-    const [aiProviders, setAIProviders] = useState<AIProviderConfig[]>([]);
-    const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [error, setError] = useState<string | null>(null);
     const { addToast } = useToast();
 
-    // Use async data hooks for data fetching
-    const personalitiesLoader = useAsyncData(apiClient.getPersonalities);
-    const aiProvidersLoader = useAsyncData(apiClient.getAIProviders);
-    const chatSessionsLoader = useAsyncData(apiClient.getChatSessions);
+    // Use TanStack Query for data fetching
+    const { data: personalitiesResult } = useQuery({
+        queryKey: ['personalities', currentUser.id],
+        queryFn: () => apiClient.getPersonalities(currentUser.id),
+    });
 
-    const loadChatData = useCallback(async () => {
-        try {
-            // Load all required data in parallel using the async data hooks
-            await Promise.all([
-                personalitiesLoader.execute(currentUser.id),
-                aiProvidersLoader.execute(),
-                chatSessionsLoader.execute(currentUser.id, workspaceId)
-            ]);
+    const { data: aiProvidersResult } = useQuery({
+        queryKey: ['ai-providers'],
+        queryFn: () => apiClient.getAIProviders(),
+    });
 
-            if (personalitiesLoader.data?.success) {
-                setPersonalities(personalitiesLoader.data.personalities);
-            }
+    const { data: chatSessionsResult, isLoading: chatSessionsLoading } = useQuery({
+        queryKey: ['chat-sessions', currentUser.id, workspaceId],
+        queryFn: () => apiClient.getChatSessions(currentUser.id, workspaceId),
+    });
 
-            if (aiProvidersLoader.data?.success) {
-                setAIProviders(aiProvidersLoader.data.providers);
-            } else {
-                console.error('Failed to load AI providers:', aiProvidersLoader.error);
-                addToast({
-                    title: "Warning",
-                    description: "Failed to load AI providers. Please check your configuration.",
-                    variant: "destructive"
-                });
-            }
+    // Derived state from queries (memoized to prevent unnecessary re-renders)
+    const personalities = React.useMemo(() =>
+        personalitiesResult?.success ? personalitiesResult.personalities : [],
+        [personalitiesResult]
+    );
+    const aiProviders = React.useMemo(() =>
+        aiProvidersResult?.success ? aiProvidersResult.providers : [],
+        [aiProvidersResult]
+    );
+    const chatSessions = React.useMemo(() =>
+        chatSessionsResult?.success ? chatSessionsResult.sessions || [] : [],
+        [chatSessionsResult]
+    );
 
-            if (chatSessionsLoader.data?.success) {
-                const sessions = chatSessionsLoader.data.sessions || [];
-                setChatSessions(sessions);
-
-                // Find the specific chat session
-                const foundSession = sessions.find(s => s.id === chatId);
-                if (foundSession) {
-                    setActiveSession(foundSession);
-                    setError(null);
-                } else {
-                    setError('Chat session not found');
-                }
-            } else {
-                console.error('Failed to load chat sessions:', chatSessionsLoader.error);
-                setError('Failed to load chat sessions');
-            }
-        } catch (error) {
-            console.error('Error loading chat data:', error);
-            setError('Failed to load chat data');
-        }
-    }, [workspaceId, chatId, currentUser.id, addToast, personalitiesLoader, aiProvidersLoader, chatSessionsLoader]);
-
-    // Load chat data when dependencies change
+    // Handle chat session selection and error handling
     React.useLayoutEffect(() => {
-        loadChatData();
-    }, [loadChatData]);
+        if (chatSessions.length > 0) {
+            // Find the specific chat session
+            const foundSession = chatSessions.find((s: ChatSession) => s.id === chatId);
+            if (foundSession) {
+                setActiveSession(foundSession);
+                setError(null);
+            } else {
+                setError('Chat session not found');
+            }
+        }
+    }, [chatSessions, chatId]);
+
+    // Handle AI providers error
+    React.useLayoutEffect(() => {
+        if (aiProvidersResult && !aiProvidersResult.success) {
+            console.error('Failed to load AI providers');
+            addToast({
+                title: "Warning",
+                description: "Failed to load AI providers. Please check your configuration.",
+                variant: "destructive"
+            });
+        }
+    }, [aiProvidersResult, addToast]);
 
     const handleNewChat = (session: ChatSession) => {
         navigationUtils.pushState(`/ws/${workspaceId}/chat/${session.id}`);
@@ -355,7 +387,7 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
         setActiveSession(updatedSession);
     };
 
-    const isLoading = personalitiesLoader.isLoading || aiProvidersLoader.isLoading || chatSessionsLoader.isLoading;
+    const isLoading = chatSessionsLoading;
 
     if (isLoading) {
         return (
@@ -398,7 +430,6 @@ function ChatViewInternal({ workspaceId, chatId, currentUser }: ChatViewInternal
                             onChatSelect={handleChatSelect}
                             activeChatId={activeSession.id}
                             chatSessions={chatSessions}
-                            onSessionsUpdate={setChatSessions}
                         />
                     </div>
 

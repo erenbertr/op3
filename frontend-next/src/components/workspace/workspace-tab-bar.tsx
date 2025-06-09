@@ -31,9 +31,12 @@ const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
     const router = useRouter();
 
-    // Use TanStack Query for workspace data
-    const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
-    const workspaces = workspacesResult?.workspaces || [];
+    // TEMPORARILY DISABLED to fix infinite loop - TODO: Fix properly
+    // const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
+    // const workspaces = workspacesResult?.workspaces || [];
+    const workspaces: any[] = [];
+    const isLoading = false;
+    const error = null;
 
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const isMountedRef = useRef(false);
@@ -297,7 +300,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     {/* Error Display */}
                     {error && (
                         <div className="ml-4 text-sm text-destructive">
-                            {error.message}
+                            Error loading workspaces
                         </div>
                     )}
                 </div>

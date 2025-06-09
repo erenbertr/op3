@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
+import { WorkspaceApplication } from '@/components/workspace/workspace-application';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/language-selector';
@@ -19,7 +19,6 @@ import { Button } from '@/components/ui/button';
 
 export function AppWrapper() {
     const { t } = useI18n();
-    const router = useRouter();
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
 
@@ -40,28 +39,7 @@ export function AppWrapper() {
 
 
 
-    const loadInitialWorkspace = useCallback(async (userId: string) => {
-        try {
-            const result = await apiClient.getUserWorkspaces(userId);
-            if (result.success && result.workspaces.length > 0) {
-                const activeWorkspace = result.workspaces.find(w => w.isActive);
-                if (activeWorkspace) {
-                    // Navigate to the active workspace (client-side)
-                    router.push(`/ws/${activeWorkspace.id}`);
-                } else {
-                    // Navigate to workspace selection if no active workspace
-                    router.push('/workspaces');
-                }
-            } else {
-                // Navigate to create workspace if no workspaces exist
-                router.push('/add/workspace');
-            }
-        } catch (error) {
-            console.error('Error loading initial workspace:', error);
-            // Fallback to workspace selection
-            router.push('/workspaces');
-        }
-    }, [router]);
+    // Removed loadInitialWorkspace function - WorkspaceApplication handles its own navigation
 
     // Initialize user state when setup is completed
     React.useMemo(() => {
@@ -71,12 +49,11 @@ export function AppWrapper() {
                 setCurrentUser(user);
                 if (!user.hasCompletedWorkspaceSetup) {
                     setShowWorkspaceSetup(true);
-                } else {
-                    loadInitialWorkspace(user.id);
                 }
+                // WorkspaceApplication will handle navigation when rendered
             }
         }
-    }, [setupStatus?.completed, currentUser, loadInitialWorkspace]);
+    }, [setupStatus?.completed, currentUser]);
 
 
 
@@ -94,10 +71,8 @@ export function AppWrapper() {
                 // Check if user needs workspace setup
                 if (!result.user.hasCompletedWorkspaceSetup) {
                     setShowWorkspaceSetup(true);
-                } else {
-                    // Load initial workspace for authenticated user
-                    await loadInitialWorkspace(result.user.id);
                 }
+                // WorkspaceApplication will handle navigation when rendered
             }
         } catch (error) {
             console.error('Login failed:', error);
@@ -126,10 +101,7 @@ export function AppWrapper() {
             authService.updateUser({ hasCompletedWorkspaceSetup: true });
         }
 
-        // Navigate to the new workspace if created (client-side)
-        if (workspace) {
-            router.push(`/ws/${workspace.id}`);
-        }
+        // WorkspaceApplication will handle navigation when rendered
     };
 
 
@@ -235,15 +207,13 @@ export function AppWrapper() {
         );
     }
 
-    // If user is logged in and has completed workspace setup, show loading
+    // If user is logged in and has completed workspace setup, show workspace application
     if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
         return (
-            <div className="h-screen bg-background flex items-center justify-center">
-                <div className="text-center space-y-4">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                    <p className="text-muted-foreground">Redirecting to workspace...</p>
-                </div>
-            </div>
+            <WorkspaceApplication
+                currentUser={currentUser}
+                onLogout={handleLogout}
+            />
         );
     }
 
