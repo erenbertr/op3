@@ -68,9 +68,15 @@ export function ChatInput({
 
     // Derived state for AI provider selection
     const derivedProvider = useMemo(() => {
-        if (sessionAIProviderId !== undefined) {
-            return sessionAIProviderId;
+        // If session has a specific provider ID and it exists in available providers, use it
+        if (sessionAIProviderId && aiProviders && aiProviders.length > 0) {
+            const sessionProvider = aiProviders.find(p => p?.id === sessionAIProviderId);
+            if (sessionProvider) {
+                return sessionAIProviderId;
+            }
         }
+
+        // Otherwise, fall back to active provider or first available
         if (aiProviders && aiProviders.length > 0) {
             const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
             return activeProvider?.id || '';
@@ -136,15 +142,26 @@ export function ChatInput({
         return selectedPersonality;
     }, [personalities, selectedPersonality]);
 
-    // Update state if validation changed the values
-    React.useMemo(() => {
+    // Update state if validation changed the values - use useEffect for side effects
+    React.useEffect(() => {
         if (validatedProvider !== selectedProvider) {
+            console.log('🔧 Validation correcting provider:', {
+                from: selectedProvider,
+                to: validatedProvider
+            });
             setSelectedProvider(validatedProvider);
         }
+    }, [validatedProvider, selectedProvider]);
+
+    React.useEffect(() => {
         if (validatedPersonality !== selectedPersonality) {
+            console.log('🔧 Validation correcting personality:', {
+                from: selectedPersonality,
+                to: validatedPersonality
+            });
             setSelectedPersonality(validatedPersonality);
         }
-    }, [validatedProvider, selectedProvider, validatedPersonality, selectedPersonality]);
+    }, [validatedPersonality, selectedPersonality]);
 
     // Close dropdowns when clicking outside (using useLayoutEffect for DOM events)
     React.useLayoutEffect(() => {
