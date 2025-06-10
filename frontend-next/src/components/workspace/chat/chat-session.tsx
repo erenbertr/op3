@@ -49,10 +49,7 @@ export function ChatSessionComponent({
                         setMessages(result.messages);
                         // Reset scroll tracking for new session
                         setLastMessageCount(result.messages.length);
-                        // If there are messages, position at newest message after load
-                        if (result.messages.length > 0) {
-                            setShouldScrollToNewest(true);
-                        }
+                        // Messages will trigger spacer update via useEffect
                     } else {
                         console.log('📝 No messages found, starting fresh');
                         setMessages([]);
@@ -142,118 +139,122 @@ export function ChatSessionComponent({
         }
     }, [messages.length, session?.id, isLoadingMessages, isStreaming]);
 
-    // State to track when we should auto-scroll to newest message
-    const [shouldScrollToNewest, setShouldScrollToNewest] = useState(false);
+    // State to track scroll behavior
     const [lastMessageCount, setLastMessageCount] = useState(0);
     const [isUserScrolling, setIsUserScrolling] = useState(false);
 
-    // Track when new messages are added to trigger scroll to top positioning
+    // Function to calculate and update spacer height
+    const updateSpacerHeight = React.useCallback(() => {
+        if (!scrollAreaRef.current || isUserScrolling) return;
+
+        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        const spacerElement = scrollContainer?.querySelector('#chat-spacer');
+
+        if (!scrollContainer || !spacerElement) return;
+
+        const containerHeight = scrollContainer.clientHeight;
+        let contentHeight = 0;
+
+        if (isStreaming) {
+            // During streaming: calculate user message + streaming content height
+            const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
+            const lastTwoElements = Array.from(messageElements).slice(-2); // User message + streaming message
+
+            contentHeight = lastTwoElements.reduce((total, element) => {
+                return total + (element as HTMLElement).offsetHeight;
+            }, 0);
+
+            console.log('📍 Streaming mode - calculating spacer for last 2 messages:', {
+                containerHeight,
+                contentHeight,
+                elementsCount: lastTwoElements.length
+            });
+        } else {
+            // Not streaming: calculate based on last user + AI message pair only
+            const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
+
+            if (messageElements.length > 0) {
+                // Always use only the last 2 messages (user + AI pair) for old chats
+                const lastTwoElements = Array.from(messageElements).slice(-2);
+                contentHeight = lastTwoElements.reduce((total, element) => {
+                    return total + (element as HTMLElement).offsetHeight;
+                }, 0);
+
+                console.log('📍 Static mode - calculating spacer for last message pair:', {
+                    containerHeight,
+                    contentHeight,
+                    totalMessages: messages.length,
+                    elementsUsed: lastTwoElements.length
+                });
+            } else {
+                contentHeight = 0;
+            }
+        }
+
+        // Calculate spacer height (ensure content fits in viewport)
+        const spacerHeight = Math.max(0, containerHeight - contentHeight - 32); // 32px padding
+
+        console.log('📍 Spacer calculation result:', {
+            containerHeight,
+            contentHeight,
+            spacerHeight,
+            isStreaming
+        });
+
+        // Update spacer height
+        spacerElement.style.height = `${spacerHeight}px`;
+
+        // Scroll to show newest content at top
+        setTimeout(() => {
+            scrollContainer.scrollTo({
+                top: scrollContainer.scrollHeight - containerHeight,
+                behavior: 'smooth'
+            });
+        }, 50);
+
+    }, [isStreaming, messages.length, isUserScrolling]);
+
+    // Track when new messages are added or streaming state changes
     React.useEffect(() => {
         const currentMessageCount = messages.length + (isStreaming ? 1 : 0);
 
-        console.log('🔍 Message count check:', {
+        console.log('🔍 Message/streaming state change:', {
             currentMessageCount,
             lastMessageCount,
             messagesLength: messages.length,
             isStreaming,
-            shouldTriggerScroll: currentMessageCount > lastMessageCount && currentMessageCount > 0
+            shouldUpdate: currentMessageCount !== lastMessageCount
         });
 
-        // If message count increased, we should scroll to show newest message at top
-        if (currentMessageCount > lastMessageCount && currentMessageCount > 0) {
-            console.log('✅ Triggering scroll to newest message');
-            setShouldScrollToNewest(true);
+        // Update spacer when message count changes or streaming state changes
+        if (currentMessageCount !== lastMessageCount) {
+            console.log('✅ Updating spacer due to message/streaming change');
+            updateSpacerHeight();
         }
 
         setLastMessageCount(currentMessageCount);
-    }, [messages.length, isStreaming, lastMessageCount]);
+    }, [messages.length, isStreaming, lastMessageCount, updateSpacerHeight]);
 
-    // Auto-scroll to position newest message at top of viewport with smooth animation
-    React.useLayoutEffect(() => {
-        console.log('🔍 Scroll effect triggered:', {
-            shouldScrollToNewest,
-            hasScrollAreaRef: !!scrollAreaRef.current,
-            isUserScrolling
-        });
+    // Update spacer during streaming as content grows
+    React.useEffect(() => {
+        if (isStreaming) {
+            const interval = setInterval(() => {
+                updateSpacerHeight();
+            }, 500); // Update every 500ms during streaming
 
-        if (shouldScrollToNewest && scrollAreaRef.current && !isUserScrolling) {
-            const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-            console.log('🔍 Scroll container found:', !!scrollContainer);
-
-            if (scrollContainer) {
-                // Delay to ensure DOM is updated and rendered
-                const scrollTimeout = setTimeout(() => {
-                    // Find the last message element (newest message)
-                    const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
-                    const lastMessageElement = messageElements[messageElements.length - 1];
-
-                    console.log('🔍 Message elements:', {
-                        totalElements: messageElements.length,
-                        hasLastElement: !!lastMessageElement,
-                        allElements: Array.from(messageElements).map(el => el.textContent?.substring(0, 50) + '...')
-                    });
-
-                    if (lastMessageElement) {
-                        console.log('📍 Calculating spacer height to position newest message at top');
-
-                        // Get container and message dimensions
-                        const containerHeight = scrollContainer.clientHeight;
-                        const messageHeight = lastMessageElement.offsetHeight;
-
-                        // Calculate spacer height needed to push last message to top
-                        const spacerHeight = Math.max(0, containerHeight - messageHeight - 64); // 64px for padding
-
-                        console.log('📍 Spacer calculation:', {
-                            containerHeight,
-                            messageHeight,
-                            spacerHeight
-                        });
-
-                        // Find and update the spacer element
-                        const spacerElement = scrollContainer.querySelector('#chat-spacer');
-                        if (spacerElement) {
-                            spacerElement.style.height = `${spacerHeight}px`;
-
-                            // Wait for spacer to expand, then scroll to position newest message at top
-                            setTimeout(() => {
-                                // Calculate the scroll position to bring the newest message to the top
-                                const messageOffsetTop = lastMessageElement.offsetTop;
-
-                                scrollContainer.scrollTo({
-                                    top: messageOffsetTop - 16, // 16px margin from top
-                                    behavior: 'smooth'
-                                });
-
-                                console.log('📍 Scrolled to position newest message at top:', {
-                                    messageOffsetTop,
-                                    scrollTop: messageOffsetTop - 16,
-                                    spacerHeight
-                                });
-                            }, 100); // Wait for spacer transition
-                        } else {
-                            console.warn('⚠️ Spacer element not found');
-                            // Fallback to regular scroll
-                            lastMessageElement.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start',
-                                inline: 'nearest'
-                            });
-                        }
-                    } else {
-                        console.log('⚠️ No message elements found, using fallback scroll');
-                        // Fallback: scroll to bottom if no message elements found
-                        scrollContainer.scrollTo({
-                            top: scrollContainer.scrollHeight,
-                            behavior: 'smooth'
-                        });
-                    }
-                }, 100);
-
-                return () => clearTimeout(scrollTimeout);
-            }
-            setShouldScrollToNewest(false);
+            return () => clearInterval(interval);
         }
-    }, [shouldScrollToNewest, isUserScrolling]);
+    }, [isStreaming, updateSpacerHeight]);
+
+    // Initial spacer setup when session loads
+    React.useEffect(() => {
+        if (session?.id && !isLoadingMessages && messages.length > 0) {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                updateSpacerHeight();
+            }, 200);
+        }
+    }, [session?.id, isLoadingMessages, messages.length, updateSpacerHeight]);
 
     // Handle user scroll events to detect manual scrolling
     React.useEffect(() => {
@@ -265,11 +266,13 @@ export function ChatSessionComponent({
         const handleScroll = () => {
             setIsUserScrolling(true);
 
-            // Reset spacer when user manually scrolls
+            // Reset spacer when user manually scrolls up (not when auto-scrolling down)
             const spacerElement = scrollContainer.querySelector('#chat-spacer');
-            if (spacerElement && spacerElement.style.height !== '0px') {
+            const isScrolledToBottom = scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight - 50;
+
+            if (spacerElement && spacerElement.style.height !== '0px' && !isScrolledToBottom) {
                 spacerElement.style.height = '0px';
-                console.log('📍 Reset spacer due to manual scroll');
+                console.log('📍 Reset spacer due to manual scroll up');
             }
 
             // Clear existing timeout
@@ -280,7 +283,11 @@ export function ChatSessionComponent({
             // Reset user scrolling flag after scroll ends
             scrollTimeout = setTimeout(() => {
                 setIsUserScrolling(false);
-            }, 150);
+                // Re-apply spacer if user is back at bottom
+                if (isScrolledToBottom) {
+                    setTimeout(() => updateSpacerHeight(), 100);
+                }
+            }, 300);
         };
 
         scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
