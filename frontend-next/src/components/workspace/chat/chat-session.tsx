@@ -447,7 +447,7 @@ export function ChatSessionComponent({
         }
     };
 
-    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[]) => {
+    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => {
         if (!content?.trim()) {
             console.warn('Empty message content provided');
             return;
@@ -471,7 +471,8 @@ export function ChatSessionComponent({
             personalityId,
             aiProviderId,
             createdAt: new Date().toISOString(),
-            fileAttachments
+            fileAttachments,
+            attachmentData // Store the attachment data for display
         };
 
         // Immediately add user message to state

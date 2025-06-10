@@ -122,6 +122,7 @@ export interface ChatMessage {
     apiMetadata?: ApiMetadata;
     isPartial?: boolean; // For messages that were stopped mid-stream
     fileAttachments?: string[]; // Array of file attachment IDs
+    attachmentData?: FileAttachment[]; // Direct attachment data for display (client-side only)
 }
 
 export interface ApiMetadata {
@@ -191,14 +192,15 @@ export interface FileAttachment {
     userId: string;
     originalName: string;
     fileName: string;
+    filePath?: string;
     mimeType: string;
     size: number;
     openaiFileId?: string;
     vectorStoreId?: string;
     status: 'uploading' | 'processing' | 'ready' | 'error';
     errorMessage?: string;
-    createdAt: string;
-    updatedAt: string;
+    createdAt: string | Date;
+    updatedAt: string | Date;
 }
 
 export interface FileUploadResponse {

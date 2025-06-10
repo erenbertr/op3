@@ -13,19 +13,29 @@ interface FileAttachmentDisplayProps {
     className?: string;
     showRemove?: boolean;
     onRemove?: (attachmentId: string) => void;
+    // Add support for direct attachment data to avoid API calls
+    attachments?: FileAttachment[];
 }
 
 export function FileAttachmentDisplay({
     attachmentIds,
     className,
     showRemove = false,
-    onRemove
+    onRemove,
+    attachments: providedAttachments
 }: FileAttachmentDisplayProps) {
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // If attachments are provided directly, use them
+        if (providedAttachments && providedAttachments.length > 0) {
+            setAttachments(providedAttachments);
+            setLoading(false);
+            return;
+        }
+
         const fetchAttachments = async (isInitialLoad = false) => {
             if (attachmentIds.length === 0) {
                 setAttachments([]);
@@ -49,17 +59,16 @@ export function FileAttachmentDisplay({
                         id,
                         sessionId: 'unknown',
                         userId: 'unknown',
-                        originalName: `Document ${index + 1}.pdf`,
-                        fileName: `document-${index + 1}.pdf`,
-                        filePath: `/uploads/document-${index + 1}.pdf`,
-                        fileSize: 1024000, // 1MB
-                        mimeType: 'application/pdf',
+                        originalName: `Uploaded File ${index + 1}`,
+                        fileName: `file-${index + 1}`,
+                        size: 1024000, // 1MB
+                        mimeType: 'application/octet-stream',
                         status: 'ready' as const,
-                        openaiFileId: null,
-                        vectorStoreId: null,
-                        createdAt: new Date(),
-                        updatedAt: new Date(),
-                        errorMessage: null
+                        openaiFileId: undefined,
+                        vectorStoreId: undefined,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        errorMessage: undefined
                     }));
                     setAttachments(mockAttachments);
                 }
@@ -75,7 +84,7 @@ export function FileAttachmentDisplay({
 
         // Initial load
         fetchAttachments(true);
-    }, [attachmentIds]);
+    }, [attachmentIds, providedAttachments]);
 
     const getFileIcon = (mimeType: string) => {
         if (mimeType.startsWith('image/')) {
@@ -141,24 +150,24 @@ export function FileAttachmentDisplay({
     return (
         <div className={cn("space-y-2", className)}>
             <div className="flex flex-wrap gap-2">
-                {attachments.map((attachment) => (
+                {attachments.filter(attachment => attachment && attachment.id).map((attachment) => (
                     <div
                         key={attachment.id}
                         className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-2 text-sm max-w-xs"
                     >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {getFileIcon(attachment.mimeType)}
+                            {getFileIcon(attachment.mimeType || 'application/octet-stream')}
                             <div className="flex-1 min-w-0">
                                 <div className="truncate font-medium">
-                                    {attachment.originalName}
+                                    {attachment.originalName || 'Unknown file'}
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <span>{formatFileSize(attachment.size)}</span>
+                                    <span>{formatFileSize(attachment.size || 0)}</span>
                                     <Badge
                                         variant="outline"
-                                        className={cn("text-xs px-1 py-0", getStatusColor(attachment.status))}
+                                        className={cn("text-xs px-1 py-0", getStatusColor(attachment.status || 'unknown'))}
                                     >
-                                        {attachment.status}
+                                        {attachment.status || 'unknown'}
                                     </Badge>
                                 </div>
                             </div>
@@ -192,7 +201,7 @@ export function FileAttachmentDisplay({
                 ))}
             </div>
 
-            {attachments.some(a => a.status === 'error') && (
+            {attachments.some(a => a && a.status === 'error') && (
                 <div className="text-xs text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
                     Some files failed to upload. They won't be available for AI search.

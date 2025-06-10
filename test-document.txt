@@ -1,0 +1,27 @@
+This is a test document for file upload functionality.
+
+It contains some sample text that can be used to test the OpenAI file search capabilities.
+
+Key information:
+- This document is about testing file uploads
+- It should be processed by OpenAI's vector store
+- Users should be able to search through this content
+- The file attachment should display properly in the chat interface
+
+Additional content:
+The file upload system supports various file types including:
+- Text files (.txt)
+- Markdown files (.md)
+- PDF documents (.pdf)
+- Word documents (.doc, .docx)
+- PowerPoint presentations (.pptx)
+- Code files (.js, .py, .java, etc.)
+
+When a file is uploaded, it goes through the following process:
+1. File is uploaded to the server
+2. File is sent to OpenAI for processing
+3. File is added to a vector store for search capabilities
+4. File status is updated to "ready" when processing is complete
+5. Users can then ask questions about the file content
+
+This test document should help verify that all these steps work correctly.

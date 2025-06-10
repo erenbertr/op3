@@ -166,7 +166,8 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
         content,
         fileAttachments,
         searchEnabled,
-        hasFileAttachments: fileAttachments && fileAttachments.length > 0
+        hasFileAttachments: fileAttachments && fileAttachments.length > 0,
+        fullRequest: request
     });
 
     if (!sessionId) {
@@ -198,7 +199,8 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
             userMessageResult = await chatService.sendMessage(sessionId, {
                 content: content.trim(),
                 personalityId,
-                aiProviderId
+                aiProviderId,
+                fileAttachments
             });
 
             if (!userMessageResult.success) {

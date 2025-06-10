@@ -143,6 +143,7 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                     <div className="mt-2">
                         <FileAttachmentDisplay
                             attachmentIds={message.fileAttachments}
+                            attachments={message.attachmentData}
                             className="ml-3"
                         />
                     </div>

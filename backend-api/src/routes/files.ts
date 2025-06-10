@@ -131,10 +131,15 @@ router.get('/attachments/:attachmentId', asyncHandler(async (req: Request, res: 
         throw createError('Attachment ID is required', 400);
     }
 
-    // TODO: Implement get file attachment
+    const attachment = await openaiFileService.getFileAttachment(attachmentId);
+    if (!attachment) {
+        throw createError('File attachment not found', 404);
+    }
+
     res.json({
-        success: false,
-        message: 'Get file attachment not implemented yet'
+        success: true,
+        message: 'File attachment retrieved',
+        attachment
     });
 }));
 

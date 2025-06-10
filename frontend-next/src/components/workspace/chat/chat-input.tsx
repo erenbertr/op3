@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Personality, AIProviderConfig, apiClient } from '@/lib/api';
 
 interface ChatInputProps {
-    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[]) => Promise<void>;
+    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
     personalities: Personality[];
     aiProviders: AIProviderConfig[];
     isLoading?: boolean;
@@ -53,6 +53,7 @@ export function ChatInput({
     const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [uploadedFileIds, setUploadedFileIds] = useState<string[]>([]);
+    const [uploadedAttachments, setUploadedAttachments] = useState<FileAttachment[]>([]);
     const [isUploading, setIsUploading] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -235,10 +236,12 @@ export function ChatInput({
         try {
             const result = await apiClient.uploadFiles(sessionId, selectedFiles, userId);
             if (result.success && result.results) {
-                const fileIds = result.results
-                    .filter(r => r.success && r.attachment)
-                    .map(r => r.attachment!.id);
+                const successfulResults = result.results.filter(r => r.success && r.attachment);
+                const fileIds = successfulResults.map(r => r.attachment!.id);
+                const attachments = successfulResults.map(r => r.attachment!);
+
                 setUploadedFileIds(prev => [...prev, ...fileIds]);
+                setUploadedAttachments(prev => [...prev, ...attachments]);
                 setSelectedFiles([]); // Clear selected files after upload
                 return fileIds;
             }
@@ -281,11 +284,13 @@ export function ChatInput({
                 selectedPersonality || undefined,
                 selectedProvider || undefined,
                 searchEnabled,
-                allFileIds.length > 0 ? allFileIds : undefined
+                allFileIds.length > 0 ? allFileIds : undefined,
+                uploadedAttachments.length > 0 ? uploadedAttachments : undefined
             );
 
-            // Clear uploaded file IDs after sending
+            // Clear uploaded file IDs and attachments after sending
             setUploadedFileIds([]);
+            setUploadedAttachments([]);
 
             // Trigger focus maintenance after all re-renders
             setShouldMaintainFocus(true);
