@@ -30,6 +30,7 @@ interface SortableGroupListProps {
 export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const sortableRef = useRef<Sortable | null>(null);
+    const isInitializedRef = useRef(false);
     const [isDragging, setIsDragging] = useState(false);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
@@ -52,14 +53,14 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
     useEffect(() => {
         if (!listRef.current) return;
 
-        // Don't recreate sortable instance if one already exists and we're not dragging
+        // Don't recreate sortable instance if one already exists and is initialized
         // This prevents interrupting ongoing drag operations
-        if (sortableRef.current && !isDragging) {
+        if (sortableRef.current && isInitializedRef.current) {
             return;
         }
 
-        // Only destroy if we're not currently dragging
-        if (sortableRef.current && !isDragging) {
+        // Destroy existing instance if it exists
+        if (sortableRef.current) {
             try {
                 sortableRef.current.destroy();
             } catch (error) {
@@ -67,10 +68,8 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 console.warn('Error destroying sortable instance:', error);
             }
             sortableRef.current = null;
+            isInitializedRef.current = false;
         }
-
-        // Don't create new instance if we're currently dragging
-        if (isDragging) return;
 
         // Create new sortable instance
         try {
@@ -119,8 +118,10 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                     }
                 }
             });
+            isInitializedRef.current = true;
         } catch (error) {
             console.error('Error creating sortable instance:', error);
+            isInitializedRef.current = false;
         }
 
         return () => {
@@ -133,10 +134,11 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 }
                 sortableRef.current = null;
             }
+            isInitializedRef.current = false;
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [debouncedReorder, isDragging, handleSortableError]); // Removed groups and onGroupReorder from dependencies
+    }, [debouncedReorder, handleSortableError]); // Removed groups, onGroupReorder, and isDragging from dependencies
 
     return (
         <div ref={listRef} className={`space-y-2 ${isDragging ? 'pointer-events-none' : ''}`}>

@@ -47,6 +47,7 @@ export function SortableWorkspaceList({
 }: SortableWorkspaceListProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const sortableRef = useRef<Sortable | null>(null);
+    const isInitializedRef = useRef(false);
     const [isDragging, setIsDragging] = useState(false);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
@@ -69,14 +70,14 @@ export function SortableWorkspaceList({
     useEffect(() => {
         if (!listRef.current) return;
 
-        // Don't recreate sortable instance if one already exists and we're not dragging
+        // Don't recreate sortable instance if one already exists and is initialized
         // This prevents interrupting ongoing drag operations
-        if (sortableRef.current && !isDragging) {
+        if (sortableRef.current && isInitializedRef.current) {
             return;
         }
 
-        // Only destroy if we're not currently dragging
-        if (sortableRef.current && !isDragging) {
+        // Destroy existing instance if it exists
+        if (sortableRef.current) {
             try {
                 sortableRef.current.destroy();
             } catch (error) {
@@ -84,10 +85,8 @@ export function SortableWorkspaceList({
                 console.warn('Error destroying sortable instance:', error);
             }
             sortableRef.current = null;
+            isInitializedRef.current = false;
         }
-
-        // Don't create new instance if we're currently dragging
-        if (isDragging) return;
 
         // Create new sortable instance
         try {
@@ -144,8 +143,10 @@ export function SortableWorkspaceList({
                     }
                 }
             });
+            isInitializedRef.current = true;
         } catch (error) {
             console.error('Error creating sortable instance:', error);
+            isInitializedRef.current = false;
         }
 
         return () => {
@@ -158,10 +159,11 @@ export function SortableWorkspaceList({
                 }
                 sortableRef.current = null;
             }
+            isInitializedRef.current = false;
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [debouncedMove, isDragging, handleSortableError]); // Removed workspaces and onWorkspaceMove from dependencies
+    }, [debouncedMove, handleSortableError]); // Removed workspaces, onWorkspaceMove, and isDragging from dependencies
 
     return (
         <div
