@@ -287,18 +287,14 @@ export class AIChatService {
             }
         };
 
-        // Add web search tool if enabled
+        // For now, we'll disable web search tools in Chat Completions API
+        // as it's not supported in the standard API
         if (searchEnabled) {
-            requestBody.tools = [
-                {
-                    type: "web_search"
-                }
-            ];
-
-            // Notify that search is starting
+            // Notify that search is not available for this provider
             onChunk({
-                type: 'search_start',
-                searchQuery: messages[messages.length - 1]?.content || ''
+                type: 'chunk',
+                messageId,
+                content: '[Note: Web search is not available for this AI provider. Responding with training data only.]\n\n'
             });
         }
 
@@ -315,8 +311,10 @@ export class AIChatService {
             throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         }
 
-        return await this.processOpenAIStream(response, messageId, onChunk, provider.model, conversationHistory);
+        return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
     }
+
+
 
     /**
      * Process OpenAI streaming response
@@ -325,8 +323,7 @@ export class AIChatService {
         response: Response,
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
-        model: string,
-        conversationHistory: ConversationMessage[] = []
+        model: string
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const reader = response.body?.getReader();
         if (!reader) {
@@ -421,7 +418,7 @@ export class AIChatService {
             // If no token usage was captured, estimate based on content length
             if (inputTokens === 0 && outputTokens === 0) {
                 // Rough estimation: ~4 characters per token for English text
-                const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+                const estimatedInputTokens = Math.ceil(finalContent.length / 8); // Rough estimate for input
                 const estimatedOutputTokens = Math.ceil(finalContent.length / 4);
 
                 inputTokens = estimatedInputTokens;
@@ -892,6 +889,6 @@ export class AIChatService {
         }
 
         // Use OpenAI stream processing for custom providers (assuming compatibility)
-        return await this.processOpenAIStream(response, messageId, onChunk, provider.model, conversationHistory);
+        return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
     }
 }
