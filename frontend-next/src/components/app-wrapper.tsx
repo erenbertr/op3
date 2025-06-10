@@ -154,8 +154,8 @@ export function AppWrapper() {
 
 
 
-    // If setup is not completed, show setup wizard
-    if (!setupStatus?.completed) {
+    // If setup is not completed, show setup wizard (but only if we're not still loading)
+    if (!isLoadingSetup && !setupStatus?.completed) {
         return (
             <div className="h-screen bg-background">
                 {/* Header with theme toggle and language selector */}
@@ -216,6 +216,11 @@ export function AppWrapper() {
                 onLogout={handleLogout}
             />
         );
+    }
+
+    // If we're still loading setup status, show nothing to prevent flash
+    if (isLoadingSetup) {
+        return null;
     }
 
     // If setup is completed but user is not logged in, show login form
