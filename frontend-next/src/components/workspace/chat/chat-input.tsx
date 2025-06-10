@@ -4,12 +4,12 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Search, Paperclip } from 'lucide-react';
+import { Search, Paperclip, X, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Personality, AIProviderConfig } from '@/lib/api';
+import { Personality, AIProviderConfig, apiClient } from '@/lib/api';
 
 interface ChatInputProps {
-    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean) => Promise<void>;
+    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[]) => Promise<void>;
     personalities: Personality[];
     aiProviders: AIProviderConfig[];
     isLoading?: boolean;
@@ -21,6 +21,8 @@ interface ChatInputProps {
     onSettingsChange?: (personalityId?: string, aiProviderId?: string) => Promise<void>;
     autoFocus?: boolean;
     onInterruptStreaming?: () => void;
+    sessionId?: string;
+    userId?: string;
 }
 
 export function ChatInput({
@@ -35,7 +37,9 @@ export function ChatInput({
     sessionAIProviderId,
     onSettingsChange,
     autoFocus = false,
-    onInterruptStreaming
+    onInterruptStreaming,
+    sessionId,
+    userId
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -47,10 +51,14 @@ export function ChatInput({
     const [searchEnabled, setSearchEnabled] = useState(false);
     const [fileAttachEnabled, setFileAttachEnabled] = useState(false);
     const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [uploadedFileIds, setUploadedFileIds] = useState<string[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
     const providerDropdownRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
 
 
@@ -202,6 +210,47 @@ export function ChatInput({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Handle file selection
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        setSelectedFiles(prev => [...prev, ...files]);
+        // Clear the input so the same file can be selected again
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    // Remove selected file
+    const removeFile = (index: number) => {
+        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Upload files
+    const uploadFiles = async () => {
+        if (!sessionId || !userId || selectedFiles.length === 0) {
+            return [];
+        }
+
+        setIsUploading(true);
+        try {
+            const result = await apiClient.uploadFiles(sessionId, selectedFiles, userId);
+            if (result.success && result.results) {
+                const fileIds = result.results
+                    .filter(r => r.success && r.attachment)
+                    .map(r => r.attachment!.id);
+                setUploadedFileIds(prev => [...prev, ...fileIds]);
+                setSelectedFiles([]); // Clear selected files after upload
+                return fileIds;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            return [];
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -218,12 +267,26 @@ export function ChatInput({
         }
 
         try {
+            // Upload files if any are selected
+            let fileAttachmentIds: string[] = [];
+            if (selectedFiles.length > 0) {
+                fileAttachmentIds = await uploadFiles();
+            }
+
+            // Include previously uploaded files
+            const allFileIds = [...uploadedFileIds, ...fileAttachmentIds];
+
             await onSendMessage(
                 content,
                 selectedPersonality || undefined,
                 selectedProvider || undefined,
-                searchEnabled
+                searchEnabled,
+                allFileIds.length > 0 ? allFileIds : undefined
             );
+
+            // Clear uploaded file IDs after sending
+            setUploadedFileIds([]);
+
             // Trigger focus maintenance after all re-renders
             setShouldMaintainFocus(true);
         } catch (error) {
@@ -268,6 +331,36 @@ export function ChatInput({
     return (
         <div className={cn("w-full max-w-4xl mx-auto", className)}>
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* File attachments display */}
+                {(selectedFiles.length > 0 || uploadedFileIds.length > 0) && (
+                    <div className="space-y-2">
+                        {selectedFiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedFiles.map((file, index) => (
+                                    <div key={index} className="flex items-center gap-2 bg-muted px-3 py-2 rounded-md text-sm">
+                                        <span className="truncate max-w-[200px]">{file.name}</span>
+                                        <span className="text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-4 w-4 p-0"
+                                            onClick={() => removeFile(index)}
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {uploadedFileIds.length > 0 && (
+                            <div className="text-sm text-muted-foreground">
+                                {uploadedFileIds.length} file(s) ready for next message
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Main input area */}
                 <div className="relative border rounded-lg bg-background focus-within:ring-2 focus-within:ring-ring">
                     <Textarea
@@ -411,16 +504,31 @@ export function ChatInput({
                         <Search className="h-4 w-4" />
                     </Button>
 
-                    <Button
-                        type="button"
-                        variant={fileAttachEnabled ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setFileAttachEnabled(!fileAttachEnabled)}
-                        className="h-8 w-8 p-0"
-                        title="Toggle file attachment"
-                    >
-                        <Paperclip className="h-4 w-4" />
-                    </Button>
+                    <div className="relative">
+                        <Button
+                            type="button"
+                            variant={fileAttachEnabled ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="h-8 w-8 p-0"
+                            title="Attach files"
+                            disabled={isUploading}
+                        >
+                            {isUploading ? (
+                                <Upload className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Paperclip className="h-4 w-4" />
+                            )}
+                        </Button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={handleFileSelect}
+                            accept=".txt,.md,.csv,.html,.css,.js,.py,.java,.c,.cpp,.cs,.php,.rb,.go,.tex,.json,.pdf,.doc,.docx,.pptx,.sh,.ts"
+                        />
+                    </div>
                 </div>
             </form>
         </div>

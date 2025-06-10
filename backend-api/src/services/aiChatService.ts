@@ -5,6 +5,7 @@ import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
 import { WorkspaceService } from './workspaceService';
 import { GoogleSearchService, createGoogleSearchService } from './googleSearchService';
+import { OpenAIFileService } from './openaiFileService';
 
 export interface StreamingChatRequest {
     content: string;
@@ -13,6 +14,7 @@ export interface StreamingChatRequest {
     sessionId: string;
     userId: string;
     searchEnabled?: boolean;
+    fileAttachments?: string[];
 }
 
 export interface StreamingChatResponse {
@@ -44,6 +46,7 @@ export class AIChatService {
     private chatService: ChatService;
     private workspaceService: WorkspaceService;
     private googleSearchService: GoogleSearchService | null;
+    private openaiFileService: OpenAIFileService;
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
@@ -51,6 +54,7 @@ export class AIChatService {
         this.chatService = ChatService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
         this.googleSearchService = createGoogleSearchService();
+        this.openaiFileService = OpenAIFileService.getInstance();
     }
 
     public static getInstance(): AIChatService {
@@ -102,7 +106,9 @@ export class AIChatService {
                 request.content,
                 conversationHistory,
                 onChunk,
-                request.searchEnabled
+                request.searchEnabled,
+                request.fileAttachments,
+                request.sessionId
             );
 
             return result;
@@ -196,7 +202,9 @@ export class AIChatService {
         userMessage: string,
         conversationHistory: ConversationMessage[],
         onChunk: (chunk: AIStreamChunk) => void,
-        searchEnabled?: boolean
+        searchEnabled?: boolean,
+        fileAttachments?: string[],
+        sessionId?: string
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const messageId = crypto.randomUUID();
         const startTime = Date.now();
@@ -214,7 +222,7 @@ export class AIChatService {
 
             switch (provider.type) {
                 case 'openai':
-                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk, searchEnabled);
+                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk, searchEnabled, fileAttachments, sessionId);
                     break;
                 case 'anthropic':
                     result = await this.streamFromAnthropic(provider, fullConversation, messageId, onChunk);
@@ -267,7 +275,9 @@ export class AIChatService {
         conversationHistory: ConversationMessage[],
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
-        searchEnabled?: boolean
+        searchEnabled?: boolean,
+        fileAttachments?: string[],
+        sessionId?: string
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
@@ -290,15 +300,18 @@ export class AIChatService {
             }
         };
 
-        // Handle web search
-        if (searchEnabled && this.supportsOpenAIWebSearch(provider)) {
+        // Handle file search or web search using Responses API
+        if ((fileAttachments && fileAttachments.length > 0) || (searchEnabled && this.supportsOpenAIWebSearch(provider))) {
             try {
-                // Try to use Responses API for web search
-                return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk);
+                // Use Responses API for file search or web search
+                return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk, fileAttachments, sessionId);
             } catch (error) {
-                console.warn('OpenAI Responses API failed, falling back to Google Custom Search:', error);
-                // Fall back to Google Custom Search if Responses API fails
-                await this.performWebSearch(conversationHistory, onChunk, messageId);
+                console.warn('OpenAI Responses API failed:', error);
+                if (searchEnabled) {
+                    console.warn('Falling back to Google Custom Search');
+                    // Fall back to Google Custom Search if Responses API fails
+                    await this.performWebSearch(conversationHistory, onChunk, messageId);
+                }
             }
         } else if (searchEnabled) {
             // Fall back to Google Custom Search for models that don't support OpenAI web search
@@ -408,13 +421,15 @@ export class AIChatService {
     }
 
     /**
-     * Stream from OpenAI Responses API with web search
+     * Stream from OpenAI Responses API with web search and/or file search
      */
     private async streamFromOpenAIResponses(
         provider: AIProviderConfig,
         conversationHistory: ConversationMessage[],
         messageId: string,
-        onChunk: (chunk: AIStreamChunk) => void
+        onChunk: (chunk: AIStreamChunk) => void,
+        fileAttachments?: string[],
+        sessionId?: string
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
@@ -443,15 +458,33 @@ export class AIChatService {
             searchQuery: lastUserMessage.content
         });
 
+        // Build tools array based on what's needed
+        const tools: any[] = [];
+
+        // Add web search if no file attachments (or both if needed)
+        if (!fileAttachments || fileAttachments.length === 0) {
+            tools.push({
+                type: "web_search_preview",
+                search_context_size: "medium"
+            });
+        }
+
+        // Add file search if file attachments are present
+        if (fileAttachments && fileAttachments.length > 0 && sessionId) {
+            // Get vector store for the session
+            const vectorStoreResult = await this.getVectorStoreForSession(sessionId);
+            if (vectorStoreResult) {
+                tools.push({
+                    type: "file_search",
+                    vector_store_ids: [vectorStoreResult]
+                });
+            }
+        }
+
         const requestBody = {
             model: provider.model,
             input: input,
-            tools: [
-                {
-                    type: "web_search_preview",
-                    search_context_size: "medium"
-                }
-            ]
+            tools: tools
         };
 
         const response = await fetch(`${endpoint}/responses`, {
@@ -1133,5 +1166,27 @@ export class AIChatService {
 
         // Use OpenAI stream processing for custom providers (assuming compatibility)
         return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
+    }
+
+    /**
+     * Get vector store ID for a session
+     */
+    private async getVectorStoreForSession(sessionId: string): Promise<string | null> {
+        try {
+            // Get the first user from the session (simplified approach)
+            const chatSession = await this.chatService.getChatSession(sessionId);
+            if (!chatSession.success || !chatSession.session) {
+                return null;
+            }
+
+            const vectorStoreResult = await this.openaiFileService.getOrCreateVectorStore(sessionId, chatSession.session.userId);
+            if (vectorStoreResult.success && vectorStoreResult.vectorStore) {
+                return vectorStoreResult.vectorStore.openaiVectorStoreId;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting vector store for session:', error);
+            return null;
+        }
     }
 }

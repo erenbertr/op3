@@ -59,6 +59,7 @@ export interface SendMessageRequest {
     aiProviderId?: string;
     isContinuation?: boolean;
     searchEnabled?: boolean;
+    fileAttachments?: string[]; // Array of file attachment IDs
 }
 
 export interface SendMessageResponse {

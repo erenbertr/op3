@@ -447,7 +447,7 @@ export function ChatSessionComponent({
         }
     };
 
-    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean) => {
+    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[]) => {
         if (!content?.trim()) {
             console.warn('Empty message content provided');
             return;
@@ -660,7 +660,8 @@ export function ChatSessionComponent({
                         personalityId,
                         aiProviderId,
                         userId,
-                        searchEnabled
+                        searchEnabled,
+                        fileAttachments
                     },
                     callbacks,
                     controller
@@ -999,6 +1000,8 @@ export function ChatSessionComponent({
                         onSettingsChange={handleSettingsChange}
                         autoFocus={autoFocusInput}
                         onInterruptStreaming={handleInterruptStreaming}
+                        sessionId={session?.id}
+                        userId={userId}
                     />
                 </div>
             </div>

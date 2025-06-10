@@ -151,6 +151,7 @@ export interface SendMessageRequest {
     personalityId?: string;
     aiProviderId?: string;
     searchEnabled?: boolean;
+    fileAttachments?: string[];
 }
 
 export interface SendMessageResponse {
@@ -180,6 +181,39 @@ export interface UpdateChatSessionResponse {
     success: boolean;
     message: string;
     session?: ChatSession;
+}
+
+// File attachment types
+export interface FileAttachment {
+    id: string;
+    sessionId: string;
+    userId: string;
+    originalName: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    openaiFileId?: string;
+    vectorStoreId?: string;
+    status: 'uploading' | 'processing' | 'ready' | 'error';
+    errorMessage?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface FileUploadResponse {
+    success: boolean;
+    message: string;
+    results?: {
+        success: boolean;
+        message: string;
+        attachment?: FileAttachment;
+    }[];
+}
+
+export interface FileAttachmentListResponse {
+    success: boolean;
+    message: string;
+    attachments: FileAttachment[];
 }
 
 export interface UpdateChatSessionSettingsRequest {
@@ -671,6 +705,37 @@ class ApiClient {
     }
 
     // AI Streaming chat method with enhanced error handling and abort capability
+    // File upload methods
+    async uploadFiles(sessionId: string, files: File[], userId: string): Promise<FileUploadResponse> {
+        const formData = new FormData();
+        formData.append('userId', userId);
+
+        files.forEach(file => {
+            formData.append('files', file);
+        });
+
+        // Special handling for file uploads - don't use the standard request method
+        const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
+
+        const response = await fetch(`${this.baseURL}/files/sessions/${sessionId}/upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': token ? `Bearer ${token}` : '',
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    async getSessionFileAttachments(sessionId: string): Promise<FileAttachmentListResponse> {
+        return this.request<FileAttachmentListResponse>(`/files/sessions/${sessionId}/attachments`);
+    }
+
     async streamChatMessage(
         sessionId: string,
         request: SendMessageRequest & { userId: string },

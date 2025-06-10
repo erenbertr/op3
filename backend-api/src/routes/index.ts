@@ -7,6 +7,7 @@ import chatRouter from './chat';
 import aiProvidersRouter from './ai-providers';
 import statisticsRouter from './statistics';
 import authRouter from './auth';
+import filesRouter from './files';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -33,6 +34,9 @@ export const setupRoutes = (app: Express): void => {
     // AI Providers routes
     app.use(`${API_PREFIX}/ai-providers`, aiProvidersRouter);
 
+    // Files routes
+    app.use(`${API_PREFIX}/files`, filesRouter);
+
     // Statistics routes
     app.use(`${API_PREFIX}/statistics`, statisticsRouter);
 
@@ -50,6 +54,7 @@ export const setupRoutes = (app: Express): void => {
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,
                 aiProviders: `${API_PREFIX}/ai-providers`,
+                files: `${API_PREFIX}/files`,
                 statistics: `${API_PREFIX}/statistics`,
                 health: '/health'
             }
