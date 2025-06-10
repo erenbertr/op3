@@ -328,51 +328,102 @@
   transition: all 0.2s ease;
 }
 
-/* Workspace container overflow handling */
+/* Workspace container - proper responsive layout */
 .workspace-container {
-  overflow: hidden;
   width: 100%;
   max-width: 100%;
+  container-type: inline-size;
 }
 
-/* Workspace grid layout with proper overflow */
+/* Workspace grid layout - responsive with proper wrapping */
 .workspace-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1rem;
   width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-/* Individual workspace cards should not overflow */
-.workspace-card {
-  max-width: 100%;
-  overflow: hidden;
-  word-wrap: break-word;
   box-sizing: border-box;
 }
 
-/* Workspace group containers */
-.workspace-group {
-  overflow: hidden;
+/* Individual workspace cards - constrained but not hidden */
+.workspace-card {
   width: 100%;
   max-width: 100%;
+  min-width: 0; /* Allow shrinking */
+  box-sizing: border-box;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Workspace group containers - proper responsive layout */
+.workspace-group {
+  width: 100%;
+  max-width: 100%;
+  container-type: inline-size;
 }
 
 .workspace-group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 1rem;
   width: 100%;
-  max-width: 100%;
-  overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Ensure workspace group cards don't overflow */
+/* Ensure workspace group cards wrap properly */
 .workspace-group-card {
+  width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  min-width: 0; /* Allow shrinking */
+  box-sizing: border-box;
   word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Responsive breakpoints for better control */
+@container (max-width: 600px) {
+  .workspace-grid,
+  .workspace-group-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container (min-width: 601px) and (max-width: 900px) {
+  .workspace-grid,
+  .workspace-group-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@container (min-width: 901px) and (max-width: 1200px) {
+  .workspace-grid,
+  .workspace-group-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@container (min-width: 1201px) and (max-width: 1500px) {
+  .workspace-grid,
+  .workspace-group-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@container (min-width: 1501px) {
+  .workspace-grid,
+  .workspace-group-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Inner workspace card constraints */
+.workspace-card-inner {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.workspace-card-inner * {
+  max-width: 100%;
   box-sizing: border-box;
 }

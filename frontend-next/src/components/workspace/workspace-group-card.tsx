@@ -166,10 +166,10 @@ export function WorkspaceGroupCard({
                 <StrictModeDroppable
                     droppableId={`group-${group.id}`}
                     type="workspace"
-                    direction="horizontal"
+                    direction="vertical"
                     isDropDisabled={false}
                     isCombineEnabled={false}
-                    ignoreContainerClipping={false}
+                    ignoreContainerClipping={true}
                 >
                     {(provided, snapshot) => (
                         <div

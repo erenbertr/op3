@@ -285,10 +285,10 @@ export function WorkspaceGroups({
                         <StrictModeDroppable
                             droppableId="ungrouped"
                             type="workspace"
-                            direction="horizontal"
+                            direction="vertical"
                             isDropDisabled={false}
                             isCombineEnabled={false}
-                            ignoreContainerClipping={false}
+                            ignoreContainerClipping={true}
                         >
                             {(provided, snapshot) => (
                                 <div
