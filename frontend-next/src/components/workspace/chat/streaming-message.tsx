@@ -30,53 +30,8 @@ export function StreamingMessage({
     onRetry,
     className
 }: StreamingMessageProps) {
-    const [displayedContent, setDisplayedContent] = useState('');
     const [showCursor, setShowCursor] = useState(true);
     const contentRef = useRef<HTMLDivElement>(null);
-    const animationRef = useRef<number>();
-    const lastContentLength = useRef(0);
-
-    // Enhanced typewriter animation
-    useEffect(() => {
-        if (!isStreaming || hasError) {
-            setDisplayedContent(content);
-            setShowCursor(false);
-            return;
-        }
-
-        if (content.length <= lastContentLength.current) {
-            return;
-        }
-
-        const newChars = content.slice(lastContentLength.current);
-        let charIndex = 0;
-
-        const animateChars = () => {
-            if (charIndex < newChars.length) {
-                setDisplayedContent(prev => prev + newChars[charIndex]);
-                charIndex++;
-                
-                // Variable speed based on character type
-                const char = newChars[charIndex - 1];
-                let delay = 30; // Base delay
-                
-                if (char === ' ') delay = 15; // Faster for spaces
-                else if (char === '\n') delay = 50; // Slower for line breaks
-                else if (/[.!?]/.test(char)) delay = 100; // Slower for sentence endings
-                
-                animationRef.current = setTimeout(animateChars, delay);
-            }
-        };
-
-        animateChars();
-        lastContentLength.current = content.length;
-
-        return () => {
-            if (animationRef.current) {
-                clearTimeout(animationRef.current);
-            }
-        };
-    }, [content, isStreaming, hasError]);
 
     // Cursor blinking effect
     useEffect(() => {
@@ -97,18 +52,16 @@ export function StreamingMessage({
         if (contentRef.current) {
             contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
-    }, [displayedContent]);
+    }, [content]);
 
     const renderContent = () => {
-        if (!displayedContent && !hasError) {
+        if (!content && !hasError) {
+            // Show loading dots when no content yet - remove the "thinking..." text
             return (
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">thinking...</span>
+                <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
             );
         }
@@ -116,12 +69,12 @@ export function StreamingMessage({
         if (hasError) {
             return (
                 <div className="space-y-3">
-                    {displayedContent && (
+                    {content && (
                         <div className="prose prose-sm max-w-none dark:prose-invert">
                             <div
                                 dangerouslySetInnerHTML={{
                                     __html: DOMPurify.sanitize(
-                                        marked.parse(displayedContent, {
+                                        marked.parse(content, {
                                             breaks: true,
                                             gfm: true,
                                         }) as string,
@@ -153,7 +106,8 @@ export function StreamingMessage({
             );
         }
 
-        const contentWithCursor = displayedContent + (showCursor && isStreaming ? '<span class="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5"></span>' : '');
+        // Show actual content with cursor when streaming
+        const contentWithCursor = content + (showCursor && isStreaming ? '<span class="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5"></span>' : '');
 
         return (
             <div className="prose prose-sm max-w-none dark:prose-invert">
@@ -179,19 +133,19 @@ export function StreamingMessage({
     return (
         <div className={cn("relative pb-4 mb-4", className)}>
             <div className="space-y-2">
-                {/* Status indicator with controls */}
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-2 h-6">
+                {/* Status indicator with controls - fixed height to prevent layout shift */}
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-2 h-4">
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
                             {isStreaming && !hasError && (
                                 <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
                             )}
                             <span>
-                                {hasError ? 'Error' : isStreaming ? (displayedContent ? 'typing...' : 'thinking...') : 'completed'}
+                                {hasError ? 'Error' : isStreaming ? (content ? 'typing...' : 'thinking...') : 'completed'}
                             </span>
                         </div>
                     </div>
-                    
+
                     {/* Stream controls */}
                     {(canStop || canRetry) && (
                         <div className="flex items-center gap-1">
@@ -210,7 +164,7 @@ export function StreamingMessage({
                     )}
                 </div>
 
-                {/* Message content area */}
+                {/* Message content area - consistent with regular messages */}
                 <div className="p-3 rounded-lg min-h-[2rem]">
                     {renderContent()}
                 </div>

@@ -165,7 +165,14 @@ export function WorkspaceGroupCard({
             </CardHeader>
 
             <CardContent>
-                <Droppable droppableId={`group-${group.id}`} type="workspace" direction="horizontal" isDropDisabled={false} isCombineEnabled={false}>
+                <Droppable 
+                    droppableId={`group-${group.id}`} 
+                    type="workspace" 
+                    direction="horizontal" 
+                    isDropDisabled={false} 
+                    isCombineEnabled={false}
+                    ignoreContainerClipping={false}
+                >
                     {(provided, snapshot) => (
                         <div
                             {...provided.droppableProps}

@@ -88,8 +88,8 @@ export function WorkspaceGroups({
         }
 
         try {
-            // Determine if this is a group or workspace drag based on droppable IDs
-            if (source.droppableId === 'groups' && destination.droppableId === 'groups') {
+            // Determine if this is a group or workspace drag based on draggable ID
+            if (draggableId.startsWith('group-')) {
                 // Reordering groups
                 const newGroups = [...groups];
                 const [movedGroup] = newGroups.splice(source.index, 1);
@@ -104,9 +104,9 @@ export function WorkspaceGroups({
                     userId,
                     groupOrders
                 });
-            } else {
+            } else if (draggableId.startsWith('workspace-')) {
                 // Moving workspace (between groups or to/from ungrouped)
-                const workspaceId = draggableId;
+                const workspaceId = draggableId.replace('workspace-', '');
                 let newGroupId: string | null = null;
                 const newSortOrder = destination.index;
 
@@ -196,7 +196,13 @@ export function WorkspaceGroups({
             <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="space-y-8">
                     {/* Groups */}
-                    <Droppable droppableId="groups" type="group" isDropDisabled={false} isCombineEnabled={false}>
+                    <Droppable 
+                        droppableId="groups" 
+                        type="group" 
+                        isDropDisabled={false} 
+                        isCombineEnabled={false}
+                        ignoreContainerClipping={false}
+                    >
                         {(provided) => (
                             <div
                                 {...provided.droppableProps}
@@ -235,7 +241,14 @@ export function WorkspaceGroups({
                     {/* Ungrouped workspaces */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-                        <Droppable droppableId="ungrouped" type="workspace" direction="horizontal" isDropDisabled={false} isCombineEnabled={false}>
+                        <Droppable 
+                            droppableId="ungrouped" 
+                            type="workspace" 
+                            direction="horizontal" 
+                            isDropDisabled={false} 
+                            isCombineEnabled={false}
+                            ignoreContainerClipping={false}
+                        >
                             {(provided, snapshot) => (
                                 <div
                                     {...provided.droppableProps}

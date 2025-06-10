@@ -430,18 +430,17 @@ export function ChatSessionComponent({
 
                                 {/* Enhanced streaming message component */}
                                 {(isStreaming || streamingState.hasError) && (
-                                    <div className="px-4">
-                                        <StreamingMessage
-                                            content={streamingMessage}
-                                            isStreaming={isStreaming}
-                                            hasError={streamingState.hasError}
-                                            errorMessage={streamingState.errorMessage}
-                                            canStop={streamingState.canStop && isStreaming}
-                                            canRetry={streamingState.hasError && !streamingState.isRetrying}
-                                            onStop={handleStopStreaming}
-                                            onRetry={handleRetryStreaming}
-                                        />
-                                    </div>
+                                    <StreamingMessage
+                                        content={streamingMessage}
+                                        isStreaming={isStreaming}
+                                        hasError={streamingState.hasError}
+                                        errorMessage={streamingState.errorMessage}
+                                        canStop={streamingState.canStop && isStreaming}
+                                        canRetry={streamingState.hasError && !streamingState.isRetrying}
+                                        onStop={handleStopStreaming}
+                                        onRetry={handleRetryStreaming}
+                                        className="p-4"
+                                    />
                                 )}
                             </div>
                         </div>
