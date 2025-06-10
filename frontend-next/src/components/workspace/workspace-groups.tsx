@@ -104,12 +104,13 @@ export function WorkspaceGroups({
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
-                distance: 8,
+                distance: 3,
             },
         })
     );
 
     const handleDragStart = (event: DragStartEvent) => {
+        console.log('🚀 Drag started:', event.active.id, event.active.data.current);
         setActiveId(event.active.id as string);
     };
 
@@ -121,9 +122,18 @@ export function WorkspaceGroups({
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
+        console.log('🎯 Drag ended:', {
+            active: active.id,
+            activeData: active.data.current,
+            over: over?.id,
+            overData: over?.data.current
+        });
         setActiveId(null);
 
-        if (!over || active.id === over.id) return;
+        if (!over || active.id === over.id) {
+            console.log('❌ No valid drop target');
+            return;
+        }
 
         const activeData = active.data.current as DragData;
         const overData = over.data.current as DragData;

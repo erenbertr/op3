@@ -70,26 +70,31 @@ export function WorkspaceCard({ workspace, onSelect, isActive }: WorkspaceCardPr
         }
     };
 
+    const handleClick = (e: React.MouseEvent) => {
+        // Only handle click if not dragging
+        if (!isDragging) {
+            onSelect(workspace.id);
+        }
+    };
+
     return (
         <Card
             ref={setNodeRef}
             style={style}
-            className={`cursor-pointer transition-all duration-200 hover:shadow-md select-none ${
-                isActive
+            className={`cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md select-none ${isActive
                     ? 'border-primary'
                     : 'hover:border-primary/50'
-            } ${isDragging ? 'shadow-lg' : ''}`}
-            onClick={() => onSelect(workspace.id)}
+                } ${isDragging ? 'shadow-lg cursor-grabbing' : ''}`}
+            onClick={handleClick}
             {...attributes}
             {...listeners}
         >
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${
-                        isActive
+                    <div className={`p-2 rounded-full ${isActive
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground'
-                    }`}>
+                        }`}>
                         {getTemplateIcon(workspace.templateType)}
                     </div>
                     <div className="text-left">
