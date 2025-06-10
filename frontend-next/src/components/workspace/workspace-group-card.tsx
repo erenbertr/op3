@@ -165,7 +165,7 @@ export function WorkspaceGroupCard({
             </CardHeader>
 
             <CardContent>
-                <Droppable droppableId={`group-${group.id}`} type="workspace" direction="horizontal" isDropDisabled={false}>
+                <Droppable droppableId={`group-${group.id}`} type="workspace" direction="horizontal" isDropDisabled={false} isCombineEnabled={false}>
                     {(provided, snapshot) => (
                         <div
                             {...provided.droppableProps}
@@ -183,7 +183,7 @@ export function WorkspaceGroupCard({
                             {workspaces.map((workspace, index) => (
                                 <Draggable
                                     key={workspace.id}
-                                    draggableId={workspace.id}
+                                    draggableId={`workspace-${workspace.id}`}
                                     index={index}
                                 >
                                     {(provided, snapshot) => (

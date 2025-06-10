@@ -696,12 +696,6 @@ class ApiClient {
 
             try {
                 while (true) {
-                    // Check if aborted
-                    if (abortController?.signal.aborted) {
-                        callbacks.onStop?.();
-                        return;
-                    }
-
                     const { done, value } = await reader.read();
 
                     if (done) break;
@@ -748,16 +742,14 @@ class ApiClient {
                 if (timeoutId) clearTimeout(timeoutId);
             }
         } catch (error) {
-            if (abortController?.signal.aborted) {
-                callbacks.onStop?.();
-                return;
-            }
-
             // Enhanced error handling with specific error types
             let errorMessage = 'Unknown error';
             if (error instanceof Error) {
                 if (error.name === 'AbortError') {
-                    callbacks.onStop?.();
+                    // Only call onStop if it was a user-initiated abort
+                    if (abortController?.signal.aborted) {
+                        callbacks.onStop?.();
+                    }
                     return;
                 } else if (error.message.includes('fetch')) {
                     errorMessage = 'Network connection failed';

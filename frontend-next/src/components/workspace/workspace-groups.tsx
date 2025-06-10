@@ -196,7 +196,7 @@ export function WorkspaceGroups({
             <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="space-y-8">
                     {/* Groups */}
-                    <Droppable droppableId="groups" type="group" isDropDisabled={false}>
+                    <Droppable droppableId="groups" type="group" isDropDisabled={false} isCombineEnabled={false}>
                         {(provided) => (
                             <div
                                 {...provided.droppableProps}
@@ -206,7 +206,7 @@ export function WorkspaceGroups({
                                 {groups.map((group, index) => (
                                     <Draggable
                                         key={group.id}
-                                        draggableId={group.id}
+                                        draggableId={`group-${group.id}`}
                                         index={index}
                                     >
                                         {(provided, snapshot) => (
@@ -235,7 +235,7 @@ export function WorkspaceGroups({
                     {/* Ungrouped workspaces */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-                        <Droppable droppableId="ungrouped" type="workspace" direction="horizontal" isDropDisabled={false}>
+                        <Droppable droppableId="ungrouped" type="workspace" direction="horizontal" isDropDisabled={false} isCombineEnabled={false}>
                             {(provided, snapshot) => (
                                 <div
                                     {...provided.droppableProps}
@@ -253,7 +253,7 @@ export function WorkspaceGroups({
                                     {ungroupedWorkspaces.map((workspace, index) => (
                                         <Draggable
                                             key={workspace.id}
-                                            draggableId={workspace.id}
+                                            draggableId={`workspace-${workspace.id}`}
                                             index={index}
                                         >
                                             {(provided, snapshot) => (

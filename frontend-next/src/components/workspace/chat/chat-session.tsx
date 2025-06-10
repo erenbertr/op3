@@ -92,15 +92,19 @@ export function ChatSessionComponent({
                 isRetrying: false
             });
 
-            // Cancel any ongoing streaming
-            if (abortController) {
-                abortController.abort();
-                setAbortController(null);
-            }
-
             console.log('🔄 Session changed to:', currentSessionId);
         }
-    }, [session?.id, abortController]);
+    }, [session?.id]);
+
+    // Cleanup effect for component unmount
+    React.useEffect(() => {
+        return () => {
+            // Cancel any ongoing streaming when component unmounts
+            if (abortController) {
+                abortController.abort();
+            }
+        };
+    }, [abortController]);
 
     // Debug logging
     React.useEffect(() => {
@@ -429,10 +433,10 @@ export function ChatSessionComponent({
                                     <div className="px-4">
                                         <StreamingMessage
                                             content={streamingMessage}
-                                            isStreaming={streamingState.isStreaming}
+                                            isStreaming={isStreaming}
                                             hasError={streamingState.hasError}
                                             errorMessage={streamingState.errorMessage}
-                                            canStop={streamingState.canStop}
+                                            canStop={streamingState.canStop && isStreaming}
                                             canRetry={streamingState.hasError && !streamingState.isRetrying}
                                             onStop={handleStopStreaming}
                                             onRetry={handleRetryStreaming}
