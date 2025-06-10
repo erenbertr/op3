@@ -104,6 +104,12 @@ export function WorkspaceGroups({
     const handleWorkspaceMove = useCallback(async (workspaceId: string, newIndex: number, targetGroupId?: string | null) => {
         console.log('🚀 Moving workspace:', { workspaceId, targetGroupId, newIndex });
 
+        // Prevent multiple simultaneous moves of the same workspace
+        if (moveWorkspaceMutation.isPending) {
+            console.log('Move already in progress, skipping...');
+            return;
+        }
+
         try {
             // Simply move the workspace to the new position
             // The backend will handle reordering other workspaces if needed
@@ -116,6 +122,7 @@ export function WorkspaceGroups({
 
         } catch (error) {
             console.error('Error moving workspace:', error);
+            // Optionally show user feedback here
         }
     }, [userId, moveWorkspaceMutation]);
 

@@ -1,8 +1,17 @@
 "use client"
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import Sortable from 'sortablejs';
 import { WorkspaceCard } from './workspace-card';
+
+// Debounce utility function
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+    let timeout: NodeJS.Timeout;
+    return ((...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    }) as T;
+}
 
 interface Workspace {
     id: string;
@@ -40,6 +49,16 @@ export function SortableWorkspaceList({
 }: SortableWorkspaceListProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const sortableRef = useRef<Sortable | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+
+    // Debounced move handler to prevent rapid successive operations
+    const debouncedMove = useCallback(
+        debounce((workspaceId: string, newIndex: number, targetGroupId: string | null) => {
+            onWorkspaceMove(workspaceId, newIndex, targetGroupId);
+        }, 100),
+        [onWorkspaceMove]
+    );
 
     useEffect(() => {
         if (!listRef.current) return;
@@ -47,6 +66,7 @@ export function SortableWorkspaceList({
         // Destroy existing sortable instance
         if (sortableRef.current) {
             sortableRef.current.destroy();
+            sortableRef.current = null;
         }
 
         // Create new sortable instance
@@ -60,20 +80,33 @@ export function SortableWorkspaceList({
             fallbackClass: 'sortable-fallback',
             fallbackOnBody: true,
             swapThreshold: 0.65,
+            disabled: isDragging, // Prevent multiple simultaneous drags
+            onStart: (evt) => {
+                const workspaceId = evt.item.getAttribute('data-workspace-id');
+                if (workspaceId) {
+                    setIsDragging(true);
+                    setDraggedItemId(workspaceId);
+                }
+            },
             onEnd: (evt) => {
                 const { oldIndex, newIndex, from, to } = evt;
-                
+
+                // Reset drag state
+                setIsDragging(false);
+                setDraggedItemId(null);
+
                 if (oldIndex === undefined || newIndex === undefined) return;
-                
+                if (oldIndex === newIndex && from === to) return; // No actual move
+
                 // Get the workspace ID from the dragged element
                 const workspaceId = evt.item.getAttribute('data-workspace-id');
                 if (!workspaceId) return;
 
                 // Determine target group ID from the container
                 const targetGroupId = to.getAttribute('data-group-id') || null;
-                
-                // Call the move handler
-                onWorkspaceMove(workspaceId, newIndex, targetGroupId);
+
+                // Call the debounced move handler
+                debouncedMove(workspaceId, newIndex, targetGroupId);
             }
         });
 
@@ -82,20 +115,22 @@ export function SortableWorkspaceList({
                 sortableRef.current.destroy();
                 sortableRef.current = null;
             }
+            setIsDragging(false);
+            setDraggedItemId(null);
         };
-    }, [onWorkspaceMove]);
+    }, [workspaces, onWorkspaceMove, isDragging, debouncedMove]); // Include workspaces in dependencies
 
     return (
         <div
             ref={listRef}
             data-group-id={groupId}
-            className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className}`}
+            className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className} ${isDragging ? 'pointer-events-none' : ''}`}
         >
             {workspaces.map((workspace) => (
                 <div
                     key={workspace.id}
                     data-workspace-id={workspace.id}
-                    className="workspace-card"
+                    className={`workspace-card ${draggedItemId === workspace.id ? 'opacity-50' : ''}`}
                 >
                     <WorkspaceCard
                         workspace={workspace}
