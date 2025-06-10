@@ -68,7 +68,16 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
             // Sanitize HTML content for AI messages
             const sanitizedHTML = DOMPurify.sanitize(htmlContent, {
                 ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-                ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
+                ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+                HOOKS: {
+                    afterSanitizeAttributes: function (node) {
+                        // Add target="_blank" and rel="noopener noreferrer" to all links
+                        if (node.tagName === 'A' && node.hasAttribute('href')) {
+                            node.setAttribute('target', '_blank');
+                            node.setAttribute('rel', 'noopener noreferrer');
+                        }
+                    }
+                }
             });
 
             return (
