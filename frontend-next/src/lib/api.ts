@@ -514,6 +514,46 @@ class ApiClient {
         });
     }
 
+    // Workspace Groups methods
+    async getUserWorkspaceGroups(userId: string): Promise<{ success: boolean; groups: any[] }> {
+        return this.request<{ success: boolean; groups: any[] }>(`/workspace-groups/user/${userId}`);
+    }
+
+    async createWorkspaceGroup(userId: string, name: string, sortOrder?: number): Promise<{ success: boolean; group?: any }> {
+        return this.request<{ success: boolean; group?: any }>('/workspace-groups/create', {
+            method: 'POST',
+            body: JSON.stringify({ userId, name, sortOrder }),
+        });
+    }
+
+    async updateWorkspaceGroup(userId: string, groupId: string, name?: string, sortOrder?: number): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>(`/workspace-groups/${groupId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ userId, name, sortOrder }),
+        });
+    }
+
+    async deleteWorkspaceGroup(userId: string, groupId: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>(`/workspace-groups/${groupId}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ userId }),
+        });
+    }
+
+    async reorderWorkspaceGroups(userId: string, groupOrders: Array<{ groupId: string; sortOrder: number }>): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('/workspace-groups/reorder', {
+            method: 'PUT',
+            body: JSON.stringify({ userId, groupOrders }),
+        });
+    }
+
+    async moveWorkspaceToGroup(userId: string, workspaceId: string, groupId: string | null, sortOrder?: number): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('/workspace-groups/move-workspace', {
+            method: 'PUT',
+            body: JSON.stringify({ userId, workspaceId, groupId, sortOrder }),
+        });
+    }
+
     // Personality-related methods
     async getPersonalities(userId: string): Promise<PersonalitiesListResponse> {
         return this.request<PersonalitiesListResponse>(`/personalities/${userId}`);

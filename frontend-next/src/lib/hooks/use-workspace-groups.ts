@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiService } from '@/lib/api';
+import { apiClient } from '@/lib/api';
 
 // Types
 export interface WorkspaceGroup {
@@ -35,51 +35,19 @@ export interface MoveWorkspaceToGroupRequest {
     sortOrder?: number;
 }
 
-// API functions
+// API functions using apiClient methods
 const workspaceGroupsApi = {
-    getUserGroups: async (userId: string): Promise<{ success: boolean; groups: WorkspaceGroup[] }> => {
-        const response = await apiService.get(`/workspace-groups/user/${userId}`);
-        return response.data;
-    },
-
-    createGroup: async (userId: string, data: CreateWorkspaceGroupRequest): Promise<{ success: boolean; group?: any }> => {
-        const response = await apiService.post('/workspace-groups/create', {
-            userId,
-            ...data
-        });
-        return response.data;
-    },
-
-    updateGroup: async (userId: string, groupId: string, data: UpdateWorkspaceGroupRequest): Promise<{ success: boolean }> => {
-        const response = await apiService.put(`/workspace-groups/${groupId}`, {
-            userId,
-            ...data
-        });
-        return response.data;
-    },
-
-    deleteGroup: async (userId: string, groupId: string): Promise<{ success: boolean }> => {
-        const response = await apiService.delete(`/workspace-groups/${groupId}`, {
-            data: { userId }
-        });
-        return response.data;
-    },
-
-    reorderGroups: async (userId: string, data: ReorderGroupsRequest): Promise<{ success: boolean }> => {
-        const response = await apiService.put('/workspace-groups/reorder', {
-            userId,
-            ...data
-        });
-        return response.data;
-    },
-
-    moveWorkspaceToGroup: async (userId: string, data: MoveWorkspaceToGroupRequest): Promise<{ success: boolean }> => {
-        const response = await apiService.put('/workspace-groups/move-workspace', {
-            userId,
-            ...data
-        });
-        return response.data;
-    }
+    getUserGroups: (userId: string) => apiClient.getUserWorkspaceGroups(userId),
+    createGroup: (userId: string, data: CreateWorkspaceGroupRequest) =>
+        apiClient.createWorkspaceGroup(userId, data.name, data.sortOrder),
+    updateGroup: (userId: string, groupId: string, data: UpdateWorkspaceGroupRequest) =>
+        apiClient.updateWorkspaceGroup(userId, groupId, data.name, data.sortOrder),
+    deleteGroup: (userId: string, groupId: string) =>
+        apiClient.deleteWorkspaceGroup(userId, groupId),
+    reorderGroups: (userId: string, data: ReorderGroupsRequest) =>
+        apiClient.reorderWorkspaceGroups(userId, data.groupOrders),
+    moveWorkspaceToGroup: (userId: string, data: MoveWorkspaceToGroupRequest) =>
+        apiClient.moveWorkspaceToGroup(userId, data.workspaceId, data.groupId, data.sortOrder)
 };
 
 // Query hooks
