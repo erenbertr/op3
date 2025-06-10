@@ -4,7 +4,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Search, Paperclip, Send, Loader2 } from 'lucide-react';
+import { Search, Paperclip } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality, AIProviderConfig } from '@/lib/api';
 
@@ -26,7 +26,7 @@ export function ChatInput({
     personalities,
     aiProviders,
     isLoading = false,
-    placeholder = "Type your message here...",
+    placeholder = "Enter to send, Shift+Enter to add a new line",
     className,
     disabled = false,
     sessionPersonalityId,
@@ -194,10 +194,14 @@ export function ChatInput({
                 selectedPersonality || undefined,
                 selectedProvider || undefined
             );
+            // Keep focus on textarea after sending
+            textareaRef.current?.focus();
         } catch (error) {
             console.error('Error sending message:', error);
             // Restore message on error
             setMessage(content);
+            // Keep focus on textarea even on error
+            textareaRef.current?.focus();
         }
     };
 
@@ -241,26 +245,11 @@ export function ChatInput({
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={placeholder}
+                        placeholder="Enter to send, Shift+Enter to add a new line"
                         disabled={disabled || isLoading}
-                        className="min-h-[60px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 pr-12"
+                        className="min-h-[60px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                         rows={1}
                     />
-
-                    {/* Send button */}
-                    <Button
-                        type="submit"
-                        size="sm"
-                        disabled={!message.trim() || isLoading || disabled}
-                        className="absolute bottom-2 right-2 h-8 w-8 p-0"
-                        onMouseDown={(e) => e.preventDefault()} // Prevent button from taking focus
-                    >
-                        {isLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Send className="h-4 w-4" />
-                        )}
-                    </Button>
                 </div>
 
                 {/* Controls row */}

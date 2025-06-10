@@ -343,7 +343,7 @@ export function ChatSessionComponent({
                         personalities={personalities}
                         aiProviders={aiProviders}
                         isLoading={isLoading}
-                        placeholder={messages.length === 0 ? "Start your conversation..." : "Type your message here..."}
+                        placeholder={messages.length === 0 ? "Start your conversation - Enter to send, Shift+Enter for new line" : undefined}
                         sessionPersonalityId={session?.lastUsedPersonalityId}
                         sessionAIProviderId={session?.lastUsedAIProviderId}
                         onSettingsChange={handleSettingsChange}
