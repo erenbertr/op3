@@ -211,6 +211,7 @@ export function ChatSessionComponent({
             spacerElement.style.height = `${spacerHeight}px`;
 
             // Wait for spacer transition to complete, then scroll
+            const scrollDelay = isNewMessage ? 300 : 50; // Shorter delay for initial loads
             setTimeout(() => {
                 // Ensure we have the latest scroll height after spacer is applied
                 requestAnimationFrame(() => {
@@ -233,7 +234,7 @@ export function ChatSessionComponent({
                         setTimeout(() => {
                             setIsMessagesVisible(true);
                             console.log('✨ Messages now visible with fade-in animation');
-                        }, 50); // Small delay to ensure scroll is complete
+                        }, 10); // Very small delay for instant positioning
                     }
 
                     console.log('📍 Scroll completed:', {
@@ -245,7 +246,7 @@ export function ChatSessionComponent({
                         isNewMessage
                     });
                 });
-            }, 300); // Increased delay to ensure spacer transition completes
+            }, scrollDelay);
         }); // End of requestAnimationFrame
 
     }, [isStreaming, messages.length, isUserScrolling]);
