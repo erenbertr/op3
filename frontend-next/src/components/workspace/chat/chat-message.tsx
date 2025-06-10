@@ -193,6 +193,7 @@ interface ChatMessageListProps {
     onRetry?: (messageId: string) => void;
     onContinue?: (messageId: string) => void;
     streamingMessage?: React.ReactNode;
+    isVisible?: boolean;
 }
 
 export function ChatMessageList({
@@ -203,7 +204,8 @@ export function ChatMessageList({
     className,
     onRetry,
     onContinue,
-    streamingMessage
+    streamingMessage,
+    isVisible = true
 }: ChatMessageListProps) {
     const getPersonality = (personalityId?: string) => {
         return personalityId && personalities ? personalities.find(p => p?.id === personalityId) : undefined;
@@ -264,7 +266,15 @@ export function ChatMessageList({
     }
 
     return (
-        <div className={cn("p-4", className)}>
+        <div
+            className={cn("p-4", className)}
+            style={{
+                opacity: isVisible ? 1 : 0,
+                userSelect: isVisible ? 'auto' : 'none',
+                transition: 'opacity 0.3s ease-in-out',
+                pointerEvents: isVisible ? 'auto' : 'none'
+            }}
+        >
             {allMessages.map((message) => (
                 <div key={message.id} data-message-item>
                     <ChatMessage

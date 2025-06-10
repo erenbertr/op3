@@ -142,6 +142,7 @@ export function ChatSessionComponent({
     // State to track scroll behavior
     const [lastMessageCount, setLastMessageCount] = useState(0);
     const [isUserScrolling, setIsUserScrolling] = useState(false);
+    const [isMessagesVisible, setIsMessagesVisible] = useState(false);
 
     // Function to calculate and update spacer height with proper timing
     const updateSpacerHeight = React.useCallback(() => {
@@ -223,6 +224,12 @@ export function ChatSessionComponent({
                         containerHeight,
                         contentHeight
                     });
+
+                    // Show messages with fade-in animation after positioning is complete
+                    setTimeout(() => {
+                        setIsMessagesVisible(true);
+                        console.log('✨ Messages now visible with fade-in animation');
+                    }, 50); // Small delay to ensure scroll is complete
                 });
             }, 300); // Increased delay to ensure spacer transition completes
         }); // End of requestAnimationFrame
@@ -244,6 +251,10 @@ export function ChatSessionComponent({
         // Update spacer when message count changes or streaming state changes
         if (currentMessageCount !== lastMessageCount) {
             console.log('✅ Updating spacer due to message/streaming change');
+            // For new messages, keep them visible during streaming
+            if (isStreaming || currentMessageCount > 0) {
+                setIsMessagesVisible(true);
+            }
             updateSpacerHeight();
         }
 
@@ -260,6 +271,14 @@ export function ChatSessionComponent({
             return () => clearInterval(interval);
         }
     }, [isStreaming, updateSpacerHeight]);
+
+    // Hide messages when session changes
+    React.useEffect(() => {
+        if (session?.id) {
+            setIsMessagesVisible(false);
+            console.log('🙈 Messages hidden for new session:', session.id);
+        }
+    }, [session?.id]);
 
     // Initial spacer setup when session loads
     React.useEffect(() => {
@@ -784,6 +803,7 @@ export function ChatSessionComponent({
                                     className={messages.length === 0 ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
                                     onContinue={handleContinueMessage}
+                                    isVisible={isMessagesVisible}
                                     streamingMessage={(isStreaming || streamingState.hasError) ? (
                                         <StreamingMessage
                                             content={streamingMessage}
