@@ -652,6 +652,13 @@ class ApiClient {
         });
     }
 
+    async batchUpdateWorkspaces(userId: string, updates: Array<{ workspaceId: string; groupId: string | null; sortOrder: number }>): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>(`/workspace-groups/batch-update`, {
+            method: 'PUT',
+            body: JSON.stringify({ userId, updates }),
+        });
+    }
+
     // Personality-related methods
     async getPersonalities(userId: string): Promise<PersonalitiesListResponse> {
         return this.request<PersonalitiesListResponse>(`/personalities/${userId}`);

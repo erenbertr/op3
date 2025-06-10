@@ -35,6 +35,14 @@ export interface MoveWorkspaceToGroupRequest {
     sortOrder?: number;
 }
 
+export interface BatchUpdateWorkspacesRequest {
+    updates: Array<{
+        workspaceId: string;
+        groupId: string | null;
+        sortOrder: number;
+    }>;
+}
+
 // API functions using apiClient methods
 const workspaceGroupsApi = {
     getUserGroups: (userId: string) => apiClient.getUserWorkspaceGroups(userId),
@@ -47,7 +55,9 @@ const workspaceGroupsApi = {
     reorderGroups: (userId: string, data: ReorderGroupsRequest) =>
         apiClient.reorderWorkspaceGroups(userId, data.groupOrders),
     moveWorkspaceToGroup: (userId: string, data: MoveWorkspaceToGroupRequest) =>
-        apiClient.moveWorkspaceToGroup(userId, data.workspaceId, data.groupId, data.sortOrder)
+        apiClient.moveWorkspaceToGroup(userId, data.workspaceId, data.groupId, data.sortOrder),
+    batchUpdateWorkspaces: (userId: string, data: BatchUpdateWorkspacesRequest) =>
+        apiClient.batchUpdateWorkspaces(userId, data.updates)
 };
 
 // Query hooks
@@ -120,6 +130,20 @@ export function useMoveWorkspaceToGroup() {
     return useMutation({
         mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
             workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
+        onSuccess: (_, variables) => {
+            // Invalidate both groups and workspaces queries
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+        },
+    });
+}
+
+export function useBatchUpdateWorkspaces() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ userId, ...data }: { userId: string } & BatchUpdateWorkspacesRequest) =>
+            workspaceGroupsApi.batchUpdateWorkspaces(userId, data),
         onSuccess: (_, variables) => {
             // Invalidate both groups and workspaces queries
             queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });

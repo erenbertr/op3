@@ -152,4 +152,32 @@ router.put('/move-workspace', asyncHandler(async (req: Request, res: Response) =
     res.json(result);
 }));
 
+// Batch update workspaces (for reordering)
+router.put('/batch-update', asyncHandler(async (req: Request, res: Response) => {
+    const { userId, updates }: {
+        userId: string;
+        updates: Array<{ workspaceId: string; groupId: string | null; sortOrder: number }>
+    } = req.body;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        throw createError('Updates array is required', 400);
+    }
+
+    // Import workspace service here to avoid circular dependency
+    const { WorkspaceService } = await import('../services/workspaceService');
+    const workspaceService = WorkspaceService.getInstance();
+
+    const result = await workspaceService.batchUpdateWorkspaces(userId, updates);
+
+    if (!result.success) {
+        throw createError(result.message || 'Failed to update workspaces', 400);
+    }
+
+    res.json(result);
+}));
+
 export default router;

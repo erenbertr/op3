@@ -349,104 +349,108 @@ export class WorkspaceService {
             const connection = await this.dbManager.getConnection();
             const updatedAt = new Date();
 
-            switch (config.type) {
-                case 'mongodb':
-                    const updateDoc: any = { updatedAt };
-                    if (request.name !== undefined) updateDoc.name = request.name;
-                    if (request.workspaceRules !== undefined) updateDoc.workspaceRules = request.workspaceRules;
-                    if (request.groupId !== undefined) updateDoc.groupId = request.groupId;
-                    if (request.sortOrder !== undefined) updateDoc.sortOrder = request.sortOrder;
+            // If we're updating sortOrder or groupId, we need to handle reordering
+            if (request.sortOrder !== undefined || request.groupId !== undefined) {
+                await this.handleWorkspaceReordering(workspaceId, userId, request, connection, config);
+            } else {
+                // Simple update without reordering
+                switch (config.type) {
+                    case 'mongodb':
+                        const updateDoc: any = { updatedAt };
+                        if (request.name !== undefined) updateDoc.name = request.name;
+                        if (request.workspaceRules !== undefined) updateDoc.workspaceRules = request.workspaceRules;
 
-                    await connection.collection('workspaces').updateOne(
-                        { id: workspaceId, userId },
-                        { $set: updateDoc }
-                    );
-                    break;
-
-                case 'mysql':
-                case 'postgresql':
-                    const setParts: string[] = ['updatedAt = ?'];
-                    const values: any[] = [updatedAt.toISOString()];
-
-                    if (request.name !== undefined) {
-                        setParts.push('name = ?');
-                        values.push(request.name);
-                    }
-                    if (request.workspaceRules !== undefined) {
-                        setParts.push('workspaceRules = ?');
-                        values.push(request.workspaceRules);
-                    }
-                    if (request.groupId !== undefined) {
-                        setParts.push('groupId = ?');
-                        values.push(request.groupId);
-                    }
-                    if (request.sortOrder !== undefined) {
-                        setParts.push('sortOrder = ?');
-                        values.push(request.sortOrder);
-                    }
-
-                    values.push(workspaceId, userId);
-                    const updateQuery = `UPDATE workspaces SET ${setParts.join(', ')} WHERE id = ? AND userId = ?`;
-                    await connection.execute(updateQuery, values);
-                    break;
-
-                case 'localdb':
-                    const sqliteParts: string[] = ['updatedAt = ?'];
-                    const sqliteValues: any[] = [updatedAt.toISOString()];
-
-                    if (request.name !== undefined) {
-                        sqliteParts.push('name = ?');
-                        sqliteValues.push(request.name);
-                    }
-                    if (request.workspaceRules !== undefined) {
-                        sqliteParts.push('workspaceRules = ?');
-                        sqliteValues.push(request.workspaceRules);
-                    }
-                    if (request.groupId !== undefined) {
-                        sqliteParts.push('groupId = ?');
-                        sqliteValues.push(request.groupId);
-                    }
-                    if (request.sortOrder !== undefined) {
-                        sqliteParts.push('sortOrder = ?');
-                        sqliteValues.push(request.sortOrder);
-                    }
-
-                    sqliteValues.push(workspaceId, userId);
-                    await new Promise<void>((resolve, reject) => {
-                        connection.run(
-                            `UPDATE workspaces SET ${sqliteParts.join(', ')} WHERE id = ? AND userId = ?`,
-                            sqliteValues,
-                            (err: any) => {
-                                if (err) reject(err);
-                                else resolve();
-                            }
+                        await connection.collection('workspaces').updateOne(
+                            { id: workspaceId, userId },
+                            { $set: updateDoc }
                         );
-                    });
-                    break;
+                        break;
 
-                case 'supabase':
-                    const supabaseUpdate: any = { updated_at: updatedAt.toISOString() };
-                    if (request.name !== undefined) supabaseUpdate.name = request.name;
-                    if (request.workspaceRules !== undefined) supabaseUpdate.workspace_rules = request.workspaceRules;
-                    if (request.groupId !== undefined) supabaseUpdate.group_id = request.groupId;
-                    if (request.sortOrder !== undefined) supabaseUpdate.sort_order = request.sortOrder;
+                    case 'mysql':
+                    case 'postgresql':
+                        const setParts: string[] = ['updatedAt = ?'];
+                        const values: any[] = [updatedAt.toISOString()];
 
-                    const { error } = await connection
-                        .from('workspaces')
-                        .update(supabaseUpdate)
-                        .eq('id', workspaceId)
-                        .eq('user_id', userId);
+                        if (request.name !== undefined) {
+                            setParts.push('name = ?');
+                            values.push(request.name);
+                        }
+                        if (request.workspaceRules !== undefined) {
+                            setParts.push('workspaceRules = ?');
+                            values.push(request.workspaceRules);
+                        }
+                        if (request.groupId !== undefined) {
+                            setParts.push('groupId = ?');
+                            values.push(request.groupId);
+                        }
+                        if (request.sortOrder !== undefined) {
+                            setParts.push('sortOrder = ?');
+                            values.push(request.sortOrder);
+                        }
 
-                    if (error) {
-                        throw new Error(`Supabase error: ${error.message}`);
-                    }
-                    break;
+                        values.push(workspaceId, userId);
+                        const updateQuery = `UPDATE workspaces SET ${setParts.join(', ')} WHERE id = ? AND userId = ?`;
+                        await connection.execute(updateQuery, values);
+                        break;
 
-                default:
-                    throw new Error(`Database type ${config.type} not supported for workspace operations`);
+                    case 'localdb':
+                        const sqliteParts: string[] = ['updatedAt = ?'];
+                        const sqliteValues: any[] = [updatedAt.toISOString()];
+
+                        if (request.name !== undefined) {
+                            sqliteParts.push('name = ?');
+                            sqliteValues.push(request.name);
+                        }
+                        if (request.workspaceRules !== undefined) {
+                            sqliteParts.push('workspaceRules = ?');
+                            sqliteValues.push(request.workspaceRules);
+                        }
+                        if (request.groupId !== undefined) {
+                            sqliteParts.push('groupId = ?');
+                            sqliteValues.push(request.groupId);
+                        }
+                        if (request.sortOrder !== undefined) {
+                            sqliteParts.push('sortOrder = ?');
+                            sqliteValues.push(request.sortOrder);
+                        }
+
+                        sqliteValues.push(workspaceId, userId);
+                        await new Promise<void>((resolve, reject) => {
+                            connection.run(
+                                `UPDATE workspaces SET ${sqliteParts.join(', ')} WHERE id = ? AND userId = ?`,
+                                sqliteValues,
+                                (err: any) => {
+                                    if (err) reject(err);
+                                    else resolve();
+                                }
+                            );
+                        });
+                        break;
+
+                    case 'supabase':
+                        const supabaseUpdate: any = { updated_at: updatedAt.toISOString() };
+                        if (request.name !== undefined) supabaseUpdate.name = request.name;
+                        if (request.workspaceRules !== undefined) supabaseUpdate.workspace_rules = request.workspaceRules;
+                        if (request.groupId !== undefined) supabaseUpdate.group_id = request.groupId;
+                        if (request.sortOrder !== undefined) supabaseUpdate.sort_order = request.sortOrder;
+
+                        const { error } = await connection
+                            .from('workspaces')
+                            .update(supabaseUpdate)
+                            .eq('id', workspaceId)
+                            .eq('user_id', userId);
+
+                        if (error) {
+                            throw new Error(`Supabase error: ${error.message}`);
+                        }
+                        break;
+
+                    default:
+                        throw new Error(`Database type ${config.type} not supported for workspace operations`);
+                }
             }
 
-            // Get the updated workspace
+            // Get the updated workspace for both cases
             const updatedWorkspace = await this.getWorkspaceById(workspaceId, userId);
             if (!updatedWorkspace) {
                 throw new Error('Workspace not found after update');
@@ -470,6 +474,268 @@ export class WorkspaceService {
             return {
                 success: false,
                 message: error instanceof Error ? error.message : 'Failed to update workspace'
+            };
+        }
+    }
+
+    /**
+     * Handle workspace reordering when sortOrder or groupId changes
+     */
+    private async handleWorkspaceReordering(
+        workspaceId: string,
+        userId: string,
+        request: UpdateWorkspaceRequest,
+        connection: any,
+        config: any
+    ): Promise<void> {
+        const updatedAt = new Date();
+
+        // Get the current workspace to know its current position
+        let currentWorkspace: any;
+
+        switch (config.type) {
+            case 'mongodb':
+                currentWorkspace = await connection.collection('workspaces').findOne({ id: workspaceId, userId });
+                break;
+            case 'mysql':
+            case 'postgresql':
+                const [rows] = await connection.execute('SELECT * FROM workspaces WHERE id = ? AND userId = ?', [workspaceId, userId]);
+                currentWorkspace = rows[0];
+                break;
+            case 'localdb':
+                currentWorkspace = await new Promise((resolve, reject) => {
+                    connection.get('SELECT * FROM workspaces WHERE id = ? AND userId = ?', [workspaceId, userId], (err: any, row: any) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    });
+                });
+                break;
+            case 'supabase':
+                const { data, error } = await connection.from('workspaces').select('*').eq('id', workspaceId).eq('user_id', userId).single();
+                if (error) throw error;
+                currentWorkspace = data;
+                break;
+        }
+
+        if (!currentWorkspace) {
+            throw new Error('Workspace not found');
+        }
+
+        const oldGroupId = currentWorkspace.groupId || null;
+        const newGroupId = request.groupId !== undefined ? request.groupId : oldGroupId;
+        const newSortOrder = request.sortOrder !== undefined ? request.sortOrder : currentWorkspace.sortOrder || 0;
+
+        // Update the moved workspace first
+        const updateDoc: any = { updatedAt };
+        if (request.name !== undefined) updateDoc.name = request.name;
+        if (request.workspaceRules !== undefined) updateDoc.workspaceRules = request.workspaceRules;
+        updateDoc.groupId = newGroupId;
+        updateDoc.sortOrder = newSortOrder;
+
+        switch (config.type) {
+            case 'mongodb':
+                await connection.collection('workspaces').updateOne(
+                    { id: workspaceId, userId },
+                    { $set: updateDoc }
+                );
+
+                // If moving between groups or changing sort order, reorder other workspaces
+                if (oldGroupId !== newGroupId || request.sortOrder !== undefined) {
+                    await this.reorderWorkspacesInGroup(userId, newGroupId, connection, config, workspaceId, newSortOrder);
+
+                    // If moving between groups, also reorder the old group
+                    if (oldGroupId !== newGroupId) {
+                        await this.reorderWorkspacesInGroup(userId, oldGroupId, connection, config);
+                    }
+                }
+                break;
+
+            // Add other database types as needed
+            default:
+                throw new Error(`Database type ${config.type} not supported for workspace reordering`);
+        }
+    }
+
+    /**
+     * Reorder workspaces in a group to maintain sequential sortOrder
+     */
+    private async reorderWorkspacesInGroup(
+        userId: string,
+        groupId: string | null,
+        connection: any,
+        config: any,
+        excludeWorkspaceId?: string,
+        insertAtIndex?: number
+    ): Promise<void> {
+        switch (config.type) {
+            case 'mongodb':
+                // Get all workspaces in the group (excluding the moved one)
+                const filter: any = { userId };
+                if (groupId) {
+                    filter.groupId = groupId;
+                } else {
+                    filter.$or = [{ groupId: null }, { groupId: { $exists: false } }];
+                }
+
+                if (excludeWorkspaceId) {
+                    filter.id = { $ne: excludeWorkspaceId };
+                }
+
+                const workspaces = await connection.collection('workspaces')
+                    .find(filter)
+                    .sort({ sortOrder: 1 })
+                    .toArray();
+
+                // Reorder all workspaces to have sequential sortOrder values
+                const bulkOps = [];
+                let currentIndex = 0;
+
+                for (const workspace of workspaces) {
+                    // If we need to insert at a specific index, skip that position
+                    if (insertAtIndex !== undefined && currentIndex === insertAtIndex) {
+                        currentIndex++;
+                    }
+
+                    if (workspace.sortOrder !== currentIndex) {
+                        bulkOps.push({
+                            updateOne: {
+                                filter: { id: workspace.id, userId },
+                                update: { $set: { sortOrder: currentIndex, updatedAt: new Date() } }
+                            }
+                        });
+                    }
+                    currentIndex++;
+                }
+
+                if (bulkOps.length > 0) {
+                    await connection.collection('workspaces').bulkWrite(bulkOps);
+                }
+                break;
+        }
+    }
+
+    /**
+     * Batch update workspaces (for reordering)
+     */
+    public async batchUpdateWorkspaces(
+        userId: string,
+        updates: Array<{ workspaceId: string; groupId: string | null; sortOrder: number }>
+    ): Promise<{ success: boolean; message?: string }> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            const updatedAt = new Date();
+
+            switch (config.type) {
+                case 'mongodb':
+                    // Use bulk operations for efficiency
+                    const bulkOps = updates.map(update => ({
+                        updateOne: {
+                            filter: { id: update.workspaceId, userId },
+                            update: {
+                                $set: {
+                                    groupId: update.groupId,
+                                    sortOrder: update.sortOrder,
+                                    updatedAt
+                                }
+                            }
+                        }
+                    }));
+
+                    await connection.collection('workspaces').bulkWrite(bulkOps);
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    // Use transaction for consistency
+                    await connection.beginTransaction();
+
+                    try {
+                        for (const update of updates) {
+                            await connection.execute(
+                                'UPDATE workspaces SET groupId = ?, sortOrder = ?, updatedAt = ? WHERE id = ? AND userId = ?',
+                                [update.groupId, update.sortOrder, updatedAt.toISOString(), update.workspaceId, userId]
+                            );
+                        }
+                        await connection.commit();
+                    } catch (error) {
+                        await connection.rollback();
+                        throw error;
+                    }
+                    break;
+
+                case 'localdb':
+                    // SQLite transaction
+                    await new Promise<void>((resolve, reject) => {
+                        connection.serialize(() => {
+                            connection.run('BEGIN TRANSACTION');
+
+                            let completed = 0;
+                            const total = updates.length;
+
+                            for (const update of updates) {
+                                connection.run(
+                                    'UPDATE workspaces SET groupId = ?, sortOrder = ?, updatedAt = ? WHERE id = ? AND userId = ?',
+                                    [update.groupId, update.sortOrder, updatedAt.toISOString(), update.workspaceId, userId],
+                                    (err: any) => {
+                                        if (err) {
+                                            connection.run('ROLLBACK');
+                                            reject(err);
+                                            return;
+                                        }
+
+                                        completed++;
+                                        if (completed === total) {
+                                            connection.run('COMMIT', (commitErr: any) => {
+                                                if (commitErr) reject(commitErr);
+                                                else resolve();
+                                            });
+                                        }
+                                    }
+                                );
+                            }
+                        });
+                    });
+                    break;
+
+                case 'supabase':
+                    // Concurrent updates for Supabase
+                    const supabasePromises = updates.map(update =>
+                        connection
+                            .from('workspaces')
+                            .update({
+                                group_id: update.groupId,
+                                sort_order: update.sortOrder,
+                                updated_at: updatedAt.toISOString()
+                            })
+                            .eq('id', update.workspaceId)
+                            .eq('user_id', userId)
+                    );
+
+                    const results = await Promise.all(supabasePromises);
+
+                    // Check for errors
+                    for (const result of results) {
+                        if (result.error) {
+                            throw new Error(`Supabase error: ${result.error.message}`);
+                        }
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for batch workspace operations`);
+            }
+
+            return { success: true, message: 'Workspaces updated successfully' };
+        } catch (error) {
+            console.error('Error in batch update workspaces:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update workspaces'
             };
         }
     }
