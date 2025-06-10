@@ -206,23 +206,15 @@ export function ChatSessionComponent({
 
         // Scroll to show newest content at top
         setTimeout(() => {
-            // After spacer is applied, scroll to the very bottom to bring newest content to top
-            const newScrollHeight = scrollContainer.scrollHeight;
-            const scrollTarget = newScrollHeight - containerHeight;
+            // Simple: just scroll to the very bottom
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
 
-            console.log('📍 Scrolling to bottom to position newest content at top:', {
-                containerHeight,
-                newScrollHeight,
-                scrollTarget,
-                currentScrollTop: scrollContainer.scrollTop,
+            console.log('📍 Scrolled to bottom:', {
+                scrollHeight: scrollContainer.scrollHeight,
+                scrollTop: scrollContainer.scrollTop,
                 spacerHeight
             });
-
-            scrollContainer.scrollTo({
-                top: scrollTarget,
-                behavior: 'smooth'
-            });
-        }, 100); // Increased delay to ensure spacer is applied
+        }, 100);
 
     }, [isStreaming, messages.length, isUserScrolling]);
 
