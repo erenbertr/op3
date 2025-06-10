@@ -1,10 +1,7 @@
 "use client"
 
 import React, { useState } from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { Droppable, Draggable, DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +27,7 @@ interface WorkspaceGroupCardProps {
     onWorkspaceSelect: (workspaceId: string) => void;
     currentWorkspaceId?: string | null;
     userId: string;
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
 }
 
 export function WorkspaceGroupCard({
@@ -37,7 +35,8 @@ export function WorkspaceGroupCard({
     workspaces,
     onWorkspaceSelect,
     currentWorkspaceId,
-    userId
+    userId,
+    dragHandleProps
 }: WorkspaceGroupCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(group.name);
@@ -45,40 +44,7 @@ export function WorkspaceGroupCard({
     const updateGroupMutation = useUpdateWorkspaceGroup();
     const deleteGroupMutation = useDeleteWorkspaceGroup();
 
-    const {
-        attributes,
-        listeners,
-        setNodeRef: setSortableNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: group.id,
-        data: {
-            type: 'group',
-            id: group.id,
-        },
-    });
 
-    const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
-        id: group.id,
-        data: {
-            type: 'group',
-            id: group.id,
-        },
-    });
-
-    // Combine refs
-    const setNodeRef = (node: HTMLElement | null) => {
-        setSortableNodeRef(node);
-        setDroppableNodeRef(node);
-    };
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
 
     const handleSaveEdit = async () => {
         if (editName.trim() && editName.trim() !== group.name) {
@@ -115,19 +81,12 @@ export function WorkspaceGroupCard({
     };
 
     return (
-        <Card
-            ref={setNodeRef}
-            style={style}
-            className={`transition-all duration-200 ${isDragging ? 'shadow-lg' : ''
-                } ${isOver ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : ''
-                }`}
-        >
+        <Card className="transition-all duration-200">
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
                         <div
-                            {...attributes}
-                            {...listeners}
+                            {...dragHandleProps}
                             className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
                         >
                             <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -201,28 +160,48 @@ export function WorkspaceGroupCard({
             </CardHeader>
 
             <CardContent>
-                {workspaces.length > 0 ? (
-                    <SortableContext items={workspaces.map(w => w.id)} strategy={horizontalListSortingStrategy}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                            {workspaces.map((workspace) => (
-                                <WorkspaceCard
+                <Droppable droppableId={`group-${group.id}`} type="workspace" direction="horizontal">
+                    {(provided, snapshot) => (
+                        <div
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-colors ${snapshot.isDraggingOver
+                                    ? 'border-primary bg-primary/10'
+                                    : 'border-muted-foreground/25'
+                                }`}
+                        >
+                            {workspaces.length === 0 && (
+                                <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
+                                    <p>Drag workspaces here to organize them</p>
+                                </div>
+                            )}
+                            {workspaces.map((workspace, index) => (
+                                <Draggable
                                     key={workspace.id}
-                                    workspace={workspace}
-                                    onSelect={onWorkspaceSelect}
-                                    isActive={workspace.id === currentWorkspaceId}
-                                />
+                                    draggableId={workspace.id}
+                                    index={index}
+                                    type="workspace"
+                                >
+                                    {(provided, snapshot) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.draggableProps}
+                                            {...provided.dragHandleProps}
+                                            className={snapshot.isDragging ? 'opacity-50' : ''}
+                                        >
+                                            <WorkspaceCard
+                                                workspace={workspace}
+                                                onSelect={onWorkspaceSelect}
+                                                isActive={workspace.id === currentWorkspaceId}
+                                            />
+                                        </div>
+                                    )}
+                                </Draggable>
                             ))}
+                            {provided.placeholder}
                         </div>
-                    </SortableContext>
-                ) : (
-                    <div className={`text-center py-8 text-muted-foreground min-h-[100px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOver
-                        ? 'border-primary bg-primary/10'
-                        : 'border-muted-foreground/25'
-                        }`}>
-                        <p>No workspaces in this group</p>
-                        <p className="text-sm">Drag workspaces here to organize them</p>
-                    </div>
-                )}
+                    )}
+                </Droppable>
             </CardContent>
         </Card>
     );

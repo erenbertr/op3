@@ -1,8 +1,6 @@
 "use client"
 
 import React from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 
@@ -22,27 +20,6 @@ interface WorkspaceCardProps {
 }
 
 export function WorkspaceCard({ workspace, onSelect, isActive }: WorkspaceCardProps) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({
-        id: workspace.id,
-        data: {
-            type: 'workspace',
-            id: workspace.id,
-            groupId: workspace.groupId,
-        },
-    });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {
@@ -70,30 +47,19 @@ export function WorkspaceCard({ workspace, onSelect, isActive }: WorkspaceCardPr
         }
     };
 
-    const handleClick = (e: React.MouseEvent) => {
-        // Only handle click if not dragging
-        if (!isDragging) {
-            onSelect(workspace.id);
-        }
-    };
-
     return (
         <Card
-            ref={setNodeRef}
-            style={style}
-            className={`cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md select-none ${isActive
+            className={`cursor-pointer transition-all duration-200 hover:shadow-md select-none ${isActive
                     ? 'border-primary'
                     : 'hover:border-primary/50'
-                } ${isDragging ? 'shadow-lg cursor-grabbing' : ''}`}
-            onClick={handleClick}
-            {...attributes}
-            {...listeners}
+                }`}
+            onClick={() => onSelect(workspace.id)}
         >
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-full ${isActive
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
                         }`}>
                         {getTemplateIcon(workspace.templateType)}
                     </div>

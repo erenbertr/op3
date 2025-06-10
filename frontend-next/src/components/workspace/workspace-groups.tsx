@@ -1,24 +1,7 @@
 "use client"
 
 import React, { useState, useMemo } from 'react';
-import {
-    DndContext,
-    DragEndEvent,
-    DragOverEvent,
-    DragStartEvent,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    closestCorners,
-    DragOverlay,
-    rectIntersection,
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    verticalListSortingStrategy,
-    horizontalListSortingStrategy,
-    arrayMove,
-} from '@dnd-kit/sortable';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Settings2, Loader2 } from 'lucide-react';
@@ -34,7 +17,6 @@ import { WorkspaceCard } from './workspace-card';
 import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
-import { useDroppable } from '@dnd-kit/core';
 
 interface WorkspaceGroupsProps {
     userId: string;
@@ -55,7 +37,6 @@ export function WorkspaceGroups({
     currentWorkspaceId,
     openWorkspace
 }: WorkspaceGroupsProps) {
-    const [activeId, setActiveId] = useState<string | null>(null);
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showOrganizeGroups, setShowOrganizeGroups] = useState(false);
 
@@ -100,76 +81,28 @@ export function WorkspaceGroups({
         };
     }, [workspaces, groups]);
 
-    // Drag and drop sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 3,
-            },
-        })
-    );
+    const handleDragEnd = async (result: DropResult) => {
+        const { destination, source, draggableId, type } = result;
 
-    const handleDragStart = (event: DragStartEvent) => {
-        console.log('🚀 Drag started:', event.active.id, event.active.data.current);
-        setActiveId(event.active.id as string);
-    };
+        // If no destination, do nothing
+        if (!destination) return;
 
-    const handleDragOver = (event: DragOverEvent) => {
-        // Simple drag over handling - just for visual feedback
-        const { active, over } = event;
-        if (!over) return;
-    };
-
-    const handleDragEnd = async (event: DragEndEvent) => {
-        const { active, over } = event;
-        console.log('🎯 Drag ended:', {
-            active: active.id,
-            activeData: active.data.current,
-            over: over?.id,
-            overData: over?.data.current
-        });
-        setActiveId(null);
-
-        if (!over || active.id === over.id) {
-            console.log('❌ No valid drop target');
+        // If dropped in the same position, do nothing
+        if (destination.droppableId === source.droppableId && destination.index === source.index) {
             return;
         }
 
-        const activeData = active.data.current as DragData;
-        const overData = over.data.current as DragData;
-
         try {
-            if (activeData?.type === 'workspace') {
+            if (type === 'workspace') {
                 // Moving workspace
-                const workspaceId = active.id as string;
+                const workspaceId = draggableId;
                 let newGroupId: string | null = null;
-                let newSortOrder = 0;
+                let newSortOrder = destination.index;
 
-                console.log('📍 Processing workspace drop:', { overData, overId: over.id });
-
-                if (overData?.type === 'group') {
-                    // Dropped on a group
-                    newGroupId = over.id as string;
-                    const groupWorkspaces = groupedWorkspaces[newGroupId] || [];
-                    newSortOrder = groupWorkspaces.length;
-                    console.log('📦 Dropped on group:', newGroupId);
-                } else if (overData?.type === 'workspace') {
-                    // Dropped on another workspace
-                    const targetWorkspace = workspaces.find(w => w.id === over.id);
-                    if (targetWorkspace) {
-                        newGroupId = targetWorkspace.groupId || null;
-                        newSortOrder = (targetWorkspace.sortOrder || 0) + 1;
-                        console.log('🎯 Dropped on workspace:', targetWorkspace.id, 'in group:', newGroupId);
-                    }
-                } else if (over.id === 'ungrouped-zone' || overData?.type === 'ungrouped-zone') {
-                    // Dropped on ungrouped area
+                if (destination.droppableId === 'ungrouped') {
                     newGroupId = null;
-                    newSortOrder = ungroupedWorkspaces.length;
-                    console.log('🏠 Dropped on ungrouped zone');
-                } else {
-                    console.log('❓ Unknown drop target, defaulting to ungrouped');
-                    newGroupId = null;
-                    newSortOrder = ungroupedWorkspaces.length;
+                } else if (destination.droppableId.startsWith('group-')) {
+                    newGroupId = destination.droppableId.replace('group-', '');
                 }
 
                 console.log('🚀 Moving workspace:', { workspaceId, newGroupId, newSortOrder });
@@ -180,26 +113,21 @@ export function WorkspaceGroups({
                     groupId: newGroupId,
                     sortOrder: newSortOrder
                 });
-            } else if (activeData?.type === 'group' && overData?.type === 'group') {
+            } else if (type === 'group') {
                 // Reordering groups
-                const activeGroupIndex = groups.findIndex(g => g.id === active.id);
-                const overGroupIndex = groups.findIndex(g => g.id === over.id);
+                const newGroups = [...groups];
+                const [movedGroup] = newGroups.splice(source.index, 1);
+                newGroups.splice(destination.index, 0, movedGroup);
 
-                if (activeGroupIndex !== -1 && overGroupIndex !== -1 && activeGroupIndex !== overGroupIndex) {
-                    const newGroups = [...groups];
-                    const [movedGroup] = newGroups.splice(activeGroupIndex, 1);
-                    newGroups.splice(overGroupIndex, 0, movedGroup);
+                const groupOrders = newGroups.map((group, index) => ({
+                    groupId: group.id,
+                    sortOrder: index
+                }));
 
-                    const groupOrders = newGroups.map((group, index) => ({
-                        groupId: group.id,
-                        sortOrder: index
-                    }));
-
-                    await reorderGroupsMutation.mutateAsync({
-                        userId,
-                        groupOrders
-                    });
-                }
+                await reorderGroupsMutation.mutateAsync({
+                    userId,
+                    groupOrders
+                });
             }
         } catch (error) {
             console.error('Error handling drag end:', error);
@@ -269,44 +197,94 @@ export function WorkspaceGroups({
                 </div>
             </div>
 
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCorners}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-            >
+            <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="space-y-8">
                     {/* Groups */}
-                    <SortableContext items={groups.map(g => g.id)} strategy={verticalListSortingStrategy}>
-                        {groups.map((group) => (
-                            <WorkspaceGroupCard
-                                key={group.id}
-                                group={group}
-                                workspaces={groupedWorkspaces[group.id] || []}
-                                onWorkspaceSelect={handleWorkspaceSelect}
-                                currentWorkspaceId={currentWorkspaceId}
-                                userId={userId}
-                            />
-                        ))}
-                    </SortableContext>
+                    <Droppable droppableId="groups" type="group">
+                        {(provided) => (
+                            <div
+                                {...provided.droppableProps}
+                                ref={provided.innerRef}
+                                className="space-y-6"
+                            >
+                                {groups.map((group, index) => (
+                                    <Draggable
+                                        key={group.id}
+                                        draggableId={group.id}
+                                        index={index}
+                                        type="group"
+                                    >
+                                        {(provided, snapshot) => (
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                className={snapshot.isDragging ? 'opacity-50' : ''}
+                                            >
+                                                <WorkspaceGroupCard
+                                                    group={group}
+                                                    workspaces={groupedWorkspaces[group.id] || []}
+                                                    onWorkspaceSelect={handleWorkspaceSelect}
+                                                    currentWorkspaceId={currentWorkspaceId}
+                                                    userId={userId}
+                                                    dragHandleProps={provided.dragHandleProps}
+                                                />
+                                            </div>
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
 
                     {/* Ungrouped workspaces */}
-                    <UngroupedWorkspacesSection
-                        workspaces={ungroupedWorkspaces}
-                        onWorkspaceSelect={handleWorkspaceSelect}
-                        currentWorkspaceId={currentWorkspaceId}
-                    />
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
+                        <Droppable droppableId="ungrouped" type="workspace" direction="horizontal">
+                            {(provided, snapshot) => (
+                                <div
+                                    {...provided.droppableProps}
+                                    ref={provided.innerRef}
+                                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[120px] p-4 rounded-lg border-2 border-dashed transition-colors ${snapshot.isDraggingOver
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-muted-foreground/25'
+                                        }`}
+                                >
+                                    {ungroupedWorkspaces.length === 0 && (
+                                        <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
+                                            <p>Drop workspaces here to ungroup them</p>
+                                        </div>
+                                    )}
+                                    {ungroupedWorkspaces.map((workspace, index) => (
+                                        <Draggable
+                                            key={workspace.id}
+                                            draggableId={workspace.id}
+                                            index={index}
+                                            type="workspace"
+                                        >
+                                            {(provided, snapshot) => (
+                                                <div
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    className={snapshot.isDragging ? 'opacity-50' : ''}
+                                                >
+                                                    <WorkspaceCard
+                                                        workspace={workspace}
+                                                        onSelect={handleWorkspaceSelect}
+                                                        isActive={workspace.id === currentWorkspaceId}
+                                                    />
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    ))}
+                                    {provided.placeholder}
+                                </div>
+                            )}
+                        </Droppable>
+                    </div>
                 </div>
-
-                <DragOverlay>
-                    {activeId ? (
-                        <div className="opacity-50">
-                            {/* Render dragged item preview */}
-                        </div>
-                    ) : null}
-                </DragOverlay>
-            </DndContext>
+            </DragDropContext>
 
             {/* Dialogs */}
             <CreateGroupDialog
@@ -325,61 +303,4 @@ export function WorkspaceGroups({
     );
 }
 
-// Ungrouped workspaces section with drop zone
-interface UngroupedWorkspacesSectionProps {
-    workspaces: any[];
-    onWorkspaceSelect: (workspaceId: string) => void;
-    currentWorkspaceId?: string | null;
-}
 
-function UngroupedWorkspacesSection({
-    workspaces,
-    onWorkspaceSelect,
-    currentWorkspaceId
-}: UngroupedWorkspacesSectionProps) {
-    const { setNodeRef, isOver } = useDroppable({
-        id: 'ungrouped-zone',
-        data: {
-            type: 'ungrouped-zone'
-        }
-    });
-
-    if (workspaces.length === 0) {
-        return (
-            <div
-                ref={setNodeRef}
-                className={`space-y-4 min-h-[120px] p-6 border-2 border-dashed rounded-lg transition-colors ${isOver
-                    ? 'border-primary bg-primary/5'
-                    : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-                    }`}
-            >
-                <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-                <div className="flex items-center justify-center py-8 text-muted-foreground">
-                    <p>Drop workspaces here to ungroup them</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div
-            ref={setNodeRef}
-            className={`space-y-4 p-4 rounded-lg transition-colors ${isOver ? 'bg-primary/5' : ''
-                }`}
-        >
-            <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-            <SortableContext items={workspaces.map(w => w.id)} strategy={horizontalListSortingStrategy}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                    {workspaces.map((workspace) => (
-                        <WorkspaceCard
-                            key={workspace.id}
-                            workspace={workspace}
-                            onSelect={onWorkspaceSelect}
-                            isActive={workspace.id === currentWorkspaceId}
-                        />
-                    ))}
-                </div>
-            </SortableContext>
-        </div>
-    );
-}
