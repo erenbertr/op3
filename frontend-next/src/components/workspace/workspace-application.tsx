@@ -156,15 +156,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 />
             </div>
 
-            {/* Debug info - remove this later */}
-            {process.env.NODE_ENV === 'development' && (
-                <div className="bg-yellow-100 border-l-4 border-yellow-500 p-2 text-xs">
-                    <strong>Debug:</strong> View: {currentView}, WorkspaceId: {routeParams.workspaceId},
-                    Loading: {workspacesLoading ? 'true' : 'false'},
-                    Workspace Found: {currentWorkspace ? 'true' : 'false'},
-                    Error: {workspacesError ? 'true' : 'false'}
-                </div>
-            )}
+
 
             {/* Main content */}
             <main className="flex-1 overflow-hidden">
@@ -292,7 +284,13 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                     if (workspace) {
                                         // Add a small delay to ensure workspace data is properly invalidated and refetched
                                         setTimeout(() => {
-                                            navigateToWorkspace(workspace.id);
+                                            // Use openWorkspace to add the workspace to tabs and navigate
+                                            if (openWorkspaceRef.current) {
+                                                openWorkspaceRef.current(workspace.id);
+                                            } else {
+                                                // Fallback to regular navigation if openWorkspace is not available
+                                                navigateToWorkspace(workspace.id);
+                                            }
                                         }, 100);
                                     } else {
                                         navigateToWorkspaceSelection();
