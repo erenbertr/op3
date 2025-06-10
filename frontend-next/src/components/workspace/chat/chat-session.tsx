@@ -151,8 +151,17 @@ export function ChatSessionComponent({
     React.useEffect(() => {
         const currentMessageCount = messages.length + (isStreaming ? 1 : 0);
 
+        console.log('🔍 Message count check:', {
+            currentMessageCount,
+            lastMessageCount,
+            messagesLength: messages.length,
+            isStreaming,
+            shouldTriggerScroll: currentMessageCount > lastMessageCount && currentMessageCount > 0
+        });
+
         // If message count increased, we should scroll to show newest message at top
         if (currentMessageCount > lastMessageCount && currentMessageCount > 0) {
+            console.log('✅ Triggering scroll to newest message');
             setShouldScrollToNewest(true);
         }
 
@@ -161,27 +170,77 @@ export function ChatSessionComponent({
 
     // Auto-scroll to position newest message at top of viewport with smooth animation
     React.useLayoutEffect(() => {
+        console.log('🔍 Scroll effect triggered:', {
+            shouldScrollToNewest,
+            hasScrollAreaRef: !!scrollAreaRef.current,
+            isUserScrolling
+        });
+
         if (shouldScrollToNewest && scrollAreaRef.current && !isUserScrolling) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+            console.log('🔍 Scroll container found:', !!scrollContainer);
+
             if (scrollContainer) {
-                // Small delay to ensure DOM is updated
+                // Delay to ensure DOM is updated and rendered
                 const scrollTimeout = setTimeout(() => {
                     // Find the last message element (newest message)
                     const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
                     const lastMessageElement = messageElements[messageElements.length - 1];
 
+                    console.log('🔍 Message elements:', {
+                        totalElements: messageElements.length,
+                        hasLastElement: !!lastMessageElement,
+                        allElements: Array.from(messageElements).map(el => el.textContent?.substring(0, 50) + '...')
+                    });
+
                     if (lastMessageElement) {
-                        // Scroll to position the newest message at the top of the viewport
-                        lastMessageElement.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start',
-                            inline: 'nearest'
+                        console.log('📍 Calculating spacer height to position newest message at top');
+
+                        // Get container and message dimensions
+                        const containerHeight = scrollContainer.clientHeight;
+                        const messageHeight = lastMessageElement.offsetHeight;
+
+                        // Calculate spacer height needed to push last message to top
+                        const spacerHeight = Math.max(0, containerHeight - messageHeight - 64); // 64px for padding
+
+                        console.log('📍 Spacer calculation:', {
+                            containerHeight,
+                            messageHeight,
+                            spacerHeight
                         });
+
+                        // Find and update the spacer element
+                        const spacerElement = scrollContainer.querySelector('#chat-spacer');
+                        if (spacerElement) {
+                            spacerElement.style.height = `${spacerHeight}px`;
+
+                            // Scroll to the last message after spacer is applied
+                            setTimeout(() => {
+                                lastMessageElement.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'start',
+                                    inline: 'nearest'
+                                });
+                                console.log('📍 Scroll executed with spacer height:', spacerHeight);
+                            }, 50);
+                        } else {
+                            console.warn('⚠️ Spacer element not found');
+                            // Fallback to regular scroll
+                            lastMessageElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                                inline: 'nearest'
+                            });
+                        }
                     } else {
+                        console.log('⚠️ No message elements found, using fallback scroll');
                         // Fallback: scroll to bottom if no message elements found
-                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                        scrollContainer.scrollTo({
+                            top: scrollContainer.scrollHeight,
+                            behavior: 'smooth'
+                        });
                     }
-                }, 50);
+                }, 100);
 
                 return () => clearTimeout(scrollTimeout);
             }
@@ -198,6 +257,13 @@ export function ChatSessionComponent({
 
         const handleScroll = () => {
             setIsUserScrolling(true);
+
+            // Reset spacer when user manually scrolls
+            const spacerElement = scrollContainer.querySelector('#chat-spacer');
+            if (spacerElement && spacerElement.style.height !== '0px') {
+                spacerElement.style.height = '0px';
+                console.log('📍 Reset spacer due to manual scroll');
+            }
 
             // Clear existing timeout
             if (scrollTimeout) {

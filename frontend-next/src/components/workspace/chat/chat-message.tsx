@@ -282,6 +282,16 @@ export function ChatMessageList({
                     {streamingMessage}
                 </div>
             )}
+            {/* Transparent spacer to push last message to top when needed */}
+            <div
+                id="chat-spacer"
+                style={{
+                    height: '0px',
+                    transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    pointerEvents: 'none',
+                    opacity: 0
+                }}
+            />
         </div>
     );
 }
