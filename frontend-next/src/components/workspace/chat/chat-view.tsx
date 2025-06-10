@@ -24,6 +24,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [isClientReady, setIsClientReady] = useState(false);
     const [showNotFoundError, setShowNotFoundError] = useState(false);
+    const [shouldAutoFocus, setShouldAutoFocus] = useState(false);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
 
@@ -145,6 +146,17 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         updateActiveSession();
     }, [updateActiveSession]);
 
+    // Reset auto-focus after it's been used
+    useEffect(() => {
+        if (shouldAutoFocus && activeSession) {
+            // Reset after a short delay to allow the focus to take effect
+            const timer = setTimeout(() => {
+                setShouldAutoFocus(false);
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+    }, [shouldAutoFocus, activeSession]);
+
     // Redirect if no user - use useEffect to prevent SSR issues
     useEffect(() => {
         if (isClientReady && !user) {
@@ -171,6 +183,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     const handleNewChat = (session: ChatSession) => {
         navigate(`/ws/${workspaceId}/chat/${session.id}`);
+        // Trigger auto-focus when creating a new chat
+        setShouldAutoFocus(true);
     };
 
     const handleChatSelect = (session: ChatSession) => {
@@ -180,6 +194,8 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
         // Navigate to the chat
         navigate(`/ws/${workspaceId}/chat/${session.id}`);
+        // Trigger auto-focus when selecting a chat
+        setShouldAutoFocus(true);
     };
 
     const handleSessionUpdate = (updatedSession: ChatSession) => {
@@ -320,6 +336,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 onSessionUpdate={handleSessionUpdate}
                                 userId={user?.id || ''}
                                 className="h-full"
+                                autoFocusInput={shouldAutoFocus}
                             />
                         ) : (
                             <EmptyChatState />

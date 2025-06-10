@@ -19,6 +19,7 @@ interface ChatInputProps {
     sessionPersonalityId?: string;
     sessionAIProviderId?: string;
     onSettingsChange?: (personalityId?: string, aiProviderId?: string) => Promise<void>;
+    autoFocus?: boolean;
 }
 
 export function ChatInput({
@@ -31,7 +32,8 @@ export function ChatInput({
     disabled = false,
     sessionPersonalityId,
     sessionAIProviderId,
-    onSettingsChange
+    onSettingsChange,
+    autoFocus = false
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -66,6 +68,17 @@ export function ChatInput({
             setShouldMaintainFocus(false);
         }
     }, [shouldMaintainFocus]);
+
+    // Auto-focus when autoFocus prop is true
+    React.useEffect(() => {
+        if (autoFocus && textareaRef.current && !disabled) {
+            // Small delay to ensure the component is fully rendered
+            const timer = setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [autoFocus, disabled]);
 
     // Derived state for personality selection
     const derivedPersonality = useMemo(() => {

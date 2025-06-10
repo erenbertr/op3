@@ -18,6 +18,7 @@ interface ChatSessionProps {
     onSessionUpdate?: (session: ChatSession) => void;
     className?: string;
     userId: string;
+    autoFocusInput?: boolean;
 }
 
 export function ChatSessionComponent({
@@ -26,7 +27,8 @@ export function ChatSessionComponent({
     aiProviders,
     onSessionUpdate,
     className,
-    userId
+    userId,
+    autoFocusInput = false
 }: ChatSessionProps) {
     // Simple message state - always managed manually
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -70,6 +72,9 @@ export function ChatSessionComponent({
         isRetrying: false
     });
     const [abortController, setAbortController] = useState<AbortController | null>(null);
+    // Store current streaming provider/personality for immediate display
+    const [currentStreamingPersonalityId, setCurrentStreamingPersonalityId] = useState<string | undefined>();
+    const [currentStreamingAIProviderId, setCurrentStreamingAIProviderId] = useState<string | undefined>();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -91,6 +96,9 @@ export function ChatSessionComponent({
                 hasError: false,
                 isRetrying: false
             });
+            // Clear current streaming provider/personality
+            setCurrentStreamingPersonalityId(undefined);
+            setCurrentStreamingAIProviderId(undefined);
 
             console.log('🔄 Session changed to:', currentSessionId);
         }
@@ -230,6 +238,10 @@ export function ChatSessionComponent({
         setIsStreaming(true);
         setStreamingMessage('');
 
+        // Store current streaming provider/personality for immediate display
+        setCurrentStreamingPersonalityId(personalityId);
+        setCurrentStreamingAIProviderId(aiProviderId);
+
         // Create abort controller for this request
         const controller = new AbortController();
         setAbortController(controller);
@@ -272,6 +284,9 @@ export function ChatSessionComponent({
                     hasError: false,
                     isRetrying: false
                 });
+                // Clear current streaming provider/personality
+                setCurrentStreamingPersonalityId(undefined);
+                setCurrentStreamingAIProviderId(undefined);
                 setAbortController(null);
 
                 // Update session with last used settings and title if needed
@@ -330,6 +345,9 @@ export function ChatSessionComponent({
                 setIsStreaming(false);
                 setIsLoading(false);
                 setAbortController(null);
+                // Clear current streaming provider/personality
+                setCurrentStreamingPersonalityId(undefined);
+                setCurrentStreamingAIProviderId(undefined);
 
                 addToast({
                     title: "Error",
@@ -348,6 +366,9 @@ export function ChatSessionComponent({
                 setIsStreaming(false);
                 setIsLoading(false);
                 setAbortController(null);
+                // Clear current streaming provider/personality
+                setCurrentStreamingPersonalityId(undefined);
+                setCurrentStreamingAIProviderId(undefined);
             }
         };
 
@@ -376,6 +397,9 @@ export function ChatSessionComponent({
             setIsStreaming(false);
             setIsLoading(false);
             setAbortController(null);
+            // Clear current streaming provider/personality
+            setCurrentStreamingPersonalityId(undefined);
+            setCurrentStreamingAIProviderId(undefined);
 
             addToast({
                 title: "Error",
@@ -386,10 +410,168 @@ export function ChatSessionComponent({
     };
 
     // Stop streaming function
-    const handleStopStreaming = () => {
+    const handleStopStreaming = async () => {
+        console.log('🛑 Stopping streaming...');
+
         if (abortController) {
             abortController.abort();
         }
+
+        // Save the partial message if there's content
+        if (streamingMessage.trim()) {
+            try {
+                const partialMessage: ChatMessage = {
+                    id: crypto.randomUUID(),
+                    sessionId: session.id,
+                    content: streamingMessage.trim(),
+                    role: 'assistant',
+                    personalityId: currentStreamingPersonalityId,
+                    aiProviderId: currentStreamingAIProviderId,
+                    createdAt: new Date().toISOString(),
+                    isPartial: true // Mark as partial message
+                };
+
+                // Save to database
+                const result = await apiClient.saveChatMessage(partialMessage);
+                if (result.success) {
+                    // Add to local state
+                    setMessages(prev => [...prev, partialMessage]);
+                    console.log('💾 Saved partial message:', partialMessage);
+                }
+            } catch (error) {
+                console.error('Error saving partial message:', error);
+            }
+        }
+
+        // Update streaming state to show continue option
+        setStreamingState({
+            isStreaming: false,
+            canStop: false,
+            hasError: false,
+            isRetrying: false,
+            partialContent: streamingMessage.trim()
+        });
+
+        setIsStreaming(false);
+        setIsLoading(false);
+        setStreamingMessage('');
+        // Keep current streaming provider/personality for continue option
+    };
+
+    // Continue from partial message
+    const handleContinueMessage = async (messageId: string) => {
+        console.log('🔄 Continuing message:', messageId);
+
+        // Find the partial message
+        const partialMessage = messages.find(m => m.id === messageId && m.isPartial);
+        if (!partialMessage) {
+            console.error('Partial message not found');
+            return;
+        }
+
+        // Start streaming from where we left off
+        setIsLoading(true);
+        setIsStreaming(true);
+        setStreamingMessage(partialMessage.content); // Start with existing content
+
+        // Store current streaming provider/personality
+        setCurrentStreamingPersonalityId(partialMessage.personalityId);
+        setCurrentStreamingAIProviderId(partialMessage.aiProviderId);
+
+        // Create abort controller for this request
+        const controller = new AbortController();
+        setAbortController(controller);
+
+        // Update streaming state
+        setStreamingState({
+            isStreaming: true,
+            canStop: true,
+            hasError: false,
+            isRetrying: false
+        });
+
+        // Remove the partial message from state (we'll replace it with the complete one)
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+
+        try {
+            // Continue the conversation with a prompt to continue from where we left off
+            const continuePrompt = `Please continue from where you left off. Here's what you were saying: "${partialMessage.content}"`;
+
+            await apiClient.streamChatMessage(
+                session.id,
+                {
+                    content: continuePrompt,
+                    personalityId: partialMessage.personalityId,
+                    aiProviderId: partialMessage.aiProviderId,
+                    userId
+                },
+                {
+                    onChunk: (chunk) => {
+                        if (chunk.type === 'chunk' && chunk.content) {
+                            setStreamingMessage(prev => prev + chunk.content);
+                        }
+                    },
+                    onComplete: (aiMessage) => {
+                        console.log('🔄 Continue completed:', aiMessage);
+                        if (aiMessage) {
+                            // Mark as complete (remove isPartial flag)
+                            const completeMessage = { ...aiMessage, isPartial: false };
+                            setMessages(prev => [...prev, completeMessage]);
+                        }
+                        setStreamingMessage('');
+                        setIsStreaming(false);
+                        setIsLoading(false);
+                        setStreamingState({
+                            isStreaming: false,
+                            canStop: false,
+                            hasError: false,
+                            isRetrying: false
+                        });
+                    },
+                    onError: (error) => {
+                        console.error('Continue error:', error);
+                        // Restore the partial message on error
+                        setMessages(prev => [...prev, partialMessage]);
+                        setStreamingState({
+                            isStreaming: false,
+                            canStop: false,
+                            hasError: true,
+                            errorMessage: error,
+                            isRetrying: false
+                        });
+                        setStreamingMessage('');
+                        setIsStreaming(false);
+                        setIsLoading(false);
+                    }
+                },
+                controller
+            );
+        } catch (error) {
+            console.error('Error continuing message:', error);
+            // Restore the partial message on error
+            setMessages(prev => [...prev, partialMessage]);
+            setStreamingState({
+                isStreaming: false,
+                canStop: false,
+                hasError: true,
+                errorMessage: 'Failed to continue message',
+                isRetrying: false
+            });
+            setStreamingMessage('');
+            setIsStreaming(false);
+            setIsLoading(false);
+        }
+    };
+
+    // Helper functions to get current streaming personality and AI provider
+    const getCurrentStreamingPersonality = () => {
+        const personalityId = currentStreamingPersonalityId;
+        return personalityId && personalities ? personalities.find(p => p?.id === personalityId) : undefined;
+    };
+
+    const getCurrentStreamingAIProvider = () => {
+        const aiProviderId = currentStreamingAIProviderId;
+        return aiProviderId && aiProviders ? aiProviders.find(p => p?.id === aiProviderId) : undefined;
     };
 
     // Retry streaming function
@@ -426,22 +608,24 @@ export function ChatSessionComponent({
                                     pendingUserMessage={null}
                                     className={messages.length === 0 ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
+                                    onContinue={handleContinueMessage}
+                                    streamingMessage={(isStreaming || streamingState.hasError) ? (
+                                        <StreamingMessage
+                                            content={streamingMessage}
+                                            isStreaming={isStreaming}
+                                            hasError={streamingState.hasError}
+                                            errorMessage={streamingState.errorMessage}
+                                            canStop={streamingState.canStop && isStreaming}
+                                            canRetry={streamingState.hasError && !streamingState.isRetrying}
+                                            onStop={handleStopStreaming}
+                                            onRetry={handleRetryStreaming}
+                                            className=""
+                                            // Pass current streaming personality and AI provider
+                                            personality={getCurrentStreamingPersonality()}
+                                            aiProvider={getCurrentStreamingAIProvider()}
+                                        />
+                                    ) : null}
                                 />
-
-                                {/* Enhanced streaming message component */}
-                                {(isStreaming || streamingState.hasError) && (
-                                    <StreamingMessage
-                                        content={streamingMessage}
-                                        isStreaming={isStreaming}
-                                        hasError={streamingState.hasError}
-                                        errorMessage={streamingState.errorMessage}
-                                        canStop={streamingState.canStop && isStreaming}
-                                        canRetry={streamingState.hasError && !streamingState.isRetrying}
-                                        onStop={handleStopStreaming}
-                                        onRetry={handleRetryStreaming}
-                                        className="p-4"
-                                    />
-                                )}
                             </div>
                         </div>
                     </ScrollArea>
@@ -460,6 +644,7 @@ export function ChatSessionComponent({
                         sessionPersonalityId={session?.lastUsedPersonalityId}
                         sessionAIProviderId={session?.lastUsedAIProviderId}
                         onSettingsChange={handleSettingsChange}
+                        autoFocus={autoFocusInput}
                     />
                 </div>
             </div>

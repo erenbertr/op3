@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Square, RotateCcw, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Square, RotateCcw, AlertCircle, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { Personality, AIProviderConfig } from '@/lib/api';
 
 interface StreamingMessageProps {
     content: string;
@@ -17,6 +19,9 @@ interface StreamingMessageProps {
     onStop?: () => void;
     onRetry?: () => void;
     className?: string;
+    // New props for provider/personality info
+    aiProvider?: AIProviderConfig;
+    personality?: Personality;
 }
 
 export function StreamingMessage({
@@ -28,7 +33,9 @@ export function StreamingMessage({
     canRetry,
     onStop,
     onRetry,
-    className
+    className,
+    aiProvider,
+    personality
 }: StreamingMessageProps) {
     const [showCursor, setShowCursor] = useState(true);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -56,12 +63,10 @@ export function StreamingMessage({
 
     const renderContent = () => {
         if (!content && !hasError) {
-            // Show loading dots when no content yet - remove the "thinking..." text
+            // No loading indicators - just empty space to prevent layout shift
             return (
-                <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="min-h-[1.5rem]">
+                    {/* Empty space to maintain layout */}
                 </div>
             );
         }
@@ -131,40 +136,58 @@ export function StreamingMessage({
     };
 
     return (
-        <div className={cn("relative pb-4 mb-4", className)}>
+        <div className={cn("relative group pb-4 mb-4", className)}>
+            {/* Message content */}
             <div className="space-y-2">
-                {/* Status indicator with controls - fixed height to prevent layout shift */}
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-2 h-4">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1">
-                            {isStreaming && !hasError && (
-                                <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
+                {/* Status/Header area - maintain consistent spacing with regular messages */}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
+                    {/* Show badges for AI messages with provider/personality info */}
+                    {(aiProvider || personality) ? (
+                        <>
+                            {/* AI Provider badge - always visible with subtle animation during streaming */}
+                            {aiProvider && (
+                                <Badge
+                                    variant="outline"
+                                    className={cn(
+                                        "text-xs transition-all duration-300",
+                                        isStreaming && !hasError && "animate-pulse border-primary/50"
+                                    )}
+                                >
+                                    {aiProvider.name || aiProvider.type}
+                                </Badge>
                             )}
-                            <span>
-                                {hasError ? 'Error' : isStreaming ? (content ? 'typing...' : 'thinking...') : 'completed'}
-                            </span>
-                        </div>
-                    </div>
 
-                    {/* Stream controls */}
-                    {(canStop || canRetry) && (
-                        <div className="flex items-center gap-1">
+                            {/* Personality badge */}
+                            {personality && (
+                                <Badge variant="secondary" className="text-xs">
+                                    <Brain className="h-3 w-3 mr-1" />
+                                    {personality.title}
+                                </Badge>
+                            )}
+
+                            {/* Stop button positioned right after badges - only show when streaming */}
                             {canStop && isStreaming && !hasError && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={onStop}
-                                    className="h-6 px-2 text-xs hover:bg-destructive/10 hover:text-destructive"
+                                    className={cn(
+                                        "h-6 w-6 p-0 transition-colors ml-1",
+                                        "hover:bg-destructive/20 dark:hover:bg-red-900/30",
+                                        "hover:text-destructive dark:hover:text-red-400"
+                                    )}
                                 >
-                                    <Square className="h-3 w-3 mr-1" />
-                                    Stop
+                                    <Square className="h-3 w-3" />
                                 </Button>
                             )}
-                        </div>
+                        </>
+                    ) : (
+                        /* Empty space to maintain consistent height */
+                        <div></div>
                     )}
                 </div>
 
-                {/* Message content area - consistent with regular messages */}
+                {/* Message content */}
                 <div className="p-3 rounded-lg min-h-[2rem]">
                     {renderContent()}
                 </div>

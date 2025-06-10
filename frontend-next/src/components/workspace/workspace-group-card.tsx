@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Droppable, Draggable, DraggableProvidedDragHandleProps } from 'react-beautiful-dnd';
+import { Draggable } from 'react-beautiful-dnd';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, Edit2, Trash2, GripVertical, Check, X } from 'lucide-react';
+import { MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,6 +14,18 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { WorkspaceCard } from './workspace-card';
 import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup } from '@/lib/hooks/use-workspace-groups';
+import { StrictModeDroppable } from './strict-mode-droppable';
+
+type Workspace = {
+    id: string;
+    name: string;
+    workspaceRules: string;
+    templateType: string;
+    isActive: boolean;
+    createdAt: string;
+    groupId?: string | null;
+    sortOrder?: number;
+};
 
 interface WorkspaceGroupCardProps {
     group: {
@@ -23,25 +35,22 @@ interface WorkspaceGroupCardProps {
         createdAt: string;
         workspaceCount: number;
     };
-    workspaces: Array<{
-        id: string;
-        name: string;
-        groupId?: string | null;
-        sortOrder?: number;
-    }>;
+    workspaces: Workspace[];
     onWorkspaceSelect: (workspaceId: string) => void;
+    onWorkspaceEdit: (workspace: Workspace) => void;
+    onWorkspaceDelete: (workspaceId: string) => void;
     currentWorkspaceId?: string | null;
     userId: string;
-    dragHandleProps?: DraggableProvidedDragHandleProps | null;
 }
 
 export function WorkspaceGroupCard({
     group,
     workspaces,
     onWorkspaceSelect,
+    onWorkspaceEdit,
+    onWorkspaceDelete,
     currentWorkspaceId,
-    userId,
-    dragHandleProps
+    userId
 }: WorkspaceGroupCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(group.name);
@@ -90,12 +99,6 @@ export function WorkspaceGroupCard({
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
-                        <div
-                            {...dragHandleProps}
-                            className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded"
-                        >
-                            <GripVertical className="h-4 w-4 text-muted-foreground" />
-                        </div>
 
                         {isEditing ? (
                             <div className="flex items-center gap-2 flex-1">
@@ -165,11 +168,11 @@ export function WorkspaceGroupCard({
             </CardHeader>
 
             <CardContent>
-                <Droppable 
-                    droppableId={`group-${group.id}`} 
-                    type="workspace" 
-                    direction="horizontal" 
-                    isDropDisabled={false} 
+                <StrictModeDroppable
+                    droppableId={`group-${group.id}`}
+                    type="workspace"
+                    direction="horizontal"
+                    isDropDisabled={false}
                     isCombineEnabled={false}
                     ignoreContainerClipping={false}
                 >
@@ -190,8 +193,9 @@ export function WorkspaceGroupCard({
                             {workspaces.map((workspace, index) => (
                                 <Draggable
                                     key={workspace.id}
-                                    draggableId={`workspace-${workspace.id}`}
+                                    draggableId={workspace.id}
                                     index={index}
+                                    isDragDisabled={false}
                                 >
                                     {(provided, snapshot) => (
                                         <div
@@ -203,6 +207,8 @@ export function WorkspaceGroupCard({
                                             <WorkspaceCard
                                                 workspace={workspace}
                                                 onSelect={onWorkspaceSelect}
+                                                onEdit={onWorkspaceEdit}
+                                                onDelete={onWorkspaceDelete}
                                                 isActive={workspace.id === currentWorkspaceId}
                                             />
                                         </div>
@@ -212,7 +218,7 @@ export function WorkspaceGroupCard({
                             {provided.placeholder}
                         </div>
                     )}
-                </Droppable>
+                </StrictModeDroppable>
             </CardContent>
         </Card>
     );

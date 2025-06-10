@@ -8,7 +8,6 @@ import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 
-import { WorkspaceSettingsView } from '@/components/workspace/workspace-settings-view';
 import { AIProviderSettingsView } from '@/components/workspace/ai-provider-settings-view';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
@@ -16,7 +15,7 @@ import { AuthUser } from '@/lib/auth';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
-import { Loader2, Settings, Bot, Plus } from 'lucide-react';
+import { Loader2, Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceApplicationProps {
@@ -60,9 +59,12 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
             // Handle settings routes
             if (path.startsWith('/settings')) {
-                if (path === '/settings/workspaces') return { view: 'settings-workspaces', params: {} };
-                if (path === '/settings/ai-providers') return { view: 'settings-ai-providers', params: {} };
-                return { view: 'settings-workspaces', params: {} }; // Default to workspaces
+                // Future-proofing: if more settings are added, they can be handled here
+                if (path === '/settings/ai-providers') {
+                    return { view: 'settings-ai-providers', params: {} };
+                }
+                // Default to AI providers settings
+                return { view: 'settings-ai-providers', params: {} };
             }
 
             // Handle other routes
@@ -133,6 +135,18 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         }
     }, [currentView, routeParams.workspaceId, workspacesLoading, currentWorkspace, workspacesError]);
 
+    const handleWorkspaceUpdated = () => {
+        queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
+    };
+
+    const handleWorkspaceDeleted = () => {
+        queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
+        // After deletion, it's good practice to navigate away from a potentially non-existent workspace
+        if (currentView === 'workspace' || currentView.startsWith('settings')) {
+            navigateToWorkspaceSelection();
+        }
+    };
+
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
         // Force refetch workspace data when navigating to ensure we have the latest data
@@ -196,8 +210,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
                 />
             </div>
-
-
 
             {/* Main content */}
             <main className="flex-1 overflow-hidden">
@@ -268,7 +280,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                 <div className="text-center space-y-4 max-w-md">
                                     <h2 className="text-2xl font-bold">Workspace Not Found</h2>
                                     <p className="text-muted-foreground">
-                                        The workspace you're looking for doesn't exist or you don't have access to it.
+                                        The workspace you&apos;re looking for doesn&apos;t exist, or you don&apos;t have access. It may still be being created.
                                     </p>
                                     <div className="flex gap-2 justify-center">
                                         <Button
@@ -278,7 +290,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                             Refresh
                                         </Button>
                                         <Button
-                                            onClick={() => navigationUtils.pushState('/workspaces')}
+                                            onClick={() => navigateToWorkspaceSelection()}
                                         >
                                             Back to Workspaces
                                         </Button>
@@ -297,12 +309,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     </>
                 )}
 
-                {currentView === 'settings-workspaces' && (
-                    <SettingsLayout currentView="workspaces">
-                        <WorkspaceSettingsView />
-                    </SettingsLayout>
-                )}
-
                 {currentView === 'settings-ai-providers' && (
                     <SettingsLayout currentView="ai-providers">
                         <AIProviderSettingsView />
@@ -317,6 +323,8 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                 currentWorkspaceId={routeParams.workspaceId || null}
                                 openWorkspace={openWorkspaceRef.current}
                                 onWorkspaceSelect={navigateToWorkspace}
+                                onWorkspaceUpdated={handleWorkspaceUpdated}
+                                onWorkspaceDeleted={handleWorkspaceDeleted}
                             />
                         </div>
                     </div>
@@ -391,19 +399,12 @@ function ChatViewInternal({ workspaceId, chatId }: ChatViewInternalProps) {
 // Internal SettingsLayout component for client-side routing
 interface SettingsLayoutProps {
     children: React.ReactNode;
-    currentView: 'workspaces' | 'ai-providers';
+    currentView: 'ai-providers';
 }
 
 function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
 
     const SETTINGS_TABS = [
-        {
-            id: 'workspaces',
-            label: 'Workspaces',
-            icon: <Settings className="h-4 w-4" />,
-            description: 'Manage your workspaces and settings',
-            path: '/settings/workspaces'
-        },
         {
             id: 'ai-providers',
             label: 'AI Providers',

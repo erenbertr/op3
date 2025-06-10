@@ -255,14 +255,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                 <div className="flex items-center h-12 gap-1">
                     {/* Settings Tab */}
                     <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigationUtils.pushState('/settings/workspaces')}
-                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'settings'
-                            ? 'bg-primary/10 border-primary text-primary'
-                            : 'border-transparent hover:border-primary/50'
-                            }`}
-                        title="Workspace Settings"
+                        variant={currentView === 'settings' ? 'secondary' : 'ghost'}
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => navigationUtils.pushState('/settings/ai-providers')}
                     >
                         <Settings className="h-4 w-4" />
                     </Button>

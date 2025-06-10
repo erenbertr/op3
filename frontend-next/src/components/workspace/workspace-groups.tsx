@@ -1,15 +1,17 @@
 "use client"
 
 import React, { useState, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 import { Plus, Settings2, Loader2 } from 'lucide-react';
-import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
+import { useWorkspaces, useUpdateWorkspace, useDeleteWorkspace } from '@/lib/hooks/use-query-hooks';
 import {
     useWorkspaceGroups,
-    useCreateWorkspaceGroup,
-    useReorderWorkspaceGroups,
     useMoveWorkspaceToGroup,
 } from '@/lib/hooks/use-workspace-groups';
 import { WorkspaceGroupCard } from './workspace-group-card';
@@ -17,35 +19,54 @@ import { WorkspaceCard } from './workspace-card';
 import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
+import { StrictModeDroppable } from './strict-mode-droppable';
+
+// Helper type, can be moved to a types file if needed
+type Workspace = {
+    id: string;
+    name: string;
+    templateType: string;
+    workspaceRules: string;
+    isActive: boolean;
+    createdAt: string;
+    groupId?: string | null;
+    sortOrder?: number;
+};
 
 interface WorkspaceGroupsProps {
     userId: string;
     onWorkspaceSelect: (workspaceId: string) => void;
     currentWorkspaceId?: string | null;
     openWorkspace?: ((workspaceId: string) => void) | null;
+    onWorkspaceUpdated: () => void;
+    onWorkspaceDeleted: () => void;
 }
-
-
 
 export function WorkspaceGroups({
     userId,
     onWorkspaceSelect,
     currentWorkspaceId,
-    openWorkspace
+    openWorkspace,
+    onWorkspaceUpdated,
+    onWorkspaceDeleted
 }: WorkspaceGroupsProps) {
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showOrganizeGroups, setShowOrganizeGroups] = useState(false);
+    const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+    const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
+    const [error, setError] = useState('');
 
     // Queries
     const { data: workspacesResult, isLoading: workspacesLoading } = useWorkspaces(userId, 'WorkspaceGroups');
     const { data: groupsResult, isLoading: groupsLoading } = useWorkspaceGroups(userId);
 
     // Mutations
-    const reorderGroupsMutation = useReorderWorkspaceGroups();
     const moveWorkspaceMutation = useMoveWorkspaceToGroup();
+    const updateWorkspaceMutation = useUpdateWorkspace();
+    const deleteWorkspaceMutation = useDeleteWorkspace();
 
-    const workspaces = workspacesResult?.workspaces || [];
-    const groups = groupsResult?.groups || [];
+    const workspaces = useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
+    const groups = useMemo(() => groupsResult?.groups || [], [groupsResult]);
 
     // Organize workspaces by groups
     const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
@@ -79,6 +100,10 @@ export function WorkspaceGroups({
     const handleDragEnd = async (result: DropResult) => {
         const { destination, source, draggableId } = result;
 
+        console.log('🎯 Drag end:', { destination, source, draggableId });
+        console.log('📊 Available groups:', groups.map(g => g.id));
+        console.log('📊 Available workspaces:', workspaces.map(w => w.id));
+
         // If no destination, do nothing
         if (!destination) return;
 
@@ -88,43 +113,25 @@ export function WorkspaceGroups({
         }
 
         try {
-            // Determine if this is a group or workspace drag based on draggable ID
-            if (draggableId.startsWith('group-')) {
-                // Reordering groups
-                const newGroups = [...groups];
-                const [movedGroup] = newGroups.splice(source.index, 1);
-                newGroups.splice(destination.index, 0, movedGroup);
+            // Moving workspace (between groups or to/from ungrouped)
+            const workspaceId = draggableId;
+            let newGroupId: string | null = null;
+            const newSortOrder = destination.index;
 
-                const groupOrders = newGroups.map((group, index) => ({
-                    groupId: group.id,
-                    sortOrder: index
-                }));
-
-                await reorderGroupsMutation.mutateAsync({
-                    userId,
-                    groupOrders
-                });
-            } else if (draggableId.startsWith('workspace-')) {
-                // Moving workspace (between groups or to/from ungrouped)
-                const workspaceId = draggableId.replace('workspace-', '');
-                let newGroupId: string | null = null;
-                const newSortOrder = destination.index;
-
-                if (destination.droppableId === 'ungrouped') {
-                    newGroupId = null;
-                } else if (destination.droppableId.startsWith('group-')) {
-                    newGroupId = destination.droppableId.replace('group-', '');
-                }
-
-                console.log('🚀 Moving workspace:', { workspaceId, newGroupId, newSortOrder });
-
-                await moveWorkspaceMutation.mutateAsync({
-                    userId,
-                    workspaceId,
-                    groupId: newGroupId,
-                    sortOrder: newSortOrder
-                });
+            if (destination.droppableId === 'ungrouped') {
+                newGroupId = null;
+            } else if (destination.droppableId.startsWith('group-')) {
+                newGroupId = destination.droppableId.replace('group-', '');
             }
+
+            console.log('🚀 Moving workspace:', { workspaceId, newGroupId, newSortOrder });
+
+            await moveWorkspaceMutation.mutateAsync({
+                userId,
+                workspaceId,
+                groupId: newGroupId,
+                sortOrder: newSortOrder
+            });
         } catch (error) {
             console.error('Error handling drag end:', error);
         }
@@ -146,6 +153,79 @@ export function WorkspaceGroups({
         } catch (error) {
             console.error('Error selecting workspace:', error);
         }
+    };
+
+    const handleEditWorkspace = (workspace: Workspace) => {
+        setEditingWorkspace(workspace);
+    };
+
+    const handleDeleteWorkspace = (workspaceId: string) => {
+        setDeletingWorkspaceId(workspaceId);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingWorkspace) return;
+
+        if (!editingWorkspace.name.trim()) {
+            setError('Workspace name cannot be empty');
+            return;
+        }
+
+        setError('');
+
+        updateWorkspaceMutation.mutate(
+            {
+                workspaceId: editingWorkspace.id,
+                name: editingWorkspace.name.trim(),
+                workspaceRules: editingWorkspace.workspaceRules,
+                userId
+            },
+            {
+                onSuccess: (result) => {
+                    if (result.success) {
+                        setEditingWorkspace(null);
+                        onWorkspaceUpdated();
+                    } else {
+                        setError(result.message || 'Failed to update workspace');
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error updating workspace:', error);
+                    setError('Failed to update workspace');
+                }
+            }
+        );
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingWorkspaceId) return;
+
+        if (workspaces.length <= 1) {
+            setError('Cannot delete the last workspace. Users must have at least one workspace.');
+            setDeletingWorkspaceId(null);
+            // Maybe show a toast message here
+            return;
+        }
+
+        setError('');
+
+        deleteWorkspaceMutation.mutate(
+            { workspaceId: deletingWorkspaceId, userId },
+            {
+                onSuccess: (result) => {
+                    if (result.success) {
+                        setDeletingWorkspaceId(null);
+                        onWorkspaceDeleted();
+                    } else {
+                        setError(result.message || 'Failed to delete workspace');
+                    }
+                },
+                onError: (error) => {
+                    console.error('Error deleting workspace:', error);
+                    setError('Failed to delete workspace');
+                }
+            }
+        );
     };
 
     const isLoading = workspacesLoading || groupsLoading;
@@ -196,56 +276,29 @@ export function WorkspaceGroups({
             <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="space-y-8">
                     {/* Groups */}
-                    <Droppable 
-                        droppableId="groups" 
-                        type="group" 
-                        isDropDisabled={false} 
-                        isCombineEnabled={false}
-                        ignoreContainerClipping={false}
-                    >
-                        {(provided) => (
-                            <div
-                                {...provided.droppableProps}
-                                ref={provided.innerRef}
-                                className="space-y-6"
-                            >
-                                {groups.map((group, index) => (
-                                    <Draggable
-                                        key={group.id}
-                                        draggableId={`group-${group.id}`}
-                                        index={index}
-                                    >
-                                        {(provided, snapshot) => (
-                                            <div
-                                                ref={provided.innerRef}
-                                                {...provided.draggableProps}
-                                                className={snapshot.isDragging ? 'opacity-50' : ''}
-                                            >
-                                                <WorkspaceGroupCard
-                                                    group={group}
-                                                    workspaces={groupedWorkspaces[group.id] || []}
-                                                    onWorkspaceSelect={handleWorkspaceSelect}
-                                                    currentWorkspaceId={currentWorkspaceId}
-                                                    userId={userId}
-                                                    dragHandleProps={provided.dragHandleProps}
-                                                />
-                                            </div>
-                                        )}
-                                    </Draggable>
-                                ))}
-                                {provided.placeholder}
-                            </div>
-                        )}
-                    </Droppable>
+                    <div className="space-y-6">
+                        {groups.map((group) => (
+                            <WorkspaceGroupCard
+                                key={group.id}
+                                group={group}
+                                workspaces={groupedWorkspaces[group.id] || []}
+                                onWorkspaceSelect={handleWorkspaceSelect}
+                                onWorkspaceEdit={handleEditWorkspace}
+                                onWorkspaceDelete={handleDeleteWorkspace}
+                                currentWorkspaceId={currentWorkspaceId}
+                                userId={userId}
+                            />
+                        ))}
+                    </div>
 
                     {/* Ungrouped workspaces */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-                        <Droppable 
-                            droppableId="ungrouped" 
-                            type="workspace" 
-                            direction="horizontal" 
-                            isDropDisabled={false} 
+                        <StrictModeDroppable
+                            droppableId="ungrouped"
+                            type="workspace"
+                            direction="horizontal"
+                            isDropDisabled={false}
                             isCombineEnabled={false}
                             ignoreContainerClipping={false}
                         >
@@ -266,8 +319,9 @@ export function WorkspaceGroups({
                                     {ungroupedWorkspaces.map((workspace, index) => (
                                         <Draggable
                                             key={workspace.id}
-                                            draggableId={`workspace-${workspace.id}`}
+                                            draggableId={workspace.id}
                                             index={index}
+                                            isDragDisabled={false}
                                         >
                                             {(provided, snapshot) => (
                                                 <div
@@ -279,6 +333,8 @@ export function WorkspaceGroups({
                                                     <WorkspaceCard
                                                         workspace={workspace}
                                                         onSelect={handleWorkspaceSelect}
+                                                        onEdit={handleEditWorkspace}
+                                                        onDelete={handleDeleteWorkspace}
                                                         isActive={workspace.id === currentWorkspaceId}
                                                     />
                                                 </div>
@@ -288,24 +344,83 @@ export function WorkspaceGroups({
                                     {provided.placeholder}
                                 </div>
                             )}
-                        </Droppable>
+                        </StrictModeDroppable>
                     </div>
                 </div>
             </DragDropContext>
 
-            {/* Dialogs */}
-            <CreateGroupDialog
-                open={showCreateGroup}
-                onOpenChange={setShowCreateGroup}
-                userId={userId}
-            />
+            {/* Edit Workspace Dialog */}
+            <Dialog open={!!editingWorkspace} onOpenChange={(open) => !open && setEditingWorkspace(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Workspace</DialogTitle>
+                    </DialogHeader>
+                    {editingWorkspace && (
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="workspace-name">Workspace Name</Label>
+                                <Input
+                                    id="workspace-name"
+                                    value={editingWorkspace.name}
+                                    onChange={(e) => setEditingWorkspace({ ...editingWorkspace, name: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="workspace-rules">Rules/Instructions</Label>
+                                <Textarea
+                                    id="workspace-rules"
+                                    value={editingWorkspace.workspaceRules}
+                                    onChange={(e) => setEditingWorkspace({ ...editingWorkspace, workspaceRules: e.target.value })}
+                                    className="min-h-[150px]"
+                                />
+                            </div>
+                            {error && <p className="text-sm text-destructive">{error}</p>}
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingWorkspace(null)}>Cancel</Button>
+                        <Button onClick={handleSaveEdit} disabled={updateWorkspaceMutation.isPending}>
+                            {updateWorkspaceMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
-            <OrganizeGroupsDialog
-                open={showOrganizeGroups}
-                onOpenChange={setShowOrganizeGroups}
-                userId={userId}
-                groups={groups}
-            />
+            {/* Delete Workspace Confirmation Dialog */}
+            <Dialog open={!!deletingWorkspaceId} onOpenChange={(open) => !open && setDeletingWorkspaceId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Workspace</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this workspace? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {error && <p className="text-sm text-destructive mt-4">{error}</p>}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeletingWorkspaceId(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={confirmDelete} disabled={deleteWorkspaceMutation.isPending}>
+                            {deleteWorkspaceMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {showCreateGroup && (
+                <CreateGroupDialog
+                    userId={userId}
+                    onClose={() => setShowCreateGroup(false)}
+                />
+            )}
+
+            {showOrganizeGroups && (
+                <OrganizeGroupsDialog
+                    userId={userId}
+                    groups={groups}
+                    onClose={() => setShowOrganizeGroups(false)}
+                />
+            )}
         </div>
     );
 }

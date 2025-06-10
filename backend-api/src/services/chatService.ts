@@ -565,6 +565,7 @@ export class ChatService {
                     aiProviderId TEXT,
                     createdAt TEXT NOT NULL,
                     apiMetadata TEXT,
+                    isPartial BOOLEAN DEFAULT 0,
                     FOREIGN KEY (sessionId) REFERENCES chat_sessions(id)
                 )
             `, (err: any) => {
@@ -575,8 +576,8 @@ export class ChatService {
 
                 // Insert message
                 db.run(`
-                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     message.id,
                     message.sessionId,
@@ -585,7 +586,8 @@ export class ChatService {
                     message.personalityId,
                     message.aiProviderId,
                     message.createdAt.toISOString(),
-                    message.apiMetadata ? JSON.stringify(message.apiMetadata) : null
+                    message.apiMetadata ? JSON.stringify(message.apiMetadata) : null,
+                    message.isPartial ? 1 : 0
                 ], (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -748,7 +750,8 @@ export class ChatService {
             personalityId: message.personalityId,
             aiProviderId: message.aiProviderId,
             createdAt: message.createdAt,
-            apiMetadata: message.apiMetadata
+            apiMetadata: message.apiMetadata,
+            isPartial: message.isPartial || false
         });
     }
 
@@ -852,15 +855,16 @@ export class ChatService {
                 aiProviderId VARCHAR(36),
                 createdAt DATETIME NOT NULL,
                 apiMetadata JSON,
+                isPartial BOOLEAN DEFAULT FALSE,
                 INDEX idx_sessionId (sessionId),
                 INDEX idx_createdAt (createdAt)
             )
         `);
 
         await connection.execute(`
-            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null]);
+            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null, message.isPartial || false]);
     }
 
     private async getUserChatSessionsSQL(connection: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
@@ -947,7 +951,8 @@ export class ChatService {
                 personalityId: message.personalityId,
                 aiProviderId: message.aiProviderId,
                 createdAt: message.createdAt.toISOString(),
-                apiMetadata: message.apiMetadata
+                apiMetadata: message.apiMetadata,
+                isPartial: message.isPartial || false
             }]);
 
         if (error) throw error;
@@ -1066,7 +1071,8 @@ export class ChatService {
             personalityId: row.personalityId,
             aiProviderId: row.aiProviderId,
             createdAt: new Date(row.createdAt),
-            apiMetadata
+            apiMetadata,
+            isPartial: Boolean(row.isPartial)
         };
     }
 
@@ -1092,7 +1098,8 @@ export class ChatService {
             personalityId: doc.personalityId,
             aiProviderId: doc.aiProviderId,
             createdAt: doc.createdAt,
-            apiMetadata: doc.apiMetadata
+            apiMetadata: doc.apiMetadata,
+            isPartial: Boolean(doc.isPartial)
         };
     }
 
@@ -1118,7 +1125,8 @@ export class ChatService {
             personalityId: row.personalityId,
             aiProviderId: row.aiProviderId,
             createdAt: new Date(row.createdAt),
-            apiMetadata: row.apiMetadata
+            apiMetadata: row.apiMetadata,
+            isPartial: Boolean(row.isPartial)
         };
     }
 }

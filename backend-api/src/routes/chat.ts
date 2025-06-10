@@ -6,6 +6,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import {
+    ChatMessage,
     CreateChatSessionRequest,
     SendMessageRequest,
     UpdateChatSessionRequest,
@@ -132,6 +133,26 @@ router.delete('/sessions/:sessionId', asyncHandler(async (req: Request, res: Res
     }
 
     const result = await chatService.deleteChatSession(sessionId);
+    res.json(result);
+}));
+
+// Save a chat message directly (for partial messages)
+router.post('/sessions/:sessionId/save-message', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const messageData: ChatMessage = req.body;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    if (!messageData.content || messageData.content.trim() === '') {
+        throw createError('Message content is required', 400);
+    }
+
+    // Ensure the sessionId matches
+    messageData.sessionId = sessionId;
+
+    const result = await chatService.saveChatMessage(messageData);
     res.json(result);
 }));
 

@@ -18,6 +18,7 @@ export interface ChatMessage {
     aiProviderId?: string;
     createdAt: Date;
     apiMetadata?: ApiMetadata;
+    isPartial?: boolean; // For messages that were stopped mid-stream
 }
 
 export interface ApiMetadata {

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Brain, Copy, RotateCcw, Check } from 'lucide-react';
+import { Brain, Copy, RotateCcw, Check, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
@@ -17,9 +17,10 @@ interface ChatMessageProps {
     aiProvider?: AIProviderConfig;
     className?: string;
     onRetry?: (messageId: string) => void;
+    onContinue?: (messageId: string) => void;
 }
 
-export function ChatMessage({ message, personality, aiProvider, className, onRetry }: ChatMessageProps) {
+export function ChatMessage({ message, personality, aiProvider, className, onRetry, onContinue }: ChatMessageProps) {
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
@@ -45,6 +46,13 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
     const handleRetry = () => {
         if (onRetry && message.id) {
             onRetry(message.id);
+        }
+    };
+
+    // Continue functionality for partial messages
+    const handleContinue = () => {
+        if (onContinue && message.id) {
+            onContinue(message.id);
         }
     };
 
@@ -117,8 +125,19 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                 </div>
 
                 {/* Message content */}
-                <div className={cn("p-3 rounded-lg", !isAssistant && "bg-muted/30")}>
+                <div className={cn(
+                    "p-3 rounded-lg",
+                    !isAssistant && "bg-muted/30",
+                    message.isPartial && "border-l-4 border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                )}>
                     {renderContent()}
+                    {/* Show partial message indicator */}
+                    {message.isPartial && (
+                        <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                            Message was stopped - click continue to resume
+                        </div>
+                    )}
                 </div>
 
             </div>
@@ -142,14 +161,29 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                             <Copy className="h-3 w-3" />
                         )}
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={handleRetry}
-                    >
-                        <RotateCcw className="h-3 w-3" />
-                    </Button>
+
+                    {/* Show continue button for partial messages */}
+                    {message.isPartial ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-950"
+                            onClick={handleContinue}
+                            title="Continue message"
+                        >
+                            <Play className="h-3 w-3" />
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={handleRetry}
+                            title="Retry message"
+                        >
+                            <RotateCcw className="h-3 w-3" />
+                        </Button>
+                    )}
                 </div>
             )}
         </div>
@@ -163,6 +197,8 @@ interface ChatMessageListProps {
     pendingUserMessage?: ChatMessageType | null;
     className?: string;
     onRetry?: (messageId: string) => void;
+    onContinue?: (messageId: string) => void;
+    streamingMessage?: React.ReactNode;
 }
 
 export function ChatMessageList({
@@ -171,7 +207,9 @@ export function ChatMessageList({
     aiProviders = [],
     pendingUserMessage,
     className,
-    onRetry
+    onRetry,
+    onContinue,
+    streamingMessage
 }: ChatMessageListProps) {
     const getPersonality = (personalityId?: string) => {
         return personalityId && personalities ? personalities.find(p => p?.id === personalityId) : undefined;
@@ -240,8 +278,11 @@ export function ChatMessageList({
                     personality={getPersonality(message.personalityId)}
                     aiProvider={getAIProvider(message.aiProviderId)}
                     onRetry={onRetry}
+                    onContinue={onContinue}
                 />
             ))}
+            {/* Render streaming message inside the same container */}
+            {streamingMessage}
         </div>
     );
 }

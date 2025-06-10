@@ -120,6 +120,7 @@ export interface ChatMessage {
     aiProviderId?: string;
     createdAt: string;
     apiMetadata?: ApiMetadata;
+    isPartial?: boolean; // For messages that were stopped mid-stream
 }
 
 export interface ApiMetadata {
@@ -636,6 +637,14 @@ class ApiClient {
     async deleteChatSession(sessionId: string): Promise<DeleteChatSessionResponse> {
         return this.request<DeleteChatSessionResponse>(`/chat/sessions/${sessionId}`, {
             method: 'DELETE',
+        });
+    }
+
+    // Save a chat message directly (for partial messages)
+    async saveChatMessage(message: ChatMessage): Promise<{ success: boolean; message: string; savedMessage?: ChatMessage }> {
+        return this.request<{ success: boolean; message: string; savedMessage?: ChatMessage }>(`/chat/sessions/${message.sessionId}/save-message`, {
+            method: 'POST',
+            body: JSON.stringify(message),
         });
     }
 
