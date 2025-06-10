@@ -185,8 +185,8 @@ export function WorkspaceManagementPanel({
     // Show loading state
     if (isLoading && workspaces.length === 0) {
         return (
-            <div className="h-full flex">
-                <div className="container mx-auto h-full flex">
+            <div className="h-full">
+                <div className="container mx-auto px-4 h-full flex">
                     {/* Vertical Tabs Sidebar */}
                     <div className="w-96 h-full overflow-y-auto">
                         <div className="py-6 space-y-2">
@@ -393,8 +393,8 @@ export function WorkspaceManagementPanel({
     };
 
     return (
-        <div className="h-full flex">
-            <div className="container mx-auto h-full flex">
+        <div className="h-full">
+            <div className="container mx-auto px-4 h-full flex">
                 {/* Vertical Tabs Sidebar */}
                 <div className="w-96 h-full overflow-y-auto">
                     <div className="py-6 space-y-2">
