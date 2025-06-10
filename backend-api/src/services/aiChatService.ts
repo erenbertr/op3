@@ -290,19 +290,16 @@ export class AIChatService {
             }
         };
 
-        // Add web search tool if enabled and supported
+        // Handle web search
         if (searchEnabled && this.supportsOpenAIWebSearch(provider)) {
-            requestBody.tools = [
-                {
-                    type: "web_search"
-                }
-            ];
-
-            // Notify that we're using OpenAI's built-in web search
-            onChunk({
-                type: 'search_start',
-                searchQuery: conversationHistory.filter(msg => msg.role === 'user').pop()?.content || ''
-            });
+            try {
+                // Try to use Responses API for web search
+                return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk);
+            } catch (error) {
+                console.warn('OpenAI Responses API failed, falling back to Google Custom Search:', error);
+                // Fall back to Google Custom Search if Responses API fails
+                await this.performWebSearch(conversationHistory, onChunk, messageId);
+            }
         } else if (searchEnabled) {
             // Fall back to Google Custom Search for models that don't support OpenAI web search
             await this.performWebSearch(conversationHistory, onChunk, messageId);
@@ -394,12 +391,156 @@ export class AIChatService {
 
 
     /**
-     * Check if OpenAI model supports web search
+     * Check if OpenAI model supports web search via Responses API
      */
     private supportsOpenAIWebSearch(provider: AIProviderConfig): boolean {
-        // Models that support web search tools
-        const webSearchModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'];
+        // Models that support web search via Responses API
+        // Also include older models that might work with Responses API
+        const webSearchModels = [
+            'gpt-4.1',
+            'gpt-4.1-mini',
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4-turbo',
+            'gpt-4'
+        ];
         return webSearchModels.includes(provider.model);
+    }
+
+    /**
+     * Stream from OpenAI Responses API with web search
+     */
+    private async streamFromOpenAIResponses(
+        provider: AIProviderConfig,
+        conversationHistory: ConversationMessage[],
+        messageId: string,
+        onChunk: (chunk: AIStreamChunk) => void
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
+        const endpoint = provider.endpoint || 'https://api.openai.com/v1';
+        const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
+
+        // Get the last user message as input
+        const lastUserMessage = conversationHistory.filter(msg => msg.role === 'user').pop();
+        if (!lastUserMessage) {
+            throw new Error('No user message found');
+        }
+
+        // Build context from conversation history
+        let input = lastUserMessage.content;
+        if (conversationHistory.length > 1) {
+            const previousMessages = conversationHistory.slice(0, -1);
+            if (previousMessages.length > 0) {
+                const contextString = previousMessages.map(msg =>
+                    `${msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : 'System'}: ${msg.content}`
+                ).join('\n\n');
+                input = `Previous conversation:\n${contextString}\n\nCurrent question: ${lastUserMessage.content}`;
+            }
+        }
+
+        // Notify that search is starting
+        onChunk({
+            type: 'search_start',
+            searchQuery: lastUserMessage.content
+        });
+
+        const requestBody = {
+            model: provider.model,
+            input: input,
+            tools: [
+                {
+                    type: "web_search_preview",
+                    search_context_size: "medium"
+                }
+            ]
+        };
+
+        const response = await fetch(`${endpoint}/responses`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data: any = await response.json();
+        let finalContent = '';
+        let searchResults: any[] = [];
+
+        // Process the response output
+        if (data.output && Array.isArray(data.output)) {
+            for (const output of data.output) {
+                if (output.type === 'web_search_call') {
+                    // Web search was performed
+                    console.log('Web search call completed:', output.id);
+                } else if (output.type === 'message' && output.content) {
+                    for (const content of output.content) {
+                        if (content.type === 'output_text') {
+                            finalContent = content.text;
+
+                            // Extract citations as search results
+                            if (content.annotations) {
+                                searchResults = content.annotations
+                                    .filter((ann: any) => ann.type === 'url_citation')
+                                    .map((ann: any) => ({
+                                        title: ann.title || 'Web Result',
+                                        url: ann.url,
+                                        snippet: finalContent.substring(ann.start_index, ann.end_index) || 'Citation from web search'
+                                    }));
+                            }
+
+                            // Notify about search results
+                            if (searchResults.length > 0) {
+                                onChunk({
+                                    type: 'search_results',
+                                    searchQuery: lastUserMessage.content,
+                                    searchResults
+                                });
+                            }
+
+                            // Simulate streaming by sending content in chunks
+                            const words = finalContent.split(' ');
+                            for (let i = 0; i < words.length; i += 5) {
+                                const chunk = words.slice(i, i + 5).join(' ') + (i + 5 < words.length ? ' ' : '');
+                                onChunk({
+                                    type: 'chunk',
+                                    messageId,
+                                    content: chunk
+                                });
+                                // Small delay to simulate streaming
+                                await new Promise(resolve => setTimeout(resolve, 30));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const metadata: ApiMetadata = {
+            model: provider.model,
+            totalTokens: data.usage?.total_tokens || 0,
+            inputTokens: data.usage?.input_tokens || 0,
+            outputTokens: data.usage?.output_tokens || 0,
+            searchResults,
+            searchQuery: lastUserMessage.content
+        };
+
+        onChunk({
+            type: 'end',
+            messageId,
+            metadata
+        });
+
+        return {
+            success: true,
+            message: 'Response generated successfully with web search',
+            finalContent,
+            metadata
+        };
     }
 
     /**
