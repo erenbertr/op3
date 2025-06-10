@@ -322,10 +322,10 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                                 onDragOver={(e) => handleDragOver(e, workspace.id)}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, workspace.id)}
-                                className={`relative flex items-center h-10 px-3 rounded-t-md border-b-2 transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                     ? 'bg-primary/10 border-primary text-primary'
                                     : 'hover:bg-muted border-transparent hover:border-primary/50'
-                                    } ${draggedTabId === workspace.id ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:cursor-grab'
+                                    } ${draggedTabId === workspace.id ? 'opacity-50' : ''
                                     } ${dragOverTabId === workspace.id && draggedTabId !== workspace.id
                                         ? 'border-l-4 border-l-primary bg-primary/5'
                                         : ''
