@@ -339,7 +339,6 @@ export class WorkspaceService {
      */
     public async updateWorkspace(workspaceId: string, userId: string, request: UpdateWorkspaceRequest): Promise<WorkspaceUpdateResponse> {
         try {
-            console.log('🔧 UpdateWorkspace called:', { workspaceId, userId, request });
 
             const config = this.dbManager.getCurrentConfig();
             if (!config) {

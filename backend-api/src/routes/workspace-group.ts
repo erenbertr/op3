@@ -56,52 +56,7 @@ router.get('/user/:userId', asyncHandler(async (req: Request, res: Response) => 
     res.json(result);
 }));
 
-// Update workspace group
-router.put('/:groupId', asyncHandler(async (req: Request, res: Response) => {
-    const { groupId } = req.params;
-    const { userId, name, sortOrder }: { userId: string } & UpdateWorkspaceGroupRequest = req.body;
-
-    if (!userId) {
-        throw createError('User ID is required', 400);
-    }
-
-    if (!groupId) {
-        throw createError('Group ID is required', 400);
-    }
-
-    const result = await workspaceGroupService.updateGroup(userId, groupId, {
-        name: name?.trim(),
-        sortOrder
-    });
-
-    if (!result.success) {
-        throw createError(result.message, 400);
-    }
-
-    res.json(result);
-}));
-
-// Delete workspace group
-router.delete('/:groupId', asyncHandler(async (req: Request, res: Response) => {
-    const { groupId } = req.params;
-    const { userId } = req.body;
-
-    if (!userId) {
-        throw createError('User ID is required', 400);
-    }
-
-    if (!groupId) {
-        throw createError('Group ID is required', 400);
-    }
-
-    const result = await workspaceGroupService.deleteGroup(userId, groupId);
-
-    if (!result.success) {
-        throw createError(result.message, 400);
-    }
-
-    res.json(result);
-}));
+// SPECIFIC ROUTES MUST COME BEFORE GENERIC PARAMETERIZED ROUTES
 
 // Reorder groups
 router.put('/reorder', asyncHandler(async (req: Request, res: Response) => {
@@ -175,6 +130,55 @@ router.put('/batch-update', asyncHandler(async (req: Request, res: Response) => 
 
     if (!result.success) {
         throw createError(result.message || 'Failed to update workspaces', 400);
+    }
+
+    res.json(result);
+}));
+
+// GENERIC PARAMETERIZED ROUTES MUST COME AFTER SPECIFIC ROUTES
+
+// Update workspace group
+router.put('/:groupId', asyncHandler(async (req: Request, res: Response) => {
+    const { groupId } = req.params;
+    const { userId, name, sortOrder }: { userId: string } & UpdateWorkspaceGroupRequest = req.body;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (!groupId) {
+        throw createError('Group ID is required', 400);
+    }
+
+    const result = await workspaceGroupService.updateGroup(userId, groupId, {
+        name: name?.trim(),
+        sortOrder
+    });
+
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    res.json(result);
+}));
+
+// Delete workspace group
+router.delete('/:groupId', asyncHandler(async (req: Request, res: Response) => {
+    const { groupId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (!groupId) {
+        throw createError('Group ID is required', 400);
+    }
+
+    const result = await workspaceGroupService.deleteGroup(userId, groupId);
+
+    if (!result.success) {
+        throw createError(result.message, 400);
     }
 
     res.json(result);
