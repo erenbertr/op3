@@ -4,10 +4,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LanguageSelector } from '@/components/language-selector';
+import { UserMenu } from '@/components/user-menu';
 import { authService, AuthUser } from '@/lib/auth';
-import { LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 interface WorkspaceLayoutProps {
     children: React.ReactNode;
@@ -77,19 +75,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
                         <h1 className="text-xl font-bold">OP3</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-sm text-muted-foreground">
-                            Welcome, {currentUser.email}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleLogout}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            <LogOut className="h-4 w-4 mr-2" />
-                            Logout
-                        </Button>
-                        <LanguageSelector />
+                        <UserMenu userEmail={currentUser.email} onLogout={handleLogout} />
                         <ThemeToggle />
                     </div>
                 </div>

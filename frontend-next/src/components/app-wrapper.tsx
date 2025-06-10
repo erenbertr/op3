@@ -8,17 +8,14 @@ import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { WorkspaceApplication } from '@/components/workspace/workspace-application';
 
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LanguageSelector } from '@/components/language-selector';
-import { useI18n } from '@/lib/i18n';
+import { UserMenu } from '@/components/user-menu';
 import { apiClient } from '@/lib/api';
 import { authService, AuthUser } from '@/lib/auth';
-import { Loader2, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 
 
 export function AppWrapper() {
-    const { t } = useI18n();
 
     // Initialize user state from auth service
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -150,7 +147,6 @@ export function AppWrapper() {
                             <span className="text-sm text-muted-foreground">Setup</span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <LanguageSelector />
                             <ThemeToggle />
                         </div>
                     </div>
@@ -176,19 +172,7 @@ export function AppWrapper() {
                             <span className="text-sm text-muted-foreground">Workspace Setup</span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <span className="text-sm text-muted-foreground">
-                                Welcome, {currentUser.email}
-                            </span>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleLogout}
-                                className="text-muted-foreground hover:text-foreground"
-                            >
-                                <LogOut className="h-4 w-4 mr-2" />
-                                Logout
-                            </Button>
-                            <LanguageSelector />
+                            <UserMenu userEmail={currentUser.email} onLogout={handleLogout} />
                             <ThemeToggle />
                         </div>
                     </div>
@@ -225,7 +209,6 @@ export function AppWrapper() {
                         <h1 className="text-xl font-bold">OP3</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <LanguageSelector />
                         <ThemeToggle />
                     </div>
                 </div>
@@ -234,7 +217,7 @@ export function AppWrapper() {
             {/* Main application content */}
             <main className="container mx-auto px-4 py-8">
                 <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold mb-2">{t('login.title')}</h2>
+                    <h2 className="text-2xl font-bold mb-2">Sign In</h2>
                     <p className="text-muted-foreground">
                         Setup completed successfully! Please sign in to continue.
                     </p>

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ChatView } from '@/components/workspace/chat/chat-view';
 import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
@@ -10,11 +11,11 @@ import { PersonalitiesManagement } from '@/components/personalities/personalitie
 import { WorkspaceSettingsView } from '@/components/workspace/workspace-settings-view';
 import { AIProviderSettingsView } from '@/components/workspace/ai-provider-settings-view';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { LanguageSelector } from '@/components/language-selector';
+import { UserMenu } from '@/components/user-menu';
 import { AuthUser } from '@/lib/auth';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
-import { Loader2, LogOut, Settings, Bot, Plus } from 'lucide-react';
+import { Loader2, Settings, Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceApplicationProps {
@@ -31,6 +32,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const currentPathname = usePathnameHook();
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
+    const queryClient = useQueryClient();
 
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id, 'WorkspaceApplication');
@@ -92,8 +94,10 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
+        // Force refetch workspace data when navigating to ensure we have the latest data
+        queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
         navigationUtils.pushState(`/ws/${workspaceId}`);
-    }, []);
+    }, [currentUser.id, queryClient]);
 
     const navigateToWorkspaceSelection = useCallback(() => {
         navigationUtils.pushState('/workspaces');
@@ -135,19 +139,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                         <h1 className="text-xl font-bold">OP3</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-sm text-muted-foreground">
-                            Welcome, {currentUser.email}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={onLogout}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            <LogOut className="h-4 w-4 mr-2" />
-                            Logout
-                        </Button>
-                        <LanguageSelector />
+                        <UserMenu userEmail={currentUser.email} onLogout={onLogout} />
                         <ThemeToggle />
                     </div>
                 </div>
@@ -164,41 +156,102 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 />
             </div>
 
+            {/* Debug info - remove this later */}
+            {process.env.NODE_ENV === 'development' && (
+                <div className="bg-yellow-100 border-l-4 border-yellow-500 p-2 text-xs">
+                    <strong>Debug:</strong> View: {currentView}, WorkspaceId: {routeParams.workspaceId},
+                    Loading: {workspacesLoading ? 'true' : 'false'},
+                    Workspace Found: {currentWorkspace ? 'true' : 'false'},
+                    Error: {workspacesError ? 'true' : 'false'}
+                </div>
+            )}
+
             {/* Main content */}
             <main className="flex-1 overflow-hidden">
-                {currentView === 'workspace' && routeParams.workspaceId && currentWorkspace && (
+                {currentView === 'workspace' && routeParams.workspaceId && (
                     <>
-                        {/* If we have a chatId, show the specific chat */}
-                        {routeParams.chatId ? (
-                            <ChatViewInternal
-                                workspaceId={routeParams.workspaceId}
-                                chatId={routeParams.chatId}
-                            />
-                        ) : (
-                            /* Otherwise show workspace overview */
+                        {/* Show loading state while workspace data is loading */}
+                        {workspacesLoading ? (
+                            <div className="h-full flex items-center justify-center">
+                                <div className="text-center space-y-4">
+                                    <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
+                                    <p className="text-muted-foreground">Loading workspace...</p>
+                                </div>
+                            </div>
+                        ) : currentWorkspace ? (
                             <>
-                                {currentWorkspace.templateType === 'standard-chat' ? (
-                                    <ChatView
+                                {/* If we have a chatId, show the specific chat */}
+                                {routeParams.chatId ? (
+                                    <ChatViewInternal
                                         workspaceId={routeParams.workspaceId}
-                                    // No chatId provided - will show workspace overview with empty state
+                                        chatId={routeParams.chatId}
                                     />
                                 ) : (
-                                    <div className="container mx-auto px-4 py-8">
-                                        <div className="text-center space-y-4">
-                                            <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
-                                            <p className="text-muted-foreground">
-                                                {currentWorkspace.templateType
-                                                    ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
-                                                    : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
-                                                }
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Current workspace ID: {routeParams.workspaceId}
-                                            </p>
-                                        </div>
-                                    </div>
+                                    /* Otherwise show workspace overview */
+                                    <>
+                                        {currentWorkspace.templateType === 'standard-chat' ? (
+                                            <ChatView
+                                                workspaceId={routeParams.workspaceId}
+                                            // No chatId provided - will show workspace overview with empty state
+                                            />
+                                        ) : (
+                                            <div className="container mx-auto px-4 py-8">
+                                                <div className="text-center space-y-4">
+                                                    <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
+                                                    <p className="text-muted-foreground">
+                                                        {currentWorkspace.templateType
+                                                            ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
+                                                            : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
+                                                        }
+                                                    </p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Current workspace ID: {routeParams.workspaceId}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </>
+                        ) : workspacesError ? (
+                            /* Show error state if there was an error loading workspaces */
+                            <div className="h-full flex items-center justify-center">
+                                <div className="text-center space-y-4 max-w-md">
+                                    <h2 className="text-2xl font-bold">Error Loading Workspace</h2>
+                                    <p className="text-muted-foreground">
+                                        There was an error loading your workspace data. Please try refreshing the page.
+                                    </p>
+                                    <Button
+                                        onClick={() => window.location.reload()}
+                                        className="mt-4"
+                                    >
+                                        Refresh Page
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            /* Show workspace not found state */
+                            <div className="h-full flex items-center justify-center">
+                                <div className="text-center space-y-4 max-w-md">
+                                    <h2 className="text-2xl font-bold">Workspace Not Found</h2>
+                                    <p className="text-muted-foreground">
+                                        The workspace you're looking for doesn't exist or hasn't loaded yet.
+                                    </p>
+                                    <div className="flex gap-2 justify-center">
+                                        <Button
+                                            onClick={() => window.location.reload()}
+                                            variant="outline"
+                                        >
+                                            Refresh
+                                        </Button>
+                                        <Button
+                                            onClick={() => navigationUtils.pushState('/workspaces')}
+                                        >
+                                            Back to Workspaces
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </>
                 )}
@@ -237,7 +290,10 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                 userId={currentUser.id}
                                 onComplete={(workspace) => {
                                     if (workspace) {
-                                        navigateToWorkspace(workspace.id);
+                                        // Add a small delay to ensure workspace data is properly invalidated and refetched
+                                        setTimeout(() => {
+                                            navigateToWorkspace(workspace.id);
+                                        }, 100);
                                     } else {
                                         navigateToWorkspaceSelection();
                                     }

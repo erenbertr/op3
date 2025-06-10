@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { apiClient, WorkspaceTemplate } from '@/lib/api';
+import { WorkspaceTemplate } from '@/lib/api';
+import { useCreateWorkspace } from '@/lib/hooks/use-query-hooks';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 
 interface WorkspaceSetupProps {
@@ -26,8 +27,9 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
     const [workspaceName, setWorkspaceName] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState<WorkspaceTemplate | null>(null);
     const [workspaceRules, setWorkspaceRules] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    const createWorkspaceMutation = useCreateWorkspace();
 
     const templateOptions: TemplateOption[] = [
         {
@@ -64,10 +66,13 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
             return;
         }
 
-        setIsLoading(true);
-
         try {
-            const result = await apiClient.createWorkspace(userId, workspaceName.trim(), selectedTemplate, workspaceRules);
+            const result = await createWorkspaceMutation.mutateAsync({
+                name: workspaceName.trim(),
+                templateType: selectedTemplate,
+                workspaceRules,
+                userId
+            });
 
             if (result.success) {
                 onComplete?.(result.workspace);
@@ -76,8 +81,6 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
             }
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Failed to create workspace');
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -100,7 +103,7 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
                         value={workspaceName}
                         onChange={(e) => setWorkspaceName(e.target.value)}
                         placeholder="e.g., My First Workspace, Development Chat, etc."
-                        disabled={isLoading}
+                        disabled={createWorkspaceMutation.isPending}
                         className="max-w-md"
                     />
                 </div>
@@ -155,7 +158,7 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
                         onChange={(e) => setWorkspaceRules(e.target.value)}
                         placeholder="Enter any specific rules or instructions for AI behavior in this workspace..."
                         className="min-h-[120px]"
-                        disabled={isLoading}
+                        disabled={createWorkspaceMutation.isPending}
                     />
                 </div>
 
@@ -170,10 +173,10 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
                 <div className="flex justify-end">
                     <Button
                         type="submit"
-                        disabled={isLoading || !selectedTemplate}
+                        disabled={createWorkspaceMutation.isPending || !selectedTemplate}
                         className="px-8 py-2"
                     >
-                        {isLoading ? 'Creating Workspace...' : 'Create Workspace'}
+                        {createWorkspaceMutation.isPending ? 'Creating Workspace...' : 'Create Workspace'}
                     </Button>
                 </div>
             </form>
