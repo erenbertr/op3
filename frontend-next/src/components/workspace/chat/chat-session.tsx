@@ -208,7 +208,19 @@ export function ChatSessionComponent({
             });
 
             // Update spacer height
-            spacerElement.style.height = `${spacerHeight}px`;
+            if (!isNewMessage) {
+                // For initial loads: disable transition for instant positioning
+                const originalTransition = spacerElement.style.transition;
+                spacerElement.style.transition = 'none';
+                spacerElement.style.height = `${spacerHeight}px`;
+                // Force reflow to apply the change immediately
+                spacerElement.offsetHeight;
+                // Restore transition for future updates
+                spacerElement.style.transition = originalTransition;
+            } else {
+                // For new messages: keep smooth transition
+                spacerElement.style.height = `${spacerHeight}px`;
+            }
 
             // Wait for spacer transition to complete, then scroll
             const scrollDelay = isNewMessage ? 300 : 50; // Shorter delay for initial loads
@@ -226,9 +238,21 @@ export function ChatSessionComponent({
                         // Show messages immediately for new messages (already visible)
                         setIsMessagesVisible(true);
                     } else {
-                        // For initial chat loads: instant scroll (no animation)
-                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-                        console.log('📍 Instant scroll for chat load');
+                        // For initial chat loads: completely disable any scroll behavior
+                        // Force instant positioning without any animation
+                        const targetScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+                        // Disable smooth scrolling temporarily
+                        const originalScrollBehavior = scrollContainer.style.scrollBehavior;
+                        scrollContainer.style.scrollBehavior = 'auto';
+
+                        // Set scroll position instantly
+                        scrollContainer.scrollTop = Math.max(0, targetScrollTop);
+
+                        // Restore original scroll behavior
+                        scrollContainer.style.scrollBehavior = originalScrollBehavior;
+
+                        console.log('📍 Instant scroll for chat load (forced)');
 
                         // Show messages with fade-in animation after instant positioning
                         setTimeout(() => {
