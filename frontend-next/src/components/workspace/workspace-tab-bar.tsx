@@ -35,6 +35,9 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const isMountedRef = useRef(false);
+    const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+    const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Save open workspace tabs to localStorage
     const saveOpenTabs = useCallback((tabs: string[]) => {
@@ -177,6 +180,71 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         }
     }, [openWorkspaceTabs, currentWorkspaceId, workspaces, handleTabClick, saveOpenTabs]);
 
+    // Drag and drop handlers
+    const handleDragStart = useCallback((e: React.DragEvent, workspaceId: string) => {
+        setDraggedTabId(workspaceId);
+        setIsDragging(true);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', workspaceId);
+
+        // Add some visual feedback
+        if (e.currentTarget instanceof HTMLElement) {
+            e.currentTarget.style.opacity = '0.5';
+        }
+    }, []);
+
+    const handleDragEnd = useCallback((e: React.DragEvent) => {
+        setDraggedTabId(null);
+        setDragOverTabId(null);
+
+        // Reset visual feedback
+        if (e.currentTarget instanceof HTMLElement) {
+            e.currentTarget.style.opacity = '1';
+        }
+
+        // Add a small delay before allowing clicks again to prevent accidental navigation
+        setTimeout(() => {
+            setIsDragging(false);
+        }, 100);
+    }, []);
+
+    const handleDragOver = useCallback((e: React.DragEvent, workspaceId: string) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverTabId(workspaceId);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        // Only clear if we're leaving the tab entirely
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDragOverTabId(null);
+        }
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent, targetWorkspaceId: string) => {
+        e.preventDefault();
+        const draggedWorkspaceId = e.dataTransfer.getData('text/plain');
+
+        if (draggedWorkspaceId && draggedWorkspaceId !== targetWorkspaceId) {
+            const newTabs = [...openWorkspaceTabs];
+            const draggedIndex = newTabs.indexOf(draggedWorkspaceId);
+            const targetIndex = newTabs.indexOf(targetWorkspaceId);
+
+            if (draggedIndex !== -1 && targetIndex !== -1) {
+                // Remove the dragged item
+                newTabs.splice(draggedIndex, 1);
+                // Insert it at the target position
+                newTabs.splice(targetIndex, 0, draggedWorkspaceId);
+
+                setOpenWorkspaceTabs(newTabs);
+                saveOpenTabs(newTabs);
+            }
+        }
+
+        setDraggedTabId(null);
+        setDragOverTabId(null);
+    }, [openWorkspaceTabs, saveOpenTabs]);
+
 
 
 
@@ -242,18 +310,35 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                     </Button>
 
                     {/* Workspace Tabs - Only show workspaces that are in openWorkspaceTabs when not loading */}
-                    {!isLoading && workspaces
-                        .filter(workspace => openWorkspaceTabs.includes(workspace.id))
+                    {!isLoading && openWorkspaceTabs
+                        .map(tabId => workspaces.find(w => w.id === tabId))
+                        .filter(workspace => workspace !== undefined)
                         .map((workspace) => (
                             <div
                                 key={workspace.id}
-                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, workspace.id)}
+                                onDragEnd={handleDragEnd}
+                                onDragOver={(e) => handleDragOver(e, workspace.id)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, workspace.id)}
+                                className={`relative flex items-center h-10 px-3 rounded-t-md border-b-2 transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                     ? 'bg-primary/10 border-primary text-primary'
                                     : 'hover:bg-muted border-transparent hover:border-primary/50'
+                                    } ${draggedTabId === workspace.id ? 'opacity-50 cursor-grabbing' : 'cursor-grab hover:cursor-grab'
+                                    } ${dragOverTabId === workspace.id && draggedTabId !== workspace.id
+                                        ? 'border-l-4 border-l-primary bg-primary/5'
+                                        : ''
                                     }`}
-                                onClick={() => handleTabClick(workspace.id)}
+                                onClick={() => {
+                                    // Prevent navigation if we just finished dragging
+                                    if (!isDragging) {
+                                        handleTabClick(workspace.id);
+                                    }
+                                }}
+                                title={`${workspace.name} - Drag to reorder`}
                             >
-                                <span className="text-sm font-medium truncate max-w-32">
+                                <span className="text-sm font-medium truncate max-w-32 pointer-events-none">
                                     {workspace.name}
                                 </span>
                                 {openWorkspaceTabs.length > 1 && workspace.id === currentWorkspaceId && currentView === 'workspace' && (
@@ -261,7 +346,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                                         variant="ghost"
                                         size="sm"
                                         onClick={(e) => handleCloseTab(workspace.id, e)}
-                                        className="h-5 w-5 p-0 ml-2 hover:bg-destructive/20 hover:text-destructive"
+                                        className="h-5 w-5 p-0 ml-2 hover:bg-destructive/20 hover:text-destructive pointer-events-auto"
                                         title="Close workspace tab"
                                     >
                                         <X className="h-3 w-3" />
