@@ -274,7 +274,6 @@ export function WorkspaceGroups({
                         onWorkspaceMove={handleWorkspaceMove}
                         groupId={null}
                         className="border-transparent hover:border-border"
-                        placeholder="Drop workspaces here or drag from groups"
                     />
                 </div>
 

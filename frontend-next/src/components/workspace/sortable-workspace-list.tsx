@@ -33,7 +33,6 @@ interface SortableWorkspaceListProps {
     onWorkspaceMove: (workspaceId: string, newIndex: number, targetGroupId?: string | null) => void;
     groupId?: string | null;
     className?: string;
-    placeholder?: string;
 }
 
 export function SortableWorkspaceList({
@@ -44,8 +43,7 @@ export function SortableWorkspaceList({
     onWorkspaceDelete,
     onWorkspaceMove,
     groupId = null,
-    className = "",
-    placeholder = "Drop workspaces here"
+    className = ""
 }: SortableWorkspaceListProps) {
     const listRef = useRef<HTMLDivElement>(null);
     const sortableRef = useRef<Sortable | null>(null);
@@ -147,11 +145,7 @@ export function SortableWorkspaceList({
                     />
                 </div>
             ))}
-            {workspaces.length === 0 && !isDragging && (
-                <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
-                    {placeholder}
-                </div>
-            )}
+
         </div>
     );
 }

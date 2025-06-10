@@ -173,7 +173,6 @@ export function WorkspaceGroupCard({
                     onWorkspaceMove={onWorkspaceMove}
                     groupId={group.id}
                     className="border-transparent hover:border-border"
-                    placeholder={`Drop workspaces in ${group.name}`}
                 />
             </div>
         </div>
