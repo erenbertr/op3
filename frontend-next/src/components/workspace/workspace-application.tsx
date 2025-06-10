@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ChatView } from '@/components/workspace/chat/chat-view';
@@ -15,6 +15,7 @@ import { UserMenu } from '@/components/user-menu';
 import { AuthUser } from '@/lib/auth';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 import { Loader2, Settings, Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -35,11 +36,15 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const queryClient = useQueryClient();
     const [showNotFoundAfterDelay, setShowNotFoundAfterDelay] = useState(false);
 
+    // Use delayed spinners for loading states
+    const { showSpinner: showWorkspacesSpinner, startLoading: startWorkspacesLoading, stopLoading: stopWorkspacesLoading } = useDelayedSpinner(3000);
+    const { showSpinner: showWorkspaceSpinner, startLoading: startWorkspaceLoading, stopLoading: stopWorkspaceLoading } = useDelayedSpinner(3000);
+
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id, 'WorkspaceApplication');
 
     // Parse route parameters from pathname (memoized to prevent re-renders)
-    const { currentView, routeParams } = React.useMemo(() => {
+    const { currentView, routeParams } = useMemo(() => {
         const parseRoute = (path: string): { view: string; params: RouteParams } => {
             // Handle workspace routes - treat both workspace and chat routes as 'workspace' view
             const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
@@ -86,15 +91,33 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     }, [currentPathname]);
 
     // Find current workspace separately to avoid workspacesResult dependency in main useMemo
-    const currentWorkspace = React.useMemo(() => {
+    const currentWorkspace = useMemo(() => {
         if (workspacesResult?.success && routeParams.workspaceId) {
             return workspacesResult.workspaces.find(w => w.id === routeParams.workspaceId) || null;
         }
         return null;
     }, [workspacesResult, routeParams.workspaceId]);
 
+    // Manage delayed spinners based on loading states
+    useEffect(() => {
+        if (workspacesLoading) {
+            startWorkspacesLoading();
+        } else {
+            stopWorkspacesLoading();
+        }
+    }, [workspacesLoading, startWorkspacesLoading, stopWorkspacesLoading]);
+
+    useEffect(() => {
+        // Show workspace spinner when loading a specific workspace
+        if (currentView === 'workspace' && routeParams.workspaceId && workspacesLoading) {
+            startWorkspaceLoading();
+        } else {
+            stopWorkspaceLoading();
+        }
+    }, [currentView, routeParams.workspaceId, workspacesLoading, startWorkspaceLoading, stopWorkspaceLoading]);
+
     // Handle delayed "not found" state to prevent flash during workspace creation
-    React.useEffect(() => {
+    useEffect(() => {
         if (currentView === 'workspace' && routeParams.workspaceId && !workspacesLoading && !currentWorkspace && !workspacesError) {
             // Reset the timer when workspace ID changes
             setShowNotFoundAfterDelay(false);
@@ -121,8 +144,8 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         navigationUtils.pushState('/workspaces');
     }, []);
 
-    // Show loading state
-    if (workspacesLoading) {
+    // Show loading state only after delay
+    if (showWorkspacesSpinner) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
@@ -181,7 +204,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 {currentView === 'workspace' && routeParams.workspaceId && (
                     <>
                         {/* Show loading state while workspace data is loading */}
-                        {workspacesLoading ? (
+                        {showWorkspaceSpinner ? (
                             <div className="h-full flex items-center justify-center">
                                 <div className="text-center space-y-4">
                                     <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
@@ -262,7 +285,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                     </div>
                                 </div>
                             </div>
-                        ) : (
+                        ) : showWorkspaceSpinner ? (
                             /* Show loading state to prevent flash during workspace creation */
                             <div className="h-full flex items-center justify-center">
                                 <div className="text-center space-y-4">
@@ -270,7 +293,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                     <p className="text-muted-foreground">Loading workspace...</p>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
                     </>
                 )}
 

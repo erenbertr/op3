@@ -1,11 +1,12 @@
 "use client"
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { authService, AuthUser } from '@/lib/auth';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface WorkspaceLayoutProps {
     children: React.ReactNode;
@@ -17,6 +18,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     const pathname = usePathname();
     const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [isClientReady, setIsClientReady] = useState(false);
+    const { showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
 
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
@@ -33,15 +35,21 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     }, [pathname]);
 
     // Initialize user state on client side only to prevent hydration mismatch
-    React.useEffect(() => {
+    useEffect(() => {
+        startLoading(); // Start the delayed spinner
+
         const user = authService.getCurrentUser();
         if (user) {
             setCurrentUser(user);
         } else {
+            stopLoading();
             router.push('/');
+            return;
         }
+
         setIsClientReady(true);
-    }, [router]);
+        stopLoading();
+    }, [router, startLoading, stopLoading]);
 
 
 
@@ -51,7 +59,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
     };
 
     // Show loading while client is initializing to prevent hydration mismatch
-    if (!isClientReady) {
+    if (!isClientReady && showSpinner) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">

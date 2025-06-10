@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
@@ -11,6 +11,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { apiClient } from '@/lib/api';
 import { authService, AuthUser } from '@/lib/auth';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 import { Loader2 } from 'lucide-react';
 
 
@@ -27,6 +28,9 @@ export function AppWrapper() {
         return user ? !user.hasCompletedWorkspaceSetup : false;
     });
 
+    // Use delayed spinner for setup loading
+    const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);
+
     // Use TanStack Query for setup status
     const { data: setupResponse, isLoading: isLoadingSetup, error: setupError } = useQuery({
         queryKey: ['setup-status'],
@@ -36,7 +40,22 @@ export function AppWrapper() {
         refetchInterval: false, // Disable automatic refetching
         refetchIntervalInBackground: false, // Disable background refetching
         retry: 1, // Limit retries to prevent infinite loops
+        onSuccess: () => {
+            stopSetupLoading();
+        },
+        onError: () => {
+            stopSetupLoading();
+        }
     });
+
+    // Start loading when setup query starts
+    useEffect(() => {
+        if (isLoadingSetup) {
+            startSetupLoading();
+        } else {
+            stopSetupLoading();
+        }
+    }, [isLoadingSetup, startSetupLoading, stopSetupLoading]);
 
     // Derived state from query
     const setupStatus = setupResponse?.setup || null;
@@ -101,7 +120,7 @@ export function AppWrapper() {
 
 
 
-    if (isLoadingSetup) {
+    if (showSetupSpinner) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">

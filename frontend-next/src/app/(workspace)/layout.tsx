@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/auth';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface WorkspaceLayoutProps {
     children: React.ReactNode;
@@ -11,25 +12,31 @@ interface WorkspaceLayoutProps {
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     const router = useRouter();
     const [isClientReady, setIsClientReady] = useState(false);
+    const { showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
 
     // Auth check using useEffect to prevent hydration mismatch
     useEffect(() => {
+        startLoading(); // Start the delayed spinner
+
         const user = authService.getCurrentUser();
         if (!user) {
+            stopLoading();
             router.push('/');
             return;
         }
 
         if (!user.hasCompletedWorkspaceSetup) {
+            stopLoading();
             router.push('/');
             return;
         }
 
         setIsClientReady(true);
-    }, [router]);
+        stopLoading();
+    }, [router, startLoading, stopLoading]);
 
     // Show loading while client is initializing to prevent hydration mismatch
-    if (!isClientReady) {
+    if (!isClientReady && showSpinner) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
