@@ -11,11 +11,13 @@ import {
     useSensors,
     closestCorners,
     DragOverlay,
+    rectIntersection,
 } from '@dnd-kit/core';
 import {
     SortableContext,
     verticalListSortingStrategy,
     horizontalListSortingStrategy,
+    arrayMove,
 } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +34,7 @@ import { WorkspaceCard } from './workspace-card';
 import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
+import { useDroppable } from '@dnd-kit/core';
 
 interface WorkspaceGroupsProps {
     userId: string;
@@ -110,6 +113,23 @@ export function WorkspaceGroups({
         setActiveId(event.active.id as string);
     };
 
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        const activeData = active.data.current as DragData;
+        const overData = over.data.current as DragData;
+
+        // Only handle workspace drag over events
+        if (activeData?.type !== 'workspace') return;
+
+        // Allow dropping on groups, workspaces, or drop zones
+        if (overData?.type === 'group' || overData?.type === 'workspace' || over.id === 'ungrouped-zone') {
+            // This enables the drop zones to be active
+        }
+    };
+
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveId(null);
@@ -123,39 +143,72 @@ export function WorkspaceGroups({
             if (activeData.type === 'workspace') {
                 // Moving workspace
                 const workspaceId = active.id as string;
+                const activeWorkspace = workspaces.find(w => w.id === workspaceId);
+                if (!activeWorkspace) return;
+
                 let newGroupId: string | null = null;
                 let newSortOrder = 0;
 
                 if (overData?.type === 'group') {
-                    // Dropped on a group
+                    // Dropped on a group header/area
                     newGroupId = over.id as string;
                     const groupWorkspaces = groupedWorkspaces[newGroupId] || [];
                     newSortOrder = groupWorkspaces.length;
                 } else if (overData?.type === 'workspace') {
-                    // Dropped on another workspace
+                    // Dropped on another workspace - insert before/after based on position
                     const targetWorkspace = workspaces.find(w => w.id === over.id);
                     if (targetWorkspace) {
                         newGroupId = targetWorkspace.groupId || null;
-                        newSortOrder = targetWorkspace.sortOrder || 0;
+
+                        // Get all workspaces in the target group
+                        const targetGroupWorkspaces = newGroupId
+                            ? (groupedWorkspaces[newGroupId] || [])
+                            : ungroupedWorkspaces;
+
+                        // Find the target workspace index
+                        const targetIndex = targetGroupWorkspaces.findIndex(w => w.id === over.id);
+
+                        // Insert after the target workspace
+                        newSortOrder = targetIndex + 1;
+
+                        // Update sort orders for workspaces that come after
+                        const workspacesToUpdate = targetGroupWorkspaces.slice(targetIndex + 1);
+                        for (const workspace of workspacesToUpdate) {
+                            if (workspace.id !== workspaceId) { // Don't update the workspace being moved
+                                await moveWorkspaceMutation.mutateAsync({
+                                    userId,
+                                    workspaceId: workspace.id,
+                                    groupId: newGroupId,
+                                    sortOrder: (workspace.sortOrder || 0) + 1
+                                });
+                            }
+                        }
                     }
-                } else {
+                } else if (over.id === 'ungrouped-zone') {
                     // Dropped on ungrouped area
+                    newGroupId = null;
+                    newSortOrder = ungroupedWorkspaces.length;
+                } else {
+                    // Default case - add to end of target group or ungrouped
                     newGroupId = null;
                     newSortOrder = ungroupedWorkspaces.length;
                 }
 
-                await moveWorkspaceMutation.mutateAsync({
-                    userId,
-                    workspaceId,
-                    groupId: newGroupId,
-                    sortOrder: newSortOrder
-                });
+                // Only move if the position actually changed
+                if (newGroupId !== activeWorkspace.groupId || newSortOrder !== activeWorkspace.sortOrder) {
+                    await moveWorkspaceMutation.mutateAsync({
+                        userId,
+                        workspaceId,
+                        groupId: newGroupId,
+                        sortOrder: newSortOrder
+                    });
+                }
             } else if (activeData.type === 'group' && overData?.type === 'group') {
                 // Reordering groups
                 const activeGroupIndex = groups.findIndex(g => g.id === active.id);
                 const overGroupIndex = groups.findIndex(g => g.id === over.id);
 
-                if (activeGroupIndex !== -1 && overGroupIndex !== -1) {
+                if (activeGroupIndex !== -1 && overGroupIndex !== -1 && activeGroupIndex !== overGroupIndex) {
                     const newGroups = [...groups];
                     const [movedGroup] = newGroups.splice(activeGroupIndex, 1);
                     newGroups.splice(overGroupIndex, 0, movedGroup);
@@ -241,13 +294,21 @@ export function WorkspaceGroups({
 
             <DndContext
                 sensors={sensors}
-                collisionDetection={closestCorners}
+                collisionDetection={rectIntersection}
                 onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
-                <div className="space-y-8">
-                    {/* Groups */}
-                    <SortableContext items={groups.map(g => g.id)} strategy={verticalListSortingStrategy}>
+                {/* Create a unified sortable context for all items */}
+                <SortableContext
+                    items={[
+                        ...groups.map(g => g.id),
+                        ...workspaces.map(w => w.id)
+                    ]}
+                    strategy={verticalListSortingStrategy}
+                >
+                    <div className="space-y-8">
+                        {/* Groups */}
                         {groups.map((group) => (
                             <WorkspaceGroupCard
                                 key={group.id}
@@ -258,27 +319,15 @@ export function WorkspaceGroups({
                                 userId={userId}
                             />
                         ))}
-                    </SortableContext>
 
-                    {/* Ungrouped workspaces */}
-                    {ungroupedWorkspaces.length > 0 && (
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                                <SortableContext items={ungroupedWorkspaces.map(w => w.id)} strategy={horizontalListSortingStrategy}>
-                                    {ungroupedWorkspaces.map((workspace) => (
-                                        <WorkspaceCard
-                                            key={workspace.id}
-                                            workspace={workspace}
-                                            onSelect={handleWorkspaceSelect}
-                                            isActive={workspace.id === currentWorkspaceId}
-                                        />
-                                    ))}
-                                </SortableContext>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                        {/* Ungrouped workspaces */}
+                        <UngroupedWorkspacesSection
+                            workspaces={ungroupedWorkspaces}
+                            onWorkspaceSelect={handleWorkspaceSelect}
+                            currentWorkspaceId={currentWorkspaceId}
+                        />
+                    </div>
+                </SortableContext>
 
                 <DragOverlay>
                     {activeId ? (
@@ -302,6 +351,63 @@ export function WorkspaceGroups({
                 userId={userId}
                 groups={groups}
             />
+        </div>
+    );
+}
+
+// Ungrouped workspaces section with drop zone
+interface UngroupedWorkspacesSectionProps {
+    workspaces: any[];
+    onWorkspaceSelect: (workspaceId: string) => void;
+    currentWorkspaceId?: string | null;
+}
+
+function UngroupedWorkspacesSection({
+    workspaces,
+    onWorkspaceSelect,
+    currentWorkspaceId
+}: UngroupedWorkspacesSectionProps) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: 'ungrouped-zone',
+        data: {
+            type: 'ungrouped-zone'
+        }
+    });
+
+    if (workspaces.length === 0) {
+        return (
+            <div
+                ref={setNodeRef}
+                className={`space-y-4 min-h-[120px] p-6 border-2 border-dashed rounded-lg transition-colors ${isOver
+                        ? 'border-primary bg-primary/5'
+                        : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                    }`}
+            >
+                <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                    <p>Drop workspaces here to ungroup them</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`space-y-4 p-4 rounded-lg transition-colors ${isOver ? 'bg-primary/5' : ''
+                }`}
+        >
+            <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                {workspaces.map((workspace) => (
+                    <WorkspaceCard
+                        key={workspace.id}
+                        workspace={workspace}
+                        onSelect={onWorkspaceSelect}
+                        isActive={workspace.id === currentWorkspaceId}
+                    />
+                ))}
+            </div>
         </div>
     );
 }

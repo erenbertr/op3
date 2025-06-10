@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,7 @@ export function WorkspaceGroupCard({
     const {
         attributes,
         listeners,
-        setNodeRef,
+        setNodeRef: setSortableNodeRef,
         transform,
         transition,
         isDragging,
@@ -58,6 +58,20 @@ export function WorkspaceGroupCard({
             id: group.id,
         },
     });
+
+    const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
+        id: `group-${group.id}`,
+        data: {
+            type: 'group',
+            id: group.id,
+        },
+    });
+
+    // Combine refs
+    const setNodeRef = (node: HTMLElement | null) => {
+        setSortableNodeRef(node);
+        setDroppableNodeRef(node);
+    };
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -103,7 +117,9 @@ export function WorkspaceGroupCard({
         <Card
             ref={setNodeRef}
             style={style}
-            className={`transition-all duration-200 ${isDragging ? 'shadow-lg' : ''}`}
+            className={`transition-all duration-200 ${isDragging ? 'shadow-lg' : ''
+                } ${isOver ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : ''
+                }`}
         >
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -115,7 +131,7 @@ export function WorkspaceGroupCard({
                         >
                             <GripVertical className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        
+
                         {isEditing ? (
                             <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -186,19 +202,20 @@ export function WorkspaceGroupCard({
             <CardContent>
                 {workspaces.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                        <SortableContext items={workspaces.map(w => w.id)} strategy={horizontalListSortingStrategy}>
-                            {workspaces.map((workspace) => (
-                                <WorkspaceCard
-                                    key={workspace.id}
-                                    workspace={workspace}
-                                    onSelect={onWorkspaceSelect}
-                                    isActive={workspace.id === currentWorkspaceId}
-                                />
-                            ))}
-                        </SortableContext>
+                        {workspaces.map((workspace) => (
+                            <WorkspaceCard
+                                key={workspace.id}
+                                workspace={workspace}
+                                onSelect={onWorkspaceSelect}
+                                isActive={workspace.id === currentWorkspaceId}
+                            />
+                        ))}
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-muted-foreground">
+                    <div className={`text-center py-8 text-muted-foreground min-h-[100px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOver
+                            ? 'border-primary bg-primary/10'
+                            : 'border-muted-foreground/25'
+                        }`}>
                         <p>No workspaces in this group</p>
                         <p className="text-sm">Drag workspaces here to organize them</p>
                     </div>
