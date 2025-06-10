@@ -1,8 +1,8 @@
 "use client"
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Kanban, Network, Edit2, Trash2, GripVertical } from 'lucide-react';
+import { MessageSquare, Kanban, Network, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceCardProps {
@@ -20,10 +20,11 @@ interface WorkspaceCardProps {
     onEdit: (workspace: WorkspaceCardProps['workspace']) => void;
     onDelete: (workspaceId: string) => void;
     isActive?: boolean;
-    isDragging?: boolean;
 }
 
-export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive, isDragging }: WorkspaceCardProps) {
+export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive }: WorkspaceCardProps) {
+    const [isDragStarting, setIsDragStarting] = useState(false);
+    const dragTimeoutRef = useRef<NodeJS.Timeout>();
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -35,30 +36,50 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive,
         onDelete(workspace.id);
     };
 
-    const handleCardClick = (e: React.MouseEvent) => {
-        // Prevent click during drag operations
-        if (isDragging) {
+    const handleMouseDown = (e: React.MouseEvent) => {
+        // Don't interfere with edit/delete buttons
+        const target = e.target as HTMLElement;
+        if (target.closest('button')) {
+            return;
+        }
+
+        // Set a timeout to detect if this is a drag operation
+        dragTimeoutRef.current = setTimeout(() => {
+            setIsDragStarting(true);
+        }, 100); // Shorter than SortableJS delay
+    };
+
+    const handleMouseUp = () => {
+        if (dragTimeoutRef.current) {
+            clearTimeout(dragTimeoutRef.current);
+        }
+        setIsDragStarting(false);
+    };
+
+    const handleClick = (e: React.MouseEvent) => {
+        // Don't select if we detected a drag operation
+        if (isDragStarting) {
             e.preventDefault();
             e.stopPropagation();
             return;
         }
 
-        // Check if the click originated from the drag handle or its children
+        // Don't interfere with edit/delete buttons
         const target = e.target as HTMLElement;
-        if (target.closest('.drag-handle')) {
-            e.preventDefault();
-            e.stopPropagation();
+        if (target.closest('button')) {
             return;
         }
 
         onSelect(workspace.id);
     };
 
-    const handleDragHandleClick = (e: React.MouseEvent) => {
-        // Prevent the drag handle click from bubbling up to the card
-        e.stopPropagation();
-        e.preventDefault();
-    };
+    useEffect(() => {
+        return () => {
+            if (dragTimeoutRef.current) {
+                clearTimeout(dragTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {
@@ -91,20 +112,14 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive,
             className={`workspace-card-inner group/card cursor-pointer transition-all duration-200 hover:shadow-md select-none ${isActive
                 ? 'border-primary'
                 : 'hover:border-primary/50'
-                } ${isDragging ? 'pointer-events-none' : ''}`}
-            onClick={handleCardClick}
+                }`}
+            onClick={handleClick}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp} // Reset if mouse leaves during potential drag
         >
             <CardHeader className="pb-3 relative">
                 <div className="flex items-center gap-3">
-                    {/* Drag Handle */}
-                    <div
-                        className="drag-handle cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded opacity-0 group-hover/card:opacity-100 transition-opacity"
-                        onClick={handleDragHandleClick}
-                        onMouseDown={handleDragHandleClick}
-                    >
-                        <GripVertical className="h-4 w-4 text-muted-foreground" />
-                    </div>
-
                     <div className={`p-2 rounded-full ${isActive
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground'

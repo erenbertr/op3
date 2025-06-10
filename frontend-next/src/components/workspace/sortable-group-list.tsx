@@ -56,15 +56,18 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             ghostClass: 'sortable-ghost',
             chosenClass: 'sortable-chosen',
             dragClass: 'sortable-drag',
-            handle: '.drag-handle',
+            handle: '.drag-handle', // Keep drag handle for groups since they don't have click functionality
             forceFallback: true,
             fallbackClass: 'sortable-fallback',
-            disabled: isDragging, // Prevent multiple simultaneous drags
             onStart: (evt) => {
                 const groupId = evt.item.getAttribute('data-group-id');
-                if (groupId) {
+                if (groupId && !isDragging) { // Only start if not already dragging
                     setIsDragging(true);
                     setDraggedItemId(groupId);
+                } else if (isDragging) {
+                    // Cancel this drag if another is in progress
+                    evt.preventDefault();
+                    return false;
                 }
             },
             onEnd: (evt) => {
@@ -94,7 +97,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [groups, onGroupReorder, isDragging, debouncedReorder]); // Include groups in dependencies
+    }, [groups, onGroupReorder, debouncedReorder]); // Include groups in dependencies
 
     return (
         <div ref={listRef} className={`space-y-2 ${isDragging ? 'pointer-events-none' : ''}`}>

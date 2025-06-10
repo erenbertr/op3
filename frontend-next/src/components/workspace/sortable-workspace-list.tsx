@@ -76,17 +76,21 @@ export function SortableWorkspaceList({
             ghostClass: 'sortable-ghost',
             chosenClass: 'sortable-chosen',
             dragClass: 'sortable-drag',
-            handle: '.drag-handle', // Only allow dragging from the drag handle
             forceFallback: true,
             fallbackClass: 'sortable-fallback',
             fallbackOnBody: true,
             swapThreshold: 0.65,
-            disabled: isDragging, // Prevent multiple simultaneous drags
+            delay: 150, // Add delay to distinguish between click and drag
+            delayOnTouchStart: true, // Apply delay on touch devices too
             onStart: (evt) => {
                 const workspaceId = evt.item.getAttribute('data-workspace-id');
-                if (workspaceId) {
+                if (workspaceId && !isDragging) { // Only start if not already dragging
                     setIsDragging(true);
                     setDraggedItemId(workspaceId);
+                } else if (isDragging) {
+                    // Cancel this drag if another is in progress
+                    evt.preventDefault();
+                    return false;
                 }
             },
             onEnd: (evt) => {
@@ -119,7 +123,7 @@ export function SortableWorkspaceList({
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [workspaces, onWorkspaceMove, isDragging, debouncedMove]); // Include workspaces in dependencies
+    }, [workspaces, onWorkspaceMove, debouncedMove]); // Include workspaces in dependencies
 
     return (
         <div
@@ -139,7 +143,6 @@ export function SortableWorkspaceList({
                         onEdit={onWorkspaceEdit}
                         onDelete={onWorkspaceDelete}
                         isActive={workspace.id === currentWorkspaceId}
-                        isDragging={isDragging}
                     />
                 </div>
             ))}

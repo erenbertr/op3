@@ -336,23 +336,10 @@
   cursor: grabbing;
 }
 
-/* Prevent click events on drag handle from bubbling to card */
-.drag-handle {
-  pointer-events: auto;
-  /* Ensure drag handle captures all mouse events */
-  position: relative;
-  z-index: 20;
-}
-
-/* Workspace card specific drag handle styling */
-.workspace-card .drag-handle {
-  flex-shrink: 0;
-}
-
-/* Ensure drag handle doesn't trigger card selection */
-.workspace-card-inner .drag-handle {
-  /* Prevent any click events from reaching the card */
-  isolation: isolate;
+/* Workspace card styling for better drag experience */
+.workspace-card-inner {
+  /* Improve drag experience */
+  touch-action: none;
 }
 
 /* Drop zone styling */
