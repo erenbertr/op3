@@ -150,6 +150,7 @@ export interface SendMessageRequest {
     content: string;
     personalityId?: string;
     aiProviderId?: string;
+    searchEnabled?: boolean;
 }
 
 export interface SendMessageResponse {
@@ -216,10 +217,12 @@ export interface StatisticsResponse {
 }
 
 export interface StreamChunk {
-    type: 'chunk' | 'error' | 'complete';
+    type: 'chunk' | 'error' | 'complete' | 'search_start' | 'search_results';
     content?: string;
     error?: string;
     message?: ChatMessage;
+    searchQuery?: string;
+    searchResults?: SearchResult[];
 }
 
 export interface StreamingState {
@@ -231,13 +234,20 @@ export interface StreamingState {
     partialContent?: string;
 }
 
+export interface SearchResult {
+    title: string;
+    url: string;
+    snippet: string;
+    displayUrl?: string;
+}
+
 export interface StreamingCallbacks {
     onChunk: (chunk: StreamChunk) => void;
     onComplete: (message: ChatMessage) => void;
     onError: (error: string) => void;
     onStop?: () => void;
     onSearchStart?: (query: string) => void;
-    onSearchResults?: (query: string, results: any[]) => void;
+    onSearchResults?: (query: string, results: SearchResult[]) => void;
 }
 
 export interface SetupStatusResponse {

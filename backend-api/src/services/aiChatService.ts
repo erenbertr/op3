@@ -1,9 +1,10 @@
-import { AIProviderConfig, AIProviderType } from '../types/ai-provider';
-import { ChatMessage, ApiMetadata, SearchResult } from '../types/chat';
+import { AIProviderConfig } from '../types/ai-provider';
+import { ChatMessage, ApiMetadata } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
 import { WorkspaceService } from './workspaceService';
+import { GoogleSearchService, createGoogleSearchService } from './googleSearchService';
 
 export interface StreamingChatRequest {
     content: string;
@@ -42,12 +43,14 @@ export class AIChatService {
     private personalityService: PersonalityService;
     private chatService: ChatService;
     private workspaceService: WorkspaceService;
+    private googleSearchService: GoogleSearchService | null;
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
         this.personalityService = new PersonalityService();
         this.chatService = ChatService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
+        this.googleSearchService = createGoogleSearchService();
     }
 
     public static getInstance(): AIChatService {
@@ -287,15 +290,22 @@ export class AIChatService {
             }
         };
 
-        // For now, we'll disable web search tools in Chat Completions API
-        // as it's not supported in the standard API
-        if (searchEnabled) {
-            // Notify that search is not available for this provider
+        // Add web search tool if enabled and supported
+        if (searchEnabled && this.supportsOpenAIWebSearch(provider)) {
+            requestBody.tools = [
+                {
+                    type: "web_search"
+                }
+            ];
+
+            // Notify that we're using OpenAI's built-in web search
             onChunk({
-                type: 'chunk',
-                messageId,
-                content: '[Note: Web search is not available for this AI provider. Responding with training data only.]\n\n'
+                type: 'search_start',
+                searchQuery: conversationHistory.filter(msg => msg.role === 'user').pop()?.content || ''
             });
+        } else if (searchEnabled) {
+            // Fall back to Google Custom Search for models that don't support OpenAI web search
+            await this.performWebSearch(conversationHistory, onChunk, messageId);
         }
 
         const response = await fetch(`${endpoint}/chat/completions`, {
@@ -314,7 +324,83 @@ export class AIChatService {
         return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
     }
 
+    /**
+     * Perform web search using Google Custom Search
+     */
+    private async performWebSearch(
+        conversationHistory: ConversationMessage[],
+        onChunk: (chunk: AIStreamChunk) => void,
+        messageId: string
+    ): Promise<void> {
+        if (!this.googleSearchService || !this.googleSearchService.isConfigured()) {
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: '[Note: Web search is not configured. Please set GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.]\n\n'
+            });
+            return;
+        }
 
+        // Get the last user message as the search query
+        const lastUserMessage = conversationHistory.filter(msg => msg.role === 'user').pop();
+        if (!lastUserMessage) {
+            return;
+        }
+
+        const searchQuery = lastUserMessage.content;
+
+        try {
+            // Notify that search is starting
+            onChunk({
+                type: 'search_start',
+                searchQuery
+            });
+
+            // Perform the search
+            const searchResults = await this.googleSearchService.search(searchQuery, 5);
+
+            // Notify about search results
+            onChunk({
+                type: 'search_results',
+                searchQuery,
+                searchResults
+            });
+
+            // Add search results context to the conversation
+            if (searchResults.length > 0) {
+                const searchContext = `Based on recent web search results for "${searchQuery}":\n\n` +
+                    searchResults.map((result, index) =>
+                        `${index + 1}. ${result.title}\n   ${result.snippet}\n   Source: ${result.url}`
+                    ).join('\n\n') +
+                    '\n\nPlease use this information along with your training data to provide a comprehensive answer.\n\n';
+
+                onChunk({
+                    type: 'chunk',
+                    messageId,
+                    content: searchContext
+                });
+            }
+        } catch (error) {
+            console.error('Web search error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: `[Note: Web search failed: ${errorMessage}. Responding with training data only.]\n\n`
+            });
+        }
+    }
+
+
+
+    /**
+     * Check if OpenAI model supports web search
+     */
+    private supportsOpenAIWebSearch(provider: AIProviderConfig): boolean {
+        // Models that support web search tools
+        const webSearchModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4'];
+        return webSearchModels.includes(provider.model);
+    }
 
     /**
      * Process OpenAI streaming response
@@ -393,6 +479,22 @@ export class AIChatService {
                                             searchResults: toolCall.web_search?.results || []
                                         });
                                     }
+                                }
+                            }
+
+                            // Handle function calls (alternative format for tool calls)
+                            const functionCall = parsed.choices?.[0]?.delta?.function_call;
+                            if (functionCall && functionCall.name === 'web_search') {
+                                try {
+                                    const args = JSON.parse(functionCall.arguments || '{}');
+                                    if (args.query) {
+                                        onChunk({
+                                            type: 'search_start',
+                                            searchQuery: args.query
+                                        });
+                                    }
+                                } catch (e) {
+                                    // Ignore parsing errors for partial function calls
                                 }
                             }
 
