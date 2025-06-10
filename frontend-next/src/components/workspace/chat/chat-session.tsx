@@ -87,6 +87,7 @@ export function ChatSessionComponent({
     const [isSearching, setIsSearching] = useState(false);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [isSearchPending, setIsSearchPending] = useState(false); // New state for pre-streaming search loading
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -111,6 +112,11 @@ export function ChatSessionComponent({
             // Clear current streaming provider/personality
             setCurrentStreamingPersonalityId(undefined);
             setCurrentStreamingAIProviderId(undefined);
+            // Clear search states
+            setIsSearchPending(false);
+            setIsSearching(false);
+            setSearchQuery('');
+            setSearchResults([]);
 
             console.log('🔄 Session changed to:', currentSessionId);
         }
@@ -471,6 +477,11 @@ export function ChatSessionComponent({
         setMessages(prev => [...prev, userMessage]);
         console.log('📝 Added user message to state');
 
+        // Set search pending state if search is enabled
+        if (searchEnabled) {
+            setIsSearchPending(true);
+        }
+
         // First, position the user message at the top with smooth animation
         // Wait for the positioning to complete before starting streaming
         setTimeout(async () => {
@@ -499,10 +510,13 @@ export function ChatSessionComponent({
                     // Handle streaming chunks
                     if (chunk.type === 'chunk' && chunk.content) {
                         setStreamingMessage(prev => prev + chunk.content);
+                        // Clear search pending state when first chunk arrives (streaming has started)
+                        setIsSearchPending(false);
                     }
                 },
                 onSearchStart: (query) => {
                     console.log('🔍 Search started:', query);
+                    setIsSearchPending(false); // Clear pending state when search actually starts
                     setIsSearching(true);
                     setSearchQuery(query);
                     setSearchResults([]);
@@ -545,6 +559,7 @@ export function ChatSessionComponent({
                     setIsSearching(false);
                     setSearchQuery('');
                     setSearchResults([]);
+                    setIsSearchPending(false);
 
                     // Recalculate spacer height after streaming completes (without scrolling)
                     setTimeout(() => {
@@ -610,6 +625,8 @@ export function ChatSessionComponent({
                     // Clear current streaming provider/personality
                     setCurrentStreamingPersonalityId(undefined);
                     setCurrentStreamingAIProviderId(undefined);
+                    // Clear search states
+                    setIsSearchPending(false);
 
                     addToast({
                         title: "Error",
@@ -631,6 +648,7 @@ export function ChatSessionComponent({
                     // Clear current streaming provider/personality
                     setCurrentStreamingPersonalityId(undefined);
                     setCurrentStreamingAIProviderId(undefined);
+                    setIsSearchPending(false);
                 }
             };
 
@@ -663,6 +681,7 @@ export function ChatSessionComponent({
                 // Clear current streaming provider/personality
                 setCurrentStreamingPersonalityId(undefined);
                 setCurrentStreamingAIProviderId(undefined);
+                setIsSearchPending(false);
 
                 addToast({
                     title: "Error",
@@ -721,6 +740,7 @@ export function ChatSessionComponent({
         setAbortController(null);
         setCurrentStreamingPersonalityId(undefined);
         setCurrentStreamingAIProviderId(undefined);
+        setIsSearchPending(false);
     };
 
     // Stop streaming function
@@ -770,6 +790,7 @@ export function ChatSessionComponent({
         setIsStreaming(false);
         setIsLoading(false);
         setStreamingMessage('');
+        setIsSearchPending(false);
         // Keep current streaming provider/personality for continue option
     };
 
@@ -952,6 +973,8 @@ export function ChatSessionComponent({
                                                 // Pass current streaming personality and AI provider
                                                 personality={getCurrentStreamingPersonality()}
                                                 aiProvider={getCurrentStreamingAIProvider()}
+                                                // Pass search pending state
+                                                isSearchPending={isSearchPending}
                                             />
                                         </>
                                     ) : null}

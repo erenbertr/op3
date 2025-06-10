@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Square, RotateCcw, AlertCircle, Brain } from 'lucide-react';
+import { Square, RotateCcw, AlertCircle, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
@@ -22,6 +22,8 @@ interface StreamingMessageProps {
     // New props for provider/personality info
     aiProvider?: AIProviderConfig;
     personality?: Personality;
+    // New prop for search pending state
+    isSearchPending?: boolean;
 }
 
 export function StreamingMessage({
@@ -35,7 +37,8 @@ export function StreamingMessage({
     onRetry,
     className,
     aiProvider,
-    personality
+    personality,
+    isSearchPending = false
 }: StreamingMessageProps) {
     const [showCursor, setShowCursor] = useState(true);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -145,11 +148,15 @@ export function StreamingMessage({
                                 <Badge
                                     variant="outline"
                                     className={cn(
-                                        "text-xs transition-all duration-300",
+                                        "text-xs transition-all duration-300 flex items-center gap-1",
                                         isStreaming && !hasError && "animate-pulse border-primary/50"
                                     )}
                                 >
                                     {aiProvider.name || aiProvider.type}
+                                    {/* Show small spinner when search is pending */}
+                                    {isSearchPending && (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    )}
                                 </Badge>
                             )}
 
