@@ -7,6 +7,7 @@ import { Brain, Copy, RotateCcw, Check, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
+import { FileAttachmentDisplay } from './file-attachment-display';
 
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
@@ -136,6 +137,16 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                 <div className={cn("p-3 rounded-lg", !isAssistant && "bg-muted/30")}>
                     {renderContent()}
                 </div>
+
+                {/* File attachments - only show for user messages */}
+                {!isAssistant && message.fileAttachments && message.fileAttachments.length > 0 && (
+                    <div className="mt-2">
+                        <FileAttachmentDisplay
+                            attachmentIds={message.fileAttachments}
+                            className="ml-3"
+                        />
+                    </div>
+                )}
 
             </div>
 

@@ -487,6 +487,14 @@ export class AIChatService {
             tools: tools
         };
 
+        console.log('OpenAI Responses API Request:', JSON.stringify(requestBody, null, 2));
+        console.log('File attachments provided:', fileAttachments);
+        console.log('Session ID:', sessionId);
+        if (sessionId) {
+            const vectorStoreId = await this.getVectorStoreForSession(sessionId);
+            console.log('Vector store result:', vectorStoreId);
+        }
+
         const response = await fetch(`${endpoint}/responses`, {
             method: 'POST',
             headers: {
@@ -497,10 +505,13 @@ export class AIChatService {
         });
 
         if (!response.ok) {
-            throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('OpenAI Responses API error response:', errorText);
+            throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
         const data: any = await response.json();
+        console.log('OpenAI Responses API Response:', JSON.stringify(data, null, 2));
         let finalContent = '';
         let searchResults: any[] = [];
 

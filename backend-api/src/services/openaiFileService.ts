@@ -306,7 +306,7 @@ export class OpenAIFileService {
         this.fileAttachments.set(attachment.id, attachment);
     }
 
-    private async getFileAttachment(id: string): Promise<FileAttachment | null> {
+    public async getFileAttachment(id: string): Promise<FileAttachment | null> {
         console.log('OpenAI File Service: Getting file attachment from memory:', id);
         return this.fileAttachments.get(id) || null;
     }

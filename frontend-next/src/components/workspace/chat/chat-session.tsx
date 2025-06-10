@@ -470,7 +470,8 @@ export function ChatSessionComponent({
             role: 'user',
             personalityId,
             aiProviderId,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            fileAttachments
         };
 
         // Immediately add user message to state

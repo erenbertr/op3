@@ -19,6 +19,7 @@ export interface ChatMessage {
     createdAt: Date;
     apiMetadata?: ApiMetadata;
     isPartial?: boolean; // For messages that were stopped mid-stream
+    fileAttachments?: string[]; // Array of file attachment IDs
 }
 
 export interface SearchResult {

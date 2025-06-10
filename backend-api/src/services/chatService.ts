@@ -119,7 +119,8 @@ export class ChatService {
                 role: 'user',
                 personalityId: request.personalityId,
                 aiProviderId: request.aiProviderId,
-                createdAt: new Date()
+                createdAt: new Date(),
+                fileAttachments: request.fileAttachments
             };
 
             await this.saveChatMessageInternal(userMessage);
@@ -566,6 +567,7 @@ export class ChatService {
                     createdAt TEXT NOT NULL,
                     apiMetadata TEXT,
                     isPartial BOOLEAN DEFAULT 0,
+                    fileAttachments TEXT,
                     FOREIGN KEY (sessionId) REFERENCES chat_sessions(id)
                 )
             `, (err: any) => {
@@ -576,8 +578,8 @@ export class ChatService {
 
                 // Insert message
                 db.run(`
-                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial, fileAttachments)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     message.id,
                     message.sessionId,
@@ -587,7 +589,8 @@ export class ChatService {
                     message.aiProviderId,
                     message.createdAt.toISOString(),
                     message.apiMetadata ? JSON.stringify(message.apiMetadata) : null,
-                    message.isPartial ? 1 : 0
+                    message.isPartial ? 1 : 0,
+                    message.fileAttachments ? JSON.stringify(message.fileAttachments) : null
                 ], (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -751,7 +754,8 @@ export class ChatService {
             aiProviderId: message.aiProviderId,
             createdAt: message.createdAt,
             apiMetadata: message.apiMetadata,
-            isPartial: message.isPartial || false
+            isPartial: message.isPartial || false,
+            fileAttachments: message.fileAttachments
         });
     }
 
@@ -856,15 +860,16 @@ export class ChatService {
                 createdAt DATETIME NOT NULL,
                 apiMetadata JSON,
                 isPartial BOOLEAN DEFAULT FALSE,
+                fileAttachments JSON,
                 INDEX idx_sessionId (sessionId),
                 INDEX idx_createdAt (createdAt)
             )
         `);
 
         await connection.execute(`
-            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null, message.isPartial || false]);
+            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial, fileAttachments)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null, message.isPartial || false, message.fileAttachments ? JSON.stringify(message.fileAttachments) : null]);
     }
 
     private async getUserChatSessionsSQL(connection: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
@@ -952,7 +957,8 @@ export class ChatService {
                 aiProviderId: message.aiProviderId,
                 createdAt: message.createdAt.toISOString(),
                 apiMetadata: message.apiMetadata,
-                isPartial: message.isPartial || false
+                isPartial: message.isPartial || false,
+                fileAttachments: message.fileAttachments
             }]);
 
         if (error) throw error;
@@ -1063,6 +1069,15 @@ export class ChatService {
             }
         }
 
+        let fileAttachments = undefined;
+        if (row.fileAttachments) {
+            try {
+                fileAttachments = JSON.parse(row.fileAttachments);
+            } catch (error) {
+                console.warn('Failed to parse fileAttachments:', error);
+            }
+        }
+
         return {
             id: row.id,
             sessionId: row.sessionId,
@@ -1072,7 +1087,8 @@ export class ChatService {
             aiProviderId: row.aiProviderId,
             createdAt: new Date(row.createdAt),
             apiMetadata,
-            isPartial: Boolean(row.isPartial)
+            isPartial: Boolean(row.isPartial),
+            fileAttachments
         };
     }
 
@@ -1099,7 +1115,8 @@ export class ChatService {
             aiProviderId: doc.aiProviderId,
             createdAt: doc.createdAt,
             apiMetadata: doc.apiMetadata,
-            isPartial: Boolean(doc.isPartial)
+            isPartial: Boolean(doc.isPartial),
+            fileAttachments: doc.fileAttachments
         };
     }
 
@@ -1126,7 +1143,8 @@ export class ChatService {
             aiProviderId: row.aiProviderId,
             createdAt: new Date(row.createdAt),
             apiMetadata: row.apiMetadata,
-            isPartial: Boolean(row.isPartial)
+            isPartial: Boolean(row.isPartial),
+            fileAttachments: row.fileAttachments
         };
     }
 }

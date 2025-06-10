@@ -123,6 +123,26 @@ router.get('/sessions/:sessionId/attachments', asyncHandler(async (req: Request,
     res.json(result);
 }));
 
+// Get a specific file attachment by ID
+router.get('/attachments/:attachmentId', asyncHandler(async (req: Request, res: Response) => {
+    const { attachmentId } = req.params;
+
+    if (!attachmentId) {
+        throw createError('Attachment ID is required', 400);
+    }
+
+    const attachment = await openaiFileService.getFileAttachment(attachmentId);
+    if (!attachment) {
+        throw createError('File attachment not found', 404);
+    }
+
+    res.json({
+        success: true,
+        message: 'File attachment retrieved',
+        attachment
+    });
+}));
+
 // Get or create vector store for a session
 router.post('/sessions/:sessionId/vector-store', asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;

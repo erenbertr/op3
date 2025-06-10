@@ -121,6 +121,7 @@ export interface ChatMessage {
     createdAt: string;
     apiMetadata?: ApiMetadata;
     isPartial?: boolean; // For messages that were stopped mid-stream
+    fileAttachments?: string[]; // Array of file attachment IDs
 }
 
 export interface ApiMetadata {
@@ -734,6 +735,24 @@ class ApiClient {
 
     async getSessionFileAttachments(sessionId: string): Promise<FileAttachmentListResponse> {
         return this.request<FileAttachmentListResponse>(`/files/sessions/${sessionId}/attachments`);
+    }
+
+    // Get file attachments by IDs
+    async getFileAttachmentsByIds(attachmentIds: string[]): Promise<FileAttachment[]> {
+        if (attachmentIds.length === 0) return [];
+
+        const promises = attachmentIds.map(async (id) => {
+            try {
+                const response = await this.request<{ success: boolean; attachment?: FileAttachment }>(`/files/attachments/${id}`);
+                return response.attachment;
+            } catch (error) {
+                console.error(`Error fetching attachment ${id}:`, error);
+                return null;
+            }
+        });
+
+        const results = await Promise.all(promises);
+        return results.filter((attachment): attachment is FileAttachment => attachment !== null);
     }
 
     async streamChatMessage(
