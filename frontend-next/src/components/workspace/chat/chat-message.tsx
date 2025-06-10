@@ -98,36 +98,30 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
 
             {/* Message content */}
             <div className="space-y-2">
-                {/* Status/Header area - maintain consistent spacing with streaming messages */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
-                    {/* Show badges for AI messages with provider/personality info */}
-                    {isAssistant && (aiProvider || personality) ? (
-                        <>
-                            {/* AI Provider badge */}
-                            {aiProvider && (
-                                <Badge variant="outline" className="text-xs">
-                                    {aiProvider.name || aiProvider.type}
-                                </Badge>
-                            )}
+                {/* Status/Header area - only show for AI messages with provider/personality info */}
+                {isAssistant && (aiProvider || personality) && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
+                        {/* AI Provider badge */}
+                        {aiProvider && (
+                            <Badge variant="outline" className="text-xs">
+                                {aiProvider.name || aiProvider.type}
+                            </Badge>
+                        )}
 
-                            {/* Personality badge */}
-                            {personality && (
-                                <Badge variant="secondary" className="text-xs">
-                                    <Brain className="h-3 w-3 mr-1" />
-                                    {personality.title}
-                                </Badge>
-                            )}
+                        {/* Personality badge */}
+                        {personality && (
+                            <Badge variant="secondary" className="text-xs">
+                                <Brain className="h-3 w-3 mr-1" />
+                                {personality.title}
+                            </Badge>
+                        )}
 
-                            {/* Orange dot for partial messages */}
-                            {message.isPartial && (
-                                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                            )}
-                        </>
-                    ) : (
-                        /* Empty space to maintain consistent height */
-                        <div></div>
-                    )}
-                </div>
+                        {/* Orange dot for partial messages */}
+                        {message.isPartial && (
+                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                        )}
+                    </div>
+                )}
 
                 {/* Message content */}
                 <div className={cn("p-3 rounded-lg", !isAssistant && "bg-muted/30")}>
@@ -297,7 +291,7 @@ export function ChatMessageList({
                 id="chat-spacer"
                 style={{
                     height: '0px',
-                    transition: 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'height 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                     pointerEvents: 'none',
                     opacity: 0
                 }}

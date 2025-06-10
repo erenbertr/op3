@@ -275,25 +275,8 @@ export function WorkspaceGroups({
 
             <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="space-y-8">
-                    {/* Groups */}
-                    <div className="space-y-6">
-                        {groups.map((group) => (
-                            <WorkspaceGroupCard
-                                key={group.id}
-                                group={group}
-                                workspaces={groupedWorkspaces[group.id] || []}
-                                onWorkspaceSelect={handleWorkspaceSelect}
-                                onWorkspaceEdit={handleEditWorkspace}
-                                onWorkspaceDelete={handleDeleteWorkspace}
-                                currentWorkspaceId={currentWorkspaceId}
-                                userId={userId}
-                            />
-                        ))}
-                    </div>
-
                     {/* Ungrouped workspaces */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
                         <StrictModeDroppable
                             droppableId="ungrouped"
                             type="workspace"
@@ -306,16 +289,11 @@ export function WorkspaceGroups({
                                 <div
                                     {...provided.droppableProps}
                                     ref={provided.innerRef}
-                                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[120px] p-4 rounded-lg border-2 border-dashed transition-colors ${snapshot.isDraggingOver
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-muted-foreground/25'
+                                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg transition-colors ${snapshot.isDraggingOver
+                                        ? 'bg-primary/5'
+                                        : ''
                                         }`}
                                 >
-                                    {ungroupedWorkspaces.length === 0 && (
-                                        <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
-                                            <p>Drop workspaces here to ungroup them</p>
-                                        </div>
-                                    )}
                                     {ungroupedWorkspaces.map((workspace, index) => (
                                         <Draggable
                                             key={workspace.id}
@@ -345,6 +323,22 @@ export function WorkspaceGroups({
                                 </div>
                             )}
                         </StrictModeDroppable>
+                    </div>
+
+                    {/* Groups */}
+                    <div className="space-y-6">
+                        {groups.map((group) => (
+                            <WorkspaceGroupCard
+                                key={group.id}
+                                group={group}
+                                workspaces={groupedWorkspaces[group.id] || []}
+                                onWorkspaceSelect={handleWorkspaceSelect}
+                                onWorkspaceEdit={handleEditWorkspace}
+                                onWorkspaceDelete={handleDeleteWorkspace}
+                                currentWorkspaceId={currentWorkspaceId}
+                                userId={userId}
+                            />
+                        ))}
                     </div>
                 </div>
             </DragDropContext>

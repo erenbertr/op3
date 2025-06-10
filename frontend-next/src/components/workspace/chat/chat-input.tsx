@@ -20,6 +20,7 @@ interface ChatInputProps {
     sessionAIProviderId?: string;
     onSettingsChange?: (personalityId?: string, aiProviderId?: string) => Promise<void>;
     autoFocus?: boolean;
+    onInterruptStreaming?: () => void;
 }
 
 export function ChatInput({
@@ -33,7 +34,8 @@ export function ChatInput({
     sessionPersonalityId,
     sessionAIProviderId,
     onSettingsChange,
-    autoFocus = false
+    autoFocus = false,
+    onInterruptStreaming
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -203,12 +205,17 @@ export function ChatInput({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!message.trim() || isLoading || disabled) {
+        if (!message.trim() || disabled) {
             return;
         }
 
         const content = message.trim();
         setMessage('');
+
+        // Interrupt streaming if it's happening
+        if (isLoading && onInterruptStreaming) {
+            onInterruptStreaming();
+        }
 
         try {
             await onSendMessage(
@@ -268,7 +275,7 @@ export function ChatInput({
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Enter to send, Shift+Enter to add a new line"
-                        disabled={disabled || isLoading}
+                        disabled={disabled}
                         className="min-h-[60px] max-h-[200px] resize-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                         rows={1}
                     />

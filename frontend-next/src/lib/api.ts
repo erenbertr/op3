@@ -307,6 +307,8 @@ export interface WorkspaceListResponse {
         workspaceRules: string;
         isActive: boolean;
         createdAt: string;
+        groupId?: string | null;
+        sortOrder?: number;
     }[];
 }
 
@@ -331,6 +333,14 @@ export interface WorkspaceUpdateResponse {
 export interface WorkspaceDeleteResponse {
     success: boolean;
     message: string;
+}
+
+export interface WorkspaceGroup {
+    id: string;
+    name: string;
+    sortOrder: number;
+    createdAt: string;
+    workspaceCount: number;
 }
 
 class ApiClient {
@@ -532,12 +542,12 @@ class ApiClient {
     }
 
     // Workspace Groups methods
-    async getUserWorkspaceGroups(userId: string): Promise<{ success: boolean; groups: any[] }> {
-        return this.request<{ success: boolean; groups: any[] }>(`/workspace-groups/user/${userId}`);
+    async getUserWorkspaceGroups(userId: string): Promise<{ success: boolean; groups: WorkspaceGroup[] }> {
+        return this.request<{ success: boolean; groups: WorkspaceGroup[] }>(`/workspace-groups/user/${userId}`);
     }
 
-    async createWorkspaceGroup(userId: string, name: string, sortOrder?: number): Promise<{ success: boolean; group?: any }> {
-        return this.request<{ success: boolean; group?: any }>('/workspace-groups/create', {
+    async createWorkspaceGroup(userId: string, name: string, sortOrder?: number): Promise<{ success: boolean; group?: WorkspaceGroup }> {
+        return this.request<{ success: boolean; group?: WorkspaceGroup }>('/workspace-groups/create', {
             method: 'POST',
             body: JSON.stringify({ userId, name, sortOrder }),
         });
@@ -565,7 +575,7 @@ class ApiClient {
     }
 
     async moveWorkspaceToGroup(userId: string, workspaceId: string, groupId: string | null, sortOrder?: number): Promise<{ success: boolean }> {
-        return this.request<{ success: boolean }>('/workspace-groups/move-workspace', {
+        return this.request<{ success: boolean }>(`/workspace-groups/move-workspace`, {
             method: 'PUT',
             body: JSON.stringify({ userId, workspaceId, groupId, sortOrder }),
         });

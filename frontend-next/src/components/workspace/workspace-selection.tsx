@@ -113,8 +113,8 @@ export function WorkspaceSelection({ userId, onWorkspaceSelect, currentWorkspace
                                     }`}>
                                     {getTemplateIcon(workspace.templateType)}
                                 </div>
-                                <div className="text-left">
-                                    <CardTitle className="text-base">
+                                <div className="text-left flex-1 min-w-0">
+                                    <CardTitle className="text-base truncate min-w-0" title={workspace.name}>
                                         {workspace.name}
                                     </CardTitle>
                                     <CardDescription className="text-sm">

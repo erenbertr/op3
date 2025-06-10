@@ -175,56 +175,58 @@ export function ChatSidebar({
             </div>
 
             {/* Chat List - Scrollable */}
-            <ScrollArea className="flex-1">
-                <div className="px-4 py-2">
-                    {filteredChats.length === 0 ? (
-                        // Only show empty state if we're not loading
-                        !isLoading ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">
-                                    {searchQuery ? 'No chats found' : 'No chats yet'}
-                                </p>
-                                {!searchQuery && (
-                                    <p className="text-xs mt-1">
-                                        Start a new conversation
+            <div className="flex-1 min-h-0">
+                <ScrollArea className="h-full">
+                    <div className="px-4 py-2 min-w-0">
+                        {filteredChats.length === 0 ? (
+                            // Only show empty state if we're not loading
+                            !isLoading ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">
+                                        {searchQuery ? 'No chats found' : 'No chats yet'}
                                     </p>
-                                )}
-                            </div>
-                        ) : null
-                    ) : (
-                        <div className="space-y-4">
-                            {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
-                                <div key={groupName} className="space-y-1">
-                                    <h3 className="text-xs font-medium text-muted-foreground px-2 py-1 select-none">
-                                        {groupName}
-                                    </h3>
-                                    <div className="space-y-1">
-                                        {groupChats.map((chat) => (
-                                            <button
-                                                key={chat.id}
-                                                className={cn(
-                                                    "w-full text-left px-3 py-3 rounded-md transition-colors select-none",
-                                                    "hover:bg-accent hover:text-accent-foreground",
-                                                    "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                                                    activeChatId === chat.id
-                                                        ? "bg-accent text-accent-foreground"
-                                                        : "text-foreground"
-                                                )}
-                                                onClick={() => handleChatClick(chat)}
-                                            >
-                                                <p className="text-sm font-medium truncate">
-                                                    {chat.title}
-                                                </p>
-                                            </button>
-                                        ))}
-                                    </div>
+                                    {!searchQuery && (
+                                        <p className="text-xs mt-1">
+                                            Start a new conversation
+                                        </p>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </ScrollArea>
+                            ) : null
+                        ) : (
+                            <div className="space-y-4 min-w-0">
+                                {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
+                                    <div key={groupName} className="space-y-1 min-w-0">
+                                        <h3 className="text-xs font-medium text-muted-foreground px-2 py-1 select-none">
+                                            {groupName}
+                                        </h3>
+                                        <div className="space-y-1 min-w-0">
+                                            {groupChats.map((chat) => (
+                                                <button
+                                                    key={chat.id}
+                                                    className={cn(
+                                                        "w-full text-left px-3 py-3 rounded-md transition-colors select-none min-w-0",
+                                                        "hover:bg-accent hover:text-accent-foreground",
+                                                        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                        activeChatId === chat.id
+                                                            ? "bg-accent text-accent-foreground"
+                                                            : "text-foreground"
+                                                    )}
+                                                    onClick={() => handleChatClick(chat)}
+                                                >
+                                                    <p className="text-sm font-medium truncate min-w-0 max-w-full" title={chat.title}>
+                                                        {chat.title}
+                                                    </p>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+            </div>
         </div>
     );
 }

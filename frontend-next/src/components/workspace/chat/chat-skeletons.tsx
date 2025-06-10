@@ -29,30 +29,32 @@ export function ChatSidebarSkeleton() {
             </div>
 
             {/* Chat List - Scrollable */}
-            <div className="flex-1">
-                <div className="px-4 py-2">
-                    <div className="space-y-4">
-                        {/* Date group skeleton */}
-                        <div className="space-y-1">
-                            <Skeleton className="h-4 w-16 px-2 py-1" />
+            <div className="flex-1 min-h-0">
+                <div className="h-full overflow-auto">
+                    <div className="px-4 py-2">
+                        <div className="space-y-4">
+                            {/* Date group skeleton */}
                             <div className="space-y-1">
-                                {Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="px-3 py-3 rounded-md">
-                                        <Skeleton className="h-4 w-3/4" />
-                                    </div>
-                                ))}
+                                <Skeleton className="h-4 w-16 px-2 py-1" />
+                                <div className="space-y-1">
+                                    {Array.from({ length: 3 }).map((_, i) => (
+                                        <div key={i} className="px-3 py-3 rounded-md">
+                                            <Skeleton className="h-4 w-3/4" />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Another date group skeleton */}
-                        <div className="space-y-1">
-                            <Skeleton className="h-4 w-20 px-2 py-1" />
+                            {/* Another date group skeleton */}
                             <div className="space-y-1">
-                                {Array.from({ length: 2 }).map((_, i) => (
-                                    <div key={i} className="px-3 py-3 rounded-md">
-                                        <Skeleton className="h-4 w-2/3" />
-                                    </div>
-                                ))}
+                                <Skeleton className="h-4 w-20 px-2 py-1" />
+                                <div className="space-y-1">
+                                    {Array.from({ length: 2 }).map((_, i) => (
+                                        <div key={i} className="px-3 py-3 rounded-md">
+                                            <Skeleton className="h-4 w-2/3" />
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -110,9 +112,9 @@ export function WorkspaceManagementSkeleton() {
 // Note: ChatInput is NOT included in skeleton - it will be shown separately by the parent component
 export function ChatLayoutSkeleton() {
     return (
-        <div className="h-full">
-            <div className="container mx-auto h-full px-4">
-                <div className="flex h-full">
+        <div className="h-full flex flex-col">
+            <div className="container mx-auto h-full px-4 flex-1 flex flex-col">
+                <div className="flex h-full min-h-0">
                     {/* Left Sidebar - Fixed width */}
                     <div className="w-80 flex-shrink-0 h-full border-l border-border">
                         <ChatSidebarSkeleton />

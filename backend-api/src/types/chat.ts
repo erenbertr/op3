@@ -48,6 +48,7 @@ export interface SendMessageRequest {
     content: string;
     personalityId?: string;
     aiProviderId?: string;
+    isContinuation?: boolean;
 }
 
 export interface SendMessageResponse {

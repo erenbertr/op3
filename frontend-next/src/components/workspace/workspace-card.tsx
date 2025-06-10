@@ -63,8 +63,8 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
     return (
         <Card
             className={`group/card cursor-pointer transition-all duration-200 hover:shadow-md select-none ${isActive
-                    ? 'border-primary'
-                    : 'hover:border-primary/50'
+                ? 'border-primary'
+                : 'hover:border-primary/50'
                 }`}
             onClick={() => onSelect(workspace.id)}
         >
@@ -76,8 +76,8 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
                         }`}>
                         {getTemplateIcon(workspace.templateType)}
                     </div>
-                    <div className="text-left">
-                        <CardTitle className="text-base">
+                    <div className="text-left flex-1 min-w-0">
+                        <CardTitle className="text-base truncate min-w-0" title={workspace.name}>
                             {workspace.name}
                         </CardTitle>
                         <CardDescription>

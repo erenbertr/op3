@@ -49,13 +49,13 @@ export function SortableGroupItem({ group }: SortableGroupItemProps) {
                     >
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    
+
                     <div className="p-2 rounded-full bg-muted text-muted-foreground">
                         <Folder className="h-4 w-4" />
                     </div>
-                    
-                    <div className="flex-1">
-                        <h4 className="font-medium">{group.name}</h4>
+
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate min-w-0" title={group.name}>{group.name}</h4>
                         <p className="text-sm text-muted-foreground">
                             {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
                         </p>

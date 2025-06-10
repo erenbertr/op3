@@ -159,7 +159,7 @@ router.post('/sessions/:sessionId/save-message', asyncHandler(async (req: Reques
 // AI Chat streaming endpoint
 router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { content, personalityId, aiProviderId, userId }: SendMessageRequest & { userId: string } = req.body;
+    const { content, personalityId, aiProviderId, userId, isContinuation }: SendMessageRequest & { userId: string } = req.body;
 
     if (!sessionId) {
         throw createError('Session ID is required', 400);
@@ -183,24 +183,28 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
     });
 
     try {
-        // First save the user message
-        const userMessageResult = await chatService.sendMessage(sessionId, {
-            content: content.trim(),
-            personalityId,
-            aiProviderId
-        });
+        let userMessageResult = null;
 
-        if (!userMessageResult.success) {
-            res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to save user message' })}\n\n`);
-            res.end();
-            return;
+        // Only save the user message if it's not a continuation
+        if (!isContinuation) {
+            userMessageResult = await chatService.sendMessage(sessionId, {
+                content: content.trim(),
+                personalityId,
+                aiProviderId
+            });
+
+            if (!userMessageResult.success) {
+                res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to save user message' })}\n\n`);
+                res.end();
+                return;
+            }
+
+            // Send user message confirmation
+            res.write(`data: ${JSON.stringify({
+                type: 'user_message',
+                message: userMessageResult.userMessage
+            })}\n\n`);
         }
-
-        // Send user message confirmation
-        res.write(`data: ${JSON.stringify({
-            type: 'user_message',
-            message: userMessageResult.userMessage
-        })}\n\n`);
 
         let fullAiResponse = '';
 

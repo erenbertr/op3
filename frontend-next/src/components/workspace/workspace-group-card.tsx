@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react';
@@ -58,8 +58,6 @@ export function WorkspaceGroupCard({
     const updateGroupMutation = useUpdateWorkspaceGroup();
     const deleteGroupMutation = useDeleteWorkspaceGroup();
 
-
-
     const handleSaveEdit = async () => {
         if (editName.trim() && editName.trim() !== group.name) {
             try {
@@ -95,8 +93,8 @@ export function WorkspaceGroupCard({
     };
 
     return (
-        <Card className="transition-all duration-200">
-            <CardHeader className="pb-3">
+        <div className="transition-all duration-200">
+            <div className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
 
@@ -132,11 +130,8 @@ export function WorkspaceGroupCard({
                                 </Button>
                             </div>
                         ) : (
-                            <div className="flex-1">
-                                <CardTitle className="text-lg">{group.name}</CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                    {workspaces.length} workspace{workspaces.length !== 1 ? 's' : ''}
-                                </p>
+                            <div className="flex-1 min-w-0">
+                                <CardTitle className="text-lg truncate min-w-0" title={group.name}>{group.name}</CardTitle>
                             </div>
                         )}
                     </div>
@@ -165,9 +160,9 @@ export function WorkspaceGroupCard({
                         </DropdownMenu>
                     )}
                 </div>
-            </CardHeader>
+            </div>
 
-            <CardContent>
+            <div>
                 <StrictModeDroppable
                     droppableId={`group-${group.id}`}
                     type="workspace"
@@ -180,16 +175,11 @@ export function WorkspaceGroupCard({
                         <div
                             {...provided.droppableProps}
                             ref={provided.innerRef}
-                            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-colors ${snapshot.isDraggingOver
-                                ? 'border-primary bg-primary/10'
-                                : 'border-muted-foreground/25'
+                            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg transition-colors ${snapshot.isDraggingOver
+                                ? ''
+                                : ''
                                 }`}
                         >
-                            {workspaces.length === 0 && (
-                                <div className="col-span-full flex items-center justify-center py-8 text-muted-foreground">
-                                    <p>Drag workspaces here to organize them</p>
-                                </div>
-                            )}
                             {workspaces.map((workspace, index) => (
                                 <Draggable
                                     key={workspace.id}
@@ -219,7 +209,7 @@ export function WorkspaceGroupCard({
                         </div>
                     )}
                 </StrictModeDroppable>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

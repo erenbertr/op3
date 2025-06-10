@@ -268,9 +268,9 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     }
 
     return (
-        <div className="h-full">
-            <div className="container mx-auto h-full px-4">
-                <div className="flex h-full">
+        <div className="h-full flex flex-col">
+            <div className="container mx-auto h-full px-4 flex-1 flex flex-col">
+                <div className="flex h-full min-h-0">
                     {/* Left Sidebar - Fixed width */}
                     <div className="w-80 flex-shrink-0 h-full border-l border-border">
                         <ChatSidebar

@@ -26,6 +26,7 @@ import {
 import { Plus, Edit, Trash2, ExternalLink, User, Loader2 } from 'lucide-react';
 import { Personality } from '@/lib/api';
 import { usePersonalities, useCreatePersonality, useUpdatePersonality, useDeletePersonality } from '@/lib/hooks/use-query-hooks';
+import { truncateText } from '@/lib/utils';
 import { PersonalityForm } from './personality-form';
 
 interface PersonalitiesManagementProps {
@@ -134,10 +135,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
         );
     };
 
-    const truncateText = (text: string, maxLength: number = 150) => {
-        if (text.length <= maxLength) return text;
-        return text.substring(0, maxLength) + '...';
-    };
+
 
     const openInspirationsLink = () => {
         window.open('https://prompts.chat/', '_blank', 'noopener,noreferrer');
@@ -246,7 +244,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                             <CardHeader className="pb-3">
                                 <div className="flex items-start justify-between">
                                     <div className="flex-1 min-w-0">
-                                        <CardTitle className="text-base truncate">
+                                        <CardTitle className="text-base truncate min-w-0" title={personality.title}>
                                             {personality.title}
                                         </CardTitle>
                                         <CardDescription className="text-xs">
@@ -262,7 +260,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                             <CardContent className="flex-1 flex flex-col">
                                 <div className="flex-1 mb-4">
                                     <p className="text-sm text-muted-foreground leading-relaxed">
-                                        {truncateText(personality.prompt)}
+                                        {truncateText(personality.prompt, 150)}
                                     </p>
                                 </div>
                                 <div className="flex gap-2">

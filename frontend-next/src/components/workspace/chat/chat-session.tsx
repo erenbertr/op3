@@ -7,6 +7,7 @@ import { ChatMessageList } from './chat-message';
 import { StreamingMessage } from './streaming-message';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig, StreamingState, StreamingCallbacks } from '@/lib/api';
+import { truncateText } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 
 
@@ -145,7 +146,7 @@ export function ChatSessionComponent({
     const [isMessagesVisible, setIsMessagesVisible] = useState(false);
 
     // Function to calculate and update spacer height with proper timing
-    const updateSpacerHeight = React.useCallback((isNewMessage = false) => {
+    const updateSpacerHeight = React.useCallback((isNewMessage = false, skipScroll = false) => {
         if (!scrollAreaRef.current || isUserScrolling) return;
 
         const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -198,7 +199,8 @@ export function ChatSessionComponent({
             }
 
             // Calculate spacer height (ensure content fits in viewport)
-            const spacerHeight = Math.max(0, containerHeight - contentHeight - 32); // 32px padding
+            // Account for existing padding: py-4 (16px) + p-4 (16px) = 32px + additional 32px buffer = 64px total
+            const spacerHeight = Math.max(0, containerHeight - contentHeight - 64); // Total padding to prevent cutoff
 
             console.log('📍 Spacer calculation result:', {
                 containerHeight,
@@ -222,55 +224,60 @@ export function ChatSessionComponent({
                 spacerElement.style.height = `${spacerHeight}px`;
             }
 
-            // Wait for spacer transition to complete, then scroll
-            const scrollDelay = isNewMessage ? 300 : 50; // Shorter delay for initial loads
-            setTimeout(() => {
-                // Ensure we have the latest scroll height after spacer is applied
-                requestAnimationFrame(() => {
-                    if (isNewMessage) {
-                        // For new messages: use smooth scrolling
-                        scrollContainer.scrollTo({
-                            top: scrollContainer.scrollHeight,
-                            behavior: 'smooth'
-                        });
-                        console.log('📍 Smooth scroll for new message');
+            // Only scroll if not skipping scroll (for post-streaming spacer updates)
+            if (!skipScroll) {
+                // Wait for spacer transition to complete, then scroll
+                const scrollDelay = isNewMessage ? 350 : 50; // Wait for 0.3s spacer transition + buffer
+                setTimeout(() => {
+                    // Ensure we have the latest scroll height after spacer is applied
+                    requestAnimationFrame(() => {
+                        if (isNewMessage) {
+                            // For new messages: use smooth scrolling
+                            scrollContainer.scrollTo({
+                                top: scrollContainer.scrollHeight,
+                                behavior: 'smooth'
+                            });
+                            console.log('📍 Smooth scroll for new message');
 
-                        // Show messages immediately for new messages (already visible)
-                        setIsMessagesVisible(true);
-                    } else {
-                        // For initial chat loads: completely disable any scroll behavior
-                        // Force instant positioning without any animation
-                        const targetScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
-
-                        // Disable smooth scrolling temporarily
-                        const originalScrollBehavior = scrollContainer.style.scrollBehavior;
-                        scrollContainer.style.scrollBehavior = 'auto';
-
-                        // Set scroll position instantly
-                        scrollContainer.scrollTop = Math.max(0, targetScrollTop);
-
-                        // Restore original scroll behavior
-                        scrollContainer.style.scrollBehavior = originalScrollBehavior;
-
-                        console.log('📍 Instant scroll for chat load (forced)');
-
-                        // Show messages with fade-in animation after instant positioning
-                        setTimeout(() => {
+                            // Show messages immediately for new messages (already visible)
                             setIsMessagesVisible(true);
-                            console.log('✨ Messages now visible with fade-in animation');
-                        }, 10); // Very small delay for instant positioning
-                    }
+                        } else {
+                            // For initial chat loads: completely disable any scroll behavior
+                            // Force instant positioning without any animation
+                            const targetScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
 
-                    console.log('📍 Scroll completed:', {
-                        scrollHeight: scrollContainer.scrollHeight,
-                        scrollTop: scrollContainer.scrollTop,
-                        spacerHeight,
-                        containerHeight,
-                        contentHeight,
-                        isNewMessage
+                            // Disable smooth scrolling temporarily
+                            const originalScrollBehavior = scrollContainer.style.scrollBehavior;
+                            scrollContainer.style.scrollBehavior = 'auto';
+
+                            // Set scroll position instantly
+                            scrollContainer.scrollTop = Math.max(0, targetScrollTop);
+
+                            // Restore original scroll behavior
+                            scrollContainer.style.scrollBehavior = originalScrollBehavior;
+
+                            console.log('📍 Instant scroll for chat load (forced)');
+
+                            // Show messages with fade-in animation after instant positioning
+                            setTimeout(() => {
+                                setIsMessagesVisible(true);
+                                console.log('✨ Messages now visible with fade-in animation');
+                            }, 10); // Very small delay for instant positioning
+                        }
+
+                        console.log('📍 Scroll completed:', {
+                            scrollHeight: scrollContainer.scrollHeight,
+                            scrollTop: scrollContainer.scrollTop,
+                            spacerHeight,
+                            containerHeight,
+                            contentHeight,
+                            isNewMessage
+                        });
                     });
-                });
-            }, scrollDelay);
+                }, scrollDelay);
+            } else {
+                console.log('📍 Spacer updated without scrolling (post-streaming)');
+            }
         }); // End of requestAnimationFrame
 
     }, [isStreaming, messages.length, isUserScrolling]);
@@ -302,16 +309,8 @@ export function ChatSessionComponent({
         setLastMessageCount(currentMessageCount);
     }, [messages.length, isStreaming, lastMessageCount, updateSpacerHeight]);
 
-    // Update spacer during streaming as content grows
-    React.useEffect(() => {
-        if (isStreaming) {
-            const interval = setInterval(() => {
-                updateSpacerHeight(true); // Streaming updates are like new messages
-            }, 500); // Update every 500ms during streaming
-
-            return () => clearInterval(interval);
-        }
-    }, [isStreaming, updateSpacerHeight]);
+    // REMOVED: Update spacer during streaming to prevent content jumping
+    // The spacer will be recalculated only after streaming completes
 
     // Hide messages when session changes
     React.useEffect(() => {
@@ -466,111 +465,171 @@ export function ChatSessionComponent({
         setMessages(prev => [...prev, userMessage]);
         console.log('📝 Added user message to state');
 
-        setIsLoading(true);
-        setIsStreaming(true);
-        setStreamingMessage('');
+        // First, position the user message at the top with smooth animation
+        // Wait for the positioning to complete before starting streaming
+        setTimeout(async () => {
+            setIsLoading(true);
+            setIsStreaming(true);
+            setStreamingMessage('');
 
-        // Store current streaming provider/personality for immediate display
-        setCurrentStreamingPersonalityId(personalityId);
-        setCurrentStreamingAIProviderId(aiProviderId);
+            // Store current streaming provider/personality for immediate display
+            setCurrentStreamingPersonalityId(personalityId);
+            setCurrentStreamingAIProviderId(aiProviderId);
 
-        // Create abort controller for this request
-        const controller = new AbortController();
-        setAbortController(controller);
+            // Create abort controller for this request
+            const controller = new AbortController();
+            setAbortController(controller);
 
-        // Update streaming state
-        setStreamingState({
-            isStreaming: true,
-            canStop: true,
-            hasError: false,
-            isRetrying: false
-        });
+            // Update streaming state
+            setStreamingState({
+                isStreaming: true,
+                canStop: true,
+                hasError: false,
+                isRetrying: false
+            });
 
-        const callbacks: StreamingCallbacks = {
-            onChunk: (chunk) => {
-                // Handle streaming chunks
-                if (chunk.type === 'chunk' && chunk.content) {
-                    setStreamingMessage(prev => prev + chunk.content);
-                }
-            },
-            onComplete: (aiMessage) => {
-                // Handle completion - add AI message to state
-                console.log('🔄 Streaming completed:', {
-                    aiMessage,
-                    sessionId: session.id
-                });
-
-                if (aiMessage) {
-                    // Add AI message to state
-                    setMessages(prev => [...prev, aiMessage]);
-                    console.log('📝 Added AI message to state');
-                }
-
-                // Clear states after completion
-                setStreamingMessage('');
-                setIsStreaming(false);
-                setIsLoading(false);
-                setStreamingState({
-                    isStreaming: false,
-                    canStop: false,
-                    hasError: false,
-                    isRetrying: false
-                });
-                // Clear current streaming provider/personality
-                setCurrentStreamingPersonalityId(undefined);
-                setCurrentStreamingAIProviderId(undefined);
-                setAbortController(null);
-
-                // Update session with last used settings and title if needed
-                const updates: any = {};
-
-                console.log('🔍 Checking session updates:', {
-                    personalityId,
-                    aiProviderId,
-                    currentPersonality: session?.lastUsedPersonalityId,
-                    currentProvider: session?.lastUsedAIProviderId,
-                    messagesLength: messages.length,
-                    sessionTitle: session?.title
-                });
-
-                // Update last used provider and personality
-                if (personalityId && personalityId !== session?.lastUsedPersonalityId) {
-                    updates.lastUsedPersonalityId = personalityId;
-                    console.log('📝 Will update personality:', personalityId);
-                }
-                if (aiProviderId && aiProviderId !== session?.lastUsedAIProviderId) {
-                    updates.lastUsedAIProviderId = aiProviderId;
-                    console.log('📝 Will update AI provider:', aiProviderId);
-                }
-
-                // Update session title if this is the first message and title is "New Chat"
-                if (messages.length === 0 && session?.title === 'New Chat') {
-                    updates.title = content.length > 50 ? content.substring(0, 50) + '...' : content;
-                    console.log('📝 Will update title:', updates.title);
-                }
-
-                // Apply updates if any
-                if (Object.keys(updates).length > 0) {
-                    console.log('📝 Updating session with:', updates);
-                    apiClient.updateChatSession(session.id, updates).then(updateResult => {
-                        if (updateResult.success && updateResult.session && onSessionUpdate) {
-                            console.log('✅ Session updated successfully:', updateResult.session);
-                            onSessionUpdate(updateResult.session);
-                        }
-                    }).catch(error => {
-                        console.error('❌ Error updating session:', error);
+            const callbacks: StreamingCallbacks = {
+                onChunk: (chunk) => {
+                    // Handle streaming chunks
+                    if (chunk.type === 'chunk' && chunk.content) {
+                        setStreamingMessage(prev => prev + chunk.content);
+                    }
+                },
+                onComplete: (aiMessage) => {
+                    // Handle completion - add AI message to state
+                    console.log('🔄 Streaming completed:', {
+                        aiMessage,
+                        sessionId: session.id
                     });
-                } else {
-                    console.log('ℹ️ No session updates needed');
+
+                    if (aiMessage) {
+                        // Add AI message to state
+                        setMessages(prev => [...prev, aiMessage]);
+                        console.log('📝 Added AI message to state');
+                    }
+
+                    // Clear states after completion
+                    setStreamingMessage('');
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                    setStreamingState({
+                        isStreaming: false,
+                        canStop: false,
+                        hasError: false,
+                        isRetrying: false
+                    });
+                    // Clear current streaming provider/personality
+                    setCurrentStreamingPersonalityId(undefined);
+                    setCurrentStreamingAIProviderId(undefined);
+                    setAbortController(null);
+
+                    // Recalculate spacer height after streaming completes (without scrolling)
+                    setTimeout(() => {
+                        updateSpacerHeight(false, true); // skipScroll = true
+                    }, 100);
+
+                    // Update session with last used settings and title if needed
+                    const updates: any = {};
+
+                    console.log('🔍 Checking session updates:', {
+                        personalityId,
+                        aiProviderId,
+                        currentPersonality: session?.lastUsedPersonalityId,
+                        currentProvider: session?.lastUsedAIProviderId,
+                        messagesLength: messages.length,
+                        sessionTitle: session?.title
+                    });
+
+                    // Update last used provider and personality
+                    if (personalityId && personalityId !== session?.lastUsedPersonalityId) {
+                        updates.lastUsedPersonalityId = personalityId;
+                        console.log('📝 Will update personality:', personalityId);
+                    }
+                    if (aiProviderId && aiProviderId !== session?.lastUsedAIProviderId) {
+                        updates.lastUsedAIProviderId = aiProviderId;
+                        console.log('📝 Will update AI provider:', aiProviderId);
+                    }
+
+                    // Update session title if this is the first message and title is "New Chat"
+                    if (messages.length === 0 && session?.title === 'New Chat') {
+                        updates.title = truncateText(content, 50);
+                        console.log('📝 Will update title:', updates.title);
+                    }
+
+                    // Apply updates if any
+                    if (Object.keys(updates).length > 0) {
+                        console.log('📝 Updating session with:', updates);
+                        apiClient.updateChatSession(session.id, updates).then(updateResult => {
+                            if (updateResult.success && updateResult.session && onSessionUpdate) {
+                                console.log('✅ Session updated successfully:', updateResult.session);
+                                onSessionUpdate(updateResult.session);
+                            }
+                        }).catch(error => {
+                            console.error('❌ Error updating session:', error);
+                        });
+                    } else {
+                        console.log('ℹ️ No session updates needed');
+                    }
+                },
+                onError: (error) => {
+                    console.error('Streaming error:', error);
+                    setStreamingState({
+                        isStreaming: false,
+                        canStop: false,
+                        hasError: true,
+                        errorMessage: error,
+                        isRetrying: false
+                    });
+                    setStreamingMessage('');
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                    setAbortController(null);
+                    // Clear current streaming provider/personality
+                    setCurrentStreamingPersonalityId(undefined);
+                    setCurrentStreamingAIProviderId(undefined);
+
+                    addToast({
+                        title: "Error",
+                        description: error || "Failed to send message",
+                        variant: "destructive"
+                    });
+                },
+                onStop: () => {
+                    console.log('🛑 Streaming stopped by user');
+                    setStreamingState({
+                        isStreaming: false,
+                        canStop: false,
+                        hasError: false,
+                        isRetrying: false
+                    });
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                    setAbortController(null);
+                    // Clear current streaming provider/personality
+                    setCurrentStreamingPersonalityId(undefined);
+                    setCurrentStreamingAIProviderId(undefined);
                 }
-            },
-            onError: (error) => {
-                console.error('Streaming error:', error);
+            };
+
+            try {
+                await apiClient.streamChatMessage(
+                    session.id,
+                    {
+                        content: content.trim(),
+                        personalityId,
+                        aiProviderId,
+                        userId
+                    },
+                    callbacks,
+                    controller
+                );
+            } catch (error) {
+                console.error('Error sending message:', error);
                 setStreamingState({
                     isStreaming: false,
                     canStop: false,
                     hasError: true,
-                    errorMessage: error,
+                    errorMessage: "Failed to send message. Please try again.",
                     isRetrying: false
                 });
                 setStreamingMessage('');
@@ -583,62 +642,61 @@ export function ChatSessionComponent({
 
                 addToast({
                     title: "Error",
-                    description: error || "Failed to send message",
+                    description: "Failed to send message. Please try again.",
                     variant: "destructive"
                 });
-            },
-            onStop: () => {
-                console.log('🛑 Streaming stopped by user');
-                setStreamingState({
-                    isStreaming: false,
-                    canStop: false,
-                    hasError: false,
-                    isRetrying: false
-                });
-                setIsStreaming(false);
-                setIsLoading(false);
-                setAbortController(null);
-                // Clear current streaming provider/personality
-                setCurrentStreamingPersonalityId(undefined);
-                setCurrentStreamingAIProviderId(undefined);
             }
-        };
+        }, 500); // End of setTimeout - delay streaming start to allow positioning animation
+    };
 
-        try {
-            await apiClient.streamChatMessage(
-                session.id,
-                {
-                    content: content.trim(),
-                    personalityId,
-                    aiProviderId,
-                    userId
-                },
-                callbacks,
-                controller
-            );
-        } catch (error) {
-            console.error('Error sending message:', error);
-            setStreamingState({
-                isStreaming: false,
-                canStop: false,
-                hasError: true,
-                errorMessage: "Failed to send message. Please try again.",
-                isRetrying: false
-            });
-            setStreamingMessage('');
-            setIsStreaming(false);
-            setIsLoading(false);
-            setAbortController(null);
-            // Clear current streaming provider/personality
-            setCurrentStreamingPersonalityId(undefined);
-            setCurrentStreamingAIProviderId(undefined);
+    // Interrupt streaming function (for new messages during streaming)
+    const handleInterruptStreaming = () => {
+        console.log('🔄 Interrupting streaming for new message...');
 
-            addToast({
-                title: "Error",
-                description: "Failed to send message. Please try again.",
-                variant: "destructive"
-            });
+        if (abortController) {
+            abortController.abort();
         }
+
+        // Save the partial message if there's content (same as stop function)
+        if (streamingMessage.trim()) {
+            try {
+                const partialMessage: ChatMessage = {
+                    id: crypto.randomUUID(),
+                    sessionId: session.id,
+                    content: streamingMessage.trim(),
+                    role: 'assistant',
+                    personalityId: currentStreamingPersonalityId,
+                    aiProviderId: currentStreamingAIProviderId,
+                    createdAt: new Date().toISOString(),
+                    isPartial: true // Mark as partial message
+                };
+
+                // Add to local state immediately to prevent flashing
+                setMessages(prev => [...prev, partialMessage]);
+                console.log('💾 Added partial message to state (interrupted):', partialMessage);
+
+                // Save to database in background
+                apiClient.saveChatMessage(partialMessage).catch(error => {
+                    console.error('Error saving partial message:', error);
+                });
+            } catch (error) {
+                console.error('Error creating partial message:', error);
+            }
+        }
+
+        // Reset streaming states immediately
+        setIsStreaming(false);
+        setIsLoading(false);
+        setStreamingMessage('');
+        setStreamingState({
+            isStreaming: false,
+            canStop: false,
+            hasError: false,
+            isRetrying: false
+        });
+        setAbortController(null);
+        setCurrentStreamingPersonalityId(undefined);
+        setCurrentStreamingAIProviderId(undefined);
     };
 
     // Stop streaming function
@@ -881,6 +939,7 @@ export function ChatSessionComponent({
                         sessionAIProviderId={session?.lastUsedAIProviderId}
                         onSettingsChange={handleSettingsChange}
                         autoFocus={autoFocusInput}
+                        onInterruptStreaming={handleInterruptStreaming}
                     />
                 </div>
             </div>
