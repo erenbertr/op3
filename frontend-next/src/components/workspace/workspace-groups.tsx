@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
 import { Plus, Settings2, Loader2 } from 'lucide-react';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import {
@@ -25,11 +25,7 @@ interface WorkspaceGroupsProps {
     openWorkspace?: ((workspaceId: string) => void) | null;
 }
 
-interface DragData {
-    type: 'workspace' | 'group';
-    id: string;
-    groupId?: string | null;
-}
+
 
 export function WorkspaceGroups({
     userId,
@@ -45,7 +41,6 @@ export function WorkspaceGroups({
     const { data: groupsResult, isLoading: groupsLoading } = useWorkspaceGroups(userId);
 
     // Mutations
-    const createGroupMutation = useCreateWorkspaceGroup();
     const reorderGroupsMutation = useReorderWorkspaceGroups();
     const moveWorkspaceMutation = useMoveWorkspaceToGroup();
 
@@ -54,8 +49,8 @@ export function WorkspaceGroups({
 
     // Organize workspaces by groups
     const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
-        const grouped: Record<string, any[]> = {};
-        const ungrouped: any[] = [];
+        const grouped: Record<string, typeof workspaces> = {};
+        const ungrouped: typeof workspaces = [];
 
         workspaces.forEach(workspace => {
             if (workspace.groupId && groups.find(g => g.id === workspace.groupId)) {
@@ -82,7 +77,7 @@ export function WorkspaceGroups({
     }, [workspaces, groups]);
 
     const handleDragEnd = async (result: DropResult) => {
-        const { destination, source, draggableId, type } = result;
+        const { destination, source, draggableId } = result;
 
         // If no destination, do nothing
         if (!destination) return;
@@ -113,7 +108,7 @@ export function WorkspaceGroups({
                 // Moving workspace (between groups or to/from ungrouped)
                 const workspaceId = draggableId;
                 let newGroupId: string | null = null;
-                let newSortOrder = destination.index;
+                const newSortOrder = destination.index;
 
                 if (destination.droppableId === 'ungrouped') {
                     newGroupId = null;
@@ -201,7 +196,7 @@ export function WorkspaceGroups({
             <DragDropContext onDragEnd={handleDragEnd}>
                 <div className="space-y-8">
                     {/* Groups */}
-                    <Droppable droppableId="groups" type="group">
+                    <Droppable droppableId="groups" type="group" isDropDisabled={false}>
                         {(provided) => (
                             <div
                                 {...provided.droppableProps}
@@ -240,7 +235,7 @@ export function WorkspaceGroups({
                     {/* Ungrouped workspaces */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-muted-foreground">Ungrouped</h3>
-                        <Droppable droppableId="ungrouped" type="workspace" direction="horizontal">
+                        <Droppable droppableId="ungrouped" type="workspace" direction="horizontal" isDropDisabled={false}>
                             {(provided, snapshot) => (
                                 <div
                                     {...provided.droppableProps}

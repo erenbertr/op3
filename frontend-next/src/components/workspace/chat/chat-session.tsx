@@ -4,8 +4,9 @@ import React, { useState, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
+import { StreamingMessage } from './streaming-message';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
-import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig } from '@/lib/api';
+import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig, StreamingState, StreamingCallbacks } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
 
@@ -62,6 +63,13 @@ export function ChatSessionComponent({
     const [isLoading, setIsLoading] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
     const [isStreaming, setIsStreaming] = useState(false);
+    const [streamingState, setStreamingState] = useState<StreamingState>({
+        isStreaming: false,
+        canStop: false,
+        hasError: false,
+        isRetrying: false
+    });
+    const [abortController, setAbortController] = useState<AbortController | null>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -77,10 +85,22 @@ export function ChatSessionComponent({
             setIsLoading(false);
             setStreamingMessage('');
             setIsStreaming(false);
+            setStreamingState({
+                isStreaming: false,
+                canStop: false,
+                hasError: false,
+                isRetrying: false
+            });
+
+            // Cancel any ongoing streaming
+            if (abortController) {
+                abortController.abort();
+                setAbortController(null);
+            }
 
             console.log('🔄 Session changed to:', currentSessionId);
         }
-    }, [session?.id]);
+    }, [session?.id, abortController]);
 
     // Debug logging
     React.useEffect(() => {
@@ -206,6 +226,127 @@ export function ChatSessionComponent({
         setIsStreaming(true);
         setStreamingMessage('');
 
+        // Create abort controller for this request
+        const controller = new AbortController();
+        setAbortController(controller);
+
+        // Update streaming state
+        setStreamingState({
+            isStreaming: true,
+            canStop: true,
+            hasError: false,
+            isRetrying: false
+        });
+
+        const callbacks: StreamingCallbacks = {
+            onChunk: (chunk) => {
+                // Handle streaming chunks
+                if (chunk.type === 'chunk' && chunk.content) {
+                    setStreamingMessage(prev => prev + chunk.content);
+                }
+            },
+            onComplete: (aiMessage) => {
+                // Handle completion - add AI message to state
+                console.log('🔄 Streaming completed:', {
+                    aiMessage,
+                    sessionId: session.id
+                });
+
+                if (aiMessage) {
+                    // Add AI message to state
+                    setMessages(prev => [...prev, aiMessage]);
+                    console.log('📝 Added AI message to state');
+                }
+
+                // Clear states after completion
+                setStreamingMessage('');
+                setIsStreaming(false);
+                setIsLoading(false);
+                setStreamingState({
+                    isStreaming: false,
+                    canStop: false,
+                    hasError: false,
+                    isRetrying: false
+                });
+                setAbortController(null);
+
+                // Update session with last used settings and title if needed
+                const updates: any = {};
+
+                console.log('🔍 Checking session updates:', {
+                    personalityId,
+                    aiProviderId,
+                    currentPersonality: session?.lastUsedPersonalityId,
+                    currentProvider: session?.lastUsedAIProviderId,
+                    messagesLength: messages.length,
+                    sessionTitle: session?.title
+                });
+
+                // Update last used provider and personality
+                if (personalityId && personalityId !== session?.lastUsedPersonalityId) {
+                    updates.lastUsedPersonalityId = personalityId;
+                    console.log('📝 Will update personality:', personalityId);
+                }
+                if (aiProviderId && aiProviderId !== session?.lastUsedAIProviderId) {
+                    updates.lastUsedAIProviderId = aiProviderId;
+                    console.log('📝 Will update AI provider:', aiProviderId);
+                }
+
+                // Update session title if this is the first message and title is "New Chat"
+                if (messages.length === 0 && session?.title === 'New Chat') {
+                    updates.title = content.length > 50 ? content.substring(0, 50) + '...' : content;
+                    console.log('📝 Will update title:', updates.title);
+                }
+
+                // Apply updates if any
+                if (Object.keys(updates).length > 0) {
+                    console.log('📝 Updating session with:', updates);
+                    apiClient.updateChatSession(session.id, updates).then(updateResult => {
+                        if (updateResult.success && updateResult.session && onSessionUpdate) {
+                            console.log('✅ Session updated successfully:', updateResult.session);
+                            onSessionUpdate(updateResult.session);
+                        }
+                    }).catch(error => {
+                        console.error('❌ Error updating session:', error);
+                    });
+                } else {
+                    console.log('ℹ️ No session updates needed');
+                }
+            },
+            onError: (error) => {
+                console.error('Streaming error:', error);
+                setStreamingState({
+                    isStreaming: false,
+                    canStop: false,
+                    hasError: true,
+                    errorMessage: error,
+                    isRetrying: false
+                });
+                setStreamingMessage('');
+                setIsStreaming(false);
+                setIsLoading(false);
+                setAbortController(null);
+
+                addToast({
+                    title: "Error",
+                    description: error || "Failed to send message",
+                    variant: "destructive"
+                });
+            },
+            onStop: () => {
+                console.log('🛑 Streaming stopped by user');
+                setStreamingState({
+                    isStreaming: false,
+                    canStop: false,
+                    hasError: false,
+                    isRetrying: false
+                });
+                setIsStreaming(false);
+                setIsLoading(false);
+                setAbortController(null);
+            }
+        };
+
         try {
             await apiClient.streamChatMessage(
                 session.id,
@@ -215,95 +356,50 @@ export function ChatSessionComponent({
                     aiProviderId,
                     userId
                 },
-                (chunk) => {
-                    // Handle streaming chunks
-                    if (chunk.type === 'chunk' && chunk.content) {
-                        setStreamingMessage(prev => prev + chunk.content);
-                    }
-                },
-                (aiMessage) => {
-                    // Handle completion - add AI message to state
-                    console.log('🔄 Streaming completed:', {
-                        aiMessage,
-                        sessionId: session.id
-                    });
-
-                    if (aiMessage) {
-                        // Add AI message to state
-                        setMessages(prev => [...prev, aiMessage]);
-                        console.log('📝 Added AI message to state');
-                    }
-
-                    // Clear states after completion
-                    setStreamingMessage('');
-                    setIsStreaming(false);
-                    setIsLoading(false);
-
-                    // Update session with last used settings and title if needed
-                    const updates: any = {};
-
-                    console.log('🔍 Checking session updates:', {
-                        personalityId,
-                        aiProviderId,
-                        currentPersonality: session?.lastUsedPersonalityId,
-                        currentProvider: session?.lastUsedAIProviderId,
-                        messagesLength: messages.length,
-                        sessionTitle: session?.title
-                    });
-
-                    // Update last used provider and personality
-                    if (personalityId && personalityId !== session?.lastUsedPersonalityId) {
-                        updates.lastUsedPersonalityId = personalityId;
-                        console.log('📝 Will update personality:', personalityId);
-                    }
-                    if (aiProviderId && aiProviderId !== session?.lastUsedAIProviderId) {
-                        updates.lastUsedAIProviderId = aiProviderId;
-                        console.log('📝 Will update AI provider:', aiProviderId);
-                    }
-
-                    // Update session title if this is the first message and title is "New Chat"
-                    if (messages.length === 0 && session?.title === 'New Chat') {
-                        updates.title = content.length > 50 ? content.substring(0, 50) + '...' : content;
-                        console.log('📝 Will update title:', updates.title);
-                    }
-
-                    // Apply updates if any
-                    if (Object.keys(updates).length > 0) {
-                        console.log('📝 Updating session with:', updates);
-                        apiClient.updateChatSession(session.id, updates).then(updateResult => {
-                            if (updateResult.success && updateResult.session && onSessionUpdate) {
-                                console.log('✅ Session updated successfully:', updateResult.session);
-                                onSessionUpdate(updateResult.session);
-                            }
-                        }).catch(error => {
-                            console.error('❌ Error updating session:', error);
-                        });
-                    } else {
-                        console.log('ℹ️ No session updates needed');
-                    }
-                },
-                (error) => {
-                    console.error('Streaming error:', error);
-                    addToast({
-                        title: "Error",
-                        description: error || "Failed to send message",
-                        variant: "destructive"
-                    });
-                    setStreamingMessage('');
-                    setIsStreaming(false);
-                    setIsLoading(false);
-                }
+                callbacks,
+                controller
             );
         } catch (error) {
             console.error('Error sending message:', error);
+            setStreamingState({
+                isStreaming: false,
+                canStop: false,
+                hasError: true,
+                errorMessage: "Failed to send message. Please try again.",
+                isRetrying: false
+            });
+            setStreamingMessage('');
+            setIsStreaming(false);
+            setIsLoading(false);
+            setAbortController(null);
+
             addToast({
                 title: "Error",
                 description: "Failed to send message. Please try again.",
                 variant: "destructive"
             });
-            setStreamingMessage('');
-            setIsStreaming(false);
-            setIsLoading(false);
+        }
+    };
+
+    // Stop streaming function
+    const handleStopStreaming = () => {
+        if (abortController) {
+            abortController.abort();
+        }
+    };
+
+    // Retry streaming function
+    const handleRetryStreaming = () => {
+        if (streamingState.hasError && streamingState.partialContent) {
+            // Find the last user message and retry it
+            const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
+            if (lastUserMessage) {
+                handleSendMessage(
+                    lastUserMessage.content,
+                    lastUserMessage.personalityId,
+                    lastUserMessage.aiProviderId
+                );
+            }
         }
     };
 
@@ -323,12 +419,26 @@ export function ChatSessionComponent({
                                     messages={messages}
                                     personalities={personalities}
                                     aiProviders={aiProviders}
-                                    streamingMessage={streamingMessage}
-                                    isStreaming={isStreaming}
                                     pendingUserMessage={null}
                                     className={messages.length === 0 ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
                                 />
+
+                                {/* Enhanced streaming message component */}
+                                {(isStreaming || streamingState.hasError) && (
+                                    <div className="px-4">
+                                        <StreamingMessage
+                                            content={streamingMessage}
+                                            isStreaming={streamingState.isStreaming}
+                                            hasError={streamingState.hasError}
+                                            errorMessage={streamingState.errorMessage}
+                                            canStop={streamingState.canStop}
+                                            canRetry={streamingState.hasError && !streamingState.isRetrying}
+                                            onStop={handleStopStreaming}
+                                            onRetry={handleRetryStreaming}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </ScrollArea>

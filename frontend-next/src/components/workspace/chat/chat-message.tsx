@@ -160,8 +160,6 @@ interface ChatMessageListProps {
     messages: ChatMessageType[];
     personalities: Personality[];
     aiProviders: AIProviderConfig[];
-    streamingMessage?: string;
-    isStreaming?: boolean;
     pendingUserMessage?: ChatMessageType | null;
     className?: string;
     onRetry?: (messageId: string) => void;
@@ -171,8 +169,6 @@ export function ChatMessageList({
     messages = [],
     personalities = [],
     aiProviders = [],
-    streamingMessage,
-    isStreaming,
     pendingUserMessage,
     className,
     onRetry
@@ -246,50 +242,6 @@ export function ChatMessageList({
                     onRetry={onRetry}
                 />
             ))}
-
-            {/* Streaming message - unified component that maintains consistent spacing */}
-            {isStreaming && (
-                <div className="relative pb-4 mb-4">
-                    <div className="space-y-2">
-                        {/* Status indicator - fixed height to prevent layout shift */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
-                            <div className="flex items-center gap-1">
-                                <div className="w-1 h-1 bg-primary rounded-full animate-pulse"></div>
-                                <span>{streamingMessage ? 'typing...' : 'thinking...'}</span>
-                            </div>
-                        </div>
-
-                        {/* Message content area - maintains space even when empty */}
-                        <div className="p-3 rounded-lg min-h-[2rem]">
-                            {streamingMessage ? (
-                                <div className="prose prose-sm max-w-none dark:prose-invert">
-                                    <div
-                                        dangerouslySetInnerHTML={{
-                                            __html: DOMPurify.sanitize(
-                                                marked.parse(streamingMessage + '<span class="inline-block w-2 h-4 bg-primary/50 animate-pulse ml-1"></span>', {
-                                                    breaks: true,
-                                                    gfm: true,
-                                                }) as string,
-                                                {
-                                                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'span'],
-                                                    ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
-                                                }
-                                            )
-                                        }}
-                                    />
-                                </div>
-                            ) : (
-                                /* Loading dots when no content yet */
-                                <div className="flex items-center gap-1">
-                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce"></div>
-                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                    <div className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

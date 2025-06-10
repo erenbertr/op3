@@ -221,6 +221,22 @@ export interface StreamChunk {
     message?: ChatMessage;
 }
 
+export interface StreamingState {
+    isStreaming: boolean;
+    canStop: boolean;
+    hasError: boolean;
+    errorMessage?: string;
+    isRetrying: boolean;
+    partialContent?: string;
+}
+
+export interface StreamingCallbacks {
+    onChunk: (chunk: StreamChunk) => void;
+    onComplete: (message: ChatMessage) => void;
+    onError: (error: string) => void;
+    onStop?: () => void;
+}
+
 export interface SetupStatusResponse {
     success: boolean;
     message?: string;
@@ -623,13 +639,12 @@ class ApiClient {
         });
     }
 
-    // AI Streaming chat method
+    // AI Streaming chat method with enhanced error handling and abort capability
     async streamChatMessage(
         sessionId: string,
         request: SendMessageRequest & { userId: string },
-        onChunk: (chunk: StreamChunk) => void,
-        onComplete: (message: ChatMessage) => void,
-        onError: (error: string) => void
+        callbacks: StreamingCallbacks,
+        abortController?: AbortController
     ): Promise<void> {
         try {
             // Get auth token from localStorage and validate it
@@ -652,6 +667,7 @@ class ApiClient {
                     ...(token && { 'Authorization': `Bearer ${token}` }),
                 },
                 body: JSON.stringify(request),
+                signal: abortController?.signal,
             });
 
             if (!response.ok) {
@@ -665,37 +681,94 @@ class ApiClient {
 
             const decoder = new TextDecoder();
             let buffer = '';
+            let hasReceivedData = false;
+            let timeoutId: NodeJS.Timeout | null = null;
 
-            while (true) {
-                const { done, value } = await reader.read();
+            // Set up timeout for detecting stalled streams
+            const resetTimeout = () => {
+                if (timeoutId) clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    callbacks.onError('Stream timeout - no data received for 30 seconds');
+                }, 30000);
+            };
 
-                if (done) break;
+            resetTimeout();
 
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
+            try {
+                while (true) {
+                    // Check if aborted
+                    if (abortController?.signal.aborted) {
+                        callbacks.onStop?.();
+                        return;
+                    }
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.slice(6));
+                    const { done, value } = await reader.read();
 
-                            if (data.type === 'chunk') {
-                                onChunk(data);
-                            } else if (data.type === 'complete') {
-                                onComplete(data.message);
-                            } else if (data.type === 'error') {
-                                onError(data.message);
-                                return;
+                    if (done) break;
+
+                    hasReceivedData = true;
+                    resetTimeout();
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+
+                                if (data.type === 'chunk') {
+                                    callbacks.onChunk(data);
+                                } else if (data.type === 'complete') {
+                                    callbacks.onComplete(data.message);
+                                    if (timeoutId) clearTimeout(timeoutId);
+                                    return;
+                                } else if (data.type === 'error') {
+                                    callbacks.onError(data.message);
+                                    if (timeoutId) clearTimeout(timeoutId);
+                                    return;
+                                }
+                            } catch (error) {
+                                // Ignore parsing errors for malformed SSE data
+                                console.warn('Failed to parse SSE data:', line);
                             }
-                        } catch (error) {
-                            // Ignore parsing errors for malformed SSE data
                         }
                     }
                 }
+
+                // If we reach here without completion, it might be an incomplete stream
+                if (timeoutId) clearTimeout(timeoutId);
+                if (hasReceivedData) {
+                    callbacks.onError('Stream ended unexpectedly');
+                } else {
+                    callbacks.onError('No data received from server');
+                }
+            } finally {
+                if (timeoutId) clearTimeout(timeoutId);
             }
         } catch (error) {
-            onError(error instanceof Error ? error.message : 'Unknown error');
+            if (abortController?.signal.aborted) {
+                callbacks.onStop?.();
+                return;
+            }
+
+            // Enhanced error handling with specific error types
+            let errorMessage = 'Unknown error';
+            if (error instanceof Error) {
+                if (error.name === 'AbortError') {
+                    callbacks.onStop?.();
+                    return;
+                } else if (error.message.includes('fetch')) {
+                    errorMessage = 'Network connection failed';
+                } else if (error.message.includes('timeout')) {
+                    errorMessage = 'Request timed out';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
+            callbacks.onError(errorMessage);
         }
     }
 

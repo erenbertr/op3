@@ -23,7 +23,12 @@ interface WorkspaceGroupCardProps {
         createdAt: string;
         workspaceCount: number;
     };
-    workspaces: any[];
+    workspaces: Array<{
+        id: string;
+        name: string;
+        groupId?: string | null;
+        sortOrder?: number;
+    }>;
     onWorkspaceSelect: (workspaceId: string) => void;
     currentWorkspaceId?: string | null;
     userId: string;
@@ -160,7 +165,7 @@ export function WorkspaceGroupCard({
             </CardHeader>
 
             <CardContent>
-                <Droppable droppableId={`group-${group.id}`} type="workspace" direction="horizontal">
+                <Droppable droppableId={`group-${group.id}`} type="workspace" direction="horizontal" isDropDisabled={false}>
                     {(provided, snapshot) => (
                         <div
                             {...provided.droppableProps}
