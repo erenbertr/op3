@@ -361,8 +361,8 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 )}
 
                 {currentView === 'personalities' && (
-                    <div className="container mx-auto px-4 py-6">
-                        <div className="max-w-6xl mx-auto">
+                    <div className="h-full">
+                        <div className="container mx-auto px-4 py-6">
                             <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
                             <PersonalitiesManagement userId={currentUser.id} />
                         </div>
@@ -425,8 +425,8 @@ function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
     };
 
     return (
-        <div className="h-full flex">
-            <div className="container mx-auto h-full flex">
+        <div className="h-full">
+            <div className="container mx-auto px-4 h-full flex">
                 {/* Vertical Tabs Sidebar */}
                 <div className="w-96 h-full overflow-y-auto">
                     <div className="py-6 space-y-2">
