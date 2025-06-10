@@ -4,7 +4,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ChatView } from '@/components/workspace/chat/chat-view';
-import { WorkspaceSelection } from '@/components/workspace/workspace-selection';
+import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 
@@ -312,8 +312,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 {currentView === 'selection' && (
                     <div className="h-full">
                         <div className="container mx-auto px-4 py-6">
-                            <h1 className="text-2xl font-bold mb-6">Select Workspace</h1>
-                            <WorkspaceSelection
+                            <WorkspaceGroups
                                 userId={currentUser.id}
                                 currentWorkspaceId={routeParams.workspaceId || null}
                                 openWorkspace={openWorkspaceRef.current}

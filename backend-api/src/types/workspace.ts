@@ -7,6 +7,8 @@ export interface Workspace {
     templateType: WorkspaceTemplate;
     workspaceRules: string;
     isActive: boolean;
+    groupId?: string | null;
+    sortOrder?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -20,6 +22,8 @@ export interface CreateWorkspaceRequest {
 export interface UpdateWorkspaceRequest {
     name?: string;
     workspaceRules?: string;
+    groupId?: string | null;
+    sortOrder?: number;
 }
 
 export interface CreateWorkspaceResponse {

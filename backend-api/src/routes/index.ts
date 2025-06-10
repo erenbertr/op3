@@ -1,6 +1,7 @@
 import { Express } from 'express';
 import setupRouter from './setup';
 import workspaceRouter from './workspace';
+import workspaceGroupRouter from './workspace-group';
 import personalitiesRouter from './personalities';
 import chatRouter from './chat';
 import aiProvidersRouter from './ai-providers';
@@ -19,6 +20,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Workspace routes
     app.use(`${API_PREFIX}/workspace`, workspaceRouter);
+
+    // Workspace group routes
+    app.use(`${API_PREFIX}/workspace-groups`, workspaceGroupRouter);
 
     // Personalities routes
     app.use(`${API_PREFIX}/personalities`, personalitiesRouter);
@@ -42,6 +46,7 @@ export const setupRoutes = (app: Express): void => {
                 setup: `${API_PREFIX}/setup`,
                 auth: `${API_PREFIX}/auth`,
                 workspace: `${API_PREFIX}/workspace`,
+                workspaceGroups: `${API_PREFIX}/workspace-groups`,
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,
                 aiProviders: `${API_PREFIX}/ai-providers`,

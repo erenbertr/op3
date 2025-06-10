@@ -49,6 +49,8 @@ export class WorkspaceService {
                 templateType: request.templateType,
                 workspaceRules: request.workspaceRules,
                 isActive: true, // New workspaces are always set as active
+                groupId: null, // New workspaces start ungrouped
+                sortOrder: 0, // Will be updated if needed
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
@@ -69,8 +71,8 @@ export class WorkspaceService {
                 case 'postgresql':
                     await this.createWorkspaceTableIfNotExists(connection, config.type);
                     const query = `
-                        INSERT INTO workspaces (id, userId, name, templateType, workspaceRules, isActive, createdAt, updatedAt)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT INTO workspaces (id, userId, name, templateType, workspaceRules, isActive, groupId, sortOrder, createdAt, updatedAt)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `;
                     await connection.execute(query, [
                         workspace.id,
@@ -79,6 +81,8 @@ export class WorkspaceService {
                         workspace.templateType,
                         workspace.workspaceRules,
                         workspace.isActive,
+                        workspace.groupId,
+                        workspace.sortOrder,
                         workspace.createdAt.toISOString(),
                         workspace.updatedAt.toISOString()
                     ]);
@@ -88,8 +92,8 @@ export class WorkspaceService {
                     await this.createWorkspaceTableIfNotExistsSQLite(connection);
                     await new Promise<void>((resolve, reject) => {
                         connection.run(`
-                            INSERT INTO workspaces (id, userId, name, templateType, workspaceRules, isActive, createdAt, updatedAt)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO workspaces (id, userId, name, templateType, workspaceRules, isActive, groupId, sortOrder, createdAt, updatedAt)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         `, [
                             workspace.id,
                             workspace.userId,
@@ -97,6 +101,8 @@ export class WorkspaceService {
                             workspace.templateType,
                             workspace.workspaceRules,
                             workspace.isActive ? 1 : 0,
+                            workspace.groupId,
+                            workspace.sortOrder,
                             workspace.createdAt.toISOString(),
                             workspace.updatedAt.toISOString()
                         ], (err: any) => {
@@ -116,6 +122,8 @@ export class WorkspaceService {
                             template_type: workspace.templateType,
                             workspace_rules: workspace.workspaceRules,
                             is_active: workspace.isActive,
+                            group_id: workspace.groupId,
+                            sort_order: workspace.sortOrder,
                             created_at: workspace.createdAt.toISOString(),
                             updated_at: workspace.updatedAt.toISOString()
                         }]);
@@ -337,6 +345,8 @@ export class WorkspaceService {
                     const updateDoc: any = { updatedAt };
                     if (request.name !== undefined) updateDoc.name = request.name;
                     if (request.workspaceRules !== undefined) updateDoc.workspaceRules = request.workspaceRules;
+                    if (request.groupId !== undefined) updateDoc.groupId = request.groupId;
+                    if (request.sortOrder !== undefined) updateDoc.sortOrder = request.sortOrder;
 
                     await connection.collection('workspaces').updateOne(
                         { id: workspaceId, userId },
@@ -357,6 +367,14 @@ export class WorkspaceService {
                         setParts.push('workspaceRules = ?');
                         values.push(request.workspaceRules);
                     }
+                    if (request.groupId !== undefined) {
+                        setParts.push('groupId = ?');
+                        values.push(request.groupId);
+                    }
+                    if (request.sortOrder !== undefined) {
+                        setParts.push('sortOrder = ?');
+                        values.push(request.sortOrder);
+                    }
 
                     values.push(workspaceId, userId);
                     const updateQuery = `UPDATE workspaces SET ${setParts.join(', ')} WHERE id = ? AND userId = ?`;
@@ -374,6 +392,14 @@ export class WorkspaceService {
                     if (request.workspaceRules !== undefined) {
                         sqliteParts.push('workspaceRules = ?');
                         sqliteValues.push(request.workspaceRules);
+                    }
+                    if (request.groupId !== undefined) {
+                        sqliteParts.push('groupId = ?');
+                        sqliteValues.push(request.groupId);
+                    }
+                    if (request.sortOrder !== undefined) {
+                        sqliteParts.push('sortOrder = ?');
+                        sqliteValues.push(request.sortOrder);
                     }
 
                     sqliteValues.push(workspaceId, userId);
@@ -393,6 +419,8 @@ export class WorkspaceService {
                     const supabaseUpdate: any = { updated_at: updatedAt.toISOString() };
                     if (request.name !== undefined) supabaseUpdate.name = request.name;
                     if (request.workspaceRules !== undefined) supabaseUpdate.workspace_rules = request.workspaceRules;
+                    if (request.groupId !== undefined) supabaseUpdate.group_id = request.groupId;
+                    if (request.sortOrder !== undefined) supabaseUpdate.sort_order = request.sortOrder;
 
                     const { error } = await connection
                         .from('workspaces')
@@ -748,9 +776,13 @@ export class WorkspaceService {
                 templateType VARCHAR(50) NOT NULL,
                 workspaceRules TEXT,
                 isActive BOOLEAN NOT NULL DEFAULT FALSE,
+                groupId VARCHAR(36) NULL,
+                sortOrder INT NOT NULL DEFAULT 0,
                 createdAt DATETIME NOT NULL,
                 updatedAt DATETIME NOT NULL,
-                INDEX idx_userId (userId)
+                INDEX idx_userId (userId),
+                INDEX idx_groupId (groupId),
+                INDEX idx_sortOrder (sortOrder)
             )
         ` : `
             CREATE TABLE IF NOT EXISTS workspaces (
@@ -760,10 +792,14 @@ export class WorkspaceService {
                 templateType VARCHAR(50) NOT NULL,
                 workspaceRules TEXT,
                 isActive BOOLEAN NOT NULL DEFAULT FALSE,
+                groupId VARCHAR(36) NULL,
+                sortOrder INTEGER NOT NULL DEFAULT 0,
                 createdAt TIMESTAMP NOT NULL,
                 updatedAt TIMESTAMP NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_workspaces_userId ON workspaces(userId);
+            CREATE INDEX IF NOT EXISTS idx_workspaces_groupId ON workspaces(groupId);
+            CREATE INDEX IF NOT EXISTS idx_workspaces_sortOrder ON workspaces(sortOrder);
         `;
 
         await connection.execute(createTableQuery);
@@ -779,6 +815,8 @@ export class WorkspaceService {
                     templateType TEXT NOT NULL,
                     workspaceRules TEXT,
                     isActive INTEGER NOT NULL DEFAULT 0,
+                    groupId TEXT NULL,
+                    sortOrder INTEGER NOT NULL DEFAULT 0,
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL
                 )
@@ -786,12 +824,28 @@ export class WorkspaceService {
                 if (err) {
                     reject(err);
                 } else {
-                    // Create index
+                    // Create indexes
                     connection.run(`
                         CREATE INDEX IF NOT EXISTS idx_workspaces_userId ON workspaces(userId)
                     `, (indexErr: any) => {
-                        if (indexErr) reject(indexErr);
-                        else resolve();
+                        if (indexErr) {
+                            reject(indexErr);
+                        } else {
+                            connection.run(`
+                                CREATE INDEX IF NOT EXISTS idx_workspaces_groupId ON workspaces(groupId)
+                            `, (groupIndexErr: any) => {
+                                if (groupIndexErr) {
+                                    reject(groupIndexErr);
+                                } else {
+                                    connection.run(`
+                                        CREATE INDEX IF NOT EXISTS idx_workspaces_sortOrder ON workspaces(sortOrder)
+                                    `, (sortIndexErr: any) => {
+                                        if (sortIndexErr) reject(sortIndexErr);
+                                        else resolve();
+                                    });
+                                }
+                            });
+                        }
                     });
                 }
             });
@@ -807,6 +861,8 @@ export class WorkspaceService {
             templateType: doc.templateType,
             workspaceRules: doc.workspaceRules,
             isActive: doc.isActive,
+            groupId: doc.groupId || null,
+            sortOrder: doc.sortOrder || 0,
             createdAt: new Date(doc.createdAt),
             updatedAt: new Date(doc.updatedAt)
         };
@@ -820,6 +876,8 @@ export class WorkspaceService {
             templateType: row.templateType,
             workspaceRules: row.workspaceRules,
             isActive: row.isActive === 1 || row.isActive === true,
+            groupId: row.groupId || null,
+            sortOrder: row.sortOrder || 0,
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
         };
@@ -833,6 +891,8 @@ export class WorkspaceService {
             templateType: data.template_type,
             workspaceRules: data.workspace_rules,
             isActive: data.is_active,
+            groupId: data.group_id || null,
+            sortOrder: data.sort_order || 0,
             createdAt: new Date(data.created_at),
             updatedAt: new Date(data.updated_at)
         };
