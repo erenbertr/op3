@@ -61,7 +61,7 @@ export function WorkspaceGroupCard({
     });
 
     const { setNodeRef: setDroppableNodeRef, isOver } = useDroppable({
-        id: `group-${group.id}`,
+        id: group.id,
         data: {
             type: 'group',
             id: group.id,

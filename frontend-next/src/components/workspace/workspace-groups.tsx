@@ -145,23 +145,34 @@ export function WorkspaceGroups({
                 let newGroupId: string | null = null;
                 let newSortOrder = 0;
 
-                if (overData?.type === 'group' || over.id.toString().startsWith('group-')) {
+                console.log('📍 Processing workspace drop:', { overData, overId: over.id });
+
+                if (overData?.type === 'group') {
                     // Dropped on a group
-                    newGroupId = overData?.id || over.id.toString().replace('group-', '');
+                    newGroupId = over.id as string;
                     const groupWorkspaces = groupedWorkspaces[newGroupId] || [];
                     newSortOrder = groupWorkspaces.length;
+                    console.log('📦 Dropped on group:', newGroupId);
                 } else if (overData?.type === 'workspace') {
                     // Dropped on another workspace
                     const targetWorkspace = workspaces.find(w => w.id === over.id);
                     if (targetWorkspace) {
                         newGroupId = targetWorkspace.groupId || null;
                         newSortOrder = (targetWorkspace.sortOrder || 0) + 1;
+                        console.log('🎯 Dropped on workspace:', targetWorkspace.id, 'in group:', newGroupId);
                     }
-                } else if (over.id === 'ungrouped-zone') {
+                } else if (over.id === 'ungrouped-zone' || overData?.type === 'ungrouped-zone') {
                     // Dropped on ungrouped area
                     newGroupId = null;
                     newSortOrder = ungroupedWorkspaces.length;
+                    console.log('🏠 Dropped on ungrouped zone');
+                } else {
+                    console.log('❓ Unknown drop target, defaulting to ungrouped');
+                    newGroupId = null;
+                    newSortOrder = ungroupedWorkspaces.length;
                 }
+
+                console.log('🚀 Moving workspace:', { workspaceId, newGroupId, newSortOrder });
 
                 await moveWorkspaceMutation.mutateAsync({
                     userId,
@@ -260,7 +271,7 @@ export function WorkspaceGroups({
 
             <DndContext
                 sensors={sensors}
-                collisionDetection={rectIntersection}
+                collisionDetection={closestCorners}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
