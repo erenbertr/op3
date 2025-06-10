@@ -194,14 +194,18 @@ export function ChatInput({
                 selectedPersonality || undefined,
                 selectedProvider || undefined
             );
-            // Keep focus on textarea after sending
-            textareaRef.current?.focus();
+            // Keep focus on textarea after sending - use setTimeout to ensure it happens after any re-renders
+            setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 0);
         } catch (error) {
             console.error('Error sending message:', error);
             // Restore message on error
             setMessage(content);
             // Keep focus on textarea even on error
-            textareaRef.current?.focus();
+            setTimeout(() => {
+                textareaRef.current?.focus();
+            }, 0);
         }
     };
 
