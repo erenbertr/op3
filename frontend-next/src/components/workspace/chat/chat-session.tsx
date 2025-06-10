@@ -145,7 +145,7 @@ export function ChatSessionComponent({
     const [isMessagesVisible, setIsMessagesVisible] = useState(false);
 
     // Function to calculate and update spacer height with proper timing
-    const updateSpacerHeight = React.useCallback(() => {
+    const updateSpacerHeight = React.useCallback((isNewMessage = false) => {
         if (!scrollAreaRef.current || isUserScrolling) return;
 
         const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -214,22 +214,36 @@ export function ChatSessionComponent({
             setTimeout(() => {
                 // Ensure we have the latest scroll height after spacer is applied
                 requestAnimationFrame(() => {
-                    // Simple: just scroll to the very bottom
-                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                    if (isNewMessage) {
+                        // For new messages: use smooth scrolling
+                        scrollContainer.scrollTo({
+                            top: scrollContainer.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                        console.log('📍 Smooth scroll for new message');
 
-                    console.log('📍 Scrolled to bottom after spacer applied:', {
+                        // Show messages immediately for new messages (already visible)
+                        setIsMessagesVisible(true);
+                    } else {
+                        // For initial chat loads: instant scroll (no animation)
+                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                        console.log('📍 Instant scroll for chat load');
+
+                        // Show messages with fade-in animation after instant positioning
+                        setTimeout(() => {
+                            setIsMessagesVisible(true);
+                            console.log('✨ Messages now visible with fade-in animation');
+                        }, 50); // Small delay to ensure scroll is complete
+                    }
+
+                    console.log('📍 Scroll completed:', {
                         scrollHeight: scrollContainer.scrollHeight,
                         scrollTop: scrollContainer.scrollTop,
                         spacerHeight,
                         containerHeight,
-                        contentHeight
+                        contentHeight,
+                        isNewMessage
                     });
-
-                    // Show messages with fade-in animation after positioning is complete
-                    setTimeout(() => {
-                        setIsMessagesVisible(true);
-                        console.log('✨ Messages now visible with fade-in animation');
-                    }, 50); // Small delay to ensure scroll is complete
                 });
             }, 300); // Increased delay to ensure spacer transition completes
         }); // End of requestAnimationFrame
@@ -255,7 +269,9 @@ export function ChatSessionComponent({
             if (isStreaming || currentMessageCount > 0) {
                 setIsMessagesVisible(true);
             }
-            updateSpacerHeight();
+            // Pass true for new messages (smooth scroll)
+            const isNewMessage = currentMessageCount > lastMessageCount;
+            updateSpacerHeight(isNewMessage);
         }
 
         setLastMessageCount(currentMessageCount);
@@ -265,7 +281,7 @@ export function ChatSessionComponent({
     React.useEffect(() => {
         if (isStreaming) {
             const interval = setInterval(() => {
-                updateSpacerHeight();
+                updateSpacerHeight(true); // Streaming updates are like new messages
             }, 500); // Update every 500ms during streaming
 
             return () => clearInterval(interval);
@@ -286,7 +302,7 @@ export function ChatSessionComponent({
             // Longer delay to ensure DOM is fully ready and content is rendered
             setTimeout(() => {
                 console.log('📍 Initial spacer setup for session:', session.id);
-                updateSpacerHeight();
+                updateSpacerHeight(false); // Initial load = instant scroll, no animation
             }, 500); // Increased delay for initial load
         }
     }, [session?.id, isLoadingMessages, messages.length, updateSpacerHeight]);
