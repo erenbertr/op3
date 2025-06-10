@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -201,20 +202,22 @@ export function WorkspaceGroupCard({
 
             <CardContent>
                 {workspaces.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                        {workspaces.map((workspace) => (
-                            <WorkspaceCard
-                                key={workspace.id}
-                                workspace={workspace}
-                                onSelect={onWorkspaceSelect}
-                                isActive={workspace.id === currentWorkspaceId}
-                            />
-                        ))}
-                    </div>
+                    <SortableContext items={workspaces.map(w => w.id)} strategy={horizontalListSortingStrategy}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                            {workspaces.map((workspace) => (
+                                <WorkspaceCard
+                                    key={workspace.id}
+                                    workspace={workspace}
+                                    onSelect={onWorkspaceSelect}
+                                    isActive={workspace.id === currentWorkspaceId}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
                 ) : (
                     <div className={`text-center py-8 text-muted-foreground min-h-[100px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOver
-                            ? 'border-primary bg-primary/10'
-                            : 'border-muted-foreground/25'
+                        ? 'border-primary bg-primary/10'
+                        : 'border-muted-foreground/25'
                         }`}>
                         <p>No workspaces in this group</p>
                         <p className="text-sm">Drag workspaces here to organize them</p>
