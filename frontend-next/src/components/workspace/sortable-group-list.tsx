@@ -33,6 +33,14 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
     const [isDragging, setIsDragging] = useState(false);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
+    // Add error boundary for sortable operations
+    const handleSortableError = useCallback((error: any, operation: string) => {
+        console.warn(`SortableJS ${operation} error (safely handled):`, error);
+        // Reset drag state on any error
+        setIsDragging(false);
+        setDraggedItemId(null);
+    }, []);
+
     // Debounced reorder handler to prevent rapid successive operations
     const debouncedReorder = useCallback(
         debounce((groupId: string, newIndex: number) => {
@@ -44,60 +52,91 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
     useEffect(() => {
         if (!listRef.current) return;
 
-        // Destroy existing sortable instance
-        if (sortableRef.current) {
-            sortableRef.current.destroy();
+        // Don't recreate sortable instance if one already exists and we're not dragging
+        // This prevents interrupting ongoing drag operations
+        if (sortableRef.current && !isDragging) {
+            return;
+        }
+
+        // Only destroy if we're not currently dragging
+        if (sortableRef.current && !isDragging) {
+            try {
+                sortableRef.current.destroy();
+            } catch (error) {
+                // Ignore errors during destroy - the instance might already be invalid
+                console.warn('Error destroying sortable instance:', error);
+            }
             sortableRef.current = null;
         }
 
+        // Don't create new instance if we're currently dragging
+        if (isDragging) return;
+
         // Create new sortable instance
-        sortableRef.current = Sortable.create(listRef.current, {
-            animation: 150,
-            ghostClass: 'sortable-ghost',
-            chosenClass: 'sortable-chosen',
-            dragClass: 'sortable-drag',
-            handle: '.drag-handle', // Keep drag handle for groups since they don't have click functionality
-            forceFallback: true,
-            fallbackClass: 'sortable-fallback',
-            onStart: (evt) => {
-                const groupId = evt.item.getAttribute('data-group-id');
-                if (groupId && !isDragging) { // Only start if not already dragging
-                    setIsDragging(true);
-                    setDraggedItemId(groupId);
-                } else if (isDragging) {
-                    // Cancel this drag if another is in progress
-                    evt.preventDefault();
-                    return false;
+        try {
+            sortableRef.current = Sortable.create(listRef.current, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                handle: '.drag-handle', // Keep drag handle for groups since they don't have click functionality
+                forceFallback: true,
+                fallbackClass: 'sortable-fallback',
+                onStart: (evt) => {
+                    try {
+                        const groupId = evt.item.getAttribute('data-group-id');
+                        if (groupId && !isDragging) { // Only start if not already dragging
+                            setIsDragging(true);
+                            setDraggedItemId(groupId);
+                        } else if (isDragging) {
+                            // Cancel this drag if another is in progress
+                            evt.preventDefault();
+                            return false;
+                        }
+                    } catch (error) {
+                        handleSortableError(error, 'onStart');
+                    }
+                },
+                onEnd: (evt) => {
+                    try {
+                        const { oldIndex, newIndex } = evt;
+
+                        // Reset drag state
+                        setIsDragging(false);
+                        setDraggedItemId(null);
+
+                        if (oldIndex === undefined || newIndex === undefined) return;
+                        if (oldIndex === newIndex) return; // No actual move
+
+                        // Get the group ID from the dragged element
+                        const groupId = evt.item.getAttribute('data-group-id');
+                        if (!groupId) return;
+
+                        // Call the debounced reorder handler
+                        debouncedReorder(groupId, newIndex);
+                    } catch (error) {
+                        handleSortableError(error, 'onEnd');
+                    }
                 }
-            },
-            onEnd: (evt) => {
-                const { oldIndex, newIndex } = evt;
-
-                // Reset drag state
-                setIsDragging(false);
-                setDraggedItemId(null);
-
-                if (oldIndex === undefined || newIndex === undefined) return;
-                if (oldIndex === newIndex) return; // No actual move
-
-                // Get the group ID from the dragged element
-                const groupId = evt.item.getAttribute('data-group-id');
-                if (!groupId) return;
-
-                // Call the debounced reorder handler
-                debouncedReorder(groupId, newIndex);
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error creating sortable instance:', error);
+        }
 
         return () => {
             if (sortableRef.current) {
-                sortableRef.current.destroy();
+                try {
+                    sortableRef.current.destroy();
+                } catch (error) {
+                    // Ignore errors during cleanup
+                    console.warn('Error during sortable cleanup:', error);
+                }
                 sortableRef.current = null;
             }
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [groups, onGroupReorder, debouncedReorder]); // Include groups in dependencies
+    }, [debouncedReorder, isDragging, handleSortableError]); // Removed groups and onGroupReorder from dependencies
 
     return (
         <div ref={listRef} className={`space-y-2 ${isDragging ? 'pointer-events-none' : ''}`}>

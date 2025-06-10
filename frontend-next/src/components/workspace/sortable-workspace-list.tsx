@@ -50,6 +50,14 @@ export function SortableWorkspaceList({
     const [isDragging, setIsDragging] = useState(false);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
+    // Add error boundary for sortable operations
+    const handleSortableError = useCallback((error: any, operation: string) => {
+        console.warn(`SortableJS ${operation} error (safely handled):`, error);
+        // Reset drag state on any error
+        setIsDragging(false);
+        setDraggedItemId(null);
+    }, []);
+
     // Debounced move handler to prevent rapid successive operations
     const debouncedMove = useCallback(
         debounce((workspaceId: string, newIndex: number, targetGroupId: string | null) => {
@@ -61,68 +69,99 @@ export function SortableWorkspaceList({
     useEffect(() => {
         if (!listRef.current) return;
 
-        // Destroy existing sortable instance
-        if (sortableRef.current) {
-            sortableRef.current.destroy();
+        // Don't recreate sortable instance if one already exists and we're not dragging
+        // This prevents interrupting ongoing drag operations
+        if (sortableRef.current && !isDragging) {
+            return;
+        }
+
+        // Only destroy if we're not currently dragging
+        if (sortableRef.current && !isDragging) {
+            try {
+                sortableRef.current.destroy();
+            } catch (error) {
+                // Ignore errors during destroy - the instance might already be invalid
+                console.warn('Error destroying sortable instance:', error);
+            }
             sortableRef.current = null;
         }
 
+        // Don't create new instance if we're currently dragging
+        if (isDragging) return;
+
         // Create new sortable instance
-        sortableRef.current = Sortable.create(listRef.current, {
-            group: {
-                name: 'workspaces',
-                pull: true, // Allow items to be pulled from this list
-                put: true   // Allow items to be put into this list
-            },
-            animation: 150,
-            ghostClass: 'sortable-ghost',
-            chosenClass: 'sortable-chosen',
-            dragClass: 'sortable-drag',
-            forceFallback: true,
-            fallbackClass: 'sortable-fallback',
-            fallbackOnBody: true,
-            swapThreshold: 0.65,
-            // Remove delay to make dragging more responsive
-            dragoverBubble: false, // Prevent dragover events from bubbling
-            dropBubble: false,     // Prevent drop events from bubbling
-            onStart: (evt) => {
-                const workspaceId = evt.item.getAttribute('data-workspace-id');
-                if (workspaceId) {
-                    setIsDragging(true);
-                    setDraggedItemId(workspaceId);
+        try {
+            sortableRef.current = Sortable.create(listRef.current, {
+                group: {
+                    name: 'workspaces',
+                    pull: true, // Allow items to be pulled from this list
+                    put: true   // Allow items to be put into this list
+                },
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                forceFallback: true,
+                fallbackClass: 'sortable-fallback',
+                fallbackOnBody: true,
+                swapThreshold: 0.65,
+                // Remove delay to make dragging more responsive
+                dragoverBubble: false, // Prevent dragover events from bubbling
+                dropBubble: false,     // Prevent drop events from bubbling
+                onStart: (evt) => {
+                    try {
+                        const workspaceId = evt.item.getAttribute('data-workspace-id');
+                        if (workspaceId) {
+                            setIsDragging(true);
+                            setDraggedItemId(workspaceId);
+                        }
+                    } catch (error) {
+                        handleSortableError(error, 'onStart');
+                    }
+                },
+                onEnd: (evt) => {
+                    try {
+                        const { oldIndex, newIndex, from, to } = evt;
+
+                        // Reset drag state
+                        setIsDragging(false);
+                        setDraggedItemId(null);
+
+                        if (oldIndex === undefined || newIndex === undefined) return;
+                        if (oldIndex === newIndex && from === to) return; // No actual move
+
+                        // Get the workspace ID from the dragged element
+                        const workspaceId = evt.item.getAttribute('data-workspace-id');
+                        if (!workspaceId) return;
+
+                        // Determine target group ID from the container
+                        const targetGroupId = to.getAttribute('data-group-id') || null;
+
+                        // Call the debounced move handler
+                        debouncedMove(workspaceId, newIndex, targetGroupId);
+                    } catch (error) {
+                        handleSortableError(error, 'onEnd');
+                    }
                 }
-            },
-            onEnd: (evt) => {
-                const { oldIndex, newIndex, from, to } = evt;
-
-                // Reset drag state
-                setIsDragging(false);
-                setDraggedItemId(null);
-
-                if (oldIndex === undefined || newIndex === undefined) return;
-                if (oldIndex === newIndex && from === to) return; // No actual move
-
-                // Get the workspace ID from the dragged element
-                const workspaceId = evt.item.getAttribute('data-workspace-id');
-                if (!workspaceId) return;
-
-                // Determine target group ID from the container
-                const targetGroupId = to.getAttribute('data-group-id') || null;
-
-                // Call the debounced move handler
-                debouncedMove(workspaceId, newIndex, targetGroupId);
-            }
-        });
+            });
+        } catch (error) {
+            console.error('Error creating sortable instance:', error);
+        }
 
         return () => {
             if (sortableRef.current) {
-                sortableRef.current.destroy();
+                try {
+                    sortableRef.current.destroy();
+                } catch (error) {
+                    // Ignore errors during cleanup
+                    console.warn('Error during sortable cleanup:', error);
+                }
                 sortableRef.current = null;
             }
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [workspaces, onWorkspaceMove, debouncedMove]); // Include workspaces in dependencies
+    }, [debouncedMove, isDragging, handleSortableError]); // Removed workspaces and onWorkspaceMove from dependencies
 
     return (
         <div

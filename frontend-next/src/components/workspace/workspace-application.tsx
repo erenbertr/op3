@@ -316,7 +316,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 )}
 
                 {currentView === 'selection' && (
-                    <div className="h-full">
+                    <div className="h-full overflow-y-auto">
                         <div className="container mx-auto px-4 py-6">
                             <WorkspaceGroups
                                 userId={currentUser.id}
@@ -331,44 +331,46 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 )}
 
                 {currentView === 'create' && (
-                    <div className="container mx-auto px-4 py-6">
-                        <div className="max-w-4xl mx-auto">
-                            <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
-                            <WorkspaceSetup
-                                userId={currentUser.id}
-                                onComplete={async (workspace) => {
-                                    if (workspace) {
-                                        // Invalidate workspace cache immediately
-                                        queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
+                    <div className="h-full overflow-y-auto">
+                        <div className="container mx-auto px-4 py-6">
+                            <div className="max-w-4xl mx-auto">
+                                <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
+                                <WorkspaceSetup
+                                    userId={currentUser.id}
+                                    onComplete={async (workspace) => {
+                                        if (workspace) {
+                                            // Invalidate workspace cache immediately
+                                            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
 
-                                        // Wait for the workspace data to be refetched
-                                        try {
-                                            await queryClient.refetchQueries({
-                                                queryKey: ['workspaces', 'user', currentUser.id],
-                                                type: 'active'
-                                            });
-                                        } catch (error) {
-                                            console.error('Error refetching workspace data:', error);
-                                        }
+                                            // Wait for the workspace data to be refetched
+                                            try {
+                                                await queryClient.refetchQueries({
+                                                    queryKey: ['workspaces', 'user', currentUser.id],
+                                                    type: 'active'
+                                                });
+                                            } catch (error) {
+                                                console.error('Error refetching workspace data:', error);
+                                            }
 
-                                        // Now navigate with the workspace data available
-                                        if (openWorkspaceRef.current) {
-                                            openWorkspaceRef.current(workspace.id);
+                                            // Now navigate with the workspace data available
+                                            if (openWorkspaceRef.current) {
+                                                openWorkspaceRef.current(workspace.id);
+                                            } else {
+                                                // Fallback to regular navigation if openWorkspace is not available
+                                                navigateToWorkspace(workspace.id);
+                                            }
                                         } else {
-                                            // Fallback to regular navigation if openWorkspace is not available
-                                            navigateToWorkspace(workspace.id);
+                                            navigateToWorkspaceSelection();
                                         }
-                                    } else {
-                                        navigateToWorkspaceSelection();
-                                    }
-                                }}
-                            />
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {currentView === 'personalities' && (
-                    <div className="h-full">
+                    <div className="h-full overflow-y-auto">
                         <div className="container mx-auto px-4 py-6">
                             <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
                             <PersonalitiesManagement userId={currentUser.id} />
