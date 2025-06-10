@@ -161,6 +161,14 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
     const { sessionId } = req.params;
     const { content, personalityId, aiProviderId, userId, isContinuation, searchEnabled, fileAttachments }: SendMessageRequest & { userId: string } = req.body;
 
+    console.log('AI Chat Stream Request:', {
+        sessionId,
+        content,
+        fileAttachments,
+        searchEnabled,
+        hasFileAttachments: fileAttachments && fileAttachments.length > 0
+    });
+
     if (!sessionId) {
         throw createError('Session ID is required', 400);
     }

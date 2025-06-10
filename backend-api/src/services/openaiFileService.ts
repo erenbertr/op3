@@ -12,6 +12,10 @@ export class OpenAIFileService {
     private aiProviderService: AIProviderService;
     private uploadsDir: string;
 
+    // In-memory storage for testing (replace with proper database later)
+    private fileAttachments: Map<string, FileAttachment> = new Map();
+    private vectorStores: Map<string, VectorStore> = new Map();
+
     private constructor() {
         this.dbManager = DatabaseManager.getInstance();
         this.aiProviderService = AIProviderService.getInstance();
@@ -146,6 +150,14 @@ export class OpenAIFileService {
             });
 
             console.log(`File uploaded to OpenAI: ${openaiFile.id}`);
+
+            // Add file to vector store for search functionality
+            const vectorStoreResult = await this.addFileToVectorStore(attachmentId);
+            if (vectorStoreResult.success) {
+                console.log(`File added to vector store: ${attachmentId}`);
+            } else {
+                console.error(`Failed to add file to vector store: ${vectorStoreResult.message}`);
+            }
 
         } catch (error) {
             console.error('Error uploading to OpenAI:', error);
@@ -288,73 +300,23 @@ export class OpenAIFileService {
         }
     }
 
-    // Database operations
+    // Database operations (using in-memory storage for now)
     private async saveFileAttachment(attachment: FileAttachment): Promise<void> {
-        const config = this.dbManager.getCurrentConfig();
-        if (!config) {
-            throw new Error('No database configuration found');
-        }
-
-        const connection = await this.dbManager.getConnection();
-
-        switch (config.type) {
-            case 'localdb':
-                await this.saveFileAttachmentSQLite(connection, attachment);
-                break;
-            case 'mongodb':
-                await this.saveFileAttachmentMongo(connection, attachment);
-                break;
-            case 'mysql':
-            case 'postgresql':
-                await this.saveFileAttachmentSQL(connection, attachment);
-                break;
-            default:
-                throw new Error(`Database type ${config.type} not supported for file operations yet`);
-        }
+        console.log('OpenAI File Service: Saving file attachment to memory:', attachment.id);
+        this.fileAttachments.set(attachment.id, attachment);
     }
 
     private async getFileAttachment(id: string): Promise<FileAttachment | null> {
-        const config = this.dbManager.getCurrentConfig();
-        if (!config) {
-            throw new Error('No database configuration found');
-        }
-
-        const connection = await this.dbManager.getConnection();
-
-        switch (config.type) {
-            case 'localdb':
-                return this.getFileAttachmentSQLite(connection, id);
-            case 'mongodb':
-                return this.getFileAttachmentMongo(connection, id);
-            case 'mysql':
-            case 'postgresql':
-                return this.getFileAttachmentSQL(connection, id);
-            default:
-                throw new Error(`Database type ${config.type} not supported for file operations yet`);
-        }
+        console.log('OpenAI File Service: Getting file attachment from memory:', id);
+        return this.fileAttachments.get(id) || null;
     }
 
     private async updateFileAttachment(id: string, updates: Partial<FileAttachment>): Promise<void> {
-        const config = this.dbManager.getCurrentConfig();
-        if (!config) {
-            throw new Error('No database configuration found');
-        }
-
-        const connection = await this.dbManager.getConnection();
-
-        switch (config.type) {
-            case 'localdb':
-                await this.updateFileAttachmentSQLite(connection, id, updates);
-                break;
-            case 'mongodb':
-                await this.updateFileAttachmentMongo(connection, id, updates);
-                break;
-            case 'mysql':
-            case 'postgresql':
-                await this.updateFileAttachmentSQL(connection, id, updates);
-                break;
-            default:
-                throw new Error(`Database type ${config.type} not supported for file operations yet`);
+        console.log('OpenAI File Service: Updating file attachment in memory:', id, updates);
+        const existing = this.fileAttachments.get(id);
+        if (existing) {
+            const updated = { ...existing, ...updates, updatedAt: new Date() };
+            this.fileAttachments.set(id, updated);
         }
     }
 
@@ -367,379 +329,25 @@ export class OpenAIFileService {
     }
 
     private async getFileAttachmentsBySession(sessionId: string): Promise<FileAttachment[]> {
-        const config = this.dbManager.getCurrentConfig();
-        if (!config) {
-            throw new Error('No database configuration found');
-        }
-
-        const connection = await this.dbManager.getConnection();
-
-        switch (config.type) {
-            case 'localdb':
-                return this.getFileAttachmentsBySessionSQLite(connection, sessionId);
-            case 'mongodb':
-                return this.getFileAttachmentsBySessionMongo(connection, sessionId);
-            case 'mysql':
-            case 'postgresql':
-                return this.getFileAttachmentsBySessionSQL(connection, sessionId);
-            default:
-                throw new Error(`Database type ${config.type} not supported for file operations yet`);
-        }
+        console.log('OpenAI File Service: Getting file attachments by session from memory:', sessionId);
+        const attachments = Array.from(this.fileAttachments.values())
+            .filter(attachment => attachment.sessionId === sessionId)
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return attachments;
     }
 
     private async saveVectorStore(vectorStore: VectorStore): Promise<void> {
-        const config = this.dbManager.getCurrentConfig();
-        if (!config) {
-            throw new Error('No database configuration found');
-        }
-
-        const connection = await this.dbManager.getConnection();
-
-        switch (config.type) {
-            case 'localdb':
-                await this.saveVectorStoreSQLite(connection, vectorStore);
-                break;
-            case 'mongodb':
-                await this.saveVectorStoreMongo(connection, vectorStore);
-                break;
-            case 'mysql':
-            case 'postgresql':
-                await this.saveVectorStoreSQL(connection, vectorStore);
-                break;
-            default:
-                throw new Error(`Database type ${config.type} not supported for file operations yet`);
-        }
+        console.log('OpenAI File Service: Saving vector store to memory:', vectorStore.id);
+        this.vectorStores.set(vectorStore.sessionId, vectorStore);
     }
 
     private async getVectorStoreBySession(sessionId: string): Promise<VectorStore | null> {
-        const config = this.dbManager.getCurrentConfig();
-        if (!config) {
-            throw new Error('No database configuration found');
-        }
-
-        const connection = await this.dbManager.getConnection();
-
-        switch (config.type) {
-            case 'localdb':
-                return this.getVectorStoreBySessionSQLite(connection, sessionId);
-            case 'mongodb':
-                return this.getVectorStoreBySessionMongo(connection, sessionId);
-            case 'mysql':
-            case 'postgresql':
-                return this.getVectorStoreBySessionSQL(connection, sessionId);
-            default:
-                throw new Error(`Database type ${config.type} not supported for file operations yet`);
-        }
+        console.log('OpenAI File Service: Getting vector store by session from memory:', sessionId);
+        return this.vectorStores.get(sessionId) || null;
     }
 
-    // SQLite implementations
-    private async saveFileAttachmentSQLite(db: any, attachment: FileAttachment): Promise<void> {
-        await this.createFileAttachmentTableIfNotExistsSQLite(db);
 
-        return new Promise<void>((resolve, reject) => {
-            db.run(`
-                INSERT INTO file_attachments (
-                    id, sessionId, userId, originalName, fileName, filePath, mimeType, size,
-                    openaiFileId, vectorStoreId, status, errorMessage, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                attachment.id, attachment.sessionId, attachment.userId, attachment.originalName,
-                attachment.fileName, attachment.filePath, attachment.mimeType, attachment.size,
-                attachment.openaiFileId, attachment.vectorStoreId, attachment.status,
-                attachment.errorMessage, attachment.createdAt.toISOString(), attachment.updatedAt.toISOString()
-            ], (err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    }
 
-    private async createFileAttachmentTableIfNotExistsSQLite(db: any): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            db.run(`
-                CREATE TABLE IF NOT EXISTS file_attachments (
-                    id TEXT PRIMARY KEY,
-                    sessionId TEXT NOT NULL,
-                    userId TEXT NOT NULL,
-                    originalName TEXT NOT NULL,
-                    fileName TEXT NOT NULL,
-                    filePath TEXT NOT NULL,
-                    mimeType TEXT NOT NULL,
-                    size INTEGER NOT NULL,
-                    openaiFileId TEXT,
-                    vectorStoreId TEXT,
-                    status TEXT NOT NULL,
-                    errorMessage TEXT,
-                    createdAt TEXT NOT NULL,
-                    updatedAt TEXT NOT NULL
-                )
-            `, (err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    }
 
-    private async getFileAttachmentSQLite(db: any, id: string): Promise<FileAttachment | null> {
-        return new Promise<FileAttachment | null>((resolve, reject) => {
-            db.get(`
-                SELECT * FROM file_attachments WHERE id = ?
-            `, [id], (err: any, row: any) => {
-                if (err) {
-                    reject(err);
-                } else if (row) {
-                    resolve({
-                        ...row,
-                        createdAt: new Date(row.createdAt),
-                        updatedAt: new Date(row.updatedAt)
-                    });
-                } else {
-                    resolve(null);
-                }
-            });
-        });
-    }
 
-    private async updateFileAttachmentSQLite(db: any, id: string, updates: Partial<FileAttachment>): Promise<void> {
-        const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-        const values = Object.values(updates).map(value =>
-            value instanceof Date ? value.toISOString() : value
-        );
-        values.push(id);
-
-        return new Promise<void>((resolve, reject) => {
-            db.run(`
-                UPDATE file_attachments SET ${setClause} WHERE id = ?
-            `, values, (err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    }
-
-    private async getFileAttachmentsBySessionSQLite(db: any, sessionId: string): Promise<FileAttachment[]> {
-        return new Promise<FileAttachment[]>((resolve, reject) => {
-            db.all(`
-                SELECT * FROM file_attachments WHERE sessionId = ? ORDER BY createdAt DESC
-            `, [sessionId], (err: any, rows: any[]) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const attachments = rows.map(row => ({
-                        ...row,
-                        createdAt: new Date(row.createdAt),
-                        updatedAt: new Date(row.updatedAt)
-                    }));
-                    resolve(attachments);
-                }
-            });
-        });
-    }
-
-    // Vector store SQLite implementations
-    private async saveVectorStoreSQLite(db: any, vectorStore: VectorStore): Promise<void> {
-        await this.createVectorStoreTableIfNotExistsSQLite(db);
-
-        return new Promise<void>((resolve, reject) => {
-            db.run(`
-                INSERT INTO vector_stores (
-                    id, userId, sessionId, openaiVectorStoreId, name, fileCount, status, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                vectorStore.id, vectorStore.userId, vectorStore.sessionId, vectorStore.openaiVectorStoreId,
-                vectorStore.name, vectorStore.fileCount, vectorStore.status,
-                vectorStore.createdAt.toISOString(), vectorStore.updatedAt.toISOString()
-            ], (err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    }
-
-    private async createVectorStoreTableIfNotExistsSQLite(db: any): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            db.run(`
-                CREATE TABLE IF NOT EXISTS vector_stores (
-                    id TEXT PRIMARY KEY,
-                    userId TEXT NOT NULL,
-                    sessionId TEXT NOT NULL,
-                    openaiVectorStoreId TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    fileCount INTEGER NOT NULL,
-                    status TEXT NOT NULL,
-                    createdAt TEXT NOT NULL,
-                    updatedAt TEXT NOT NULL
-                )
-            `, (err: any) => {
-                if (err) reject(err);
-                else resolve();
-            });
-        });
-    }
-
-    private async getVectorStoreBySessionSQLite(db: any, sessionId: string): Promise<VectorStore | null> {
-        return new Promise<VectorStore | null>((resolve, reject) => {
-            db.get(`
-                SELECT * FROM vector_stores WHERE sessionId = ?
-            `, [sessionId], (err: any, row: any) => {
-                if (err) {
-                    reject(err);
-                } else if (row) {
-                    resolve({
-                        ...row,
-                        createdAt: new Date(row.createdAt),
-                        updatedAt: new Date(row.updatedAt)
-                    });
-                } else {
-                    resolve(null);
-                }
-            });
-        });
-    }
-
-    // MongoDB implementations
-    private async saveFileAttachmentMongo(db: any, attachment: FileAttachment): Promise<void> {
-        await db.collection('file_attachments').insertOne(attachment);
-    }
-
-    private async getFileAttachmentMongo(db: any, id: string): Promise<FileAttachment | null> {
-        return await db.collection('file_attachments').findOne({ id });
-    }
-
-    private async updateFileAttachmentMongo(db: any, id: string, updates: Partial<FileAttachment>): Promise<void> {
-        await db.collection('file_attachments').updateOne({ id }, { $set: updates });
-    }
-
-    private async getFileAttachmentsBySessionMongo(db: any, sessionId: string): Promise<FileAttachment[]> {
-        return await db.collection('file_attachments').find({ sessionId }).sort({ createdAt: -1 }).toArray();
-    }
-
-    private async saveVectorStoreMongo(db: any, vectorStore: VectorStore): Promise<void> {
-        await db.collection('vector_stores').insertOne(vectorStore);
-    }
-
-    private async getVectorStoreBySessionMongo(db: any, sessionId: string): Promise<VectorStore | null> {
-        return await db.collection('vector_stores').findOne({ sessionId });
-    }
-
-    // SQL implementations (MySQL/PostgreSQL)
-    private async saveFileAttachmentSQL(db: any, attachment: FileAttachment): Promise<void> {
-        await this.createFileAttachmentTableIfNotExistsSQL(db);
-
-        const query = `
-            INSERT INTO file_attachments (
-                id, sessionId, userId, originalName, fileName, filePath, mimeType, size,
-                openaiFileId, vectorStoreId, status, errorMessage, createdAt, updatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        await db.execute(query, [
-            attachment.id, attachment.sessionId, attachment.userId, attachment.originalName,
-            attachment.fileName, attachment.filePath, attachment.mimeType, attachment.size,
-            attachment.openaiFileId, attachment.vectorStoreId, attachment.status,
-            attachment.errorMessage, attachment.createdAt.toISOString(), attachment.updatedAt.toISOString()
-        ]);
-    }
-
-    private async createFileAttachmentTableIfNotExistsSQL(db: any): Promise<void> {
-        const query = `
-            CREATE TABLE IF NOT EXISTS file_attachments (
-                id VARCHAR(255) PRIMARY KEY,
-                sessionId VARCHAR(255) NOT NULL,
-                userId VARCHAR(255) NOT NULL,
-                originalName TEXT NOT NULL,
-                fileName VARCHAR(255) NOT NULL,
-                filePath TEXT NOT NULL,
-                mimeType VARCHAR(255) NOT NULL,
-                size BIGINT NOT NULL,
-                openaiFileId VARCHAR(255),
-                vectorStoreId VARCHAR(255),
-                status VARCHAR(50) NOT NULL,
-                errorMessage TEXT,
-                createdAt TIMESTAMP NOT NULL,
-                updatedAt TIMESTAMP NOT NULL
-            )
-        `;
-
-        await db.execute(query);
-    }
-
-    private async getFileAttachmentSQL(db: any, id: string): Promise<FileAttachment | null> {
-        const [rows] = await db.execute('SELECT * FROM file_attachments WHERE id = ?', [id]);
-        if (rows.length > 0) {
-            const row = rows[0];
-            return {
-                ...row,
-                createdAt: new Date(row.createdAt),
-                updatedAt: new Date(row.updatedAt)
-            };
-        }
-        return null;
-    }
-
-    private async updateFileAttachmentSQL(db: any, id: string, updates: Partial<FileAttachment>): Promise<void> {
-        const setClause = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-        const values = Object.values(updates).map(value =>
-            value instanceof Date ? value.toISOString() : value
-        );
-        values.push(id);
-
-        await db.execute(`UPDATE file_attachments SET ${setClause} WHERE id = ?`, values);
-    }
-
-    private async getFileAttachmentsBySessionSQL(db: any, sessionId: string): Promise<FileAttachment[]> {
-        const [rows] = await db.execute('SELECT * FROM file_attachments WHERE sessionId = ? ORDER BY createdAt DESC', [sessionId]);
-        return rows.map((row: any) => ({
-            ...row,
-            createdAt: new Date(row.createdAt),
-            updatedAt: new Date(row.updatedAt)
-        }));
-    }
-
-    private async saveVectorStoreSQL(db: any, vectorStore: VectorStore): Promise<void> {
-        await this.createVectorStoreTableIfNotExistsSQL(db);
-
-        const query = `
-            INSERT INTO vector_stores (
-                id, userId, sessionId, openaiVectorStoreId, name, fileCount, status, createdAt, updatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        await db.execute(query, [
-            vectorStore.id, vectorStore.userId, vectorStore.sessionId, vectorStore.openaiVectorStoreId,
-            vectorStore.name, vectorStore.fileCount, vectorStore.status,
-            vectorStore.createdAt.toISOString(), vectorStore.updatedAt.toISOString()
-        ]);
-    }
-
-    private async createVectorStoreTableIfNotExistsSQL(db: any): Promise<void> {
-        const query = `
-            CREATE TABLE IF NOT EXISTS vector_stores (
-                id VARCHAR(255) PRIMARY KEY,
-                userId VARCHAR(255) NOT NULL,
-                sessionId VARCHAR(255) NOT NULL,
-                openaiVectorStoreId VARCHAR(255) NOT NULL,
-                name VARCHAR(255) NOT NULL,
-                fileCount INT NOT NULL,
-                status VARCHAR(50) NOT NULL,
-                createdAt TIMESTAMP NOT NULL,
-                updatedAt TIMESTAMP NOT NULL
-            )
-        `;
-
-        await db.execute(query);
-    }
-
-    private async getVectorStoreBySessionSQL(db: any, sessionId: string): Promise<VectorStore | null> {
-        const [rows] = await db.execute('SELECT * FROM vector_stores WHERE sessionId = ?', [sessionId]);
-        if (rows.length > 0) {
-            const row = rows[0];
-            return {
-                ...row,
-                createdAt: new Date(row.createdAt),
-                updatedAt: new Date(row.updatedAt)
-            };
-        }
-        return null;
-    }
 }
