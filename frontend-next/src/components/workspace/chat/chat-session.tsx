@@ -214,15 +214,22 @@ export function ChatSessionComponent({
                         if (spacerElement) {
                             spacerElement.style.height = `${spacerHeight}px`;
 
-                            // Scroll to the last message after spacer is applied
+                            // Wait for spacer to expand, then scroll to position newest message at top
                             setTimeout(() => {
-                                lastMessageElement.scrollIntoView({
-                                    behavior: 'smooth',
-                                    block: 'start',
-                                    inline: 'nearest'
+                                // Calculate the scroll position to bring the newest message to the top
+                                const messageOffsetTop = lastMessageElement.offsetTop;
+
+                                scrollContainer.scrollTo({
+                                    top: messageOffsetTop - 16, // 16px margin from top
+                                    behavior: 'smooth'
                                 });
-                                console.log('📍 Scroll executed with spacer height:', spacerHeight);
-                            }, 50);
+
+                                console.log('📍 Scrolled to position newest message at top:', {
+                                    messageOffsetTop,
+                                    scrollTop: messageOffsetTop - 16,
+                                    spacerHeight
+                                });
+                            }, 100); // Wait for spacer transition
                         } else {
                             console.warn('⚠️ Spacer element not found');
                             // Fallback to regular scroll
