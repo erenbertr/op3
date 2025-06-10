@@ -159,7 +159,7 @@ router.post('/sessions/:sessionId/save-message', asyncHandler(async (req: Reques
 // AI Chat streaming endpoint
 router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { content, personalityId, aiProviderId, userId, isContinuation }: SendMessageRequest & { userId: string } = req.body;
+    const { content, personalityId, aiProviderId, userId, isContinuation, searchEnabled }: SendMessageRequest & { userId: string } = req.body;
 
     if (!sessionId) {
         throw createError('Session ID is required', 400);
@@ -214,7 +214,8 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
             content: content.trim(),
             personalityId,
             aiProviderId,
-            userId
+            userId,
+            searchEnabled
         }, (chunk) => {
             if (chunk.type === 'chunk' && chunk.content) {
                 fullAiResponse += chunk.content;

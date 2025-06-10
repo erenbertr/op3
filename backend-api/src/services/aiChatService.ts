@@ -1,5 +1,5 @@
 import { AIProviderConfig, AIProviderType } from '../types/ai-provider';
-import { ChatMessage, ApiMetadata } from '../types/chat';
+import { ChatMessage, ApiMetadata, SearchResult } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
@@ -11,6 +11,7 @@ export interface StreamingChatRequest {
     aiProviderId?: string;
     sessionId: string;
     userId: string;
+    searchEnabled?: boolean;
 }
 
 export interface StreamingChatResponse {
@@ -21,11 +22,13 @@ export interface StreamingChatResponse {
 }
 
 export interface AIStreamChunk {
-    type: 'start' | 'chunk' | 'end' | 'error';
+    type: 'start' | 'chunk' | 'end' | 'error' | 'search_start' | 'search_results';
     content?: string;
     messageId?: string;
     error?: string;
     metadata?: ApiMetadata;
+    searchQuery?: string;
+    searchResults?: any[];
 }
 
 export interface ConversationMessage {
@@ -95,7 +98,8 @@ export class AIChatService {
                 selectedProvider,
                 request.content,
                 conversationHistory,
-                onChunk
+                onChunk,
+                request.searchEnabled
             );
 
             return result;
@@ -188,7 +192,8 @@ export class AIChatService {
         provider: AIProviderConfig,
         userMessage: string,
         conversationHistory: ConversationMessage[],
-        onChunk: (chunk: AIStreamChunk) => void
+        onChunk: (chunk: AIStreamChunk) => void,
+        searchEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const messageId = crypto.randomUUID();
         const startTime = Date.now();
@@ -206,7 +211,7 @@ export class AIChatService {
 
             switch (provider.type) {
                 case 'openai':
-                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk);
+                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk, searchEnabled);
                     break;
                 case 'anthropic':
                     result = await this.streamFromAnthropic(provider, fullConversation, messageId, onChunk);
@@ -258,7 +263,8 @@ export class AIChatService {
         provider: AIProviderConfig,
         conversationHistory: ConversationMessage[],
         messageId: string,
-        onChunk: (chunk: AIStreamChunk) => void
+        onChunk: (chunk: AIStreamChunk) => void,
+        searchEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
@@ -269,22 +275,40 @@ export class AIChatService {
             content: msg.content
         }));
 
+        // Build request body
+        const requestBody: any = {
+            model: provider.model,
+            messages,
+            stream: true,
+            max_tokens: 2000,
+            temperature: 0.7,
+            stream_options: {
+                include_usage: true
+            }
+        };
+
+        // Add web search tool if enabled
+        if (searchEnabled) {
+            requestBody.tools = [
+                {
+                    type: "web_search"
+                }
+            ];
+
+            // Notify that search is starting
+            onChunk({
+                type: 'search_start',
+                searchQuery: messages[messages.length - 1]?.content || ''
+            });
+        }
+
         const response = await fetch(`${endpoint}/chat/completions`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                model: provider.model,
-                messages,
-                stream: true,
-                max_tokens: 2000,
-                temperature: 0.7,
-                stream_options: {
-                    include_usage: true
-                }
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -348,6 +372,8 @@ export class AIChatService {
 
                         try {
                             const parsed = JSON.parse(data);
+
+                            // Handle regular content
                             const content = parsed.choices?.[0]?.delta?.content;
                             if (content) {
                                 finalContent += content;
@@ -356,6 +382,21 @@ export class AIChatService {
                                     messageId,
                                     content
                                 });
+                            }
+
+                            // Handle tool calls (web search)
+                            const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
+                            if (toolCalls && Array.isArray(toolCalls)) {
+                                for (const toolCall of toolCalls) {
+                                    if (toolCall.type === 'web_search') {
+                                        // Notify that search results are available
+                                        onChunk({
+                                            type: 'search_results',
+                                            searchQuery: toolCall.web_search?.query || '',
+                                            searchResults: toolCall.web_search?.results || []
+                                        });
+                                    }
+                                }
                             }
 
                             // Capture token usage if available (OpenAI includes this in final chunk)

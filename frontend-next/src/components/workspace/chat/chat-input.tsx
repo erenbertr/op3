@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Personality, AIProviderConfig } from '@/lib/api';
 
 interface ChatInputProps {
-    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string) => Promise<void>;
+    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean) => Promise<void>;
     personalities: Personality[];
     aiProviders: AIProviderConfig[];
     isLoading?: boolean;
@@ -221,7 +221,8 @@ export function ChatInput({
             await onSendMessage(
                 content,
                 selectedPersonality || undefined,
-                selectedProvider || undefined
+                selectedProvider || undefined,
+                searchEnabled
             );
             // Trigger focus maintenance after all re-renders
             setShouldMaintainFocus(true);

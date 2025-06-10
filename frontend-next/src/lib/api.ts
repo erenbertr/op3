@@ -236,6 +236,8 @@ export interface StreamingCallbacks {
     onComplete: (message: ChatMessage) => void;
     onError: (error: string) => void;
     onStop?: () => void;
+    onSearchStart?: (query: string) => void;
+    onSearchResults?: (query: string, results: any[]) => void;
 }
 
 export interface SetupStatusResponse {
@@ -741,6 +743,10 @@ class ApiClient {
                                     callbacks.onError(data.message);
                                     if (timeoutId) clearTimeout(timeoutId);
                                     return;
+                                } else if (data.type === 'search_start') {
+                                    callbacks.onSearchStart?.(data.searchQuery);
+                                } else if (data.type === 'search_results') {
+                                    callbacks.onSearchResults?.(data.searchQuery, data.searchResults);
                                 }
                             } catch (error) {
                                 // Ignore parsing errors for malformed SSE data

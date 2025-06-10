@@ -263,3 +263,23 @@
 .chat-message-container {
   contain: layout style;
 }
+
+/* Force block display to override ScrollArea's table display */
+.force-block-display {
+  display: block !important;
+  min-width: auto !important;
+  width: 100% !important;
+}
+
+/* Target the specific ScrollArea viewport that has display: table */
+[data-radix-scroll-area-viewport] > div {
+  display: block !important;
+  min-width: auto !important;
+  width: 100% !important;
+}
+
+/* Also target any div with display: table inside scroll areas */
+[data-radix-scroll-area-viewport] div[style*="display: table"] {
+  display: block !important;
+  min-width: auto !important;
+}

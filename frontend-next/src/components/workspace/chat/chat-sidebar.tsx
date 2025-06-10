@@ -143,7 +143,7 @@ export function ChatSidebar({
 
     return (
         <div className={cn(
-            "flex flex-col h-full bg-background border-r border-border",
+            "flex flex-col h-full bg-background border-r border-border w-full",
             className
         )}>
             {/* Header with Search and New Chat - Fixed at top */}
@@ -175,9 +175,9 @@ export function ChatSidebar({
             </div>
 
             {/* Chat List - Scrollable */}
-            <div className="flex-1 min-h-0">
-                <ScrollArea className="h-full">
-                    <div className="px-4 py-2 min-w-0">
+            <div className="flex-1 min-h-0 w-full">
+                <ScrollArea className="h-full w-full">
+                    <div className="px-4 py-2">
                         {filteredChats.length === 0 ? (
                             // Only show empty state if we're not loading
                             !isLoading ? (
@@ -194,18 +194,18 @@ export function ChatSidebar({
                                 </div>
                             ) : null
                         ) : (
-                            <div className="space-y-4 min-w-0">
+                            <div className="space-y-4">
                                 {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
-                                    <div key={groupName} className="space-y-1 min-w-0">
+                                    <div key={groupName} className="space-y-1">
                                         <h3 className="text-xs font-medium text-muted-foreground px-2 py-1 select-none">
                                             {groupName}
                                         </h3>
-                                        <div className="space-y-1 min-w-0">
+                                        <div className="space-y-1">
                                             {groupChats.map((chat) => (
                                                 <button
                                                     key={chat.id}
                                                     className={cn(
-                                                        "w-full text-left px-3 py-3 rounded-md transition-colors select-none min-w-0",
+                                                        "w-full text-left px-3 py-3 rounded-md transition-colors select-none",
                                                         "hover:bg-accent hover:text-accent-foreground",
                                                         "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                                                         activeChatId === chat.id
@@ -214,9 +214,12 @@ export function ChatSidebar({
                                                     )}
                                                     onClick={() => handleChatClick(chat)}
                                                 >
-                                                    <p className="text-sm font-medium truncate min-w-0 max-w-full" title={chat.title}>
+                                                    <div
+                                                        className="text-sm font-medium truncate"
+                                                        title={chat.title}
+                                                    >
                                                         {chat.title}
-                                                    </p>
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>

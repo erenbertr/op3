@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatInput } from './chat-input';
 import { ChatMessageList } from './chat-message';
 import { StreamingMessage } from './streaming-message';
+import { SearchIndicator } from './search-indicator';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
 import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig, StreamingState, StreamingCallbacks } from '@/lib/api';
 import { truncateText } from '@/lib/utils';
@@ -81,6 +82,11 @@ export function ChatSessionComponent({
     // Store current streaming provider/personality for immediate display
     const [currentStreamingPersonalityId, setCurrentStreamingPersonalityId] = useState<string | undefined>();
     const [currentStreamingAIProviderId, setCurrentStreamingAIProviderId] = useState<string | undefined>();
+
+    // Search state
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchQuery, setSearchQuery] = useState<string>('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -435,7 +441,7 @@ export function ChatSessionComponent({
         }
     };
 
-    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string) => {
+    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean) => {
         if (!content?.trim()) {
             console.warn('Empty message content provided');
             return;
@@ -495,6 +501,18 @@ export function ChatSessionComponent({
                         setStreamingMessage(prev => prev + chunk.content);
                     }
                 },
+                onSearchStart: (query) => {
+                    console.log('🔍 Search started:', query);
+                    setIsSearching(true);
+                    setSearchQuery(query);
+                    setSearchResults([]);
+                },
+                onSearchResults: (query, results) => {
+                    console.log('🔍 Search results:', { query, results });
+                    setIsSearching(false);
+                    setSearchQuery(query);
+                    setSearchResults(results || []);
+                },
                 onComplete: (aiMessage) => {
                     // Handle completion - add AI message to state
                     console.log('🔄 Streaming completed:', {
@@ -522,6 +540,11 @@ export function ChatSessionComponent({
                     setCurrentStreamingPersonalityId(undefined);
                     setCurrentStreamingAIProviderId(undefined);
                     setAbortController(null);
+
+                    // Clear search state
+                    setIsSearching(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
 
                     // Recalculate spacer height after streaming completes (without scrolling)
                     setTimeout(() => {
@@ -618,7 +641,8 @@ export function ChatSessionComponent({
                         content: content.trim(),
                         personalityId,
                         aiProviderId,
-                        userId
+                        userId,
+                        searchEnabled
                     },
                     callbacks,
                     controller
@@ -904,20 +928,32 @@ export function ChatSessionComponent({
                                     onContinue={handleContinueMessage}
                                     isVisible={isMessagesVisible}
                                     streamingMessage={(isStreaming || streamingState.hasError) ? (
-                                        <StreamingMessage
-                                            content={streamingMessage}
-                                            isStreaming={isStreaming}
-                                            hasError={streamingState.hasError}
-                                            errorMessage={streamingState.errorMessage}
-                                            canStop={streamingState.canStop && isStreaming}
-                                            canRetry={streamingState.hasError && !streamingState.isRetrying}
-                                            onStop={handleStopStreaming}
-                                            onRetry={handleRetryStreaming}
-                                            className=""
-                                            // Pass current streaming personality and AI provider
-                                            personality={getCurrentStreamingPersonality()}
-                                            aiProvider={getCurrentStreamingAIProvider()}
-                                        />
+                                        <>
+                                            {/* Search indicator */}
+                                            {(isSearching || searchResults.length > 0) && (
+                                                <div className="mb-4">
+                                                    <SearchIndicator
+                                                        isSearching={isSearching}
+                                                        searchQuery={searchQuery}
+                                                        searchResults={searchResults}
+                                                    />
+                                                </div>
+                                            )}
+                                            <StreamingMessage
+                                                content={streamingMessage}
+                                                isStreaming={isStreaming}
+                                                hasError={streamingState.hasError}
+                                                errorMessage={streamingState.errorMessage}
+                                                canStop={streamingState.canStop && isStreaming}
+                                                canRetry={streamingState.hasError && !streamingState.isRetrying}
+                                                onStop={handleStopStreaming}
+                                                onRetry={handleRetryStreaming}
+                                                className=""
+                                                // Pass current streaming personality and AI provider
+                                                personality={getCurrentStreamingPersonality()}
+                                                aiProvider={getCurrentStreamingAIProvider()}
+                                            />
+                                        </>
                                     ) : null}
                                 />
                             </div>

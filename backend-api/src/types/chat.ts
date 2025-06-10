@@ -21,6 +21,13 @@ export interface ChatMessage {
     isPartial?: boolean; // For messages that were stopped mid-stream
 }
 
+export interface SearchResult {
+    title: string;
+    url: string;
+    snippet: string;
+    displayUrl?: string;
+}
+
 export interface ApiMetadata {
     inputTokens?: number;
     outputTokens?: number;
@@ -30,6 +37,8 @@ export interface ApiMetadata {
     provider?: string;
     cost?: number;
     requestId?: string;
+    searchResults?: SearchResult[];
+    searchQuery?: string;
 }
 
 export interface CreateChatSessionRequest {
@@ -49,6 +58,7 @@ export interface SendMessageRequest {
     personalityId?: string;
     aiProviderId?: string;
     isContinuation?: boolean;
+    searchEnabled?: boolean;
 }
 
 export interface SendMessageResponse {
