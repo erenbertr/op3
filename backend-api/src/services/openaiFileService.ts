@@ -156,7 +156,9 @@ export class OpenAIFileService {
             if (vectorStoreResult.success) {
                 console.log(`File added to vector store: ${attachmentId}`);
                 // Start polling for vector store file status
-                this.pollVectorStoreFileStatus(attachmentId, vectorStoreResult.vectorStoreId!);
+                if (vectorStoreResult.vectorStoreId) {
+                    this.pollVectorStoreFileStatus(attachmentId, vectorStoreResult.vectorStoreId);
+                }
             } else {
                 console.error(`Failed to add file to vector store: ${vectorStoreResult.message}`);
                 // If vector store fails, still mark file as ready for basic upload
@@ -311,7 +313,7 @@ export class OpenAIFileService {
                 // Check vector store file status
                 const vectorStoreFile = await openai.vectorStores.files.retrieve(
                     vectorStoreId,
-                    attachment.openaiFileId
+                    attachment.openaiFileId!
                 );
 
                 console.log(`Vector store file status: ${vectorStoreFile.status}`);
