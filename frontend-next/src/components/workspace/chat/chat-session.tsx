@@ -47,14 +47,22 @@ export function ChatSessionComponent({
                     if (result.success) {
                         console.log('📥 Loaded messages from server:', result.messages.length);
                         setMessages(result.messages);
+                        // Reset scroll tracking for new session
+                        setLastMessageCount(result.messages.length);
+                        // If there are messages, position at newest message after load
+                        if (result.messages.length > 0) {
+                            setShouldScrollToNewest(true);
+                        }
                     } else {
                         console.log('📝 No messages found, starting fresh');
                         setMessages([]);
+                        setLastMessageCount(0);
                     }
                 })
                 .catch(error => {
                     console.error('❌ Error loading messages:', error);
                     setMessages([]);
+                    setLastMessageCount(0);
                 })
                 .finally(() => {
                     setIsLoadingMessages(false);
@@ -134,15 +142,83 @@ export function ChatSessionComponent({
         }
     }, [messages.length, session?.id, isLoadingMessages, isStreaming]);
 
-    // Auto-scroll to bottom when new messages are added (use useLayoutEffect for DOM manipulation)
+    // State to track when we should auto-scroll to newest message
+    const [shouldScrollToNewest, setShouldScrollToNewest] = useState(false);
+    const [lastMessageCount, setLastMessageCount] = useState(0);
+    const [isUserScrolling, setIsUserScrolling] = useState(false);
+
+    // Track when new messages are added to trigger scroll to top positioning
+    React.useEffect(() => {
+        const currentMessageCount = messages.length + (isStreaming ? 1 : 0);
+
+        // If message count increased, we should scroll to show newest message at top
+        if (currentMessageCount > lastMessageCount && currentMessageCount > 0) {
+            setShouldScrollToNewest(true);
+        }
+
+        setLastMessageCount(currentMessageCount);
+    }, [messages.length, isStreaming, lastMessageCount]);
+
+    // Auto-scroll to position newest message at top of viewport with smooth animation
     React.useLayoutEffect(() => {
-        if (scrollAreaRef.current) {
+        if (shouldScrollToNewest && scrollAreaRef.current && !isUserScrolling) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
             if (scrollContainer) {
-                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                // Small delay to ensure DOM is updated
+                const scrollTimeout = setTimeout(() => {
+                    // Find the last message element (newest message)
+                    const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
+                    const lastMessageElement = messageElements[messageElements.length - 1];
+
+                    if (lastMessageElement) {
+                        // Scroll to position the newest message at the top of the viewport
+                        lastMessageElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                            inline: 'nearest'
+                        });
+                    } else {
+                        // Fallback: scroll to bottom if no message elements found
+                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                    }
+                }, 50);
+
+                return () => clearTimeout(scrollTimeout);
             }
+            setShouldScrollToNewest(false);
         }
-    });
+    }, [shouldScrollToNewest, isUserScrolling]);
+
+    // Handle user scroll events to detect manual scrolling
+    React.useEffect(() => {
+        const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+        if (!scrollContainer) return;
+
+        let scrollTimeout: NodeJS.Timeout;
+
+        const handleScroll = () => {
+            setIsUserScrolling(true);
+
+            // Clear existing timeout
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+
+            // Reset user scrolling flag after scroll ends
+            scrollTimeout = setTimeout(() => {
+                setIsUserScrolling(false);
+            }, 150);
+        };
+
+        scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+        return () => {
+            scrollContainer.removeEventListener('scroll', handleScroll);
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+        };
+    }, []);
 
 
 
@@ -431,15 +507,16 @@ export function ChatSessionComponent({
                     isPartial: true // Mark as partial message
                 };
 
-                // Save to database
-                const result = await apiClient.saveChatMessage(partialMessage);
-                if (result.success) {
-                    // Add to local state
-                    setMessages(prev => [...prev, partialMessage]);
-                    console.log('💾 Saved partial message:', partialMessage);
-                }
+                // Add to local state immediately to prevent flashing
+                setMessages(prev => [...prev, partialMessage]);
+                console.log('💾 Added partial message to state:', partialMessage);
+
+                // Save to database in background
+                apiClient.saveChatMessage(partialMessage).catch(error => {
+                    console.error('Error saving partial message:', error);
+                });
             } catch (error) {
-                console.error('Error saving partial message:', error);
+                console.error('Error creating partial message:', error);
             }
         }
 
@@ -490,34 +567,38 @@ export function ChatSessionComponent({
             isRetrying: false
         });
 
-        // Remove the partial message from state (we'll replace it with the complete one)
-        setMessages(prev => prev.filter(m => m.id !== messageId));
+        // Don't remove the partial message - keep it visible during streaming
 
         try {
-            // Continue the conversation with a prompt to continue from where we left off
+            // Continue the conversation with a hidden prompt to continue from where we left off
             const continuePrompt = `Please continue from where you left off. Here's what you were saying: "${partialMessage.content}"`;
 
+            // We need to send this as a system message or handle it differently
+            // For now, let's use a special flag to indicate this is a continuation
             await apiClient.streamChatMessage(
                 session.id,
                 {
                     content: continuePrompt,
                     personalityId: partialMessage.personalityId,
                     aiProviderId: partialMessage.aiProviderId,
-                    userId
+                    userId,
+                    isContinuation: true // Add this flag to indicate it's a continuation
                 },
                 {
                     onChunk: (chunk) => {
                         if (chunk.type === 'chunk' && chunk.content) {
+                            // Continue from existing content, don't replace it
                             setStreamingMessage(prev => prev + chunk.content);
                         }
                     },
                     onComplete: (aiMessage) => {
                         console.log('🔄 Continue completed:', aiMessage);
-                        if (aiMessage) {
-                            // Mark as complete (remove isPartial flag)
-                            const completeMessage = { ...aiMessage, isPartial: false };
-                            setMessages(prev => [...prev, completeMessage]);
-                        }
+                        // Update the existing partial message to be complete
+                        setMessages(prev => prev.map(msg =>
+                            msg.id === messageId
+                                ? { ...msg, content: streamingMessage, isPartial: false, updatedAt: new Date().toISOString() }
+                                : msg
+                        ));
                         setStreamingMessage('');
                         setIsStreaming(false);
                         setIsLoading(false);
@@ -530,8 +611,7 @@ export function ChatSessionComponent({
                     },
                     onError: (error) => {
                         console.error('Continue error:', error);
-                        // Restore the partial message on error
-                        setMessages(prev => [...prev, partialMessage]);
+                        // Keep the partial message as is, just stop streaming
                         setStreamingState({
                             isStreaming: false,
                             canStop: false,
@@ -548,8 +628,7 @@ export function ChatSessionComponent({
             );
         } catch (error) {
             console.error('Error continuing message:', error);
-            // Restore the partial message on error
-            setMessages(prev => [...prev, partialMessage]);
+            // Keep the partial message as is, just stop streaming
             setStreamingState({
                 isStreaming: false,
                 canStop: false,

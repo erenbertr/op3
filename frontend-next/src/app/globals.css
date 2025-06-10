@@ -232,3 +232,19 @@
   margin-bottom: 1em;
   font-style: italic;
 }
+
+/* Enhanced smooth scrolling for chat messages */
+[data-radix-scroll-area-viewport] {
+  scroll-behavior: smooth;
+}
+
+/* Ensure smooth transitions for scroll positioning */
+[data-message-item] {
+  scroll-margin-top: 1rem;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Prevent layout shifts during scroll animations */
+.chat-message-container {
+  contain: layout style;
+}

@@ -117,6 +117,11 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                                     {personality.title}
                                 </Badge>
                             )}
+
+                            {/* Orange dot for partial messages */}
+                            {message.isPartial && (
+                                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                            )}
                         </>
                     ) : (
                         /* Empty space to maintain consistent height */
@@ -125,19 +130,8 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                 </div>
 
                 {/* Message content */}
-                <div className={cn(
-                    "p-3 rounded-lg",
-                    !isAssistant && "bg-muted/30",
-                    message.isPartial && "border-l-4 border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
-                )}>
+                <div className={cn("p-3 rounded-lg", !isAssistant && "bg-muted/30")}>
                     {renderContent()}
-                    {/* Show partial message indicator */}
-                    {message.isPartial && (
-                        <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                            Message was stopped - click continue to resume
-                        </div>
-                    )}
                 </div>
 
             </div>
@@ -272,17 +266,22 @@ export function ChatMessageList({
     return (
         <div className={cn("p-4", className)}>
             {allMessages.map((message) => (
-                <ChatMessage
-                    key={message.id}
-                    message={message}
-                    personality={getPersonality(message.personalityId)}
-                    aiProvider={getAIProvider(message.aiProviderId)}
-                    onRetry={onRetry}
-                    onContinue={onContinue}
-                />
+                <div key={message.id} data-message-item>
+                    <ChatMessage
+                        message={message}
+                        personality={getPersonality(message.personalityId)}
+                        aiProvider={getAIProvider(message.aiProviderId)}
+                        onRetry={onRetry}
+                        onContinue={onContinue}
+                    />
+                </div>
             ))}
-            {/* Render streaming message inside the same container */}
-            {streamingMessage}
+            {/* Render streaming message inside the same container with data attribute */}
+            {streamingMessage && (
+                <div data-message-item>
+                    {streamingMessage}
+                </div>
+            )}
         </div>
     );
 }

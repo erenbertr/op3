@@ -54,12 +54,8 @@ export function StreamingMessage({
         return () => clearInterval(interval);
     }, [isStreaming, hasError]);
 
-    // Auto-scroll to bottom when content updates
-    useEffect(() => {
-        if (contentRef.current) {
-            contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-    }, [content]);
+    // Note: Auto-scroll is now handled centrally in chat-session.tsx
+    // This prevents conflicting scroll behaviors and ensures consistent UX
 
     const renderContent = () => {
         if (!content && !hasError) {
