@@ -143,78 +143,89 @@ export function ChatSessionComponent({
     const [lastMessageCount, setLastMessageCount] = useState(0);
     const [isUserScrolling, setIsUserScrolling] = useState(false);
 
-    // Function to calculate and update spacer height
+    // Function to calculate and update spacer height with proper timing
     const updateSpacerHeight = React.useCallback(() => {
         if (!scrollAreaRef.current || isUserScrolling) return;
 
         const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
         const spacerElement = scrollContainer?.querySelector('#chat-spacer');
 
-        if (!scrollContainer || !spacerElement) return;
+        if (!scrollContainer || !spacerElement) {
+            console.log('📍 Missing elements for spacer calculation');
+            return;
+        }
 
-        const containerHeight = scrollContainer.clientHeight;
-        let contentHeight = 0;
+        // Wait for DOM to be fully rendered
+        requestAnimationFrame(() => {
+            const containerHeight = scrollContainer.clientHeight;
+            let contentHeight = 0;
 
-        if (isStreaming) {
-            // During streaming: calculate user message + streaming content height
-            const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
-            const lastTwoElements = Array.from(messageElements).slice(-2); // User message + streaming message
+            if (isStreaming) {
+                // During streaming: calculate user message + streaming content height
+                const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
+                const lastTwoElements = Array.from(messageElements).slice(-2); // User message + streaming message
 
-            contentHeight = lastTwoElements.reduce((total, element) => {
-                return total + (element as HTMLElement).offsetHeight;
-            }, 0);
-
-            console.log('📍 Streaming mode - calculating spacer for last 2 messages:', {
-                containerHeight,
-                contentHeight,
-                elementsCount: lastTwoElements.length
-            });
-        } else {
-            // Not streaming: calculate based on last user + AI message pair only
-            const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
-
-            if (messageElements.length > 0) {
-                // Always use only the last 2 messages (user + AI pair) for old chats
-                const lastTwoElements = Array.from(messageElements).slice(-2);
                 contentHeight = lastTwoElements.reduce((total, element) => {
                     return total + (element as HTMLElement).offsetHeight;
                 }, 0);
 
-                console.log('📍 Static mode - calculating spacer for last message pair:', {
+                console.log('📍 Streaming mode - calculating spacer for last 2 messages:', {
                     containerHeight,
                     contentHeight,
-                    totalMessages: messages.length,
-                    elementsUsed: lastTwoElements.length
+                    elementsCount: lastTwoElements.length
                 });
             } else {
-                contentHeight = 0;
+                // Not streaming: calculate based on last user + AI message pair only
+                const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
+
+                if (messageElements.length > 0) {
+                    // Always use only the last 2 messages (user + AI pair) for old chats
+                    const lastTwoElements = Array.from(messageElements).slice(-2);
+                    contentHeight = lastTwoElements.reduce((total, element) => {
+                        return total + (element as HTMLElement).offsetHeight;
+                    }, 0);
+
+                    console.log('📍 Static mode - calculating spacer for last message pair:', {
+                        containerHeight,
+                        contentHeight,
+                        totalMessages: messages.length,
+                        elementsUsed: lastTwoElements.length
+                    });
+                } else {
+                    contentHeight = 0;
+                }
             }
-        }
 
-        // Calculate spacer height (ensure content fits in viewport)
-        const spacerHeight = Math.max(0, containerHeight - contentHeight - 32); // 32px padding
+            // Calculate spacer height (ensure content fits in viewport)
+            const spacerHeight = Math.max(0, containerHeight - contentHeight - 32); // 32px padding
 
-        console.log('📍 Spacer calculation result:', {
-            containerHeight,
-            contentHeight,
-            spacerHeight,
-            isStreaming
-        });
-
-        // Update spacer height
-        spacerElement.style.height = `${spacerHeight}px`;
-
-        // Scroll to show newest content at top
-        setTimeout(() => {
-            // Simple: just scroll to the very bottom
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-
-            console.log('📍 Scrolled to bottom:', {
-                scrollHeight: scrollContainer.scrollHeight,
-                scrollTop: scrollContainer.scrollTop,
-                spacerHeight
+            console.log('📍 Spacer calculation result:', {
+                containerHeight,
+                contentHeight,
+                spacerHeight,
+                isStreaming
             });
-        }, 100);
+
+            // Update spacer height
+            spacerElement.style.height = `${spacerHeight}px`;
+
+            // Wait for spacer transition to complete, then scroll
+            setTimeout(() => {
+                // Ensure we have the latest scroll height after spacer is applied
+                requestAnimationFrame(() => {
+                    // Simple: just scroll to the very bottom
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+
+                    console.log('📍 Scrolled to bottom after spacer applied:', {
+                        scrollHeight: scrollContainer.scrollHeight,
+                        scrollTop: scrollContainer.scrollTop,
+                        spacerHeight,
+                        containerHeight,
+                        contentHeight
+                    });
+                });
+            }, 300); // Increased delay to ensure spacer transition completes
+        }); // End of requestAnimationFrame
 
     }, [isStreaming, messages.length, isUserScrolling]);
 
@@ -253,10 +264,11 @@ export function ChatSessionComponent({
     // Initial spacer setup when session loads
     React.useEffect(() => {
         if (session?.id && !isLoadingMessages && messages.length > 0) {
-            // Small delay to ensure DOM is ready
+            // Longer delay to ensure DOM is fully ready and content is rendered
             setTimeout(() => {
+                console.log('📍 Initial spacer setup for session:', session.id);
                 updateSpacerHeight();
-            }, 200);
+            }, 500); // Increased delay for initial load
         }
     }, [session?.id, isLoadingMessages, messages.length, updateSpacerHeight]);
 
