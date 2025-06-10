@@ -71,7 +71,11 @@ export function SortableWorkspaceList({
 
         // Create new sortable instance
         sortableRef.current = Sortable.create(listRef.current, {
-            group: 'workspaces',
+            group: {
+                name: 'workspaces',
+                pull: true, // Allow items to be pulled from this list
+                put: true   // Allow items to be put into this list
+            },
             animation: 150,
             ghostClass: 'sortable-ghost',
             chosenClass: 'sortable-chosen',
@@ -80,17 +84,14 @@ export function SortableWorkspaceList({
             fallbackClass: 'sortable-fallback',
             fallbackOnBody: true,
             swapThreshold: 0.65,
-            delay: 150, // Add delay to distinguish between click and drag
-            delayOnTouchStart: true, // Apply delay on touch devices too
+            // Remove delay to make dragging more responsive
+            dragoverBubble: false, // Prevent dragover events from bubbling
+            dropBubble: false,     // Prevent drop events from bubbling
             onStart: (evt) => {
                 const workspaceId = evt.item.getAttribute('data-workspace-id');
-                if (workspaceId && !isDragging) { // Only start if not already dragging
+                if (workspaceId) {
                     setIsDragging(true);
                     setDraggedItemId(workspaceId);
-                } else if (isDragging) {
-                    // Cancel this drag if another is in progress
-                    evt.preventDefault();
-                    return false;
                 }
             },
             onEnd: (evt) => {
@@ -129,7 +130,7 @@ export function SortableWorkspaceList({
         <div
             ref={listRef}
             data-group-id={groupId}
-            className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className} ${isDragging ? 'pointer-events-none' : ''}`}
+            className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className}`}
         >
             {workspaces.map((workspace) => (
                 <div
@@ -146,7 +147,7 @@ export function SortableWorkspaceList({
                     />
                 </div>
             ))}
-            {workspaces.length === 0 && (
+            {workspaces.length === 0 && !isDragging && (
                 <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
                     {placeholder}
                 </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Kanban, Network, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,8 +23,6 @@ interface WorkspaceCardProps {
 }
 
 export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive }: WorkspaceCardProps) {
-    const [isDragStarting, setIsDragStarting] = useState(false);
-    const dragTimeoutRef = useRef<NodeJS.Timeout>();
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -36,34 +34,7 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
         onDelete(workspace.id);
     };
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        // Don't interfere with edit/delete buttons
-        const target = e.target as HTMLElement;
-        if (target.closest('button')) {
-            return;
-        }
-
-        // Set a timeout to detect if this is a drag operation
-        dragTimeoutRef.current = setTimeout(() => {
-            setIsDragStarting(true);
-        }, 100); // Shorter than SortableJS delay
-    };
-
-    const handleMouseUp = () => {
-        if (dragTimeoutRef.current) {
-            clearTimeout(dragTimeoutRef.current);
-        }
-        setIsDragStarting(false);
-    };
-
     const handleClick = (e: React.MouseEvent) => {
-        // Don't select if we detected a drag operation
-        if (isDragStarting) {
-            e.preventDefault();
-            e.stopPropagation();
-            return;
-        }
-
         // Don't interfere with edit/delete buttons
         const target = e.target as HTMLElement;
         if (target.closest('button')) {
@@ -72,14 +43,6 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
 
         onSelect(workspace.id);
     };
-
-    useEffect(() => {
-        return () => {
-            if (dragTimeoutRef.current) {
-                clearTimeout(dragTimeoutRef.current);
-            }
-        };
-    }, []);
 
     const getTemplateIcon = (templateType: string) => {
         switch (templateType) {
@@ -114,9 +77,6 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
                 : 'hover:border-primary/50'
                 }`}
             onClick={handleClick}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp} // Reset if mouse leaves during potential drag
         >
             <CardHeader className="pb-3 relative">
                 <div className="flex items-center gap-3">

@@ -340,6 +340,17 @@
 .workspace-card-inner {
   /* Improve drag experience */
   touch-action: none;
+  cursor: grab;
+}
+
+.workspace-card-inner:active {
+  cursor: grabbing;
+}
+
+/* Ensure workspace cards are draggable */
+.workspace-card {
+  /* Make sure the card wrapper doesn't interfere with dragging */
+  position: relative;
 }
 
 /* Drop zone styling */
@@ -348,9 +359,7 @@
   border-color: transparent;
 }
 
-.workspace-grid:hover {
-  border-color: hsl(var(--border));
-}
+/* Removed hover border for cleaner look */
 
 .workspace-grid.sortable-over {
   background-color: hsl(var(--primary) / 0.05);
