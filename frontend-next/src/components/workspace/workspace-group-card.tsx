@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useState } from 'react';
-import { Draggable } from 'react-beautiful-dnd';
 import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +12,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { WorkspaceCard } from './workspace-card';
+import { SortableWorkspaceList } from './sortable-workspace-list';
 import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup } from '@/lib/hooks/use-workspace-groups';
-import { StrictModeDroppable } from './strict-mode-droppable';
 
 type Workspace = {
     id: string;
@@ -39,6 +38,7 @@ interface WorkspaceGroupCardProps {
     onWorkspaceSelect: (workspaceId: string) => void;
     onWorkspaceEdit: (workspace: Workspace) => void;
     onWorkspaceDelete: (workspaceId: string) => void;
+    onWorkspaceMove: (workspaceId: string, newIndex: number, targetGroupId?: string | null) => void;
     currentWorkspaceId?: string | null;
     userId: string;
 }
@@ -49,6 +49,7 @@ export function WorkspaceGroupCard({
     onWorkspaceSelect,
     onWorkspaceEdit,
     onWorkspaceDelete,
+    onWorkspaceMove,
     currentWorkspaceId,
     userId
 }: WorkspaceGroupCardProps) {
@@ -163,56 +164,17 @@ export function WorkspaceGroupCard({
             </div>
 
             <div>
-                <StrictModeDroppable
-                    droppableId={`group-${group.id}`}
-                    type="workspace"
-                    direction="vertical"
-                    isDropDisabled={false}
-                    isCombineEnabled={false}
-                    ignoreContainerClipping={true}
-                >
-                    {(provided, snapshot) => (
-                        <div
-                            {...provided.droppableProps}
-                            ref={provided.innerRef}
-                            className={`workspace-group-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${snapshot.isDraggingOver
-                                ? 'bg-primary/5 border-primary/30'
-                                : 'border-transparent'
-                                }`}
-                            style={{
-                                position: 'relative'
-                            }}
-                        >
-                            {workspaces.map((workspace, index) => (
-                                <Draggable
-                                    key={workspace.id}
-                                    draggableId={workspace.id}
-                                    index={index}
-                                    isDragDisabled={false}
-                                >
-                                    {(provided, snapshot) => (
-                                        <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            className={`workspace-group-card transition-all ${snapshot.isDragging ? 'opacity-50 z-50 shadow-2xl scale-105' : ''}`}
-                                            style={provided.draggableProps.style}
-                                        >
-                                            <WorkspaceCard
-                                                workspace={workspace}
-                                                onSelect={onWorkspaceSelect}
-                                                onEdit={onWorkspaceEdit}
-                                                onDelete={onWorkspaceDelete}
-                                                isActive={workspace.id === currentWorkspaceId}
-                                            />
-                                        </div>
-                                    )}
-                                </Draggable>
-                            ))}
-                            {provided.placeholder}
-                        </div>
-                    )}
-                </StrictModeDroppable>
+                <SortableWorkspaceList
+                    workspaces={workspaces}
+                    currentWorkspaceId={currentWorkspaceId}
+                    onWorkspaceSelect={onWorkspaceSelect}
+                    onWorkspaceEdit={onWorkspaceEdit}
+                    onWorkspaceDelete={onWorkspaceDelete}
+                    onWorkspaceMove={onWorkspaceMove}
+                    groupId={group.id}
+                    className="border-transparent hover:border-border"
+                    placeholder={`Drop workspaces in ${group.name}`}
+                />
             </div>
         </div>
     );

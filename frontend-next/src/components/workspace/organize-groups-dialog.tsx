@@ -1,19 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
-import {
-    DndContext,
-    DragEndEvent,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    closestCenter,
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    verticalListSortingStrategy,
-    arrayMove,
-} from '@dnd-kit/sortable';
+import React, { useState, useCallback } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -23,12 +10,10 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { SortableGroupItem } from './sortable-group-item';
+import { SortableGroupList } from './sortable-group-list';
 import { useReorderWorkspaceGroups } from '@/lib/hooks/use-workspace-groups';
 
 interface OrganizeGroupsDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
     userId: string;
     groups: Array<{
         id: string;
@@ -37,26 +22,19 @@ interface OrganizeGroupsDialogProps {
         createdAt: string;
         workspaceCount: number;
     }>;
+    onClose: () => void;
 }
 
 export function OrganizeGroupsDialog({
-    open,
-    onOpenChange,
     userId,
-    groups
+    groups,
+    onClose
 }: OrganizeGroupsDialogProps) {
     const [localGroups, setLocalGroups] = useState(groups);
     const [hasChanges, setHasChanges] = useState(false);
+    const [open] = useState(true);
 
     const reorderGroupsMutation = useReorderWorkspaceGroups();
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        })
-    );
 
     // Update local groups when props change
     React.useEffect(() => {
@@ -64,24 +42,23 @@ export function OrganizeGroupsDialog({
         setHasChanges(false);
     }, [groups]);
 
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
+    const handleGroupReorder = useCallback((groupId: string, newIndex: number) => {
+        setLocalGroups((items) => {
+            const oldIndex = items.findIndex((item) => item.id === groupId);
+            if (oldIndex === -1) return items;
 
-        if (over && active.id !== over.id) {
-            setLocalGroups((items) => {
-                const oldIndex = items.findIndex((item) => item.id === active.id);
-                const newIndex = items.findIndex((item) => item.id === over.id);
+            const newItems = [...items];
+            const [movedItem] = newItems.splice(oldIndex, 1);
+            newItems.splice(newIndex, 0, movedItem);
 
-                const newItems = arrayMove(items, oldIndex, newIndex);
-                setHasChanges(true);
-                return newItems;
-            });
-        }
-    };
+            setHasChanges(true);
+            return newItems;
+        });
+    }, []);
 
     const handleSave = async () => {
         if (!hasChanges) {
-            onOpenChange(false);
+            onClose();
             return;
         }
 
@@ -97,7 +74,7 @@ export function OrganizeGroupsDialog({
             });
 
             setHasChanges(false);
-            onOpenChange(false);
+            onClose();
         } catch (error) {
             console.error('Error reordering groups:', error);
         }
@@ -106,11 +83,17 @@ export function OrganizeGroupsDialog({
     const handleCancel = () => {
         setLocalGroups(groups);
         setHasChanges(false);
-        onOpenChange(false);
+        onClose();
+    };
+
+    const handleOpenChange = (newOpen: boolean) => {
+        if (!newOpen) {
+            onClose();
+        }
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Organize Groups</DialogTitle>
@@ -121,25 +104,10 @@ export function OrganizeGroupsDialog({
 
                 <div className="py-4">
                     {localGroups.length > 0 ? (
-                        <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
-                        >
-                            <SortableContext
-                                items={localGroups.map(g => g.id)}
-                                strategy={verticalListSortingStrategy}
-                            >
-                                <div className="space-y-2">
-                                    {localGroups.map((group) => (
-                                        <SortableGroupItem
-                                            key={group.id}
-                                            group={group}
-                                        />
-                                    ))}
-                                </div>
-                            </SortableContext>
-                        </DndContext>
+                        <SortableGroupList
+                            groups={localGroups}
+                            onGroupReorder={handleGroupReorder}
+                        />
                     ) : (
                         <div className="text-center py-8 text-muted-foreground">
                             <p>No groups to organize</p>

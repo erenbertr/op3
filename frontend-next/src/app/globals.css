@@ -284,48 +284,69 @@
   min-width: auto !important;
 }
 
-/* Drag and Drop Constraints for Workspace Cards */
-[data-rbd-drag-handle-context-id] {
+/* SortableJS Drag and Drop Styles */
+.sortable-ghost {
+  opacity: 0.4;
+  background: hsl(var(--primary) / 0.1);
+  border: 2px dashed hsl(var(--primary) / 0.3);
+  border-radius: 8px;
+}
+
+.sortable-chosen {
+  cursor: grabbing;
+  transform: scale(1.02);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  z-index: 1000;
+}
+
+.sortable-drag {
+  opacity: 0.8;
+  transform: rotate(2deg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  z-index: 9999;
+}
+
+.sortable-fallback {
+  opacity: 0.8;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  cursor: grabbing;
+  z-index: 9999;
+}
+
+/* Drag handle styling */
+.drag-handle {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  transition: all 0.2s ease;
 }
 
-[data-rbd-drag-handle-context-id]:active {
+.drag-handle:hover {
+  background-color: hsl(var(--muted));
+}
+
+.drag-handle:active {
   cursor: grabbing;
 }
 
-/* Style dragged items - allow free movement */
-[data-rbd-draggable-id][style*="position: fixed"] {
-  max-width: 300px !important;
-  min-width: 200px !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-  border-radius: 8px !important;
-  z-index: 9999 !important;
-  pointer-events: none !important;
-  /* Remove any transform constraints to allow free movement */
-}
-
-/* Ensure drop zones are clearly visible */
-[data-rbd-droppable-id] {
+/* Drop zone styling */
+.workspace-grid {
   transition: all 0.2s ease;
-  min-height: 120px;
-  position: relative;
+  border-color: transparent;
 }
 
-/* Smooth transitions for non-dragging items */
-[data-rbd-draggable-id]:not([style*="position: fixed"]) {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.workspace-grid:hover {
+  border-color: hsl(var(--border));
 }
 
-/* Placeholder styling */
-[data-rbd-placeholder] {
-  background-color: rgba(156, 163, 175, 0.1);
-  border: 2px dashed rgba(156, 163, 175, 0.3);
-  border-radius: 8px;
-  transition: all 0.2s ease;
+.workspace-grid.sortable-over {
+  background-color: hsl(var(--primary) / 0.05);
+  border-color: hsl(var(--primary) / 0.3);
 }
 
 /* Workspace container - proper responsive layout */

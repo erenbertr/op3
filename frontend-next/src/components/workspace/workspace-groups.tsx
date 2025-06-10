@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from 'react';
-import { DragDropContext, Draggable, DropResult } from 'react-beautiful-dnd';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,8 +17,8 @@ import { WorkspaceGroupCard } from './workspace-group-card';
 import { WorkspaceCard } from './workspace-card';
 import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
+import { SortableWorkspaceList } from './sortable-workspace-list';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
-import { StrictModeDroppable } from './strict-mode-droppable';
 
 
 // Helper type, can be moved to a types file if needed
@@ -102,45 +101,20 @@ export function WorkspaceGroups({
         };
     }, [workspaces, groups]);
 
-    const handleDragEnd = async (result: DropResult) => {
-        const { destination, source, draggableId } = result;
-
-        console.log('🎯 Drag end:', { destination, source, draggableId });
-        console.log('📊 Available groups:', groups.map(g => g.id));
-        console.log('📊 Available workspaces:', workspaces.map(w => w.id));
-
-        // If no destination, do nothing
-        if (!destination) return;
-
-        // If dropped in the same position, do nothing
-        if (destination.droppableId === source.droppableId && destination.index === source.index) {
-            return;
-        }
+    const handleWorkspaceMove = useCallback(async (workspaceId: string, newIndex: number, targetGroupId?: string | null) => {
+        console.log('🚀 Moving workspace:', { workspaceId, targetGroupId, newIndex });
 
         try {
-            // Moving workspace (between groups or to/from ungrouped)
-            const workspaceId = draggableId;
-            let newGroupId: string | null = null;
-            const newSortOrder = destination.index;
-
-            if (destination.droppableId === 'ungrouped') {
-                newGroupId = null;
-            } else if (destination.droppableId.startsWith('group-')) {
-                newGroupId = destination.droppableId.replace('group-', '');
-            }
-
-            console.log('🚀 Moving workspace:', { workspaceId, newGroupId, newSortOrder });
-
             await moveWorkspaceMutation.mutateAsync({
                 userId,
                 workspaceId,
-                groupId: newGroupId,
-                sortOrder: newSortOrder
+                groupId: targetGroupId || null,
+                sortOrder: newIndex
             });
         } catch (error) {
-            console.error('Error handling drag end:', error);
+            console.error('Error moving workspace:', error);
         }
-    };
+    }, [userId, moveWorkspaceMutation]);
 
     const handleWorkspaceSelect = async (workspaceId: string) => {
         if (workspaceId === currentWorkspaceId) {
@@ -278,79 +252,39 @@ export function WorkspaceGroups({
                 </div>
             </div>
 
-            <DragDropContext onDragEnd={handleDragEnd}>
-                <div className="space-y-8 relative">
-                    {/* Ungrouped workspaces */}
-                    <div className="space-y-4">
-                        <StrictModeDroppable
-                            droppableId="ungrouped"
-                            type="workspace"
-                            direction="vertical"
-                            isDropDisabled={false}
-                            isCombineEnabled={false}
-                            ignoreContainerClipping={true}
-                        >
-                            {(provided, snapshot) => (
-                                <div
-                                    {...provided.droppableProps}
-                                    ref={provided.innerRef}
-                                    className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${snapshot.isDraggingOver
-                                        ? 'bg-primary/5 border-primary/30'
-                                        : 'border-transparent'
-                                        }`}
-                                    style={{
-                                        position: 'relative'
-                                    }}
-                                >
-                                    {ungroupedWorkspaces.map((workspace, index) => (
-                                        <Draggable
-                                            key={workspace.id}
-                                            draggableId={workspace.id}
-                                            index={index}
-                                            isDragDisabled={false}
-                                        >
-                                            {(provided, snapshot) => (
-                                                <div
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    className={`workspace-card transition-all ${snapshot.isDragging ? 'opacity-50 z-50 shadow-2xl scale-105' : ''}`}
-                                                    style={provided.draggableProps.style}
-                                                >
-                                                    <WorkspaceCard
-                                                        workspace={workspace}
-                                                        onSelect={handleWorkspaceSelect}
-                                                        onEdit={handleEditWorkspace}
-                                                        onDelete={handleDeleteWorkspace}
-                                                        isActive={workspace.id === currentWorkspaceId}
-                                                    />
-                                                </div>
-                                            )}
-                                        </Draggable>
-                                    ))}
-                                    {provided.placeholder}
-                                </div>
-                            )}
-                        </StrictModeDroppable>
-                    </div>
-
-                    {/* Groups */}
-                    <div className="space-y-6">
-                        {groups.map((group) => (
-                            <WorkspaceGroupCard
-                                key={group.id}
-                                group={group}
-                                workspaces={groupedWorkspaces[group.id] || []}
-                                onWorkspaceSelect={handleWorkspaceSelect}
-                                onWorkspaceEdit={handleEditWorkspace}
-                                onWorkspaceDelete={handleDeleteWorkspace}
-                                currentWorkspaceId={currentWorkspaceId}
-                                userId={userId}
-                            />
-                        ))}
-                    </div>
+            <div className="space-y-8 relative">
+                {/* Ungrouped workspaces */}
+                <div className="space-y-4">
+                    <SortableWorkspaceList
+                        workspaces={ungroupedWorkspaces}
+                        currentWorkspaceId={currentWorkspaceId}
+                        onWorkspaceSelect={handleWorkspaceSelect}
+                        onWorkspaceEdit={handleEditWorkspace}
+                        onWorkspaceDelete={handleDeleteWorkspace}
+                        onWorkspaceMove={handleWorkspaceMove}
+                        groupId={null}
+                        className="border-transparent hover:border-border"
+                        placeholder="Drop workspaces here or drag from groups"
+                    />
                 </div>
-            </DragDropContext>
+
+                {/* Groups */}
+                <div className="space-y-6">
+                    {groups.map((group) => (
+                        <WorkspaceGroupCard
+                            key={group.id}
+                            group={group}
+                            workspaces={groupedWorkspaces[group.id] || []}
+                            onWorkspaceSelect={handleWorkspaceSelect}
+                            onWorkspaceEdit={handleEditWorkspace}
+                            onWorkspaceDelete={handleDeleteWorkspace}
+                            onWorkspaceMove={handleWorkspaceMove}
+                            currentWorkspaceId={currentWorkspaceId}
+                            userId={userId}
+                        />
+                    ))}
+                </div>
+            </div>
 
             {/* Edit Workspace Dialog */}
             <Dialog open={!!editingWorkspace} onOpenChange={(open) => !open && setEditingWorkspace(null)}>
