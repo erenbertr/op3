@@ -206,11 +206,34 @@ export function ChatSessionComponent({
 
         // Scroll to show newest content at top
         setTimeout(() => {
-            scrollContainer.scrollTo({
-                top: scrollContainer.scrollHeight - containerHeight,
-                behavior: 'smooth'
-            });
-        }, 50);
+            // Find the last message element to get its position
+            const messageElements = scrollContainer.querySelectorAll('[data-message-item]');
+            const lastMessageElement = messageElements[messageElements.length - 1];
+
+            if (lastMessageElement) {
+                // Calculate scroll position to put the last message at the top
+                const lastMessageTop = (lastMessageElement as HTMLElement).offsetTop;
+                const scrollTarget = lastMessageTop - 16; // 16px margin from top
+
+                console.log('📍 Scrolling to position last message at top:', {
+                    lastMessageTop,
+                    scrollTarget,
+                    currentScrollTop: scrollContainer.scrollTop,
+                    spacerHeight
+                });
+
+                scrollContainer.scrollTo({
+                    top: scrollTarget,
+                    behavior: 'smooth'
+                });
+            } else {
+                // Fallback: scroll to bottom
+                scrollContainer.scrollTo({
+                    top: scrollContainer.scrollHeight - containerHeight,
+                    behavior: 'smooth'
+                });
+            }
+        }, 100); // Increased delay to ensure spacer is applied
 
     }, [isStreaming, messages.length, isUserScrolling]);
 
