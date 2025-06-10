@@ -42,7 +42,22 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive,
             e.stopPropagation();
             return;
         }
+
+        // Check if the click originated from the drag handle or its children
+        const target = e.target as HTMLElement;
+        if (target.closest('.drag-handle')) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
         onSelect(workspace.id);
+    };
+
+    const handleDragHandleClick = (e: React.MouseEvent) => {
+        // Prevent the drag handle click from bubbling up to the card
+        e.stopPropagation();
+        e.preventDefault();
     };
 
     const getTemplateIcon = (templateType: string) => {
@@ -82,7 +97,11 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive,
             <CardHeader className="pb-3 relative">
                 <div className="flex items-center gap-3">
                     {/* Drag Handle */}
-                    <div className="drag-handle cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded opacity-0 group-hover/card:opacity-100 transition-opacity">
+                    <div
+                        className="drag-handle cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded opacity-0 group-hover/card:opacity-100 transition-opacity"
+                        onClick={handleDragHandleClick}
+                        onMouseDown={handleDragHandleClick}
+                    >
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
                     </div>
 
