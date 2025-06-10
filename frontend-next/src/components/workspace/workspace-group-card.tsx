@@ -166,8 +166,8 @@ export function WorkspaceGroupCard({
                             {...provided.droppableProps}
                             ref={provided.innerRef}
                             className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-colors ${snapshot.isDraggingOver
-                                    ? 'border-primary bg-primary/10'
-                                    : 'border-muted-foreground/25'
+                                ? 'border-primary bg-primary/10'
+                                : 'border-muted-foreground/25'
                                 }`}
                         >
                             {workspaces.length === 0 && (
@@ -180,7 +180,6 @@ export function WorkspaceGroupCard({
                                     key={workspace.id}
                                     draggableId={workspace.id}
                                     index={index}
-                                    type="workspace"
                                 >
                                     {(provided, snapshot) => (
                                         <div

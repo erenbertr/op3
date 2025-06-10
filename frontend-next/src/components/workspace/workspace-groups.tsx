@@ -93,8 +93,24 @@ export function WorkspaceGroups({
         }
 
         try {
-            if (type === 'workspace') {
-                // Moving workspace
+            // Determine if this is a group or workspace drag based on droppable IDs
+            if (source.droppableId === 'groups' && destination.droppableId === 'groups') {
+                // Reordering groups
+                const newGroups = [...groups];
+                const [movedGroup] = newGroups.splice(source.index, 1);
+                newGroups.splice(destination.index, 0, movedGroup);
+
+                const groupOrders = newGroups.map((group, index) => ({
+                    groupId: group.id,
+                    sortOrder: index
+                }));
+
+                await reorderGroupsMutation.mutateAsync({
+                    userId,
+                    groupOrders
+                });
+            } else {
+                // Moving workspace (between groups or to/from ungrouped)
                 const workspaceId = draggableId;
                 let newGroupId: string | null = null;
                 let newSortOrder = destination.index;
@@ -112,21 +128,6 @@ export function WorkspaceGroups({
                     workspaceId,
                     groupId: newGroupId,
                     sortOrder: newSortOrder
-                });
-            } else if (type === 'group') {
-                // Reordering groups
-                const newGroups = [...groups];
-                const [movedGroup] = newGroups.splice(source.index, 1);
-                newGroups.splice(destination.index, 0, movedGroup);
-
-                const groupOrders = newGroups.map((group, index) => ({
-                    groupId: group.id,
-                    sortOrder: index
-                }));
-
-                await reorderGroupsMutation.mutateAsync({
-                    userId,
-                    groupOrders
                 });
             }
         } catch (error) {
@@ -212,7 +213,6 @@ export function WorkspaceGroups({
                                         key={group.id}
                                         draggableId={group.id}
                                         index={index}
-                                        type="group"
                                     >
                                         {(provided, snapshot) => (
                                             <div
@@ -260,7 +260,6 @@ export function WorkspaceGroups({
                                             key={workspace.id}
                                             draggableId={workspace.id}
                                             index={index}
-                                            type="workspace"
                                         >
                                             {(provided, snapshot) => (
                                                 <div
