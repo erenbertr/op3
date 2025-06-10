@@ -143,10 +143,10 @@ export class OpenAIFileService {
                 purpose: 'assistants'
             });
 
-            // Update attachment with OpenAI file ID
+            // Update attachment with OpenAI file ID but keep processing status
             await this.updateFileAttachment(attachmentId, {
                 openaiFileId: openaiFile.id,
-                status: 'ready'
+                status: 'processing'
             });
 
             console.log(`File uploaded to OpenAI: ${openaiFile.id}`);
@@ -155,8 +155,12 @@ export class OpenAIFileService {
             const vectorStoreResult = await this.addFileToVectorStore(attachmentId);
             if (vectorStoreResult.success) {
                 console.log(`File added to vector store: ${attachmentId}`);
+                // Start polling for vector store file status
+                this.pollVectorStoreFileStatus(attachmentId, vectorStoreResult.vectorStoreId!);
             } else {
                 console.error(`Failed to add file to vector store: ${vectorStoreResult.message}`);
+                // If vector store fails, still mark file as ready for basic upload
+                await this.updateFileAttachmentStatus(attachmentId, 'ready');
             }
 
         } catch (error) {
@@ -226,7 +230,7 @@ export class OpenAIFileService {
     /**
      * Add file to vector store
      */
-    public async addFileToVectorStore(attachmentId: string): Promise<{ success: boolean; message: string }> {
+    public async addFileToVectorStore(attachmentId: string): Promise<{ success: boolean; message: string; vectorStoreId?: string }> {
         try {
             const attachment = await this.getFileAttachment(attachmentId);
             if (!attachment || !attachment.openaiFileId) {
@@ -267,7 +271,8 @@ export class OpenAIFileService {
 
             return {
                 success: true,
-                message: 'File added to vector store'
+                message: 'File added to vector store',
+                vectorStoreId: vectorStoreResult.vectorStore.openaiVectorStoreId
             };
 
         } catch (error) {
@@ -277,6 +282,72 @@ export class OpenAIFileService {
                 message: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
+    }
+
+    /**
+     * Poll vector store file status until ready
+     */
+    private async pollVectorStoreFileStatus(attachmentId: string, vectorStoreId: string): Promise<void> {
+        const attachment = await this.getFileAttachment(attachmentId);
+        if (!attachment || !attachment.openaiFileId) {
+            console.error('Cannot poll file status: attachment or OpenAI file ID not found');
+            return;
+        }
+
+        const openai = this.getOpenAIClient(attachment.userId);
+        if (!openai) {
+            console.error('Cannot poll file status: no OpenAI client');
+            return;
+        }
+
+        const maxAttempts = 30; // 5 minutes max (10 second intervals)
+        let attempts = 0;
+
+        const poll = async () => {
+            try {
+                attempts++;
+                console.log(`Polling vector store file status (attempt ${attempts}/${maxAttempts}): ${attachment.openaiFileId}`);
+
+                // Check vector store file status
+                const vectorStoreFile = await openai.vectorStores.files.retrieve(
+                    vectorStoreId,
+                    attachment.openaiFileId
+                );
+
+                console.log(`Vector store file status: ${vectorStoreFile.status}`);
+
+                if (vectorStoreFile.status === 'completed') {
+                    // File is ready for search
+                    await this.updateFileAttachmentStatus(attachmentId, 'ready');
+                    console.log(`File processing completed: ${attachmentId}`);
+                    return;
+                } else if (vectorStoreFile.status === 'failed') {
+                    // File processing failed
+                    await this.updateFileAttachmentStatus(attachmentId, 'error', 'Vector store processing failed');
+                    console.error(`File processing failed: ${attachmentId}`);
+                    return;
+                } else if (attempts >= maxAttempts) {
+                    // Timeout
+                    await this.updateFileAttachmentStatus(attachmentId, 'error', 'Processing timeout');
+                    console.error(`File processing timeout: ${attachmentId}`);
+                    return;
+                } else {
+                    // Still processing, poll again in 10 seconds
+                    setTimeout(poll, 10000);
+                }
+            } catch (error) {
+                console.error('Error polling vector store file status:', error);
+                if (attempts >= maxAttempts) {
+                    await this.updateFileAttachmentStatus(attachmentId, 'error', 'Status polling failed');
+                } else {
+                    // Retry in 10 seconds
+                    setTimeout(poll, 10000);
+                }
+            }
+        };
+
+        // Start polling after 5 seconds to give OpenAI time to start processing
+        setTimeout(poll, 5000);
     }
 
     /**

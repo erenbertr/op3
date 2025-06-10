@@ -15,11 +15,11 @@ interface FileAttachmentDisplayProps {
     onRemove?: (attachmentId: string) => void;
 }
 
-export function FileAttachmentDisplay({ 
-    attachmentIds, 
-    className, 
-    showRemove = false, 
-    onRemove 
+export function FileAttachmentDisplay({
+    attachmentIds,
+    className,
+    showRemove = false,
+    onRemove
 }: FileAttachmentDisplayProps) {
     const [attachments, setAttachments] = useState<FileAttachment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -47,7 +47,14 @@ export function FileAttachmentDisplay({
         };
 
         fetchAttachments();
-    }, [attachmentIds]);
+
+        // Poll for status updates if any files are processing
+        const hasProcessingFiles = attachments.some(a => a.status === 'processing' || a.status === 'uploading');
+        if (hasProcessingFiles) {
+            const interval = setInterval(fetchAttachments, 5000); // Poll every 5 seconds
+            return () => clearInterval(interval);
+        }
+    }, [attachmentIds, attachments]);
 
     const getFileIcon = (mimeType: string) => {
         if (mimeType.startsWith('image/')) {
@@ -126,8 +133,8 @@ export function FileAttachmentDisplay({
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     <span>{formatFileSize(attachment.size)}</span>
-                                    <Badge 
-                                        variant="outline" 
+                                    <Badge
+                                        variant="outline"
                                         className={cn("text-xs px-1 py-0", getStatusColor(attachment.status))}
                                     >
                                         {attachment.status}
@@ -135,7 +142,7 @@ export function FileAttachmentDisplay({
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-1">
                             {attachment.status === 'ready' && (
                                 <Button
@@ -147,7 +154,7 @@ export function FileAttachmentDisplay({
                                     <Download className="h-3 w-3" />
                                 </Button>
                             )}
-                            
+
                             {showRemove && (
                                 <Button
                                     variant="ghost"
@@ -163,7 +170,7 @@ export function FileAttachmentDisplay({
                     </div>
                 ))}
             </div>
-            
+
             {attachments.some(a => a.status === 'error') && (
                 <div className="text-xs text-red-600 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />

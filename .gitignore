@@ -88,3 +88,7 @@ Thumbs.db
 
 # Backup files
 *.bak
+
+# Uploaded files
+backend-api/uploads/
+test-file.txt
