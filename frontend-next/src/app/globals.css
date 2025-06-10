@@ -324,6 +324,8 @@
   -moz-user-select: none;
   -ms-user-select: none;
   transition: all 0.2s ease;
+  position: relative;
+  z-index: 10; /* Ensure drag handle is above other elements */
 }
 
 .drag-handle:hover {
@@ -332,6 +334,16 @@
 
 .drag-handle:active {
   cursor: grabbing;
+}
+
+/* Prevent click events on drag handle from bubbling to card */
+.drag-handle {
+  pointer-events: auto;
+}
+
+/* Workspace card specific drag handle styling */
+.workspace-card .drag-handle {
+  flex-shrink: 0;
 }
 
 /* Drop zone styling */

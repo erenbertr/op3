@@ -76,6 +76,7 @@ export function SortableWorkspaceList({
             ghostClass: 'sortable-ghost',
             chosenClass: 'sortable-chosen',
             dragClass: 'sortable-drag',
+            handle: '.drag-handle', // Only allow dragging from the drag handle
             forceFallback: true,
             fallbackClass: 'sortable-fallback',
             fallbackOnBody: true,
@@ -138,6 +139,7 @@ export function SortableWorkspaceList({
                         onEdit={onWorkspaceEdit}
                         onDelete={onWorkspaceDelete}
                         isActive={workspace.id === currentWorkspaceId}
+                        isDragging={isDragging}
                     />
                 </div>
             ))}

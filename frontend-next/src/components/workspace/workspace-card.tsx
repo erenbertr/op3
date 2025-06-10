@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Kanban, Network, Edit2, Trash2 } from 'lucide-react';
+import { MessageSquare, Kanban, Network, Edit2, Trash2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceCardProps {
@@ -20,9 +20,10 @@ interface WorkspaceCardProps {
     onEdit: (workspace: WorkspaceCardProps['workspace']) => void;
     onDelete: (workspaceId: string) => void;
     isActive?: boolean;
+    isDragging?: boolean;
 }
 
-export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive }: WorkspaceCardProps) {
+export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive, isDragging }: WorkspaceCardProps) {
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -32,6 +33,16 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
     const handleDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onDelete(workspace.id);
+    };
+
+    const handleCardClick = (e: React.MouseEvent) => {
+        // Prevent click during drag operations
+        if (isDragging) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        onSelect(workspace.id);
     };
 
     const getTemplateIcon = (templateType: string) => {
@@ -65,11 +76,16 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
             className={`workspace-card-inner group/card cursor-pointer transition-all duration-200 hover:shadow-md select-none ${isActive
                 ? 'border-primary'
                 : 'hover:border-primary/50'
-                }`}
-            onClick={() => onSelect(workspace.id)}
+                } ${isDragging ? 'pointer-events-none' : ''}`}
+            onClick={handleCardClick}
         >
             <CardHeader className="pb-3 relative">
                 <div className="flex items-center gap-3">
+                    {/* Drag Handle */}
+                    <div className="drag-handle cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded opacity-0 group-hover/card:opacity-100 transition-opacity">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
                     <div className={`p-2 rounded-full ${isActive
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground'
