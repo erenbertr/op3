@@ -532,6 +532,8 @@ export class WorkspaceService {
         updateDoc.groupId = newGroupId;
         updateDoc.sortOrder = newSortOrder;
 
+
+
         switch (config.type) {
             case 'mongodb':
                 await connection.collection('workspaces').updateOne(
