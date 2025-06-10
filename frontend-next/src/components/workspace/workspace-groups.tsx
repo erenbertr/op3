@@ -105,12 +105,15 @@ export function WorkspaceGroups({
         console.log('🚀 Moving workspace:', { workspaceId, targetGroupId, newIndex });
 
         try {
+            // First, move the workspace to the target group with the new index as sort order
             await moveWorkspaceMutation.mutateAsync({
                 userId,
                 workspaceId,
                 groupId: targetGroupId || null,
                 sortOrder: newIndex
             });
+
+            // The mutation will trigger a refetch, so the UI will update automatically
         } catch (error) {
             console.error('Error moving workspace:', error);
         }

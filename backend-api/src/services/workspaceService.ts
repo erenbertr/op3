@@ -260,20 +260,23 @@ export class WorkspaceService {
 
             switch (config.type) {
                 case 'mongodb':
-                    const mongoWorkspaces = await connection.collection('workspaces').find({ userId }).toArray();
+                    const mongoWorkspaces = await connection.collection('workspaces')
+                        .find({ userId })
+                        .sort({ groupId: 1, sortOrder: 1, createdAt: 1 })
+                        .toArray();
                     workspaces = mongoWorkspaces.map((doc: any) => this.mapMongoWorkspace(doc));
                     break;
 
                 case 'mysql':
                 case 'postgresql':
-                    const query = 'SELECT * FROM workspaces WHERE userId = ? ORDER BY createdAt ASC';
+                    const query = 'SELECT * FROM workspaces WHERE userId = ? ORDER BY groupId ASC, sortOrder ASC, createdAt ASC';
                     const [rows] = await connection.execute(query, [userId]);
                     workspaces = rows.map((row: any) => this.mapSQLWorkspace(row));
                     break;
 
                 case 'localdb':
                     workspaces = await new Promise((resolve, reject) => {
-                        connection.all('SELECT * FROM workspaces WHERE userId = ? ORDER BY createdAt ASC', [userId], (err: any, rows: any[]) => {
+                        connection.all('SELECT * FROM workspaces WHERE userId = ? ORDER BY groupId ASC, sortOrder ASC, createdAt ASC', [userId], (err: any, rows: any[]) => {
                             if (err) {
                                 // If table doesn't exist, return empty array
                                 if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
@@ -293,6 +296,8 @@ export class WorkspaceService {
                         .from('workspaces')
                         .select('*')
                         .eq('user_id', userId)
+                        .order('group_id', { ascending: true })
+                        .order('sort_order', { ascending: true })
                         .order('created_at', { ascending: true });
 
                     if (error) {
@@ -314,6 +319,8 @@ export class WorkspaceService {
                     templateType: workspace.templateType,
                     workspaceRules: workspace.workspaceRules,
                     isActive: workspace.isActive,
+                    groupId: workspace.groupId,
+                    sortOrder: workspace.sortOrder,
                     createdAt: workspace.createdAt.toISOString()
                 }))
             };
