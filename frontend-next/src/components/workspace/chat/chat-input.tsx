@@ -42,6 +42,7 @@ export function ChatInput({
     const [showProviderDropdown, setShowProviderDropdown] = useState(false);
     const [searchEnabled, setSearchEnabled] = useState(false);
     const [fileAttachEnabled, setFileAttachEnabled] = useState(false);
+    const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
@@ -57,6 +58,14 @@ export function ChatInput({
             textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
         }
     });
+
+    // Maintain focus after message sending
+    React.useLayoutEffect(() => {
+        if (shouldMaintainFocus && textareaRef.current) {
+            textareaRef.current.focus();
+            setShouldMaintainFocus(false);
+        }
+    }, [shouldMaintainFocus]);
 
     // Derived state for personality selection
     const derivedPersonality = useMemo(() => {
@@ -194,18 +203,14 @@ export function ChatInput({
                 selectedPersonality || undefined,
                 selectedProvider || undefined
             );
-            // Keep focus on textarea after sending - use setTimeout to ensure it happens after any re-renders
-            setTimeout(() => {
-                textareaRef.current?.focus();
-            }, 0);
+            // Trigger focus maintenance after all re-renders
+            setShouldMaintainFocus(true);
         } catch (error) {
             console.error('Error sending message:', error);
             // Restore message on error
             setMessage(content);
-            // Keep focus on textarea even on error
-            setTimeout(() => {
-                textareaRef.current?.focus();
-            }, 0);
+            // Trigger focus maintenance even on error
+            setShouldMaintainFocus(true);
         }
     };
 
