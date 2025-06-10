@@ -167,7 +167,7 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
         fileAttachments,
         searchEnabled,
         hasFileAttachments: fileAttachments && fileAttachments.length > 0,
-        fullRequest: request
+        fullRequest: req.body
     });
 
     if (!sessionId) {

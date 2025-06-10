@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileAttachment } from '@/lib/api';
 import { apiClient } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { File, FileText, Image, Download, X, AlertCircle } from 'lucide-react';
+import { File, FileText, Image, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileAttachmentDisplayProps {
@@ -96,20 +95,7 @@ export function FileAttachmentDisplay({
         }
     };
 
-    const getStatusColor = (status: FileAttachment['status']) => {
-        switch (status) {
-            case 'ready':
-                return 'bg-green-100 text-green-800 border-green-200';
-            case 'processing':
-                return 'bg-blue-100 text-blue-800 border-blue-200';
-            case 'uploading':
-                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-            case 'error':
-                return 'bg-red-100 text-red-800 border-red-200';
-            default:
-                return 'bg-gray-100 text-gray-800 border-gray-200';
-        }
-    };
+
 
     const formatFileSize = (bytes: number) => {
         if (bytes === 0) return '0 Bytes';
@@ -153,50 +139,33 @@ export function FileAttachmentDisplay({
                 {attachments.filter(attachment => attachment && attachment.id).map((attachment) => (
                     <div
                         key={attachment.id}
-                        className="flex items-center gap-2 bg-muted/50 border rounded-lg px-3 py-2 text-sm max-w-xs"
+                        className="flex items-center gap-3 bg-background border rounded-lg px-3 py-2.5 text-sm max-w-sm shadow-sm hover:shadow-md transition-shadow"
                     >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {getFileIcon(attachment.mimeType || 'application/octet-stream')}
+                            <div className="flex-shrink-0">
+                                {getFileIcon(attachment.mimeType || 'application/octet-stream')}
+                            </div>
                             <div className="flex-1 min-w-0">
-                                <div className="truncate font-medium">
+                                <div className="truncate font-medium text-foreground">
                                     {attachment.originalName || 'Unknown file'}
                                 </div>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <span>{formatFileSize(attachment.size || 0)}</span>
-                                    <Badge
-                                        variant="outline"
-                                        className={cn("text-xs px-1 py-0", getStatusColor(attachment.status || 'unknown'))}
-                                    >
-                                        {attachment.status || 'unknown'}
-                                    </Badge>
+                                <div className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size || 0)}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-1">
-                            {attachment.status === 'ready' && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    title="Download file"
-                                >
-                                    <Download className="h-3 w-3" />
-                                </Button>
-                            )}
-
-                            {showRemove && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                    onClick={() => handleRemove(attachment.id)}
-                                    title="Remove file"
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            )}
-                        </div>
+                        {showRemove && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive flex-shrink-0"
+                                onClick={() => handleRemove(attachment.id)}
+                                title="Remove file"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        )}
                     </div>
                 ))}
             </div>
