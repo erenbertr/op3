@@ -283,3 +283,46 @@
   display: block !important;
   min-width: auto !important;
 }
+
+/* Drag and Drop Constraints for Workspace Cards */
+[data-rbd-drag-handle-context-id] {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+[data-rbd-drag-handle-context-id]:active {
+  cursor: grabbing;
+}
+
+/* Constrain dragged items within viewport bounds */
+[data-rbd-draggable-id][style*="position: fixed"] {
+  max-width: 300px !important;
+  min-width: 200px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  border-radius: 8px !important;
+  z-index: 9999 !important;
+  pointer-events: none !important;
+}
+
+/* Ensure drop zones are clearly visible */
+[data-rbd-droppable-id] {
+  transition: all 0.2s ease;
+  min-height: 120px;
+  position: relative;
+}
+
+/* Smooth transitions for non-dragging items */
+[data-rbd-draggable-id]:not([style*="position: fixed"]) {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Placeholder styling */
+[data-rbd-placeholder] {
+  background-color: rgba(156, 163, 175, 0.1);
+  border: 2px dashed rgba(156, 163, 175, 0.3);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
