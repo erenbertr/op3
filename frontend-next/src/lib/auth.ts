@@ -194,6 +194,51 @@ export class AuthService {
             return false;
         }
     }
+
+    /**
+     * Handle authentication errors by clearing stored data and redirecting
+     */
+    handleAuthError(): void {
+        console.warn('Authentication error detected, clearing stored credentials');
+        this.logout();
+
+        // Redirect to login page
+        if (typeof window !== 'undefined') {
+            window.location.href = '/';
+        }
+    }
+
+    /**
+     * Verify token with backend
+     */
+    async verifyToken(): Promise<boolean> {
+        try {
+            const token = this.getToken();
+            if (!token) return false;
+
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3006/api/v1';
+
+            const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    this.handleAuthError();
+                }
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error verifying token:', error);
+            return false;
+        }
+    }
 }
 
 export const authService = AuthService.getInstance();

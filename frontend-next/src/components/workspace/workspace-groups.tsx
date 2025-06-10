@@ -20,7 +20,6 @@ import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
 import { StrictModeDroppable } from './strict-mode-droppable';
-import { useConstrainedDrag } from '@/lib/hooks/use-constrained-drag';
 
 
 // Helper type, can be moved to a types file if needed
@@ -58,8 +57,7 @@ export function WorkspaceGroups({
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
     const [error, setError] = useState('');
 
-    // Use constrained drag hook to prevent items from going off-limits
-    useConstrainedDrag();
+    // Note: Removed constrained drag to allow free movement during dragging
 
 
 
@@ -246,7 +244,7 @@ export function WorkspaceGroups({
     }
 
     return (
-        <div className="space-y-6">
+        <div className="workspace-container space-y-6">
             {/* Header with buttons */}
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold">Select Workspace</h1>
@@ -296,7 +294,7 @@ export function WorkspaceGroups({
                                 <div
                                     {...provided.droppableProps}
                                     ref={provided.innerRef}
-                                    className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${snapshot.isDraggingOver
+                                    className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${snapshot.isDraggingOver
                                         ? 'bg-primary/5 border-primary/30'
                                         : 'border-transparent'
                                         }`}
@@ -316,7 +314,7 @@ export function WorkspaceGroups({
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
-                                                    className={`transition-all ${snapshot.isDragging ? 'opacity-50 z-50 shadow-2xl scale-105' : ''}`}
+                                                    className={`workspace-card transition-all ${snapshot.isDragging ? 'opacity-50 z-50 shadow-2xl scale-105' : ''}`}
                                                     style={provided.draggableProps.style}
                                                 >
                                                     <WorkspaceCard

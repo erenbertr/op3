@@ -441,12 +441,34 @@ class ApiClient {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
+
+                // Handle authentication errors (401)
+                if (response.status === 401) {
+                    console.warn('Authentication failed, clearing stored credentials');
+                    // Clear authentication data
+                    if (typeof window !== 'undefined') {
+                        localStorage.removeItem('op3_auth_token');
+                        localStorage.removeItem('op3_auth_user');
+                    }
+
+                    // Redirect to login page by reloading the app
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/';
+                    }
+
+                    throw new Error('Authentication required');
+                }
+
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
             const result = await response.json();
             return result;
         } catch (error) {
+            // Re-throw authentication errors as-is
+            if (error instanceof Error && error.message === 'Authentication required') {
+                throw error;
+            }
             throw error;
         }
     }
@@ -729,6 +751,23 @@ class ApiClient {
         });
 
         if (!response.ok) {
+            // Handle authentication errors (401)
+            if (response.status === 401) {
+                console.warn('Authentication failed in file upload, clearing stored credentials');
+                // Clear authentication data
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('op3_auth_token');
+                    localStorage.removeItem('op3_auth_user');
+                }
+
+                // Redirect to login page by reloading the app
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/';
+                }
+
+                throw new Error('Authentication required');
+            }
+
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
@@ -788,6 +827,23 @@ class ApiClient {
             });
 
             if (!response.ok) {
+                // Handle authentication errors (401)
+                if (response.status === 401) {
+                    console.warn('Authentication failed in streaming, clearing stored credentials');
+                    // Clear authentication data
+                    if (typeof window !== 'undefined') {
+                        localStorage.removeItem('op3_auth_token');
+                        localStorage.removeItem('op3_auth_user');
+                    }
+
+                    // Redirect to login page by reloading the app
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/';
+                    }
+
+                    throw new Error('Authentication required');
+                }
+
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 

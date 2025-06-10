@@ -8,34 +8,39 @@ export function useConstrainedDrag() {
 
         const constrainDraggedElements = () => {
             const draggedElements = document.querySelectorAll('[data-rbd-draggable-id][style*="position: fixed"]');
-            
+
             draggedElements.forEach((element) => {
                 const htmlElement = element as HTMLElement;
                 const style = htmlElement.style;
                 const transform = style.transform;
-                
+
                 if (transform && transform.includes('translate')) {
                     // Extract translate values using regex
                     const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
                     if (match) {
                         const x = parseFloat(match[1]);
                         const y = parseFloat(match[2]);
-                        
+
                         // Get element dimensions
                         const rect = htmlElement.getBoundingClientRect();
                         const elementWidth = rect.width;
-                        
-                        // Calculate viewport constraints
+
+                        // Calculate viewport constraints - allow more freedom
                         const viewportWidth = window.innerWidth;
-                        const margin = 20;
-                        
-                        // Calculate max X position (prevent going off right edge)
-                        const maxX = viewportWidth - elementWidth - margin;
-                        const minX = margin;
-                        
-                        // Constrain X position
-                        const constrainedX = Math.max(minX, Math.min(maxX, x));
-                        
+
+                        // Only constrain if going completely off-screen (very permissive)
+                        const allowedOffscreen = elementWidth * 0.8; // Allow 80% of element to go off-screen
+                        const maxX = viewportWidth - (elementWidth - allowedOffscreen);
+                        const minX = -allowedOffscreen;
+
+                        // Only constrain if really going too far off-screen
+                        let constrainedX = x;
+                        if (x > maxX) {
+                            constrainedX = maxX;
+                        } else if (x < minX) {
+                            constrainedX = minX;
+                        }
+
                         // Apply constrained transform if needed
                         if (constrainedX !== x) {
                             style.transform = `translate(${constrainedX}px, ${y}px)`;
@@ -43,7 +48,7 @@ export function useConstrainedDrag() {
                     }
                 }
             });
-            
+
             // Continue monitoring
             animationFrame = requestAnimationFrame(constrainDraggedElements);
         };
@@ -67,17 +72,17 @@ export function useConstrainedDrag() {
         // Also use MutationObserver as backup
         const observer = new MutationObserver((mutations) => {
             let shouldConstrain = false;
-            
+
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
                     const target = mutation.target as HTMLElement;
-                    if (target.hasAttribute('data-rbd-draggable-id') && 
+                    if (target.hasAttribute('data-rbd-draggable-id') &&
                         target.style.position === 'fixed') {
                         shouldConstrain = true;
                     }
                 }
             });
-            
+
             if (shouldConstrain) {
                 constrainDraggedElements();
             }

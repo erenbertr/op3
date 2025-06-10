@@ -93,7 +93,7 @@ export function WorkspaceGroupCard({
     };
 
     return (
-        <div className="transition-all duration-200">
+        <div className="workspace-group transition-all duration-200">
             <div className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
@@ -175,7 +175,7 @@ export function WorkspaceGroupCard({
                         <div
                             {...provided.droppableProps}
                             ref={provided.innerRef}
-                            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${snapshot.isDraggingOver
+                            className={`workspace-group-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${snapshot.isDraggingOver
                                 ? 'bg-primary/5 border-primary/30'
                                 : 'border-transparent'
                                 }`}
@@ -195,7 +195,7 @@ export function WorkspaceGroupCard({
                                             ref={provided.innerRef}
                                             {...provided.draggableProps}
                                             {...provided.dragHandleProps}
-                                            className={`transition-all ${snapshot.isDragging ? 'opacity-50 z-50 shadow-2xl scale-105' : ''}`}
+                                            className={`workspace-group-card transition-all ${snapshot.isDragging ? 'opacity-50 z-50 shadow-2xl scale-105' : ''}`}
                                             style={provided.draggableProps.style}
                                         >
                                             <WorkspaceCard
