@@ -53,6 +53,11 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
     useEffect(() => {
         if (!listRef.current) return;
 
+        // CRITICAL: Never recreate sortable during drag operations
+        if (isDragging) {
+            return;
+        }
+
         // Don't recreate sortable instance if one already exists and is initialized
         // This prevents interrupting ongoing drag operations
         if (sortableRef.current && isInitializedRef.current) {
@@ -100,7 +105,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                     try {
                         const { oldIndex, newIndex } = evt;
 
-                        // Reset drag state
+                        // Reset drag state FIRST
                         setIsDragging(false);
                         setDraggedItemId(null);
 
@@ -115,6 +120,9 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                         debouncedReorder(groupId, newIndex);
                     } catch (error) {
                         handleSortableError(error, 'onEnd');
+                        // Ensure drag state is reset even on error
+                        setIsDragging(false);
+                        setDraggedItemId(null);
                     }
                 }
             });
@@ -138,7 +146,32 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [debouncedReorder, handleSortableError]); // Removed groups, onGroupReorder, and isDragging from dependencies
+    }, [debouncedReorder, handleSortableError, isDragging]); // Re-added isDragging to allow recreation after drag ends
+
+    // Separate effect to handle data changes after drag operations complete
+    useEffect(() => {
+        if (!isDragging && sortableRef.current && listRef.current && groups.length > 0) {
+            // Force a recreation if groups have changed significantly after drag ends
+            // This ensures the sortable instance stays in sync with React's virtual DOM
+            const domElements = Array.from(listRef.current.children);
+            const currentItems = domElements.map(el => el.getAttribute('data-group-id')).filter(Boolean);
+            const expectedItems = groups.map(g => g.id);
+
+            // Check if the DOM and data are out of sync
+            const isOutOfSync = currentItems.length !== expectedItems.length ||
+                currentItems.some((id, index) => id !== expectedItems[index]);
+
+            if (isOutOfSync) {
+                try {
+                    sortableRef.current.destroy();
+                    sortableRef.current = null;
+                    isInitializedRef.current = false;
+                } catch (error) {
+                    console.warn('Error destroying out-of-sync sortable instance:', error);
+                }
+            }
+        }
+    }, [groups, isDragging]); // Only run when groups change and not dragging
 
     return (
         <div ref={listRef} className={`space-y-2 ${isDragging ? 'pointer-events-none' : ''}`}>
