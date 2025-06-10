@@ -271,7 +271,7 @@ export function ChatMessageList({
             style={{
                 opacity: isVisible ? 1 : 0,
                 userSelect: isVisible ? 'auto' : 'none',
-                transition: 'opacity 0.3s ease-in-out',
+                transition: isVisible ? 'opacity 0.3s ease-in-out' : 'none',
                 pointerEvents: isVisible ? 'auto' : 'none'
             }}
         >
