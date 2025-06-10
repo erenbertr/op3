@@ -55,13 +55,16 @@ export class OpenAIFileService {
      */
     public async uploadFile(request: CreateFileAttachmentRequest): Promise<CreateFileAttachmentResponse> {
         try {
+            console.log('OpenAI File Service: Starting file upload for user:', request.userId);
             const openai = this.getOpenAIClient(request.userId);
             if (!openai) {
+                console.log('OpenAI File Service: No active OpenAI provider found');
                 return {
                     success: false,
                     message: 'No active OpenAI provider found'
                 };
             }
+            console.log('OpenAI File Service: OpenAI client obtained successfully');
 
             // Create unique filename
             const fileExtension = path.extname(request.file.originalname);

@@ -717,7 +717,7 @@ class ApiClient {
         // Special handling for file uploads - don't use the standard request method
         const token = typeof window !== 'undefined' ? localStorage.getItem('op3_auth_token') : null;
 
-        const response = await fetch(`${this.baseURL}/files/sessions/${sessionId}/upload`, {
+        const response = await fetch(`${this.baseUrl}/files/sessions/${sessionId}/upload`, {
             method: 'POST',
             headers: {
                 'Authorization': token ? `Bearer ${token}` : '',
