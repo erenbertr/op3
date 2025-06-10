@@ -33,6 +33,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
     const queryClient = useQueryClient();
+    const [showNotFoundAfterDelay, setShowNotFoundAfterDelay] = useState(false);
 
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id, 'WorkspaceApplication');
@@ -91,6 +92,23 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         }
         return null;
     }, [workspacesResult, routeParams.workspaceId]);
+
+    // Handle delayed "not found" state to prevent flash during workspace creation
+    React.useEffect(() => {
+        if (currentView === 'workspace' && routeParams.workspaceId && !workspacesLoading && !currentWorkspace && !workspacesError) {
+            // Reset the timer when workspace ID changes
+            setShowNotFoundAfterDelay(false);
+
+            // Set a timer to show "not found" after 3 seconds
+            const timer = setTimeout(() => {
+                setShowNotFoundAfterDelay(true);
+            }, 3000);
+
+            return () => clearTimeout(timer);
+        } else {
+            setShowNotFoundAfterDelay(false);
+        }
+    }, [currentView, routeParams.workspaceId, workspacesLoading, currentWorkspace, workspacesError]);
 
     // Navigation functions using the new navigation utils
     const navigateToWorkspace = useCallback((workspaceId: string) => {
@@ -221,13 +239,13 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                     </Button>
                                 </div>
                             </div>
-                        ) : (
-                            /* Show workspace not found state */
+                        ) : showNotFoundAfterDelay ? (
+                            /* Show workspace not found state only after delay */
                             <div className="h-full flex items-center justify-center">
                                 <div className="text-center space-y-4 max-w-md">
                                     <h2 className="text-2xl font-bold">Workspace Not Found</h2>
                                     <p className="text-muted-foreground">
-                                        The workspace you're looking for doesn't exist or hasn't loaded yet.
+                                        The workspace you're looking for doesn't exist or you don't have access to it.
                                     </p>
                                     <div className="flex gap-2 justify-center">
                                         <Button
@@ -242,6 +260,14 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                             Back to Workspaces
                                         </Button>
                                     </div>
+                                </div>
+                            </div>
+                        ) : (
+                            /* Show loading state to prevent flash during workspace creation */
+                            <div className="h-full flex items-center justify-center">
+                                <div className="text-center space-y-4">
+                                    <Loader2 className="h-8 w-8 animate-spin mx-auto opacity-50" />
+                                    <p className="text-muted-foreground">Loading workspace...</p>
                                 </div>
                             </div>
                         )}
@@ -280,18 +306,28 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                             <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
                             <WorkspaceSetup
                                 userId={currentUser.id}
-                                onComplete={(workspace) => {
+                                onComplete={async (workspace) => {
                                     if (workspace) {
-                                        // Add a small delay to ensure workspace data is properly invalidated and refetched
-                                        setTimeout(() => {
-                                            // Use openWorkspace to add the workspace to tabs and navigate
-                                            if (openWorkspaceRef.current) {
-                                                openWorkspaceRef.current(workspace.id);
-                                            } else {
-                                                // Fallback to regular navigation if openWorkspace is not available
-                                                navigateToWorkspace(workspace.id);
-                                            }
-                                        }, 100);
+                                        // Invalidate workspace cache immediately
+                                        queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
+
+                                        // Wait for the workspace data to be refetched
+                                        try {
+                                            await queryClient.refetchQueries({
+                                                queryKey: ['workspaces', 'user', currentUser.id],
+                                                type: 'active'
+                                            });
+                                        } catch (error) {
+                                            console.error('Error refetching workspace data:', error);
+                                        }
+
+                                        // Now navigate with the workspace data available
+                                        if (openWorkspaceRef.current) {
+                                            openWorkspaceRef.current(workspace.id);
+                                        } else {
+                                            // Fallback to regular navigation if openWorkspace is not available
+                                            navigateToWorkspace(workspace.id);
+                                        }
                                     } else {
                                         navigateToWorkspaceSelection();
                                     }
