@@ -7,6 +7,7 @@ import { apiClient } from '@/lib/api';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
+import { useWorkspaceGroups } from '@/lib/hooks/use-workspace-groups';
 
 interface WorkspaceTabBarProps {
     userId: string;
@@ -31,7 +32,16 @@ const OPEN_WORKSPACE_TABS_KEY = 'op3_open_workspace_tabs';
 export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWorkspaceId, onRefresh, onOpenWorkspace }: WorkspaceTabBarProps) {
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading, error } = useWorkspaces(userId);
-    const workspaces = React.useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
+    const { data: groupsResult } = useWorkspaceGroups(userId);
+
+    const allWorkspaces = React.useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
+    const groups = React.useMemo(() => groupsResult?.groups || [], [groupsResult]);
+
+    // Filter out workspaces that belong to pinned groups
+    const workspaces = React.useMemo(() => {
+        const pinnedGroupIds = new Set(groups.filter(group => group.isPinned).map(group => group.id));
+        return allWorkspaces.filter(workspace => !workspace.groupId || !pinnedGroupIds.has(workspace.groupId));
+    }, [allWorkspaces, groups]);
 
     const [openWorkspaceTabs, setOpenWorkspaceTabs] = useState<string[]>([]);
     const isMountedRef = useRef(false);
@@ -71,8 +81,13 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
             if (!isMountedRef.current) return;
 
             setOpenWorkspaceTabs(currentTabs => {
-                // Only initialize if we don't have any tabs yet and we have workspaces
-                if (currentTabs.length === 0 && workspaces.length > 0) {
+                // Filter current tabs to remove any that belong to pinned groups
+                const filteredCurrentTabs = currentTabs.filter(tabId =>
+                    workspaces.some(w => w.id === tabId)
+                );
+
+                // Only initialize if we don't have any valid tabs and we have workspaces
+                if (filteredCurrentTabs.length === 0 && workspaces.length > 0) {
                     const savedTabs = loadOpenTabs();
                     const validSavedTabs = savedTabs.filter((tabId: string) =>
                         workspaces.some(w => w.id === tabId)
@@ -82,11 +97,15 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         saveOpenTabs(validSavedTabs);
                         return validSavedTabs;
                     } else {
-                        // If no valid saved tabs, open all workspaces
+                        // If no valid saved tabs, open all available workspaces (excluding pinned group workspaces)
                         const allWorkspaceIds = workspaces.map(w => w.id);
                         saveOpenTabs(allWorkspaceIds);
                         return allWorkspaceIds;
                     }
+                } else if (filteredCurrentTabs.length !== currentTabs.length) {
+                    // Update tabs if some were filtered out due to pinned groups
+                    saveOpenTabs(filteredCurrentTabs);
+                    return filteredCurrentTabs;
                 }
                 return currentTabs;
             });
@@ -103,10 +122,25 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
 
     // Initialize open tabs when workspaces are loaded
     React.useEffect(() => {
-        if (workspaces.length > 0) {
+        if (workspaces.length >= 0) { // Changed to >= 0 to handle case when all workspaces are filtered out
             initializeOpenTabs(workspaces);
         }
     }, [workspaces, initializeOpenTabs]);
+
+    // Clean up open tabs when groups are pinned/unpinned
+    React.useEffect(() => {
+        setOpenWorkspaceTabs(currentTabs => {
+            const validTabs = currentTabs.filter(tabId =>
+                workspaces.some(w => w.id === tabId)
+            );
+
+            if (validTabs.length !== currentTabs.length) {
+                saveOpenTabs(validTabs);
+                return validTabs;
+            }
+            return currentTabs;
+        });
+    }, [workspaces, saveOpenTabs]);
 
     // Expose refresh function to parent
     React.useEffect(() => {
