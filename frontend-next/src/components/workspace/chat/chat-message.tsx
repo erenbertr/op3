@@ -24,6 +24,7 @@ interface ChatMessageProps {
 }
 
 export function ChatMessage({ message, personality, aiProvider, className, onRetry, onContinue }: ChatMessageProps) {
+    const [copyButtonText, setCopyButtonText] = useState('Copy');
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
@@ -68,25 +69,45 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                         remarkPlugins={[remarkGfm]} // Enable GitHub Flavored Markdown (tables, strikethrough, etc.)
                         components={{
                             // Custom renderer for links to open in new tab
-                            a: ({ ...props }: { [key: string]: unknown }) => (
+                            a: (props: React.DetailedHTMLProps<React.AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>) => (
                                 <a {...props} target="_blank" rel="noopener noreferrer" />
                             ),
                             // Custom renderer for code blocks
-                            code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children: React.ReactNode; [key: string]: unknown; }) => {
+                            code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children: React.ReactNode; [key: string]: unknown }) => {
                                 const match = /language-(\w+)/.exec(className || '');
-                                return !inline && match ? (
-                                    <SyntaxHighlighter
-                                        style={vscDarkPlus}
-                                        customStyle={{ margin: '0', padding: '1em' }} // Remove margin, ensure padding
-                                        language={match[1]}
-                                        PreTag="pre" // Use pre for semantic correctness and theme compatibility
-                                        className="not-prose" // Prevent prose styling interference
-                                        codeTagProps={{ style: { background: 'transparent', padding: '0', color: 'inherit' } }} // Neutralize prose, ensure text color
-                                        {...props} // Pass through other props like `key`
-                                    >
-                                        {String(children).replace(/\n$/, '')}
-                                    </SyntaxHighlighter>
-                                ) : (
+                                if (!inline && match) {
+                                    const codeString = String(children).replace(/\n$/, '');
+                                    return (
+                                        <div className="relative group bg-background/50 rounded-md overflow-hidden">
+                                            <SyntaxHighlighter
+                                                style={vscDarkPlus}
+                                                customStyle={{ margin: '0', padding: '1em', background: 'transparent' }} // Ensure highlighter background is transparent
+                                                language={match[1]}
+                                                PreTag="pre"
+                                                className="not-prose w-full"
+                                                codeTagProps={{ style: { background: 'transparent', padding: '0', color: 'inherit' } }}
+                                                {...props} // Pass through other props from react-markdown
+                                            >
+                                                {codeString}
+                                            </SyntaxHighlighter>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-md"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(codeString);
+                                                    setCopyButtonText('Copied!');
+                                                    setTimeout(() => setCopyButtonText('Copy'), 2000);
+                                                }}
+                                                title={copyButtonText}
+                                            >
+                                                {copyButtonText === 'Copy' ? <Copy size={14} /> : <Check size={14} />}
+                                            </Button>
+                                        </div>
+                                    );
+                                }
+                                // For inline code or if no language match
+                                return (
                                     <code className={className} {...props}>
                                         {children}
                                     </code>
