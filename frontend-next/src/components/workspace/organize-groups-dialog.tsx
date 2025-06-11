@@ -47,20 +47,12 @@ export function OrganizeGroupsDialog({
                 <div className="py-1">
                     {groups.length > 0 ? (
                         <div className="space-y-2">
-                            {groups.map((group, index) => (
+                            {groups.map((group) => (
                                 <div key={group.id} className="flex items-center gap-2 p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors">
                                     <Folder className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                        <span className="font-medium text-sm truncate block" title={group.name}>
-                                            {group.name}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
-                                        </span>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground flex-shrink-0">
-                                        #{index + 1}
-                                    </div>
+                                    <span className="font-medium text-sm truncate" title={group.name}>
+                                        {group.name}
+                                    </span>
                                 </div>
                             ))}
                         </div>
