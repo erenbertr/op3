@@ -155,10 +155,55 @@ export function useMoveWorkspaceToGroup() {
 }
 
 export function useMoveWorkspaceToGroupOptimistic() {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
             workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
-        // No automatic query invalidation - caller handles this manually
+
+        // Use React Query's optimistic updates
+        onMutate: async (variables) => {
+            // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+            await queryClient.cancelQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+            await queryClient.cancelQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+
+            // Snapshot the previous value
+            const previousWorkspaces = queryClient.getQueryData(['workspaces', 'user', variables.userId]);
+            const previousGroups = queryClient.getQueryData(['workspace-groups', 'user', variables.userId]);
+
+            // Optimistically update the cache
+            queryClient.setQueryData(['workspaces', 'user', variables.userId], (old: any) => {
+                if (!old?.workspaces) return old;
+
+                return {
+                    ...old,
+                    workspaces: old.workspaces.map((workspace: any) =>
+                        workspace.id === variables.workspaceId
+                            ? { ...workspace, groupId: variables.groupId, sortOrder: variables.sortOrder }
+                            : workspace
+                    )
+                };
+            });
+
+            // Return a context object with the snapshotted value
+            return { previousWorkspaces, previousGroups };
+        },
+
+        // If the mutation fails, use the context returned from onMutate to roll back
+        onError: (_, variables, context) => {
+            if (context?.previousWorkspaces) {
+                queryClient.setQueryData(['workspaces', 'user', variables.userId], context.previousWorkspaces);
+            }
+            if (context?.previousGroups) {
+                queryClient.setQueryData(['workspace-groups', 'user', variables.userId], context.previousGroups);
+            }
+        },
+
+        // Always refetch after error or success to ensure we have the latest data
+        onSettled: (_, __, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+        },
     });
 }
 

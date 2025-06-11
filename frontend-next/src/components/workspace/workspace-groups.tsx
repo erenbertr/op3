@@ -29,7 +29,6 @@ import {
     rectIntersection,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { useQueryClient } from '@tanstack/react-query';
 
 
 // Helper type, can be moved to a types file if needed
@@ -68,9 +67,6 @@ export function WorkspaceGroups({
     const [error, setError] = useState('');
     const [activeId, setActiveId] = useState<string | null>(null);
 
-    // Query client for manual invalidation
-    const queryClient = useQueryClient();
-
     // Configure sensors for drag and drop
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -96,16 +92,16 @@ export function WorkspaceGroups({
     const workspaces = useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
     const groups = useMemo(() => groupsResult?.groups || [], [groupsResult]);
 
-    // Local state for real-time drag feedback
+    // Local state for real-time drag feedback during drag operations only
     const [localWorkspaces, setLocalWorkspaces] = useState(workspaces);
-    const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
-    // Update local workspaces when props change, but only if not in optimistic update mode
+    // Update local workspaces when props change, but only when not dragging
     React.useEffect(() => {
-        if (!isOptimisticUpdate) {
+        if (!isDragging) {
             setLocalWorkspaces(workspaces);
         }
-    }, [workspaces, isOptimisticUpdate]);
+    }, [workspaces, isDragging]);
 
     // Organize workspaces by groups (using localWorkspaces for real-time updates)
     const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
@@ -139,6 +135,7 @@ export function WorkspaceGroups({
     // Global drag handlers for cross-group dragging
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
+        setIsDragging(true);
         console.log('Global drag started:', event.active.id);
     };
 
@@ -219,12 +216,12 @@ export function WorkspaceGroups({
         const { active, over } = event;
 
         setActiveId(null);
+        setIsDragging(false);
 
         if (!over) {
             console.log('Global drag ended: No drop target');
             // Reset local workspaces to original state
             setLocalWorkspaces(workspaces);
-            setIsOptimisticUpdate(false);
             return;
         }
 
@@ -240,7 +237,6 @@ export function WorkspaceGroups({
         if (!activeWorkspace || !overWorkspace) {
             // Reset local workspaces to original state
             setLocalWorkspaces(workspaces);
-            setIsOptimisticUpdate(false);
             return;
         }
 
@@ -259,15 +255,11 @@ export function WorkspaceGroups({
         if (currentGroupId !== targetGroupId || newIndex !== -1) {
             console.log('Moving workspace:', activeId, 'to group:', targetGroupId, 'at index:', newIndex);
 
-            // Enable optimistic update mode to prevent server data from overriding local state
-            setIsOptimisticUpdate(true);
-
-            // Make the API call with optimistic update handling
+            // Make the API call - React Query's optimistic updates will handle the rest
             handleWorkspaceMove(activeId, newIndex, targetGroupId);
         } else {
             // Reset local workspaces to original state if no actual move
             setLocalWorkspaces(workspaces);
-            setIsOptimisticUpdate(false);
         }
     };
 
@@ -280,42 +272,14 @@ export function WorkspaceGroups({
             return;
         }
 
-        try {
-            console.log('EXECUTING MUTATION - this may cause React Query invalidation');
-
-            // Use mutate instead of mutateAsync to handle callbacks properly
-            moveWorkspaceMutation.mutate({
-                userId,
-                workspaceId,
-                groupId: targetGroupId || null,
-                sortOrder: newIndex
-            }, {
-                onSuccess: () => {
-                    console.log('MUTATION COMPLETED - manually invalidating queries');
-                    // Manually invalidate queries after successful API call
-                    queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', userId] });
-                    queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', userId] });
-
-                    // Disable optimistic update mode after server data arrives
-                    setTimeout(() => {
-                        setIsOptimisticUpdate(false);
-                    }, 300); // Small delay to ensure server data has arrived
-                },
-                onError: (error: any) => {
-                    console.error('Error moving workspace:', error);
-                    // Reset to original state on error
-                    setLocalWorkspaces(workspaces);
-                    setIsOptimisticUpdate(false);
-                }
-            });
-
-        } catch (error) {
-            console.error('Error moving workspace:', error);
-            // Reset to original state on error
-            setLocalWorkspaces(workspaces);
-            setIsOptimisticUpdate(false);
-        }
-    }, [userId, moveWorkspaceMutation, workspaces, setIsOptimisticUpdate]);
+        // Use React Query's optimistic updates - no manual state management needed
+        moveWorkspaceMutation.mutate({
+            userId,
+            workspaceId,
+            groupId: targetGroupId || null,
+            sortOrder: newIndex
+        });
+    }, [userId, moveWorkspaceMutation]);
 
     const handleWorkspaceSelect = async (workspace: Workspace) => {
         const workspaceId = workspace.id;
