@@ -9,8 +9,11 @@ import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
 import { FileAttachmentDisplay } from './file-attachment-display';
 
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import ReactMarkdown, { Components } from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
+import { CodeProps } from 'react-markdown/lib/ast-to-react';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -57,35 +60,40 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
         }
     };
 
-    // Convert markdown to HTML and sanitize for AI messages
+    // Convert markdown to HTML for AI messages, with syntax highlighting for code blocks
     const renderContent = () => {
         if (isAssistant) {
-            // Convert markdown to HTML first (using sync version)
-            const htmlContent = marked.parse(message.content, {
-                breaks: true, // Convert line breaks to <br>
-                gfm: true, // GitHub Flavored Markdown
-            }) as string;
-
-            // Sanitize HTML content for AI messages
-            const sanitizedHTML = DOMPurify.sanitize(htmlContent, {
-                ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
-                ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
-                HOOKS: {
-                    afterSanitizeAttributes: function (node) {
-                        // Add target="_blank" and rel="noopener noreferrer" to all links
-                        if (node.tagName === 'A' && node.hasAttribute('href')) {
-                            node.setAttribute('target', '_blank');
-                            node.setAttribute('rel', 'noopener noreferrer');
-                        }
-                    }
-                }
-            });
-
             return (
-                <div
+                <ReactMarkdown
                     className="prose prose-sm max-w-none dark:prose-invert"
-                    dangerouslySetInnerHTML={{ __html: sanitizedHTML }}
-                />
+                    remarkPlugins={[remarkGfm]} // Enable GitHub Flavored Markdown (tables, strikethrough, etc.)
+                    components={{
+                        // Custom renderer for links to open in new tab
+                        a: ({node: _node, ...props}) => (
+                            <a {...props} target="_blank" rel="noopener noreferrer" />
+                        ),
+                        // Custom renderer for code blocks
+                        code: ({node: _node, inline, className, children, ...props}: CodeProps) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            return !inline && match ? (
+                                <SyntaxHighlighter
+                                    style={vscDarkPlus}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    {...props} // Pass through other props like `key`
+                                >
+                                    {String(children).replace(/\n$/, '')}
+                                </SyntaxHighlighter>
+                            ) : (
+                                <code className={className} {...props}>
+                                    {children}
+                                </code>
+                            );
+                        }
+                    } as Components}
+                >
+                    {message.content}
+                </ReactMarkdown>
             );
         } else {
             // Plain text for user messages
