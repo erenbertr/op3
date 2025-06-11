@@ -64,7 +64,7 @@ function SortableGroupItem({
             data-group-id={group.id}
         >
             <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="px-3 py-1.5">
+                <CardContent className="px-3 py-1">
                     <div className="flex items-center gap-2">
                         <div
                             className="drag-handle cursor-grab hover:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
@@ -163,7 +163,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 {activeId ? (
                     <div className="opacity-80">
                         <Card className="hover:shadow-md transition-shadow">
-                            <CardContent className="px-3 py-1.5">
+                            <CardContent className="px-3 py-1">
                                 <div className="flex items-center gap-2">
                                     <GripVertical className="h-3 w-3 text-muted-foreground" />
                                     <Folder className="h-3 w-3 text-muted-foreground" />
