@@ -95,13 +95,14 @@ export function WorkspaceGroups({
     // Local state for real-time drag feedback during drag operations only
     const [localWorkspaces, setLocalWorkspaces] = useState(workspaces);
     const [isDragging, setIsDragging] = useState(false);
+    const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
 
-    // Update local workspaces when props change, but only when not dragging
+    // Update local workspaces when props change, but only when not dragging and no pending moves
     React.useEffect(() => {
-        if (!isDragging) {
+        if (!isDragging && !pendingMoveId) {
             setLocalWorkspaces(workspaces);
         }
-    }, [workspaces, isDragging]);
+    }, [workspaces, isDragging, pendingMoveId]);
 
     // Organize workspaces by groups (using localWorkspaces for real-time updates)
     const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
@@ -274,6 +275,9 @@ export function WorkspaceGroups({
         if (hasGroupChanged || hasPositionChanged) {
             console.log('Moving workspace:', activeId, 'to group:', targetGroupId, 'at final index:', finalIndex);
 
+            // Set pending move to prevent local state from being overwritten
+            setPendingMoveId(activeId);
+
             // Make the API call with the final position
             handleWorkspaceMove(activeId, finalIndex, targetGroupId);
         } else {
@@ -297,8 +301,22 @@ export function WorkspaceGroups({
             workspaceId,
             groupId: targetGroupId || null,
             sortOrder: newIndex
+        }, {
+            onSuccess: () => {
+                console.log('✅ Workspace move completed successfully');
+                // Clear pending move to allow local state to sync with server
+                setTimeout(() => {
+                    setPendingMoveId(null);
+                }, 200); // Small delay to ensure server data has been refetched
+            },
+            onError: (error) => {
+                console.error('❌ Workspace move failed:', error);
+                // Clear pending move and reset to server state
+                setPendingMoveId(null);
+                setLocalWorkspaces(workspaces);
+            }
         });
-    }, [userId, moveWorkspaceMutation]);
+    }, [userId, moveWorkspaceMutation, setPendingMoveId, workspaces]);
 
     const handleWorkspaceSelect = async (workspace: Workspace) => {
         const workspaceId = workspace.id;
