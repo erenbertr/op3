@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 import { WorkspaceTemplate } from '@/lib/api';
 import { useCreateWorkspace } from '@/lib/hooks/use-query-hooks';
+import { useMoveWorkspaceToGroup } from '@/lib/hooks/use-workspace-groups';
 import { MessageSquare, Kanban, Network } from 'lucide-react';
 
 interface WorkspaceSetupProps {
     onComplete?: (workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => void;
     userId: string;
+    groupId?: string | null;
 }
 
 interface TemplateOption {
@@ -23,13 +25,14 @@ interface TemplateOption {
     icon: React.ReactNode;
 }
 
-export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
+export function WorkspaceSetup({ onComplete, userId, groupId }: WorkspaceSetupProps) {
     const [workspaceName, setWorkspaceName] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState<WorkspaceTemplate | null>(null);
     const [workspaceRules, setWorkspaceRules] = useState('');
     const [error, setError] = useState('');
 
     const createWorkspaceMutation = useCreateWorkspace();
+    const moveWorkspaceMutation = useMoveWorkspaceToGroup();
 
     const templateOptions: TemplateOption[] = [
         {
@@ -74,7 +77,22 @@ export function WorkspaceSetup({ onComplete, userId }: WorkspaceSetupProps) {
                 userId
             });
 
-            if (result.success) {
+            if (result.success && result.workspace) {
+                // If groupId is specified, move the workspace to that group
+                if (groupId) {
+                    try {
+                        await moveWorkspaceMutation.mutateAsync({
+                            userId,
+                            workspaceId: result.workspace.id,
+                            groupId,
+                            sortOrder: 0 // Place at the beginning of the group
+                        });
+                    } catch (moveError) {
+                        console.error('Error moving workspace to group:', moveError);
+                        // Don't fail the creation if group assignment fails
+                    }
+                }
+
                 onComplete?.(result.workspace);
             } else {
                 setError(result.message || 'Failed to create workspace');

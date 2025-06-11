@@ -526,6 +526,14 @@ export function WorkspaceGroups({
         }
     };
 
+    const handleAddWorkspace = useCallback((groupId: string | null) => {
+        // Navigate to workspace creation with group context
+        const url = groupId
+            ? `/add/workspace?groupId=${groupId}`
+            : '/add/workspace';
+        navigationUtils.pushState(url);
+    }, []);
+
     const handleWorkspaceMove = useCallback(async (workspaceId: string, newIndex: number, targetGroupId?: string | null) => {
         console.log('🚀 API CALL - Moving workspace:', { workspaceId, targetGroupId, newIndex });
 
@@ -748,6 +756,7 @@ export function WorkspaceGroups({
                             onWorkspaceEdit={handleEditWorkspace}
                             onWorkspaceDelete={handleDeleteWorkspace}
                             onWorkspaceMove={handleWorkspaceMove}
+                            onAddWorkspace={handleAddWorkspace}
                             groupId={null}
                             className="border-transparent hover:border-border"
                         />
@@ -764,6 +773,7 @@ export function WorkspaceGroups({
                                 onWorkspaceEdit={handleEditWorkspace}
                                 onWorkspaceDelete={handleDeleteWorkspace}
                                 onWorkspaceMove={handleWorkspaceMove}
+                                onAddWorkspace={handleAddWorkspace}
                                 currentWorkspaceId={currentWorkspaceId}
                                 userId={userId}
                             />

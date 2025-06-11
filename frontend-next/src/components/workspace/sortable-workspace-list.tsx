@@ -9,6 +9,7 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { WorkspaceCard } from './workspace-card';
+import { Plus } from 'lucide-react';
 
 interface Workspace {
     id: string;
@@ -28,6 +29,7 @@ interface SortableWorkspaceListProps {
     onWorkspaceEdit: (workspace: Workspace) => void;
     onWorkspaceDelete: (workspace: Workspace) => void;
     onWorkspaceMove: (workspaceId: string, newIndex: number, targetGroupId?: string | null) => void;
+    onAddWorkspace?: (groupId: string | null) => void;
     groupId?: string | null;
     className?: string;
 }
@@ -82,6 +84,21 @@ function SortableWorkspaceItem({
     );
 }
 
+// Add Workspace Card component
+function AddWorkspaceCard({ groupId, onAddWorkspace }: { groupId: string | null; onAddWorkspace?: (groupId: string | null) => void }) {
+    return (
+        <div
+            onClick={() => onAddWorkspace?.(groupId)}
+            className="workspace-card-inner bg-white/50 border border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all opacity-60 hover:opacity-80"
+        >
+            <div className="flex flex-col items-center justify-center h-full min-h-[80px] text-muted-foreground">
+                <Plus className="h-6 w-6 mb-2" />
+                <span className="text-sm font-medium">Add Workspace</span>
+            </div>
+        </div>
+    );
+}
+
 export function SortableWorkspaceList({
     workspaces,
     currentWorkspaceId,
@@ -89,6 +106,7 @@ export function SortableWorkspaceList({
     onWorkspaceEdit,
     onWorkspaceDelete,
     onWorkspaceMove: _onWorkspaceMove, // Handled by parent DndContext
+    onAddWorkspace,
     groupId = null,
     className = ""
 }: SortableWorkspaceListProps) {
@@ -127,6 +145,14 @@ export function SortableWorkspaceList({
                         isDragging={false}
                     />
                 ))}
+
+                {/* Add Workspace Card */}
+                {onAddWorkspace && (
+                    <AddWorkspaceCard
+                        groupId={groupId}
+                        onAddWorkspace={onAddWorkspace}
+                    />
+                )}
 
                 {/* Always maintain a shadow element to prevent DOM errors and ensure droppability */}
                 <div
