@@ -16,7 +16,6 @@ import {
     SortableContext,
     verticalListSortingStrategy,
     useSortable,
-    arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
@@ -63,22 +62,21 @@ function SortableGroupItem({
             ref={setNodeRef}
             style={style}
             data-group-id={group.id}
-            className="mb-4"
         >
             <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
+                <CardContent className="p-3">
+                    <div className="flex items-center gap-2">
                         <div
                             className="drag-handle cursor-grab hover:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
                             {...attributes}
                             {...listeners}
                         >
-                            <GripVertical className="h-4 w-4" />
+                            <GripVertical className="h-3 w-3" />
                         </div>
-                        <Folder className="h-4 w-4 text-muted-foreground" />
+                        <Folder className="h-3 w-3 text-muted-foreground" />
                         <div className="flex-1">
-                            <h3 className="font-medium">{group.name}</h3>
-                            <p className="text-sm text-muted-foreground">
+                            <h3 className="font-medium text-sm">{group.name}</h3>
+                            <p className="text-xs text-muted-foreground">
                                 {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
                             </p>
                         </div>
@@ -91,12 +89,7 @@ function SortableGroupItem({
 
 export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
-    const [localGroups, setLocalGroups] = useState(groups);
-
-    // Update local groups when props change
-    React.useEffect(() => {
-        setLocalGroups(groups);
-    }, [groups]);
+    // Use groups directly from props for immediate updates
 
     // Configure sensors for drag and drop
     const sensors = useSensors(
@@ -114,22 +107,9 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
     };
 
     // Handle drag over for smooth sorting
-    const handleDragOver = (event: DragOverEvent) => {
-        const { active, over } = event;
-
-        if (!over) return;
-
-        const activeId = active.id as string;
-        const overId = over.id as string;
-
-        if (activeId !== overId) {
-            const activeIndex = localGroups.findIndex(group => group.id === activeId);
-            const overIndex = localGroups.findIndex(group => group.id === overId);
-
-            if (activeIndex !== -1 && overIndex !== -1) {
-                setLocalGroups(prev => arrayMove(prev, activeIndex, overIndex));
-            }
-        }
+    const handleDragOver = (_event: DragOverEvent) => {
+        // Visual feedback is handled by @dnd-kit automatically
+        // No need to update local state during drag over
     };
 
     // Handle drag end
@@ -140,7 +120,6 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
 
         if (!over) {
             console.log('Group drag ended: No drop target');
-            setLocalGroups(groups); // Reset to original order
             return;
         }
 
@@ -148,18 +127,16 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
         const overId = over.id as string;
 
         if (activeId !== overId) {
-            const oldIndex = groups.findIndex(group => group.id === activeId);
-            const newIndex = localGroups.findIndex(group => group.id === overId);
+            const oldIndex = groups.findIndex((group: WorkspaceGroup) => group.id === activeId);
+            const newIndex = groups.findIndex((group: WorkspaceGroup) => group.id === overId);
 
             console.log(`Moving group ${activeId} from ${oldIndex} to ${newIndex}`);
             onGroupReorder(activeId, newIndex);
-        } else {
-            setLocalGroups(groups); // Reset if no actual move
         }
     };
 
     // Get group IDs for sortable context
-    const groupIds = localGroups.map(g => g.id);
+    const groupIds = groups.map((g: WorkspaceGroup) => g.id);
 
 
 
@@ -174,8 +151,8 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             onDragEnd={handleDragEnd}
         >
             <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
-                <div className="space-y-1.5">
-                    {localGroups.map((group) => (
+                <div className="space-y-1">
+                    {groups.map((group: WorkspaceGroup) => (
                         <SortableGroupItem
                             key={group.id}
                             group={group}
@@ -189,15 +166,15 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 {activeId ? (
                     <div className="opacity-80">
                         <Card className="hover:shadow-md transition-shadow">
-                            <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                    <Folder className="h-4 w-4 text-muted-foreground" />
+                            <CardContent className="p-3">
+                                <div className="flex items-center gap-2">
+                                    <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                    <Folder className="h-3 w-3 text-muted-foreground" />
                                     <div className="flex-1">
-                                        <h3 className="font-medium">
+                                        <h3 className="font-medium text-sm">
                                             {groups.find(g => g.id === activeId)?.name}
                                         </h3>
-                                        <p className="text-sm text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                             {groups.find(g => g.id === activeId)?.workspaceCount} workspace
                                             {groups.find(g => g.id === activeId)?.workspaceCount !== 1 ? 's' : ''}
                                         </p>

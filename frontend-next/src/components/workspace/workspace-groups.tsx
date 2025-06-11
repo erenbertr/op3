@@ -851,6 +851,7 @@ export function WorkspaceGroups({
             {showOrganizeGroups && (
                 <OrganizeGroupsDialog
                     groups={groups}
+                    userId={userId}
                     onClose={() => setShowOrganizeGroups(false)}
                 />
             )}

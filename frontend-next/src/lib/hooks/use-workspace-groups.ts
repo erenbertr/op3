@@ -140,6 +140,22 @@ export function useReorderWorkspaceGroups() {
     });
 }
 
+export function useReorderWorkspaceGroupsOptimistic() {
+    return useMutation({
+        mutationFn: ({ userId, ...data }: { userId: string } & ReorderGroupsRequest) =>
+            workspaceGroupsApi.reorderGroups(userId, data),
+
+        // No automatic refetching - let the component handle state updates manually
+        onSuccess: () => {
+            console.log('✅ Group reorder API call completed successfully');
+        },
+
+        onError: (error) => {
+            console.error('❌ Error reordering groups:', error);
+        },
+    });
+}
+
 export function useMoveWorkspaceToGroup() {
     const queryClient = useQueryClient();
 
