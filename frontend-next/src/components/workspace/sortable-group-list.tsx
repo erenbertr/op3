@@ -53,14 +53,8 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
     useEffect(() => {
         if (!listRef.current) return;
 
-        // CRITICAL: Never recreate sortable during drag operations
+        // Don't recreate during drag operations
         if (isDragging) {
-            return;
-        }
-
-        // Don't recreate sortable instance if one already exists and is initialized
-        // This prevents interrupting ongoing drag operations
-        if (sortableRef.current && isInitializedRef.current) {
             return;
         }
 
@@ -69,7 +63,6 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             try {
                 sortableRef.current.destroy();
             } catch (error) {
-                // Ignore errors during destroy - the instance might already be invalid
                 console.warn('Error destroying sortable instance:', error);
             }
             sortableRef.current = null;
@@ -78,55 +71,45 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
 
         // Create new sortable instance
         try {
+            console.log('Creating sortable instance for groups');
             sortableRef.current = Sortable.create(listRef.current, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 chosenClass: 'sortable-chosen',
                 dragClass: 'sortable-drag',
-                handle: '.drag-handle', // Keep drag handle for groups since they don't have click functionality
+                handle: '.drag-handle',
                 forceFallback: true,
                 fallbackClass: 'sortable-fallback',
                 onStart: (evt) => {
-                    try {
-                        const groupId = evt.item.getAttribute('data-group-id');
-                        if (groupId && !isDragging) { // Only start if not already dragging
-                            setIsDragging(true);
-                            setDraggedItemId(groupId);
-                        } else if (isDragging) {
-                            // Cancel this drag if another is in progress
-                            evt.preventDefault();
-                            return false;
-                        }
-                    } catch (error) {
-                        handleSortableError(error, 'onStart');
+                    console.log('Group drag started');
+                    const groupId = evt.item.getAttribute('data-group-id');
+                    if (groupId) {
+                        setIsDragging(true);
+                        setDraggedItemId(groupId);
                     }
                 },
                 onEnd: (evt) => {
-                    try {
-                        const { oldIndex, newIndex } = evt;
+                    console.log('Group drag ended');
+                    const { oldIndex, newIndex } = evt;
 
-                        // Reset drag state FIRST
-                        setIsDragging(false);
-                        setDraggedItemId(null);
+                    // Reset drag state
+                    setIsDragging(false);
+                    setDraggedItemId(null);
 
-                        if (oldIndex === undefined || newIndex === undefined) return;
-                        if (oldIndex === newIndex) return; // No actual move
+                    if (oldIndex === undefined || newIndex === undefined) return;
+                    if (oldIndex === newIndex) return; // No actual move
 
-                        // Get the group ID from the dragged element
-                        const groupId = evt.item.getAttribute('data-group-id');
-                        if (!groupId) return;
+                    // Get the group ID from the dragged element
+                    const groupId = evt.item.getAttribute('data-group-id');
+                    if (!groupId) return;
 
-                        // Call the debounced reorder handler
-                        debouncedReorder(groupId, newIndex);
-                    } catch (error) {
-                        handleSortableError(error, 'onEnd');
-                        // Ensure drag state is reset even on error
-                        setIsDragging(false);
-                        setDraggedItemId(null);
-                    }
+                    console.log(`Moving group ${groupId} from ${oldIndex} to ${newIndex}`);
+                    // Call the debounced reorder handler
+                    debouncedReorder(groupId, newIndex);
                 }
             });
             isInitializedRef.current = true;
+            console.log('Sortable instance created successfully');
         } catch (error) {
             console.error('Error creating sortable instance:', error);
             isInitializedRef.current = false;
@@ -137,7 +120,6 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 try {
                     sortableRef.current.destroy();
                 } catch (error) {
-                    // Ignore errors during cleanup
                     console.warn('Error during sortable cleanup:', error);
                 }
                 sortableRef.current = null;
@@ -146,56 +128,33 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [debouncedReorder, handleSortableError, isDragging]); // Re-added isDragging to allow recreation after drag ends
+    }, [groups.length, debouncedReorder]); // Only depend on groups length, not the full array
 
-    // Separate effect to handle data changes after drag operations complete
-    useEffect(() => {
-        if (!isDragging && sortableRef.current && listRef.current && groups.length > 0) {
-            // Force a recreation if groups have changed significantly after drag ends
-            // This ensures the sortable instance stays in sync with React's virtual DOM
-            const domElements = Array.from(listRef.current.children);
-            const currentItems = domElements.map(el => el.getAttribute('data-group-id')).filter(Boolean);
-            const expectedItems = groups.map(g => g.id);
 
-            // Check if the DOM and data are out of sync
-            const isOutOfSync = currentItems.length !== expectedItems.length ||
-                currentItems.some((id, index) => id !== expectedItems[index]);
-
-            if (isOutOfSync) {
-                try {
-                    sortableRef.current.destroy();
-                    sortableRef.current = null;
-                    isInitializedRef.current = false;
-                } catch (error) {
-                    console.warn('Error destroying out-of-sync sortable instance:', error);
-                }
-            }
-        }
-    }, [groups, isDragging]); // Only run when groups change and not dragging
 
     return (
-        <div ref={listRef} className={`space-y-2 ${isDragging ? 'pointer-events-none' : ''}`}>
+        <div ref={listRef} className={`space-y-1.5 ${isDragging ? 'pointer-events-none' : ''}`}>
             {groups.map((group) => (
                 <Card
                     key={group.id}
                     data-group-id={group.id}
                     className={`transition-all duration-200 ${draggedItemId === group.id ? 'opacity-50' : ''}`}
                 >
-                    <CardContent className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="drag-handle cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
-                                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <CardContent className="p-2.5">
+                        <div className="flex items-center gap-2.5">
+                            <div className="drag-handle cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded">
+                                <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
                             </div>
 
-                            <div className="p-2 rounded-full bg-muted text-muted-foreground">
-                                <Folder className="h-4 w-4" />
+                            <div className="p-1.5 rounded-full bg-muted text-muted-foreground">
+                                <Folder className="h-3.5 w-3.5" />
                             </div>
 
                             <div className="flex-1 min-w-0">
-                                <h4 className="font-medium truncate min-w-0" title={group.name}>
+                                <h4 className="font-medium truncate min-w-0 text-sm" title={group.name}>
                                     {group.name}
                                 </h4>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs text-muted-foreground">
                                     {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
                                 </p>
                             </div>

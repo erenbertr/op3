@@ -800,12 +800,12 @@ export class WorkspaceService {
             }
 
             // If the deleted workspace was active, make another workspace active
-            if (workspaceToDelete?.isActive) {
-                const remainingWorkspaces = await this.getUserWorkspaces(userId);
-                if (remainingWorkspaces.workspaces.length > 0) {
-                    await this.setActiveWorkspace(remainingWorkspaces.workspaces[0].id, userId);
-                }
-            }
+            // if (workspaceToDelete?.isActive) {
+            //     const remainingWorkspaces = await this.getUserWorkspaces(userId);
+            //     if (remainingWorkspaces.workspaces.length > 0) {
+            //         await this.setActiveWorkspace(remainingWorkspaces.workspaces[0].id, userId);
+            //     }
+            // }
 
             return {
                 success: true,
