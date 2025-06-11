@@ -6,6 +6,7 @@ import {
     rectSortingStrategy,
     useSortable,
 } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { WorkspaceCard } from './workspace-card';
 
@@ -94,12 +95,26 @@ export function SortableWorkspaceList({
     // Get workspace IDs for sortable context
     const workspaceIds = workspaces.map(w => w.id);
 
+    // Make this container droppable
+    const droppableId = `droppable-${groupId || 'ungrouped'}`;
+    const { setNodeRef, isOver } = useDroppable({
+        id: droppableId,
+        data: {
+            type: 'container',
+            groupId: groupId
+        }
+    });
+
+
+
     return (
         <SortableContext items={workspaceIds} strategy={rectSortingStrategy}>
             <div
-                id={`droppable-${groupId || 'ungrouped'}`}
+                ref={setNodeRef}
+                id={droppableId}
                 data-group-id={groupId}
-                className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className}`}
+                className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className} ${isOver ? 'border-primary bg-primary/5' : ''
+                    }`}
             >
                 {workspaces.map((workspace) => (
                     <SortableWorkspaceItem
@@ -112,6 +127,17 @@ export function SortableWorkspaceList({
                         isDragging={false}
                     />
                 ))}
+
+                {/* Always maintain a shadow element to prevent DOM errors and ensure droppability */}
+                <div
+                    className={`${workspaces.length === 0
+                        ? 'flex items-center justify-center h-20 text-muted-foreground text-sm'
+                        : 'hidden'
+                        }`}
+                    style={{ pointerEvents: 'none' }}
+                >
+                    {workspaces.length === 0 ? 'Drop workspaces here' : ''}
+                </div>
             </div>
         </SortableContext>
     );

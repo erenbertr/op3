@@ -155,23 +155,17 @@ export function useMoveWorkspaceToGroup() {
 }
 
 export function useMoveWorkspaceToGroupOptimistic() {
-    const queryClient = useQueryClient();
-
     return useMutation({
         mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
             workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
 
-        // Simple approach: just invalidate queries after a short delay to allow backend processing
-        onSuccess: (_, variables) => {
-            // Small delay to ensure backend has processed the change
-            setTimeout(() => {
-                queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
-                queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
-            }, 100);
+        // No automatic refetching - let the component handle state updates manually
+        onSuccess: () => {
+            console.log('✅ Workspace move API call completed successfully');
         },
 
         onError: (error) => {
-            console.error('Error moving workspace:', error);
+            console.error('❌ Error moving workspace:', error);
         },
     });
 }

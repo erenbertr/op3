@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import { WorkspaceGroupCard } from './workspace-group-card';
 import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { SortableWorkspaceList } from './sortable-workspace-list';
+
 import { navigationUtils } from '@/lib/hooks/use-pathname';
 import {
     DndContext,
@@ -65,7 +66,8 @@ export function WorkspaceGroups({
     const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
     const [error, setError] = useState('');
-    const [activeId, setActiveId] = useState<string | null>(null);
+
+
 
     // Configure sensors for drag and drop
     const sensors = useSensors(
@@ -80,40 +82,176 @@ export function WorkspaceGroups({
 
 
 
-    // Queries
-    const { data: workspacesResult, isLoading: workspacesLoading } = useWorkspaces(userId, 'WorkspaceGroups');
+    // Queries with debugging
+    const { data: workspacesResult, isLoading: workspacesLoading, dataUpdatedAt } = useWorkspaces(userId, 'WorkspaceGroups');
     const { data: groupsResult, isLoading: groupsLoading } = useWorkspaceGroups(userId);
+
+    // CRITICAL DEBUG: Track when React Query refetches data
+    console.log('🔄 REACT QUERY DEBUG:', {
+        dataUpdatedAt: new Date(dataUpdatedAt).toISOString(),
+        workspacesLoading,
+        timestamp: new Date().toISOString()
+    });
 
     // Mutations
     const moveWorkspaceMutation = useMoveWorkspaceToGroupOptimistic();
     const updateWorkspaceMutation = useUpdateWorkspace();
     const deleteWorkspaceMutation = useDeleteWorkspace();
 
-    const workspaces = useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
+    const serverWorkspaces = useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
     const groups = useMemo(() => groupsResult?.groups || [], [groupsResult]);
 
-    // Local state for real-time drag feedback during drag operations only
-    const [localWorkspaces, setLocalWorkspaces] = useState(workspaces);
+    // Local state for drag and drop - completely independent from server data after initialization
+    const [localWorkspaces, setLocalWorkspacesRaw] = useState<Workspace[]>([]);
     const [isDragging, setIsDragging] = useState(false);
-    const [pendingMoveId, setPendingMoveId] = useState<string | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [hasLocalChanges, setHasLocalChanges] = useState(false);
+    const [dragProtectionTimeout, setDragProtectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
-    // Update local workspaces when props change, but only when not dragging and no pending moves
-    React.useEffect(() => {
-        console.log('🔄 useEffect triggered:', {
+    // Wrap setLocalWorkspaces with ENHANCED debugging
+    const setLocalWorkspaces = useCallback((newWorkspaces: Workspace[] | ((prev: Workspace[]) => Workspace[])) => {
+        console.log('🔧 setLocalWorkspaces called!');
+        console.log('🔍 Current state context:', {
+            isInitialized,
             isDragging,
-            pendingMoveId,
-            workspacesLength: workspaces.length,
-            localWorkspacesLength: localWorkspaces.length
+            hasLocalChanges,
+            timestamp: new Date().toISOString()
         });
+        console.trace('📍 Call stack trace:');
 
-        if (!isDragging && !pendingMoveId) {
-            console.log('✅ Updating local workspaces from server data');
-            console.log('📝 Server workspaces:', workspaces.map(w => `${w.id}:${w.name}:${w.groupId}`));
-            setLocalWorkspaces(workspaces);
+        if (typeof newWorkspaces === 'function') {
+            setLocalWorkspacesRaw(prev => {
+                const result = newWorkspaces(prev);
+                console.log('📝 setLocalWorkspaces (function):', {
+                    before: prev.map(w => `${w.id}:${w.name}`),
+                    after: result.map(w => `${w.id}:${w.name}`),
+                    context: { isInitialized, isDragging, hasLocalChanges }
+                });
+
+                // 🚨 CRITICAL: Detect if this is an unwanted reversion
+                if (prev.length > 0 && result.length > 0) {
+                    const beforeIds = prev.map(w => w.id).join(',');
+                    const afterIds = result.map(w => w.id).join(',');
+                    if (beforeIds !== afterIds && hasLocalChanges) {
+                        console.error('🚨 POTENTIAL UNWANTED REVERSION DETECTED!');
+                        console.error('- We have local changes but state is being overwritten');
+                        console.error('- This might be the source of the bug!');
+                    }
+                }
+
+                return result;
+            });
         } else {
-            console.log('⏭️ Skipping local workspace update:', { isDragging, pendingMoveId });
+            console.log('📝 setLocalWorkspaces (direct):', {
+                newOrder: newWorkspaces.map(w => `${w.id}:${w.name}`),
+                context: { isInitialized, isDragging, hasLocalChanges }
+            });
+
+            // 🚨 CRITICAL: Detect if this is an unwanted reversion
+            if (localWorkspaces.length > 0 && newWorkspaces.length > 0) {
+                const currentIds = localWorkspaces.map(w => w.id).join(',');
+                const newIds = newWorkspaces.map(w => w.id).join(',');
+                if (currentIds !== newIds && hasLocalChanges) {
+                    console.error('🚨 POTENTIAL UNWANTED REVERSION DETECTED!');
+                    console.error('- We have local changes but state is being overwritten');
+                    console.error('- This might be the source of the bug!');
+                }
+            }
+
+            setLocalWorkspacesRaw(newWorkspaces);
         }
-    }, [workspaces, isDragging, pendingMoveId, localWorkspaces.length]);
+    }, [isInitialized, isDragging, hasLocalChanges, localWorkspaces]);
+
+    // Debug: Log when server workspaces change
+    console.log('🔍 Server workspaces changed:', {
+        serverWorkspacesLength: serverWorkspaces.length,
+        localWorkspacesLength: localWorkspaces.length,
+        isInitialized,
+        isDragging,
+        timestamp: new Date().toISOString()
+    });
+
+    // DEEP DEBUG: Track every render and what triggers it
+    console.log('🔬 DEEP DEBUG - Component render:', {
+        serverWorkspaces: serverWorkspaces.map(w => `${w.id}:${w.name}`),
+        localWorkspaces: localWorkspaces.map(w => `${w.id}:${w.name}`),
+        areEqual: JSON.stringify(serverWorkspaces) === JSON.stringify(localWorkspaces),
+        timestamp: new Date().toISOString()
+    });
+
+    // Initialize local workspaces ONLY ONCE when server data first loads
+    if (!isInitialized && serverWorkspaces.length > 0) {
+        console.log('� ONE-TIME initialization of local workspaces from server data');
+        console.log('📝 Server workspaces:', serverWorkspaces.map(w => `${w.id}:${w.name}:${w.groupId}`));
+        setLocalWorkspaces(serverWorkspaces);
+        setIsInitialized(true);
+    }
+
+    // AGGRESSIVE PROTECTION: Completely disable server sync during and after drag operations
+    // Clear any existing timeout when dragging starts
+    if (isDragging && dragProtectionTimeout) {
+        clearTimeout(dragProtectionTimeout);
+        setDragProtectionTimeout(null);
+    }
+
+    // Set protection timeout when dragging ends
+    if (!isDragging && dragProtectionTimeout === null && hasLocalChanges) {
+        const timeout = setTimeout(() => {
+            console.log('⏰ DRAG PROTECTION TIMEOUT: Allowing server sync again');
+            setHasLocalChanges(false);
+            setDragProtectionTimeout(null);
+        }, 5000); // 5 second protection after drag ends
+        setDragProtectionTimeout(timeout);
+    }
+
+    // CRITICAL FIX: Only sync from server when we don't have local changes AND no drag protection
+    if (isInitialized && serverWorkspaces.length > 0 && !hasLocalChanges && !isDragging && !dragProtectionTimeout) {
+        const serverIds = serverWorkspaces.map(w => w.id).join(',');
+        const localIds = localWorkspaces.map(w => w.id).join(',');
+
+        // Only update if server has different data AND we don't have pending changes
+        if (serverIds !== localIds) {
+            console.log('🔄 SAFE SYNC: Updating local state from server (no local changes, no protection)');
+            setLocalWorkspaces(serverWorkspaces);
+        }
+    }
+
+    // Track if we have pending local changes that shouldn't be overwritten
+    useEffect(() => {
+        if (isInitialized && serverWorkspaces.length > 0 && !isDragging) {
+            const serverIds = serverWorkspaces.map(w => w.id).join(',');
+            const localIds = localWorkspaces.map(w => w.id).join(',');
+
+            // If server and local are different, we have local changes
+            if (serverIds !== localIds) {
+                setHasLocalChanges(true);
+                console.log('🔒 BLOCKING server overwrite - we have local changes');
+            } else if (hasLocalChanges) {
+                // Server caught up with our changes, safe to sync again
+                setHasLocalChanges(false);
+                console.log('🔓 ALLOWING server updates - server caught up');
+            }
+        }
+    }, [serverWorkspaces, localWorkspaces, isInitialized, isDragging, hasLocalChanges]);
+
+    // CRITICAL DEBUG: Check if server data is overwriting local changes
+    if (isInitialized && serverWorkspaces.length > 0 && !isDragging) {
+        const serverIds = serverWorkspaces.map(w => w.id).join(',');
+        const localIds = localWorkspaces.map(w => w.id).join(',');
+
+        if (serverIds !== localIds) {
+            console.log('⚠️ POTENTIAL OVERWRITE DETECTED:');
+            console.log('📝 Server order:', serverWorkspaces.map(w => `${w.id}:${w.name}`));
+            console.log('📝 Local order:', localWorkspaces.map(w => `${w.id}:${w.name}`));
+            console.log('🔍 This might be causing the reversion!');
+
+            // CRITICAL: Check if this is happening right after a successful API call
+            console.log('🚨 REVERSION ANALYSIS:');
+            console.log('- Is this happening after drag end?');
+            console.log('- Is React Query refetching old data?');
+            console.log('- Are we accidentally resetting local state somewhere?');
+        }
+    }
 
     // Organize workspaces by groups (using localWorkspaces for real-time updates)
     const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
@@ -146,7 +284,6 @@ export function WorkspaceGroups({
 
     // Global drag handlers for cross-group dragging
     const handleDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
         setIsDragging(true);
         console.log('Global drag started:', event.active.id);
     };
@@ -168,7 +305,33 @@ export function WorkspaceGroups({
             return;
         }
 
-        // Find the over workspace
+        // Check if we're dropping on a container (empty group)
+        if (overId.startsWith('droppable-')) {
+            console.log('📦 Dropping on container:', overId);
+
+            // Extract group ID from container ID
+            const targetGroupId = overId === 'droppable-ungrouped' ? null : overId.replace('droppable-', '');
+            const activeGroupId = activeWorkspace.groupId;
+
+            console.log('📊 Container drop - Groups:', { activeGroupId, targetGroupId });
+
+            // If moving to a different group, update the workspace
+            if (activeGroupId !== targetGroupId) {
+                console.log('🔄 Moving to different group via container');
+                setLocalWorkspaces(prev => {
+                    const newWorkspaces = [...prev];
+                    const activeIndex = newWorkspaces.findIndex(w => w.id === activeId);
+                    if (activeIndex !== -1) {
+                        console.log('📝 Updating workspace group:', activeId, 'from', activeGroupId, 'to', targetGroupId);
+                        newWorkspaces[activeIndex] = { ...newWorkspaces[activeIndex], groupId: targetGroupId };
+                    }
+                    return newWorkspaces;
+                });
+            }
+            return;
+        }
+
+        // Find the over workspace (existing logic for workspace-to-workspace drops)
         const overWorkspace = localWorkspaces.find(w => w.id === overId);
         if (!overWorkspace) {
             console.log('❌ Over workspace not found:', overId);
@@ -259,12 +422,11 @@ export function WorkspaceGroups({
 
         console.log('🏁 DRAG END:', active.id, '→', over?.id || 'NO TARGET');
 
-        setActiveId(null);
         setIsDragging(false);
 
         if (!over) {
-            console.log('❌ No drop target - resetting local state');
-            setLocalWorkspaces(workspaces);
+            console.log('❌ No drop target - keeping current local state');
+            // Don't reset to server state - keep the current local state
             return;
         }
 
@@ -277,46 +439,70 @@ export function WorkspaceGroups({
             return;
         }
 
-        // Find the workspace being dragged and the target workspace
+        // Find the workspace being dragged
         const activeWorkspace = localWorkspaces.find(w => w.id === activeId);
-        const overWorkspace = localWorkspaces.find(w => w.id === overId);
-
-        if (!activeWorkspace || !overWorkspace) {
-            console.log('❌ Could not find workspaces:', { activeWorkspace: !!activeWorkspace, overWorkspace: !!overWorkspace });
-            setLocalWorkspaces(workspaces);
+        if (!activeWorkspace) {
+            console.log('❌ Active workspace not found:', activeId);
             return;
         }
 
-        const targetGroupId = overWorkspace.groupId || null;
+        let targetGroupId: string | null;
+        let finalIndex: number;
+
+        // Check if we're dropping on a container (empty group)
+        if (overId.startsWith('droppable-')) {
+            console.log('📦 Dropped on container:', overId);
+
+            // Extract group ID from container ID
+            targetGroupId = overId === 'droppable-ungrouped' ? null : overId.replace('droppable-', '');
+
+            // For container drops, place at the end of the target group
+            const targetWorkspaces = targetGroupId
+                ? localWorkspaces.filter(w => w.groupId === targetGroupId)
+                : localWorkspaces.filter(w => !w.groupId);
+
+            finalIndex = targetWorkspaces.length;
+            console.log('📍 Container drop - placing at end of group, index:', finalIndex);
+        } else {
+            // Find the target workspace (existing logic for workspace-to-workspace drops)
+            const overWorkspace = localWorkspaces.find(w => w.id === overId);
+            if (!overWorkspace) {
+                console.log('❌ Over workspace not found:', overId);
+                return;
+            }
+
+            targetGroupId = overWorkspace.groupId || null;
+
+            // Get the final position from the current local state (after all drag over operations)
+            const targetWorkspaces = targetGroupId
+                ? localWorkspaces.filter(w => w.groupId === targetGroupId)
+                : localWorkspaces.filter(w => !w.groupId);
+
+            console.log('🎯 Target group workspaces:', targetWorkspaces.map(w => `${w.id}:${w.name}`));
+
+            // Find the current position of the active workspace in the target group
+            finalIndex = targetWorkspaces.findIndex(w => w.id === activeId);
+
+            console.log('📍 Final index of dragged workspace:', finalIndex);
+
+            if (finalIndex === -1) {
+                console.log('❌ Could not find final position of dragged workspace');
+                // Keep current local state instead of resetting to server state
+                return;
+            }
+        }
+
         const currentGroupId = activeWorkspace.groupId || null;
 
         console.log('📊 Group change:', currentGroupId, '→', targetGroupId);
 
-        // Get the final position from the current local state (after all drag over operations)
-        const targetWorkspaces = targetGroupId
-            ? localWorkspaces.filter(w => w.groupId === targetGroupId)
-            : localWorkspaces.filter(w => !w.groupId);
-
-        console.log('🎯 Target group workspaces:', targetWorkspaces.map(w => `${w.id}:${w.name}`));
-
-        // Find the current position of the active workspace in the target group
-        const finalIndex = targetWorkspaces.findIndex(w => w.id === activeId);
-
-        console.log('📍 Final index of dragged workspace:', finalIndex);
-
-        if (finalIndex === -1) {
-            console.log('❌ Could not find final position of dragged workspace');
-            setLocalWorkspaces(workspaces);
-            return;
-        }
-
         // Only make API call if there's an actual change
-        const originalActiveWorkspace = workspaces.find(w => w.id === activeId);
+        const originalActiveWorkspace = serverWorkspaces.find(w => w.id === activeId);
         const hasGroupChanged = currentGroupId !== targetGroupId;
         const originalIndex = originalActiveWorkspace ?
             (targetGroupId
-                ? workspaces.filter(w => w.groupId === targetGroupId).findIndex(w => w.id === activeId)
-                : workspaces.filter(w => !w.groupId).findIndex(w => w.id === activeId)
+                ? serverWorkspaces.filter(w => w.groupId === targetGroupId).findIndex(w => w.id === activeId)
+                : serverWorkspaces.filter(w => !w.groupId).findIndex(w => w.id === activeId)
             ) : -1;
         const hasPositionChanged = finalIndex !== originalIndex;
 
@@ -332,14 +518,11 @@ export function WorkspaceGroups({
         if (hasGroupChanged || hasPositionChanged) {
             console.log('✅ MAKING API CALL - Moving workspace:', activeId, 'to group:', targetGroupId, 'at final index:', finalIndex);
 
-            // Set pending move to prevent local state from being overwritten
-            setPendingMoveId(activeId);
-
             // Make the API call with the final position
             handleWorkspaceMove(activeId, finalIndex, targetGroupId);
         } else {
-            console.log('⏭️ No actual change detected, resetting local state');
-            setLocalWorkspaces(workspaces);
+            console.log('⏭️ No actual change detected, keeping current local state');
+            // Keep the current local state - don't reset to server state
         }
     };
 
@@ -352,14 +535,14 @@ export function WorkspaceGroups({
             return;
         }
 
-        console.log('📤 Sending mutation with data:', {
+        console.log('� Sending mutation with data:', {
             userId,
             workspaceId,
             groupId: targetGroupId || null,
             sortOrder: newIndex
         });
 
-        // Use React Query's optimistic updates - no manual state management needed
+        // AGGRESSIVE FIX: Use mutation WITHOUT React Query's automatic invalidation
         moveWorkspaceMutation.mutate({
             userId,
             workspaceId,
@@ -368,22 +551,47 @@ export function WorkspaceGroups({
         }, {
             onSuccess: () => {
                 console.log('✅ API SUCCESS - Workspace move completed successfully');
-                console.log('⏰ Setting timeout to clear pending move in 200ms');
-                // Clear pending move to allow local state to sync with server
+                console.log('� AGGRESSIVE PROTECTION: Blocking all server sync for 5 seconds');
+                console.log('📝 Local state after API success:', localWorkspaces.map(w => `${w.id}:${w.name}`));
+
+                // Set aggressive protection to prevent any server overwrites
+                setHasLocalChanges(true);
+
+                // Set timeout to allow server sync again after 5 seconds
+                if (dragProtectionTimeout) {
+                    clearTimeout(dragProtectionTimeout);
+                }
+                const timeout = setTimeout(() => {
+                    console.log('⏰ PROTECTION TIMEOUT: Allowing server sync again');
+                    setHasLocalChanges(false);
+                    setDragProtectionTimeout(null);
+                }, 5000);
+                setDragProtectionTimeout(timeout);
+
+                // CRITICAL DEBUG: Check if local state gets overwritten after this point
                 setTimeout(() => {
-                    console.log('🔄 Clearing pending move, allowing state sync');
-                    setPendingMoveId(null);
-                }, 200); // Small delay to ensure server data has been refetched
+                    console.log('⏰ CHECKING STATE 1 SECOND AFTER API SUCCESS:');
+                    console.log('📝 Local state after 1s:', localWorkspaces.map(w => `${w.id}:${w.name}`));
+                }, 1000);
+
+                setTimeout(() => {
+                    console.log('⏰ CHECKING STATE 3 SECONDS AFTER API SUCCESS:');
+                    console.log('📝 Local state after 3s:', localWorkspaces.map(w => `${w.id}:${w.name}`));
+                }, 3000);
             },
             onError: (error) => {
                 console.error('❌ API ERROR - Workspace move failed:', error);
-                console.log('🔄 Clearing pending move and resetting to server state');
-                // Clear pending move and reset to server state
-                setPendingMoveId(null);
-                setLocalWorkspaces(workspaces);
+                console.log('🔄 Resetting to server state due to error');
+                // Clear protection and reset to server state on error
+                if (dragProtectionTimeout) {
+                    clearTimeout(dragProtectionTimeout);
+                    setDragProtectionTimeout(null);
+                }
+                setHasLocalChanges(false);
+                setLocalWorkspaces(serverWorkspaces);
             }
         });
-    }, [userId, moveWorkspaceMutation, setPendingMoveId, workspaces]);
+    }, [userId, moveWorkspaceMutation, serverWorkspaces, localWorkspaces, setLocalWorkspaces, dragProtectionTimeout, setHasLocalChanges, setDragProtectionTimeout]);
 
     const handleWorkspaceSelect = async (workspace: Workspace) => {
         const workspaceId = workspace.id;
@@ -449,7 +657,7 @@ export function WorkspaceGroups({
     const confirmDelete = async () => {
         if (!deletingWorkspaceId) return;
 
-        if (workspaces.length <= 1) {
+        if (serverWorkspaces.length <= 1) {
             setError('Cannot delete the last workspace. Users must have at least one workspace.');
             setDeletingWorkspaceId(null);
             return;
@@ -475,6 +683,8 @@ export function WorkspaceGroups({
             }
         );
     };
+
+
 
     const isLoading = workspacesLoading || groupsLoading;
 
