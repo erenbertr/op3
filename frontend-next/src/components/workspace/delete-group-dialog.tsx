@@ -33,34 +33,34 @@ export function DeleteGroupDialog({
 }: DeleteGroupDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Delete Group "{groupName}"</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-lg">Delete Group "{groupName}"</DialogTitle>
+                    <DialogDescription className="text-sm">
                         Choose how you want to delete this group. This action cannot be undone.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4 space-y-4">
-                    <div className="p-4 bg-muted rounded-lg">
+                <div className="py-2 space-y-4">
+                    <div className="p-3 bg-muted rounded-lg">
                         <p className="text-sm text-muted-foreground">
                             This group contains <strong>{workspaceCount}</strong> workspace{workspaceCount !== 1 ? 's' : ''}.
                         </p>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         <Button
                             variant="outline"
-                            className="w-full justify-start h-auto p-4"
+                            className="w-full justify-start h-auto p-3"
                             onClick={onDeleteGroupOnly}
                             disabled={isDeleting}
                         >
-                            <div className="flex items-start gap-3">
-                                <FolderMinus className="h-5 w-5 mt-0.5 text-orange-500" />
-                                <div className="text-left">
-                                    <div className="font-medium">Remove Group Only</div>
-                                    <div className="text-sm text-muted-foreground">
-                                        Delete the group but keep all workspaces (they will be moved to ungrouped)
+                            <div className="flex items-start gap-3 w-full">
+                                <FolderMinus className="h-4 w-4 mt-0.5 text-orange-500 flex-shrink-0" />
+                                <div className="text-left flex-1 min-w-0">
+                                    <div className="font-medium text-sm">Remove Group Only</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Delete the group but keep all workspaces (moved to ungrouped)
                                     </div>
                                 </div>
                             </div>
@@ -68,15 +68,15 @@ export function DeleteGroupDialog({
 
                         <Button
                             variant="outline"
-                            className="w-full justify-start h-auto p-4 border-destructive/50 hover:bg-destructive/5"
+                            className="w-full justify-start h-auto p-3 border-destructive/50 hover:bg-destructive/5"
                             onClick={onDeleteGroupAndWorkspaces}
                             disabled={isDeleting}
                         >
-                            <div className="flex items-start gap-3">
-                                <Trash2 className="h-5 w-5 mt-0.5 text-destructive" />
-                                <div className="text-left">
-                                    <div className="font-medium text-destructive">Delete Group & All Workspaces</div>
-                                    <div className="text-sm text-muted-foreground">
+                            <div className="flex items-start gap-3 w-full">
+                                <Trash2 className="h-4 w-4 mt-0.5 text-destructive flex-shrink-0" />
+                                <div className="text-left flex-1 min-w-0">
+                                    <div className="font-medium text-sm text-destructive">Delete Group & All Workspaces</div>
+                                    <div className="text-xs text-muted-foreground">
                                         Permanently delete the group and all {workspaceCount} workspace{workspaceCount !== 1 ? 's' : ''} inside it
                                     </div>
                                 </div>
@@ -85,11 +85,12 @@ export function DeleteGroupDialog({
                     </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="pt-2">
                     <Button
                         variant="outline"
                         onClick={() => onOpenChange(false)}
                         disabled={isDeleting}
+                        size="sm"
                     >
                         Cancel
                     </Button>
