@@ -14,7 +14,6 @@ import {
     useMoveWorkspaceToGroup,
 } from '@/lib/hooks/use-workspace-groups';
 import { WorkspaceGroupCard } from './workspace-group-card';
-import { WorkspaceCard } from './workspace-card';
 import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { SortableWorkspaceList } from './sortable-workspace-list';
@@ -111,6 +110,8 @@ export function WorkspaceGroups({
         }
 
         try {
+            console.log('EXECUTING MUTATION - this may cause React Query invalidation');
+
             // Simply move the workspace to the new position
             // The backend will handle reordering other workspaces if needed
             await moveWorkspaceMutation.mutateAsync({
@@ -120,13 +121,16 @@ export function WorkspaceGroups({
                 sortOrder: newIndex
             });
 
+            console.log('MUTATION COMPLETED - React Query may have invalidated queries');
+
         } catch (error) {
             console.error('Error moving workspace:', error);
             // Optionally show user feedback here
         }
     }, [userId, moveWorkspaceMutation]);
 
-    const handleWorkspaceSelect = async (workspaceId: string) => {
+    const handleWorkspaceSelect = async (workspace: Workspace) => {
+        const workspaceId = workspace.id;
         if (workspaceId === currentWorkspaceId) {
             onWorkspaceSelect(workspaceId);
             return;
@@ -148,8 +152,8 @@ export function WorkspaceGroups({
         setEditingWorkspace(workspace);
     };
 
-    const handleDeleteWorkspace = (workspaceId: string) => {
-        setDeletingWorkspaceId(workspaceId);
+    const handleDeleteWorkspace = (workspace: Workspace) => {
+        setDeletingWorkspaceId(workspace.id);
     };
 
     const handleSaveEdit = async () => {
@@ -192,7 +196,6 @@ export function WorkspaceGroups({
         if (workspaces.length <= 1) {
             setError('Cannot delete the last workspace. Users must have at least one workspace.');
             setDeletingWorkspaceId(null);
-            // Maybe show a toast message here
             return;
         }
 
@@ -353,12 +356,11 @@ export function WorkspaceGroups({
                 </DialogContent>
             </Dialog>
 
-            {showCreateGroup && (
-                <CreateGroupDialog
-                    userId={userId}
-                    onClose={() => setShowCreateGroup(false)}
-                />
-            )}
+            <CreateGroupDialog
+                open={showCreateGroup}
+                onOpenChange={setShowCreateGroup}
+                userId={userId}
+            />
 
             {showOrganizeGroups && (
                 <OrganizeGroupsDialog

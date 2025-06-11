@@ -131,9 +131,16 @@ export function useMoveWorkspaceToGroup() {
         mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
             workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
         onSuccess: (_, variables) => {
-            // Invalidate both groups and workspaces queries
-            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
-            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+            // SOLUTION: Disable automatic query invalidation to prevent DOM conflicts
+            // The move-workspace request is enough - no need to refetch everything
+            console.log('✅ Move workspace API call completed - NOT invalidating queries');
+            console.log('  - SortableJS has already updated the DOM visually');
+            console.log('  - Backend has saved the new position');
+            console.log('  - No additional DOM updates needed');
+
+            // COMMENTED OUT: These cause React to re-render and conflict with SortableJS
+            // queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+            // queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
         },
     });
 }

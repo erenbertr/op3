@@ -11,7 +11,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { WorkspaceCard } from './workspace-card';
 import { SortableWorkspaceList } from './sortable-workspace-list';
 import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup } from '@/lib/hooks/use-workspace-groups';
 
@@ -35,9 +34,9 @@ interface WorkspaceGroupCardProps {
         workspaceCount: number;
     };
     workspaces: Workspace[];
-    onWorkspaceSelect: (workspaceId: string) => void;
+    onWorkspaceSelect: (workspace: Workspace) => void;
     onWorkspaceEdit: (workspace: Workspace) => void;
-    onWorkspaceDelete: (workspaceId: string) => void;
+    onWorkspaceDelete: (workspace: Workspace) => void;
     onWorkspaceMove: (workspaceId: string, newIndex: number, targetGroupId?: string | null) => void;
     currentWorkspaceId?: string | null;
     userId: string;
@@ -167,7 +166,7 @@ export function WorkspaceGroupCard({
                 <SortableWorkspaceList
                     workspaces={workspaces}
                     currentWorkspaceId={currentWorkspaceId}
-                    onWorkspaceSelect={onWorkspaceSelect}
+                    onWorkspaceSelect={(workspace) => onWorkspaceSelect(workspace)}
                     onWorkspaceEdit={onWorkspaceEdit}
                     onWorkspaceDelete={onWorkspaceDelete}
                     onWorkspaceMove={onWorkspaceMove}

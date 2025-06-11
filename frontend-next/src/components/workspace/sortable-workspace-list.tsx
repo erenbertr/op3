@@ -1,17 +1,8 @@
 "use client"
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import Sortable from 'sortablejs';
 import { WorkspaceCard } from './workspace-card';
-
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
-    let timeout: NodeJS.Timeout;
-    return ((...args: any[]) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    }) as T;
-}
 
 interface Workspace {
     id: string;
@@ -26,7 +17,7 @@ interface Workspace {
 
 interface SortableWorkspaceListProps {
     workspaces: Workspace[];
-    currentWorkspaceId?: string;
+    currentWorkspaceId?: string | null;
     onWorkspaceSelect: (workspace: Workspace) => void;
     onWorkspaceEdit: (workspace: Workspace) => void;
     onWorkspaceDelete: (workspace: Workspace) => void;
@@ -45,158 +36,130 @@ export function SortableWorkspaceList({
     groupId = null,
     className = ""
 }: SortableWorkspaceListProps) {
+
+    const DISABLE_SORTABLE = false;
     const listRef = useRef<HTMLDivElement>(null);
     const sortableRef = useRef<Sortable | null>(null);
     const isInitializedRef = useRef(false);
     const [isDragging, setIsDragging] = useState(false);
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
-    // Add error boundary for sortable operations
-    const handleSortableError = useCallback((error: any, operation: string) => {
-        console.warn(`SortableJS ${operation} error (safely handled):`, error);
-        // Reset drag state on any error
-        setIsDragging(false);
-        setDraggedItemId(null);
-    }, []);
+    const isCrossGroupDragRef = useRef(false);
+    const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Debounced move handler to prevent rapid successive operations
-    const debouncedMove = useCallback(
-        debounce((workspaceId: string, newIndex: number, targetGroupId: string | null) => {
-            onWorkspaceMove(workspaceId, newIndex, targetGroupId);
-        }, 100),
-        [onWorkspaceMove]
-    );
+    // Add a flag to prevent React updates during drag operations
+    const isDragOperationRef = useRef(false);
+
+    // Queue for pending move operations
+    const pendingMoveRef = useRef<{
+        workspaceId: string;
+        newIndex: number;
+        targetGroupId: string | null;
+    } | null>(null);
 
     useEffect(() => {
         if (!listRef.current) return;
 
-        // CRITICAL: Never recreate sortable during drag operations
-        if (isDragging) {
+        if (DISABLE_SORTABLE) {
+            console.log('SortableJS disabled for testing');
             return;
         }
 
-        // Don't recreate sortable instance if one already exists and is initialized
-        // This prevents interrupting ongoing drag operations
-        if (sortableRef.current && isInitializedRef.current) {
+        if (isDragging || isCrossGroupDragRef.current) {
+            console.log('Skipping useEffect due to active drag operation');
             return;
         }
 
-        // Destroy existing instance if it exists
         if (sortableRef.current) {
-            try {
-                sortableRef.current.destroy();
-            } catch (error) {
-                // Ignore errors during destroy - the instance might already be invalid
-                console.warn('Error destroying sortable instance:', error);
-            }
-            sortableRef.current = null;
-            isInitializedRef.current = false;
+            console.log('Sortable instance already exists, skipping');
+            return;
         }
 
-        // Create new sortable instance
         try {
             sortableRef.current = Sortable.create(listRef.current, {
-                group: {
-                    name: 'workspaces',
-                    pull: true, // Allow items to be pulled from this list
-                    put: true   // Allow items to be put into this list
-                },
+                group: 'shared', // Simple string like official example
                 animation: 150,
-                ghostClass: 'sortable-ghost',
-                chosenClass: 'sortable-chosen',
-                dragClass: 'sortable-drag',
-                forceFallback: true,
-                fallbackClass: 'sortable-fallback',
-                fallbackOnBody: true,
-                swapThreshold: 0.65,
-                // Remove delay to make dragging more responsive
-                dragoverBubble: false, // Prevent dragover events from bubbling
-                dropBubble: false,     // Prevent drop events from bubbling
                 onStart: (evt) => {
-                    try {
-                        const workspaceId = evt.item.getAttribute('data-workspace-id');
-                        if (workspaceId) {
-                            setIsDragging(true);
-                            setDraggedItemId(workspaceId);
-                        }
-                    } catch (error) {
-                        handleSortableError(error, 'onStart');
-                    }
+                    console.log('DRAG START:', evt.item.getAttribute('data-workspace-id'));
+                    isDragOperationRef.current = true;
+                    setIsDragging(true);
+                    setDraggedItemId(evt.item.getAttribute('data-workspace-id'));
                 },
                 onEnd: (evt) => {
-                    try {
-                        const { oldIndex, newIndex, from, to } = evt;
+                    console.log('DRAG END:', evt.oldIndex, '->', evt.newIndex, 'from:', evt.from, 'to:', evt.to);
 
-                        // Reset drag state FIRST
-                        setIsDragging(false);
-                        setDraggedItemId(null);
+                    const workspaceId = evt.item.getAttribute('data-workspace-id');
+                    const isActualMove = evt.oldIndex !== evt.newIndex || evt.from !== evt.to;
+                    const targetGroupId = evt.to.getAttribute('data-group-id') || null;
 
-                        if (oldIndex === undefined || newIndex === undefined) return;
-                        if (oldIndex === newIndex && from === to) return; // No actual move
+                    // Reset drag state immediately for UI responsiveness
+                    setIsDragging(false);
+                    setDraggedItemId(null);
+                    isDragOperationRef.current = false;
 
-                        // Get the workspace ID from the dragged element
-                        const workspaceId = evt.item.getAttribute('data-workspace-id');
-                        if (!workspaceId) return;
+                    // SOLUTION: Queue the move operation instead of calling immediately
+                    if (isActualMove && workspaceId && evt.newIndex !== undefined) {
+                        const newIndex = evt.newIndex;
+                        console.log('QUEUING MOVE OPERATION:', workspaceId, 'to index:', newIndex, 'target group:', targetGroupId);
 
-                        // Determine target group ID from the container
-                        const targetGroupId = to.getAttribute('data-group-id') || null;
-
-                        // Call the debounced move handler
-                        debouncedMove(workspaceId, newIndex, targetGroupId);
-                    } catch (error) {
-                        handleSortableError(error, 'onEnd');
-                        // Ensure drag state is reset even on error
-                        setIsDragging(false);
-                        setDraggedItemId(null);
+                        // Store the move operation to execute later
+                        pendingMoveRef.current = {
+                            workspaceId,
+                            newIndex,
+                            targetGroupId
+                        };
                     }
                 }
             });
             isInitializedRef.current = true;
+            console.log('Sortable instance created successfully');
         } catch (error) {
             console.error('Error creating sortable instance:', error);
             isInitializedRef.current = false;
         }
 
         return () => {
+            if (dragTimeoutRef.current) {
+                clearTimeout(dragTimeoutRef.current);
+                dragTimeoutRef.current = null;
+            }
+
             if (sortableRef.current) {
                 try {
                     sortableRef.current.destroy();
                 } catch (error) {
-                    // Ignore errors during cleanup
                     console.warn('Error during sortable cleanup:', error);
                 }
                 sortableRef.current = null;
             }
             isInitializedRef.current = false;
+            isCrossGroupDragRef.current = false;
+            isDragOperationRef.current = false;
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [debouncedMove, handleSortableError, isDragging]); // Re-added isDragging to allow recreation after drag ends
+    }, []);
 
-    // Separate effect to handle data changes after drag operations complete
     useEffect(() => {
-        if (!isDragging && sortableRef.current && listRef.current && workspaces.length > 0) {
-            // Force a recreation if workspaces have changed significantly after drag ends
-            // This ensures the sortable instance stays in sync with React's virtual DOM
-            const domElements = Array.from(listRef.current.children);
-            const currentItems = domElements.map(el => el.getAttribute('data-workspace-id')).filter(Boolean);
-            const expectedItems = workspaces.map(w => w.id);
-
-            // Check if the DOM and data are out of sync
-            const isOutOfSync = currentItems.length !== expectedItems.length ||
-                currentItems.some((id, index) => id !== expectedItems[index]);
-
-            if (isOutOfSync) {
-                try {
-                    sortableRef.current.destroy();
-                    sortableRef.current = null;
-                    isInitializedRef.current = false;
-                } catch (error) {
-                    console.warn('Error destroying out-of-sync sortable instance:', error);
-                }
-            }
+        if (!isDragging && !isCrossGroupDragRef.current && !isDragOperationRef.current && sortableRef.current) {
+            console.log('Workspaces changed, but sortable instance exists and no drag active');
         }
-    }, [workspaces, isDragging]); // Only run when workspaces change and not dragging
+    }, [workspaces, isDragging]);
+
+    // Process pending moves when drag operation is complete
+    useEffect(() => {
+        if (!isDragging && !isDragOperationRef.current && pendingMoveRef.current) {
+            const move = pendingMoveRef.current;
+            console.log('EXECUTING QUEUED MOVE:', move.workspaceId, 'to index:', move.newIndex, 'target group:', move.targetGroupId);
+
+            // Clear the pending move first
+            pendingMoveRef.current = null;
+
+            // SOLUTION: Execute immediately - query invalidation is now disabled
+            console.log('🚀 IMMEDIATE EXECUTION - no query invalidation conflicts');
+            onWorkspaceMove(move.workspaceId, move.newIndex, move.targetGroupId);
+        }
+    }, [isDragging, onWorkspaceMove]);
 
     return (
         <div
@@ -208,18 +171,17 @@ export function SortableWorkspaceList({
                 <div
                     key={workspace.id}
                     data-workspace-id={workspace.id}
-                    className={`workspace-card ${draggedItemId === workspace.id ? 'opacity-50' : ''}`}
+                    className={`${draggedItemId === workspace.id ? 'opacity-50' : ''}`}
                 >
                     <WorkspaceCard
                         workspace={workspace}
-                        onSelect={onWorkspaceSelect}
-                        onEdit={onWorkspaceEdit}
-                        onDelete={onWorkspaceDelete}
                         isActive={workspace.id === currentWorkspaceId}
+                        onSelect={() => onWorkspaceSelect(workspace)}
+                        onEdit={() => onWorkspaceEdit(workspace)}
+                        onDelete={() => onWorkspaceDelete(workspace)}
                     />
                 </div>
             ))}
-
         </div>
     );
 }
