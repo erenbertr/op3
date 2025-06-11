@@ -1,20 +1,18 @@
 "use client"
 
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { SortableGroupList } from './sortable-group-list';
-import { useReorderWorkspaceGroups } from '@/lib/hooks/use-workspace-groups';
+import { Card, CardContent } from '@/components/ui/card';
+import { Folder } from 'lucide-react';
 
 interface OrganizeGroupsDialogProps {
-    userId: string;
     groups: Array<{
         id: string;
         name: string;
@@ -26,65 +24,10 @@ interface OrganizeGroupsDialogProps {
 }
 
 export function OrganizeGroupsDialog({
-    userId,
     groups,
     onClose
 }: OrganizeGroupsDialogProps) {
-    const [localGroups, setLocalGroups] = useState(groups);
-    const [hasChanges, setHasChanges] = useState(false);
     const [open] = useState(true);
-
-    const reorderGroupsMutation = useReorderWorkspaceGroups();
-
-    // Update local groups when props change
-    React.useEffect(() => {
-        setLocalGroups(groups);
-        setHasChanges(false);
-    }, [groups]);
-
-    const handleGroupReorder = useCallback((groupId: string, newIndex: number) => {
-        setLocalGroups((items) => {
-            const oldIndex = items.findIndex((item) => item.id === groupId);
-            if (oldIndex === -1) return items;
-
-            const newItems = [...items];
-            const [movedItem] = newItems.splice(oldIndex, 1);
-            newItems.splice(newIndex, 0, movedItem);
-
-            setHasChanges(true);
-            return newItems;
-        });
-    }, []);
-
-    const handleSave = async () => {
-        if (!hasChanges) {
-            onClose();
-            return;
-        }
-
-        try {
-            const groupOrders = localGroups.map((group, index) => ({
-                groupId: group.id,
-                sortOrder: index
-            }));
-
-            await reorderGroupsMutation.mutateAsync({
-                userId,
-                groupOrders
-            });
-
-            setHasChanges(false);
-            onClose();
-        } catch (error) {
-            console.error('Error reordering groups:', error);
-        }
-    };
-
-    const handleCancel = () => {
-        setLocalGroups(groups);
-        setHasChanges(false);
-        onClose();
-    };
 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
@@ -96,41 +39,54 @@ export function OrganizeGroupsDialog({
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
-                    <DialogTitle>Organize Groups</DialogTitle>
+                    <DialogTitle>Groups Overview</DialogTitle>
                     <DialogDescription>
-                        Drag and drop to reorder your workspace groups. The order will be reflected in the main view.
+                        View your workspace groups and their workspace counts.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4">
-                    {localGroups.length > 0 ? (
-                        <SortableGroupList
-                            groups={localGroups}
-                            onGroupReorder={handleGroupReorder}
-                        />
+                    {groups.length > 0 ? (
+                        <div className="space-y-2">
+                            {groups.map((group, index) => (
+                                <Card key={group.id}>
+                                    <CardContent className="p-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-1.5 rounded-full bg-muted text-muted-foreground">
+                                                <Folder className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-medium text-sm truncate" title={group.name}>
+                                                    {group.name}
+                                                </h4>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                #{index + 1}
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
                     ) : (
                         <div className="text-center py-8 text-muted-foreground">
-                            <p>No groups to organize</p>
-                            <p className="text-sm">Create some groups first to organize them</p>
+                            <p>No groups found</p>
+                            <p className="text-sm">Create some groups first to see them here</p>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter>
+                <div className="flex justify-end">
                     <Button
-                        type="button"
                         variant="outline"
-                        onClick={handleCancel}
+                        onClick={() => onClose()}
                     >
-                        Cancel
+                        Close
                     </Button>
-                    <Button
-                        onClick={handleSave}
-                        disabled={reorderGroupsMutation.isPending || !hasChanges}
-                    >
-                        {reorderGroupsMutation.isPending ? 'Saving...' : 'Save Order'}
-                    </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );
