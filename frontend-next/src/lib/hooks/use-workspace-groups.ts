@@ -154,6 +154,14 @@ export function useMoveWorkspaceToGroup() {
     });
 }
 
+export function useMoveWorkspaceToGroupOptimistic() {
+    return useMutation({
+        mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
+            workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
+        // No automatic query invalidation - caller handles this manually
+    });
+}
+
 export function useBatchUpdateWorkspaces() {
     const queryClient = useQueryClient();
 
