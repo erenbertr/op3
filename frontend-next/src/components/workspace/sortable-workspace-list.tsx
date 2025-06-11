@@ -48,9 +48,6 @@ export function SortableWorkspaceList({
     // Add a flag to prevent React updates during drag operations
     const isDragOperationRef = useRef(false);
 
-    // Add a flag to temporarily disable sortable during delete operations
-    const [isDeleting, setIsDeleting] = useState(false);
-
     // Queue for pending move operations
     const pendingMoveRef = useRef<{
         workspaceId: string;
@@ -58,47 +55,11 @@ export function SortableWorkspaceList({
         targetGroupId: string | null;
     } | null>(null);
 
-    // Wrapped delete function that temporarily disables SortableJS
-    const handleWorkspaceDelete = async (workspace: Workspace) => {
-        console.log('🗑️ Starting delete operation for workspace:', workspace.id);
-        setIsDeleting(true);
-
-        // Temporarily disable sortable to prevent DOM conflicts
-        if (sortableRef.current) {
-            try {
-                sortableRef.current.option('disabled', true);
-                console.log('🗑️ SortableJS disabled for delete operation');
-            } catch (error) {
-                console.warn('Error disabling sortable:', error);
-            }
-        }
-
-        try {
-            onWorkspaceDelete(workspace);
-            console.log('🗑️ Delete operation completed');
-        } catch (error) {
-            console.error('🗑️ Delete operation failed:', error);
-        } finally {
-            // Re-enable sortable after a short delay to allow React to update DOM
-            setTimeout(() => {
-                if (sortableRef.current) {
-                    try {
-                        sortableRef.current.option('disabled', false);
-                        console.log('🗑️ SortableJS re-enabled after delete operation');
-                    } catch (error) {
-                        console.warn('Error re-enabling sortable:', error);
-                    }
-                }
-                setIsDeleting(false);
-            }, 100);
-        }
-    };
-
     useEffect(() => {
         if (!listRef.current) return;
 
-        if (isDragging || isCrossGroupDragRef.current || isDeleting) {
-            console.log('Skipping useEffect due to active drag operation or delete operation');
+        if (isDragging || isCrossGroupDragRef.current) {
+            console.log('Skipping useEffect due to active drag operation');
             return;
         }
 
@@ -170,7 +131,7 @@ export function SortableWorkspaceList({
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [workspaces.length, isDragging, isDeleting]); // Recreate when workspace count changes or drag/delete state changes
+    }, [workspaces.length, isDragging]); // Recreate when workspace count changes or drag state changes
 
     // Track workspace IDs to detect when workspaces are added/removed
     const workspaceIds = workspaces.map(w => w.id).join(',');
@@ -178,7 +139,7 @@ export function SortableWorkspaceList({
 
     useEffect(() => {
         // Only destroy sortable if workspaces were actually added/removed (not just reordered)
-        if (!isDragging && !isCrossGroupDragRef.current && !isDragOperationRef.current && !isDeleting && sortableRef.current) {
+        if (!isDragging && !isCrossGroupDragRef.current && !isDragOperationRef.current && sortableRef.current) {
             const currentIds = workspaceIds;
             const prevIds = prevWorkspaceIdsRef.current;
 
@@ -203,7 +164,7 @@ export function SortableWorkspaceList({
 
             prevWorkspaceIdsRef.current = currentIds;
         }
-    }, [workspaceIds, isDragging, isDeleting]);
+    }, [workspaceIds, isDragging]);
 
     // Process pending moves when drag operation is complete
     useEffect(() => {
@@ -219,6 +180,14 @@ export function SortableWorkspaceList({
             onWorkspaceMove(move.workspaceId, move.newIndex, move.targetGroupId);
         }
     }, [isDragging, onWorkspaceMove]);
+
+    // Simple wrapper to handle delete with a small delay to prevent DOM conflicts
+    const handleDelete = (workspace: Workspace) => {
+        // Small delay to let any SortableJS operations complete
+        setTimeout(() => {
+            onWorkspaceDelete(workspace);
+        }, 10);
+    };
 
     return (
         <div
@@ -237,7 +206,7 @@ export function SortableWorkspaceList({
                         isActive={workspace.id === currentWorkspaceId}
                         onSelect={() => onWorkspaceSelect(workspace)}
                         onEdit={() => onWorkspaceEdit(workspace)}
-                        onDelete={() => handleWorkspaceDelete(workspace)}
+                        onDelete={() => handleDelete(workspace)}
                     />
                 </div>
             ))}
