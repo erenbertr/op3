@@ -1,7 +1,23 @@
 "use client"
 
-import React, { useRef, useEffect, useState } from 'react';
-import Sortable from 'sortablejs';
+import React, { useState } from 'react';
+import {
+    DndContext,
+    DragEndEvent,
+    DragOverEvent,
+    DragStartEvent,
+    DragOverlay,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { WorkspaceCard } from './workspace-card';
 
 interface Workspace {
@@ -26,6 +42,56 @@ interface SortableWorkspaceListProps {
     className?: string;
 }
 
+// Sortable workspace item component
+function SortableWorkspaceItem({
+    workspace,
+    isActive,
+    onSelect,
+    onEdit,
+    onDelete,
+    isDragging,
+}: {
+    workspace: Workspace;
+    isActive: boolean;
+    onSelect: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    isDragging: boolean;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging: isSortableDragging,
+    } = useSortable({ id: workspace.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging || isSortableDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
+            data-workspace-id={workspace.id}
+        >
+            <WorkspaceCard
+                workspace={workspace}
+                isActive={isActive}
+                onSelect={onSelect}
+                onEdit={onEdit}
+                onDelete={onDelete}
+            />
+        </div>
+    );
+}
+
 export function SortableWorkspaceList({
     workspaces,
     currentWorkspaceId,
@@ -36,196 +102,121 @@ export function SortableWorkspaceList({
     groupId = null,
     className = ""
 }: SortableWorkspaceListProps) {
+    const [activeId, setActiveId] = useState<string | null>(null);
 
-    const DISABLE_SORTABLE = false;
-    const listRef = useRef<HTMLDivElement>(null);
-    const sortableRef = useRef<Sortable | null>(null);
-    const isInitializedRef = useRef(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+    // Configure sensors for drag and drop
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        })
+    );
 
-    const isCrossGroupDragRef = useRef(false);
-    const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Handle drag start
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+        console.log('DRAG START:', event.active.id);
+    };
 
-    // Add a flag to prevent React updates during drag operations
-    const isDragOperationRef = useRef(false);
+    // Handle drag over (for cross-group drops)
+    const handleDragOver = (event: DragOverEvent) => {
+        // This allows dropping between different groups
+        const { active, over } = event;
 
-    // Queue for pending move operations
-    const pendingMoveRef = useRef<{
-        workspaceId: string;
-        newIndex: number;
-        targetGroupId: string | null;
-    } | null>(null);
+        if (!over) return;
 
-    // Listen for disable/enable events from delete operations
-    useEffect(() => {
-        const handleDisableSortable = () => {
-            console.log('🔄 Temporarily disabling SortableJS for workspaces');
-            if (sortableRef.current) {
-                try {
-                    sortableRef.current.option('disabled', true);
-                } catch (error) {
-                    console.warn('Error disabling sortable:', error);
-                }
-            }
-        };
+        // If dropping over a different container, we'll handle it in dragEnd
+        console.log('DRAG OVER:', active.id, 'over:', over.id);
+    };
 
-        const handleEnableSortable = () => {
-            console.log('✅ Re-enabling SortableJS for workspaces');
-            if (sortableRef.current) {
-                try {
-                    sortableRef.current.option('disabled', false);
-                } catch (error) {
-                    console.warn('Error enabling sortable:', error);
-                }
-            }
-        };
+    // Handle drag end
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
 
-        window.addEventListener('disable-sortable-instances', handleDisableSortable);
-        window.addEventListener('enable-sortable-instances', handleEnableSortable);
+        setActiveId(null);
 
-        return () => {
-            window.removeEventListener('disable-sortable-instances', handleDisableSortable);
-            window.removeEventListener('enable-sortable-instances', handleEnableSortable);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!listRef.current) return;
-
-        if (DISABLE_SORTABLE) {
-            console.log('SortableJS disabled for testing');
+        if (!over) {
+            console.log('DRAG END: No drop target');
             return;
         }
 
-        if (isDragging || isCrossGroupDragRef.current) {
-            console.log('Skipping useEffect due to active drag operation');
-            return;
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        console.log('DRAG END:', activeId, 'to:', overId);
+
+        // Find the workspace being dragged
+        const activeWorkspace = workspaces.find(w => w.id === activeId);
+        if (!activeWorkspace) return;
+
+        // Determine target group and new index
+        let targetGroupId = groupId;
+        let newIndex = 0;
+
+        // If dropping over another workspace, find its position
+        const overWorkspace = workspaces.find(w => w.id === overId);
+        if (overWorkspace) {
+            newIndex = workspaces.findIndex(w => w.id === overId);
+            targetGroupId = overWorkspace.groupId || null;
+        } else {
+            // If dropping over the container itself, add to end
+            newIndex = workspaces.length;
         }
 
-        if (sortableRef.current) {
-            console.log('Sortable instance already exists, skipping');
-            return;
+        // Only move if position or group changed
+        const currentIndex = workspaces.findIndex(w => w.id === activeId);
+        const currentGroupId = activeWorkspace.groupId || null;
+
+        if (currentIndex !== newIndex || currentGroupId !== targetGroupId) {
+            console.log('Moving workspace:', activeId, 'to index:', newIndex, 'target group:', targetGroupId);
+            onWorkspaceMove(activeId, newIndex, targetGroupId);
         }
+    };
 
-        try {
-            sortableRef.current = Sortable.create(listRef.current, {
-                group: 'shared', // Simple string like official example
-                animation: 150,
-                filter: '[data-workspace-id="placeholder"]', // Ignore the placeholder element
-                onStart: (evt) => {
-                    console.log('DRAG START:', evt.item.getAttribute('data-workspace-id'));
-                    isDragOperationRef.current = true;
-                    setIsDragging(true);
-                    setDraggedItemId(evt.item.getAttribute('data-workspace-id'));
-                },
-                onEnd: (evt) => {
-                    console.log('DRAG END:', evt.oldIndex, '->', evt.newIndex, 'from:', evt.from, 'to:', evt.to);
-
-                    const workspaceId = evt.item.getAttribute('data-workspace-id');
-                    const isActualMove = evt.oldIndex !== evt.newIndex || evt.from !== evt.to;
-                    const targetGroupId = evt.to.getAttribute('data-group-id') || null;
-
-                    // Reset drag state immediately for UI responsiveness
-                    setIsDragging(false);
-                    setDraggedItemId(null);
-                    isDragOperationRef.current = false;
-
-                    // SOLUTION: Queue the move operation instead of calling immediately
-                    if (isActualMove && workspaceId && evt.newIndex !== undefined) {
-                        const newIndex = evt.newIndex;
-                        console.log('QUEUING MOVE OPERATION:', workspaceId, 'to index:', newIndex, 'target group:', targetGroupId);
-
-                        // Store the move operation to execute later
-                        pendingMoveRef.current = {
-                            workspaceId,
-                            newIndex,
-                            targetGroupId
-                        };
-                    }
-                }
-            });
-            isInitializedRef.current = true;
-            console.log('Sortable instance created successfully');
-        } catch (error) {
-            console.error('Error creating sortable instance:', error);
-            isInitializedRef.current = false;
-        }
-
-        return () => {
-            if (dragTimeoutRef.current) {
-                clearTimeout(dragTimeoutRef.current);
-                dragTimeoutRef.current = null;
-            }
-
-            if (sortableRef.current) {
-                try {
-                    sortableRef.current.destroy();
-                } catch (error) {
-                    console.warn('Error during sortable cleanup:', error);
-                }
-                sortableRef.current = null;
-            }
-            isInitializedRef.current = false;
-            isCrossGroupDragRef.current = false;
-            isDragOperationRef.current = false;
-            setIsDragging(false);
-            setDraggedItemId(null);
-        };
-    }, []); // Only run once on mount
-
-    useEffect(() => {
-        if (!isDragging && !isCrossGroupDragRef.current && !isDragOperationRef.current && sortableRef.current) {
-            console.log('Workspaces changed, but sortable instance exists and no drag active');
-        }
-    }, [workspaces, isDragging]);
-
-    // Process pending moves when drag operation is complete
-    useEffect(() => {
-        if (!isDragging && !isDragOperationRef.current && pendingMoveRef.current) {
-            const move = pendingMoveRef.current;
-            console.log('EXECUTING QUEUED MOVE:', move.workspaceId, 'to index:', move.newIndex, 'target group:', move.targetGroupId);
-
-            // Clear the pending move first
-            pendingMoveRef.current = null;
-
-            // SOLUTION: Execute immediately - query invalidation is now disabled
-            console.log('🚀 IMMEDIATE EXECUTION - no query invalidation conflicts');
-            onWorkspaceMove(move.workspaceId, move.newIndex, move.targetGroupId);
-        }
-    }, [isDragging, onWorkspaceMove]);
+    // Get workspace IDs for sortable context
+    const workspaceIds = workspaces.map(w => w.id);
 
     return (
-        <div
-            ref={listRef}
-            data-group-id={groupId}
-            className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className}`}
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
         >
-            {workspaces.map((workspace) => (
+            <SortableContext items={workspaceIds} strategy={verticalListSortingStrategy}>
                 <div
-                    key={workspace.id}
-                    data-workspace-id={workspace.id}
-                    className={`${draggedItemId === workspace.id ? 'opacity-50' : ''}`}
+                    data-group-id={groupId}
+                    className={`workspace-grid min-h-[100px] p-4 rounded-lg border-2 border-dashed transition-all ${className}`}
                 >
-                    <WorkspaceCard
-                        workspace={workspace}
-                        isActive={workspace.id === currentWorkspaceId}
-                        onSelect={() => onWorkspaceSelect(workspace)}
-                        onEdit={() => onWorkspaceEdit(workspace)}
-                        onDelete={() => onWorkspaceDelete(workspace)}
-                    />
+                    {workspaces.map((workspace) => (
+                        <SortableWorkspaceItem
+                            key={workspace.id}
+                            workspace={workspace}
+                            isActive={workspace.id === currentWorkspaceId}
+                            onSelect={() => onWorkspaceSelect(workspace)}
+                            onEdit={() => onWorkspaceEdit(workspace)}
+                            onDelete={() => onWorkspaceDelete(workspace)}
+                            isDragging={activeId === workspace.id}
+                        />
+                    ))}
                 </div>
-            ))}
+            </SortableContext>
 
-            {/* Shadow/placeholder element to prevent SortableJS removeChild errors when removing last workspace */}
-            <div
-                key="sortable-placeholder"
-                data-workspace-id="placeholder"
-                className="hidden"
-                style={{ display: 'none', visibility: 'hidden', height: 0, width: 0, overflow: 'hidden' }}
-            >
-                {/* This invisible element ensures SortableJS always has at least one child to work with */}
-            </div>
-        </div>
+            <DragOverlay>
+                {activeId ? (
+                    <div className="opacity-80">
+                        <WorkspaceCard
+                            workspace={workspaces.find(w => w.id === activeId)!}
+                            isActive={false}
+                            onSelect={() => { }}
+                            onEdit={() => { }}
+                            onDelete={() => { }}
+                        />
+                    </div>
+                ) : null}
+            </DragOverlay>
+        </DndContext>
     );
 }

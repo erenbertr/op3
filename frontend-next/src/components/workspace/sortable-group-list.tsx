@@ -1,18 +1,24 @@
 "use client"
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import Sortable from 'sortablejs';
+import React, { useState } from 'react';
+import {
+    DndContext,
+    DragEndEvent,
+    DragStartEvent,
+    DragOverlay,
+    closestCenter,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
 import { GripVertical, Folder } from 'lucide-react';
-
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
-    let timeout: NodeJS.Timeout;
-    return ((...args: any[]) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    }) as T;
-}
 
 interface WorkspaceGroup {
     id: string;
@@ -27,176 +33,150 @@ interface SortableGroupListProps {
     onGroupReorder: (groupId: string, newIndex: number) => void;
 }
 
+// Sortable group item component
+function SortableGroupItem({
+    group,
+    isDragging,
+}: {
+    group: WorkspaceGroup;
+    isDragging: boolean;
+}) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging: isSortableDragging,
+    } = useSortable({ id: group.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging || isSortableDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            data-group-id={group.id}
+            className="mb-4"
+        >
+            <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                        <div
+                            className="drag-handle cursor-grab hover:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+                            {...attributes}
+                            {...listeners}
+                        >
+                            <GripVertical className="h-4 w-4" />
+                        </div>
+                        <Folder className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1">
+                            <h3 className="font-medium">{group.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                                {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
 export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListProps) {
-    const listRef = useRef<HTMLDivElement>(null);
-    const sortableRef = useRef<Sortable | null>(null);
-    const isInitializedRef = useRef(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+    const [activeId, setActiveId] = useState<string | null>(null);
 
-    // Add error boundary for sortable operations
-    const handleSortableError = useCallback((error: any, operation: string) => {
-        console.warn(`SortableJS ${operation} error (safely handled):`, error);
-        // Reset drag state on any error
-        setIsDragging(false);
-        setDraggedItemId(null);
-    }, []);
+    // Configure sensors for drag and drop
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        })
+    );
 
-    // Function to create sortable instance
-    const createSortableInstance = useCallback(() => {
-        if (!listRef.current) return;
+    // Handle drag start
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+        console.log('Group drag started:', event.active.id);
+    };
 
-        // Don't recreate during drag operations
-        if (isDragging) {
+    // Handle drag end
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        setActiveId(null);
+
+        if (!over) {
+            console.log('Group drag ended: No drop target');
             return;
         }
 
-        // Destroy existing instance if it exists
-        if (sortableRef.current) {
-            try {
-                sortableRef.current.destroy();
-            } catch (error) {
-                console.warn('Error destroying sortable instance:', error);
-            }
-            sortableRef.current = null;
-            isInitializedRef.current = false;
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        if (activeId !== overId) {
+            const oldIndex = groups.findIndex(group => group.id === activeId);
+            const newIndex = groups.findIndex(group => group.id === overId);
+
+            console.log(`Moving group ${activeId} from ${oldIndex} to ${newIndex}`);
+            onGroupReorder(activeId, newIndex);
         }
+    };
 
-        // Create new sortable instance
-        try {
-            console.log('Creating sortable instance for groups');
-            sortableRef.current = Sortable.create(listRef.current, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                chosenClass: 'sortable-chosen',
-                dragClass: 'sortable-drag',
-                handle: '.drag-handle',
-                forceFallback: true,
-                fallbackClass: 'sortable-fallback',
-                onStart: (evt) => {
-                    console.log('Group drag started');
-                    const groupId = evt.item.getAttribute('data-group-id');
-                    if (groupId) {
-                        setIsDragging(true);
-                        setDraggedItemId(groupId);
-                    }
-                },
-                onEnd: (evt) => {
-                    console.log('Group drag ended');
-                    const { oldIndex, newIndex } = evt;
+    // Get group IDs for sortable context
+    const groupIds = groups.map(g => g.id);
 
-                    // Reset drag state
-                    setIsDragging(false);
-                    setDraggedItemId(null);
 
-                    if (oldIndex === undefined || newIndex === undefined) return;
-                    if (oldIndex === newIndex) return; // No actual move
-
-                    // Get the group ID from the dragged element
-                    const groupId = evt.item.getAttribute('data-group-id');
-                    if (!groupId) return;
-
-                    console.log(`Moving group ${groupId} from ${oldIndex} to ${newIndex}`);
-                    // Call the reorder handler directly
-                    onGroupReorder(groupId, newIndex);
-                }
-            });
-            isInitializedRef.current = true;
-            console.log('Sortable instance created successfully');
-        } catch (error) {
-            console.error('Error creating sortable instance:', error);
-            isInitializedRef.current = false;
-        }
-    }, [isDragging, onGroupReorder]);
-
-    // Listen for disable/enable events from delete operations
-    useEffect(() => {
-        const handleDisableSortable = () => {
-            console.log('🔄 Temporarily disabling SortableJS for groups');
-            if (sortableRef.current) {
-                try {
-                    sortableRef.current.option('disabled', true);
-                } catch (error) {
-                    console.warn('Error disabling sortable:', error);
-                }
-            }
-        };
-
-        const handleEnableSortable = () => {
-            console.log('✅ Re-enabling SortableJS for groups');
-            if (sortableRef.current) {
-                try {
-                    sortableRef.current.option('disabled', false);
-                } catch (error) {
-                    console.warn('Error enabling sortable:', error);
-                }
-            }
-        };
-
-        window.addEventListener('disable-sortable-instances', handleDisableSortable);
-        window.addEventListener('enable-sortable-instances', handleEnableSortable);
-
-        return () => {
-            window.removeEventListener('disable-sortable-instances', handleDisableSortable);
-            window.removeEventListener('enable-sortable-instances', handleEnableSortable);
-        };
-    }, []);
-
-    useEffect(() => {
-        // Only create if not already initialized
-        if (sortableRef.current && isInitializedRef.current) {
-            return;
-        }
-
-        createSortableInstance();
-
-        return () => {
-            if (sortableRef.current) {
-                try {
-                    sortableRef.current.destroy();
-                } catch (error) {
-                    console.warn('Error during sortable cleanup:', error);
-                }
-                sortableRef.current = null;
-            }
-            isInitializedRef.current = false;
-            setIsDragging(false);
-            setDraggedItemId(null);
-        };
-    }, [groups.length, createSortableInstance]); // Only depend on groups length
 
 
 
     return (
-        <div ref={listRef} className={`space-y-1.5 ${isDragging ? 'pointer-events-none' : ''}`}>
-            {groups.map((group) => (
-                <Card
-                    key={group.id}
-                    data-group-id={group.id}
-                    className={`transition-all duration-200 ${draggedItemId === group.id ? 'opacity-50' : ''}`}
-                >
-                    <CardContent className="p-2.5">
-                        <div className="flex items-center gap-2.5">
-                            <div className="drag-handle cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded">
-                                <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                            </div>
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+        >
+            <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1.5">
+                    {groups.map((group) => (
+                        <SortableGroupItem
+                            key={group.id}
+                            group={group}
+                            isDragging={activeId === group.id}
+                        />
+                    ))}
+                </div>
+            </SortableContext>
 
-                            <div className="p-1.5 rounded-full bg-muted text-muted-foreground">
-                                <Folder className="h-3.5 w-3.5" />
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                                <h4 className="font-medium truncate min-w-0 text-sm" title={group.name}>
-                                    {group.name}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">
-                                    {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
+            <DragOverlay>
+                {activeId ? (
+                    <div className="opacity-80">
+                        <Card className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                    <Folder className="h-4 w-4 text-muted-foreground" />
+                                    <div className="flex-1">
+                                        <h3 className="font-medium">
+                                            {groups.find(g => g.id === activeId)?.name}
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            {groups.find(g => g.id === activeId)?.workspaceCount} workspace
+                                            {groups.find(g => g.id === activeId)?.workspaceCount !== 1 ? 's' : ''}
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                ) : null}
+            </DragOverlay>
+        </DndContext>
     );
 }
