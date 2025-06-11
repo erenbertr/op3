@@ -106,9 +106,21 @@ export function useDeleteWorkspaceGroup() {
         mutationFn: ({ userId, groupId }: { userId: string; groupId: string }) =>
             workspaceGroupsApi.deleteGroup(userId, groupId),
         onSuccess: (_, variables) => {
-            // Invalidate both groups and workspaces queries
+            // Temporarily disable SortableJS during DOM updates to prevent conflicts
+            console.log('🔄 Temporarily disabling SortableJS during DOM updates...');
+
+            // Dispatch custom event to temporarily disable SortableJS instances
+            window.dispatchEvent(new CustomEvent('disable-sortable-instances'));
+
+            // Invalidate queries immediately
             queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
             queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+
+            // Re-enable SortableJS after DOM updates are complete
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('enable-sortable-instances'));
+                console.log('✅ SortableJS re-enabled after DOM updates');
+            }, 100);
         },
     });
 }
@@ -120,9 +132,21 @@ export function useDeleteWorkspaceGroupWithWorkspaces() {
         mutationFn: ({ userId, groupId }: { userId: string; groupId: string }) =>
             workspaceGroupsApi.deleteGroupWithWorkspaces(userId, groupId),
         onSuccess: (_, variables) => {
-            // Invalidate both groups and workspaces queries
+            // Temporarily disable SortableJS during DOM updates to prevent conflicts
+            console.log('🔄 Temporarily disabling SortableJS during DOM updates...');
+
+            // Dispatch custom event to temporarily disable SortableJS instances
+            window.dispatchEvent(new CustomEvent('disable-sortable-instances'));
+
+            // Invalidate queries immediately
             queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
             queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+
+            // Re-enable SortableJS after DOM updates are complete
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('enable-sortable-instances'));
+                console.log('✅ SortableJS re-enabled after DOM updates');
+            }, 100);
         },
     });
 }
@@ -147,16 +171,21 @@ export function useMoveWorkspaceToGroup() {
         mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
             workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
         onSuccess: (_, variables) => {
-            // SOLUTION: Disable automatic query invalidation to prevent DOM conflicts
-            // The move-workspace request is enough - no need to refetch everything
-            console.log('✅ Move workspace API call completed - NOT invalidating queries');
-            console.log('  - SortableJS has already updated the DOM visually');
-            console.log('  - Backend has saved the new position');
-            console.log('  - No additional DOM updates needed');
+            // Temporarily disable SortableJS during DOM updates to prevent conflicts
+            console.log('🔄 Temporarily disabling SortableJS during DOM updates...');
 
-            // COMMENTED OUT: These cause React to re-render and conflict with SortableJS
-            // queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
-            // queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+            // Dispatch custom event to temporarily disable SortableJS instances
+            window.dispatchEvent(new CustomEvent('disable-sortable-instances'));
+
+            // Invalidate queries immediately
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+
+            // Re-enable SortableJS after DOM updates are complete
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('enable-sortable-instances'));
+                console.log('✅ SortableJS re-enabled after DOM updates');
+            }, 100);
         },
     });
 }

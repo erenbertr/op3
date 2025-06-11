@@ -57,6 +57,39 @@ export function SortableWorkspaceList({
         targetGroupId: string | null;
     } | null>(null);
 
+    // Listen for disable/enable events from delete operations
+    useEffect(() => {
+        const handleDisableSortable = () => {
+            console.log('🔄 Temporarily disabling SortableJS for workspaces');
+            if (sortableRef.current) {
+                try {
+                    sortableRef.current.option('disabled', true);
+                } catch (error) {
+                    console.warn('Error disabling sortable:', error);
+                }
+            }
+        };
+
+        const handleEnableSortable = () => {
+            console.log('✅ Re-enabling SortableJS for workspaces');
+            if (sortableRef.current) {
+                try {
+                    sortableRef.current.option('disabled', false);
+                } catch (error) {
+                    console.warn('Error enabling sortable:', error);
+                }
+            }
+        };
+
+        window.addEventListener('disable-sortable-instances', handleDisableSortable);
+        window.addEventListener('enable-sortable-instances', handleEnableSortable);
+
+        return () => {
+            window.removeEventListener('disable-sortable-instances', handleDisableSortable);
+            window.removeEventListener('enable-sortable-instances', handleEnableSortable);
+        };
+    }, []);
+
     useEffect(() => {
         if (!listRef.current) return;
 
@@ -139,7 +172,7 @@ export function SortableWorkspaceList({
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, []);
+    }, []); // Only run once on mount
 
     useEffect(() => {
         if (!isDragging && !isCrossGroupDragRef.current && !isDragOperationRef.current && sortableRef.current) {

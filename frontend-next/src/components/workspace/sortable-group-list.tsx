@@ -42,16 +42,12 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
         setDraggedItemId(null);
     }, []);
 
-    useEffect(() => {
+    // Function to create sortable instance
+    const createSortableInstance = useCallback(() => {
         if (!listRef.current) return;
 
         // Don't recreate during drag operations
         if (isDragging) {
-            return;
-        }
-
-        // Only create if not already initialized
-        if (sortableRef.current && isInitializedRef.current) {
             return;
         }
 
@@ -111,6 +107,48 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             console.error('Error creating sortable instance:', error);
             isInitializedRef.current = false;
         }
+    }, [isDragging, onGroupReorder]);
+
+    // Listen for disable/enable events from delete operations
+    useEffect(() => {
+        const handleDisableSortable = () => {
+            console.log('🔄 Temporarily disabling SortableJS for groups');
+            if (sortableRef.current) {
+                try {
+                    sortableRef.current.option('disabled', true);
+                } catch (error) {
+                    console.warn('Error disabling sortable:', error);
+                }
+            }
+        };
+
+        const handleEnableSortable = () => {
+            console.log('✅ Re-enabling SortableJS for groups');
+            if (sortableRef.current) {
+                try {
+                    sortableRef.current.option('disabled', false);
+                } catch (error) {
+                    console.warn('Error enabling sortable:', error);
+                }
+            }
+        };
+
+        window.addEventListener('disable-sortable-instances', handleDisableSortable);
+        window.addEventListener('enable-sortable-instances', handleEnableSortable);
+
+        return () => {
+            window.removeEventListener('disable-sortable-instances', handleDisableSortable);
+            window.removeEventListener('enable-sortable-instances', handleEnableSortable);
+        };
+    }, []);
+
+    useEffect(() => {
+        // Only create if not already initialized
+        if (sortableRef.current && isInitializedRef.current) {
+            return;
+        }
+
+        createSortableInstance();
 
         return () => {
             if (sortableRef.current) {
@@ -125,7 +163,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [groups.length]); // Only depend on groups length
+    }, [groups.length, createSortableInstance]); // Only depend on groups length
 
 
 
