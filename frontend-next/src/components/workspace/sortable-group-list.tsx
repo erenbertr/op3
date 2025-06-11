@@ -11,6 +11,7 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
+    MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -146,6 +147,11 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
+            measuring={{
+                droppable: {
+                    strategy: MeasuringStrategy.Always,
+                },
+            }}
         >
             <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
                 <div className="space-y-3">
