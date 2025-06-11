@@ -638,6 +638,13 @@ class ApiClient {
         });
     }
 
+    async deleteWorkspaceGroupWithWorkspaces(userId: string, groupId: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>(`/workspace-groups/${groupId}/with-workspaces`, {
+            method: 'DELETE',
+            body: JSON.stringify({ userId }),
+        });
+    }
+
     async reorderWorkspaceGroups(userId: string, groupOrders: Array<{ groupId: string; sortOrder: number }>): Promise<{ success: boolean }> {
         return this.request<{ success: boolean }>('/workspace-groups/reorder', {
             method: 'PUT',

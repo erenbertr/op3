@@ -12,7 +12,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SortableWorkspaceList } from './sortable-workspace-list';
-import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup } from '@/lib/hooks/use-workspace-groups';
+import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup, useDeleteWorkspaceGroupWithWorkspaces } from '@/lib/hooks/use-workspace-groups';
+import { DeleteGroupDialog } from './delete-group-dialog';
 
 type Workspace = {
     id: string;
@@ -54,9 +55,11 @@ export function WorkspaceGroupCard({
 }: WorkspaceGroupCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editName, setEditName] = useState(group.name);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     const updateGroupMutation = useUpdateWorkspaceGroup();
     const deleteGroupMutation = useDeleteWorkspaceGroup();
+    const deleteGroupWithWorkspacesMutation = useDeleteWorkspaceGroupWithWorkspaces();
 
     const handleSaveEdit = async () => {
         if (editName.trim() && editName.trim() !== group.name) {
@@ -79,16 +82,27 @@ export function WorkspaceGroupCard({
         setEditName(group.name);
     };
 
-    const handleDelete = async () => {
-        if (confirm(`Are you sure you want to delete the group "${group.name}"? Workspaces will be moved to ungrouped.`)) {
-            try {
-                await deleteGroupMutation.mutateAsync({
-                    userId,
-                    groupId: group.id
-                });
-            } catch (error) {
-                console.error('Error deleting group:', error);
-            }
+    const handleDeleteGroupOnly = async () => {
+        try {
+            await deleteGroupMutation.mutateAsync({
+                userId,
+                groupId: group.id
+            });
+            setShowDeleteDialog(false);
+        } catch (error) {
+            console.error('Error deleting group:', error);
+        }
+    };
+
+    const handleDeleteGroupAndWorkspaces = async () => {
+        try {
+            await deleteGroupWithWorkspacesMutation.mutateAsync({
+                userId,
+                groupId: group.id
+            });
+            setShowDeleteDialog(false);
+        } catch (error) {
+            console.error('Error deleting group with workspaces:', error);
         }
     };
 
@@ -149,9 +163,9 @@ export function WorkspaceGroupCard({
                                     Rename
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                    onClick={handleDelete}
+                                    onClick={() => setShowDeleteDialog(true)}
                                     className="text-destructive"
-                                    disabled={deleteGroupMutation.isPending}
+                                    disabled={deleteGroupMutation.isPending || deleteGroupWithWorkspacesMutation.isPending}
                                 >
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Delete
@@ -174,6 +188,16 @@ export function WorkspaceGroupCard({
                     className="border-transparent hover:border-border"
                 />
             </div>
+
+            <DeleteGroupDialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
+                groupName={group.name}
+                workspaceCount={workspaces.length}
+                onDeleteGroupOnly={handleDeleteGroupOnly}
+                onDeleteGroupAndWorkspaces={handleDeleteGroupAndWorkspaces}
+                isDeleting={deleteGroupMutation.isPending || deleteGroupWithWorkspacesMutation.isPending}
+            />
         </div>
     );
 }

@@ -522,6 +522,79 @@ export class WorkspaceGroupService {
     }
 
     /**
+     * Delete workspace group and all workspaces inside it
+     */
+    public async deleteGroupWithWorkspaces(userId: string, groupId: string): Promise<WorkspaceGroupResponse> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            if (!connection) {
+                throw new Error('Failed to get database connection');
+            }
+
+            // First, delete all workspaces in this group
+            await this.deleteWorkspacesInGroup(userId, groupId);
+
+            // Then delete the group itself
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('workspace_groups').deleteOne({ id: groupId, userId });
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'DELETE FROM workspace_groups WHERE id = ? AND userId = ?';
+                    await connection.execute(query, [groupId, userId]);
+                    break;
+
+                case 'localdb':
+                    await new Promise<void>((resolve, reject) => {
+                        connection.run(
+                            'DELETE FROM workspace_groups WHERE id = ? AND userId = ?',
+                            [groupId, userId],
+                            (err: any) => {
+                                if (err) reject(err);
+                                else resolve();
+                            }
+                        );
+                    });
+                    break;
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('workspace_groups')
+                        .delete()
+                        .eq('id', groupId)
+                        .eq('user_id', userId);
+
+                    if (error) {
+                        throw new Error(`Supabase error: ${error.message}`);
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for workspace group operations`);
+            }
+
+            return {
+                success: true,
+                message: 'Workspace group and all workspaces deleted successfully'
+            };
+
+        } catch (error) {
+            console.error('Error deleting workspace group with workspaces:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to delete workspace group with workspaces'
+            };
+        }
+    }
+
+    /**
      * Reorder groups
      */
     public async reorderGroups(userId: string, request: ReorderGroupsRequest): Promise<WorkspaceGroupResponse> {
@@ -668,6 +741,63 @@ export class WorkspaceGroupService {
 
         } catch (error) {
             console.error('Error moving workspaces to ungrouped:', error);
+        }
+    }
+
+    /**
+     * Delete all workspaces in a group
+     */
+    private async deleteWorkspacesInGroup(userId: string, groupId: string): Promise<void> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                return;
+            }
+
+            const connection = await this.dbManager.getConnection();
+            if (!connection) {
+                return;
+            }
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('workspaces').deleteMany({ userId, groupId });
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'DELETE FROM workspaces WHERE userId = ? AND groupId = ?';
+                    await connection.execute(query, [userId, groupId]);
+                    break;
+
+                case 'localdb':
+                    await new Promise<void>((resolve, reject) => {
+                        connection.run(
+                            'DELETE FROM workspaces WHERE userId = ? AND groupId = ?',
+                            [userId, groupId],
+                            (err: any) => {
+                                if (err) reject(err);
+                                else resolve();
+                            }
+                        );
+                    });
+                    break;
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('workspaces')
+                        .delete()
+                        .eq('user_id', userId)
+                        .eq('group_id', groupId);
+
+                    if (error) {
+                        throw new Error(`Supabase error: ${error.message}`);
+                    }
+                    break;
+            }
+
+        } catch (error) {
+            console.error('Error deleting workspaces in group:', error);
         }
     }
 

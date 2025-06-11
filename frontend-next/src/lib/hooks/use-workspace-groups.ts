@@ -52,6 +52,8 @@ const workspaceGroupsApi = {
         apiClient.updateWorkspaceGroup(userId, groupId, data.name, data.sortOrder),
     deleteGroup: (userId: string, groupId: string) =>
         apiClient.deleteWorkspaceGroup(userId, groupId),
+    deleteGroupWithWorkspaces: (userId: string, groupId: string) =>
+        apiClient.deleteWorkspaceGroupWithWorkspaces(userId, groupId),
     reorderGroups: (userId: string, data: ReorderGroupsRequest) =>
         apiClient.reorderWorkspaceGroups(userId, data.groupOrders),
     moveWorkspaceToGroup: (userId: string, data: MoveWorkspaceToGroupRequest) =>
@@ -103,6 +105,20 @@ export function useDeleteWorkspaceGroup() {
     return useMutation({
         mutationFn: ({ userId, groupId }: { userId: string; groupId: string }) =>
             workspaceGroupsApi.deleteGroup(userId, groupId),
+        onSuccess: (_, variables) => {
+            // Invalidate both groups and workspaces queries
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+        },
+    });
+}
+
+export function useDeleteWorkspaceGroupWithWorkspaces() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ userId, groupId }: { userId: string; groupId: string }) =>
+            workspaceGroupsApi.deleteGroupWithWorkspaces(userId, groupId),
         onSuccess: (_, variables) => {
             // Invalidate both groups and workspaces queries
             queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });

@@ -42,19 +42,16 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
         setDraggedItemId(null);
     }, []);
 
-    // Debounced reorder handler to prevent rapid successive operations
-    const debouncedReorder = useCallback(
-        debounce((groupId: string, newIndex: number) => {
-            onGroupReorder(groupId, newIndex);
-        }, 100),
-        [onGroupReorder]
-    );
-
     useEffect(() => {
         if (!listRef.current) return;
 
         // Don't recreate during drag operations
         if (isDragging) {
+            return;
+        }
+
+        // Only create if not already initialized
+        if (sortableRef.current && isInitializedRef.current) {
             return;
         }
 
@@ -104,8 +101,8 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                     if (!groupId) return;
 
                     console.log(`Moving group ${groupId} from ${oldIndex} to ${newIndex}`);
-                    // Call the debounced reorder handler
-                    debouncedReorder(groupId, newIndex);
+                    // Call the reorder handler directly
+                    onGroupReorder(groupId, newIndex);
                 }
             });
             isInitializedRef.current = true;
@@ -128,7 +125,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [groups.length, debouncedReorder]); // Only depend on groups length, not the full array
+    }, [groups.length]); // Only depend on groups length
 
 
 

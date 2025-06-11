@@ -184,4 +184,26 @@ router.delete('/:groupId', asyncHandler(async (req: Request, res: Response) => {
     res.json(result);
 }));
 
+// Delete workspace group and all workspaces inside it
+router.delete('/:groupId/with-workspaces', asyncHandler(async (req: Request, res: Response) => {
+    const { groupId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (!groupId) {
+        throw createError('Group ID is required', 400);
+    }
+
+    const result = await workspaceGroupService.deleteGroupWithWorkspaces(userId, groupId);
+
+    if (!result.success) {
+        throw createError(result.message, 400);
+    }
+
+    res.json(result);
+}));
+
 export default router;
