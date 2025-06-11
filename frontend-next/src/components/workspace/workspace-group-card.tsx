@@ -107,7 +107,7 @@ export function WorkspaceGroupCard({
     };
 
     return (
-        <div className="workspace-group transition-all duration-200" data-group-id={group.id}>
+        <div className="workspace-group transition-all duration-200">
             <div className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">

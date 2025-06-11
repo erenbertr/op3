@@ -100,63 +100,29 @@ export function useUpdateWorkspaceGroup() {
 }
 
 export function useDeleteWorkspaceGroup() {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ userId, groupId }: { userId: string; groupId: string }) =>
             workspaceGroupsApi.deleteGroup(userId, groupId),
         onSuccess: (_, variables) => {
-            // Move workspaces to ungrouped and remove group header only
-            console.log('✅ Delete group API call completed - moving workspaces to ungrouped');
-            console.log('  - Group deleted successfully from backend');
-            console.log('  - Workspaces moved to ungrouped in backend');
-            console.log('  - NOT invalidating queries to prevent DOM conflicts');
-
-            // Find the group container
-            const groupElement = document.querySelector(`[data-group-id="${variables.groupId}"]`);
-            if (groupElement) {
-                // Find all workspace cards in this group
-                const workspaceCards = groupElement.querySelectorAll('[data-workspace-id]');
-
-                // Find the ungrouped section (workspace-grid with data-group-id="null")
-                const ungroupedSection = document.querySelector('.workspace-grid[data-group-id="null"]');
-
-                if (ungroupedSection && workspaceCards.length > 0) {
-                    // Move each workspace card to ungrouped section
-                    workspaceCards.forEach(card => {
-                        ungroupedSection.appendChild(card);
-                    });
-                    console.log(`  - Moved ${workspaceCards.length} workspace(s) to ungrouped section`);
-                }
-
-                // Remove the entire group container (the .workspace-group div)
-                const groupContainer = groupElement.closest('.workspace-group');
-                if (groupContainer) {
-                    groupContainer.remove();
-                    console.log('  - Group container removed from DOM');
-                }
-            }
+            // Invalidate both groups and workspaces queries
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
         },
     });
 }
 
 export function useDeleteWorkspaceGroupWithWorkspaces() {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ userId, groupId }: { userId: string; groupId: string }) =>
             workspaceGroupsApi.deleteGroupWithWorkspaces(userId, groupId),
         onSuccess: (_, variables) => {
-            // Remove the group element from DOM directly to avoid removeChild errors
-            console.log('✅ Delete group with workspaces API call completed - removing DOM element directly');
-            console.log('  - Group and workspaces deleted successfully from backend');
-            console.log('  - NOT invalidating queries to prevent DOM conflicts');
-
-            // Find and remove the group element from DOM
-            const groupElement = document.querySelector(`[data-group-id="${variables.groupId}"]`);
-            if (groupElement) {
-                const groupContainer = groupElement.closest('.workspace-group');
-                if (groupContainer) {
-                    groupContainer.remove();
-                    console.log('  - Group element removed from DOM');
-                }
-            }
+            // Invalidate both groups and workspaces queries
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
+            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
         },
     });
 }
