@@ -286,7 +286,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                             ? 'bg-primary/10 border-primary text-primary'
                             : 'border-transparent hover:border-primary/50'
                             }`}
-                        title="Select Workspace"
+                        title="Workspaces"
                     >
                         <FolderOpen className="h-4 w-4" />
                     </Button>

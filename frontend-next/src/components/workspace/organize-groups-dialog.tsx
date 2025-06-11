@@ -45,15 +45,15 @@ export function OrganizeGroupsDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4">
+                <div className="py-2">
                     {groups.length > 0 ? (
-                        <div className="space-y-2">
+                        <div className="space-y-1">
                             {groups.map((group, index) => (
                                 <Card key={group.id}>
-                                    <CardContent className="p-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-1.5 rounded-full bg-muted text-muted-foreground">
-                                                <Folder className="h-3.5 w-3.5" />
+                                    <CardContent className="p-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1 rounded-full bg-muted text-muted-foreground">
+                                                <Folder className="h-3 w-3" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-medium text-sm truncate" title={group.name}>
