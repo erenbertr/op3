@@ -130,14 +130,9 @@ export function SortableWorkspaceList({
 
                 {/* Always maintain a shadow element to prevent DOM errors and ensure droppability */}
                 <div
-                    className={`${workspaces.length === 0
-                        ? 'flex items-center justify-center h-20 text-muted-foreground text-sm'
-                        : 'hidden'
-                        }`}
+                    className={`${workspaces.length === 0 ? 'h-20' : 'hidden'}`}
                     style={{ pointerEvents: 'none' }}
-                >
-                    {workspaces.length === 0 ? 'Drop workspaces here' : ''}
-                </div>
+                />
             </div>
         </SortableContext>
     );
