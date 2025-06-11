@@ -89,9 +89,9 @@ function AddWorkspaceCard({ groupId, onAddWorkspace }: { groupId: string | null;
     return (
         <div
             onClick={() => onAddWorkspace?.(groupId)}
-            className="workspace-card-inner bg-white/50 border border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all opacity-60 hover:opacity-80"
+            className="workspace-card-inner border border-dashed border-muted-foreground/30 rounded-lg p-4 cursor-pointer hover:border-primary transition-all opacity-60 hover:opacity-80"
         >
-            <div className="flex flex-col items-center justify-center h-full min-h-[80px] text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-full min-h-[80px] text-muted-foreground select-none">
                 <Plus className="h-6 w-6 mb-2" />
                 <span className="text-sm font-medium">Add Workspace</span>
             </div>
