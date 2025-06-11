@@ -339,11 +339,6 @@
 .workspace-card-inner {
   /* Improve drag experience */
   touch-action: none;
-  cursor: grab;
-}
-
-.workspace-card-inner:active {
-  cursor: grabbing;
 }
 
 /* Ensure workspace cards are draggable */

@@ -72,7 +72,7 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
 
     return (
         <Card
-            className={`workspace-card-inner group/card cursor-pointer transition-all duration-200 hover:shadow-md select-none ${isActive
+            className={`workspace-card-inner group/card transition-all duration-200 hover:shadow-md select-none ${isActive
                 ? 'border-primary'
                 : 'hover:border-primary/50'
                 }`}
