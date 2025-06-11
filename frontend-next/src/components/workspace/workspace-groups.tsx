@@ -18,6 +18,18 @@ import { CreateGroupDialog } from './create-group-dialog';
 import { OrganizeGroupsDialog } from './organize-groups-dialog';
 import { SortableWorkspaceList } from './sortable-workspace-list';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
+import {
+    DndContext,
+    DragEndEvent,
+    DragOverEvent,
+    DragStartEvent,
+    DragOverlay,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    rectIntersection,
+} from '@dnd-kit/core';
+import { WorkspaceCard } from './workspace-card';
 
 
 // Helper type, can be moved to a types file if needed
@@ -54,6 +66,16 @@ export function WorkspaceGroups({
     const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
     const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
     const [error, setError] = useState('');
+    const [activeId, setActiveId] = useState<string | null>(null);
+
+    // Configure sensors for drag and drop
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        })
+    );
 
     // Note: Removed constrained drag to allow free movement during dragging
 
@@ -99,6 +121,69 @@ export function WorkspaceGroups({
             ungroupedWorkspaces: ungrouped
         };
     }, [workspaces, groups]);
+
+    // Global drag handlers for cross-group dragging
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+        console.log('Global drag started:', event.active.id);
+    };
+
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        console.log('Global drag over:', active.id, 'over:', over.id);
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        setActiveId(null);
+
+        if (!over) {
+            console.log('Global drag ended: No drop target');
+            return;
+        }
+
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        console.log('Global drag ended:', activeId, 'to:', overId);
+
+        // Find the workspace being dragged
+        const activeWorkspace = workspaces.find(w => w.id === activeId);
+        if (!activeWorkspace) return;
+
+        // Determine target group and new index
+        let targetGroupId: string | null = null;
+        let newIndex = 0;
+
+        // Check if dropping over another workspace
+        const overWorkspace = workspaces.find(w => w.id === overId);
+        if (overWorkspace) {
+            // Dropping over another workspace - use its group and position
+            targetGroupId = overWorkspace.groupId || null;
+            const targetWorkspaces = targetGroupId
+                ? groupedWorkspaces[targetGroupId] || []
+                : ungroupedWorkspaces;
+            newIndex = targetWorkspaces.findIndex(w => w.id === overId);
+        } else {
+            // Check if dropping over a group container
+            const overElement = document.querySelector(`[data-group-id="${overId}"]`);
+            if (overElement) {
+                targetGroupId = overId === 'null' ? null : overId;
+                newIndex = 0; // Add to beginning of target group
+            }
+        }
+
+        // Only move if group changed or position changed within group
+        const currentGroupId = activeWorkspace.groupId || null;
+        if (currentGroupId !== targetGroupId || newIndex !== -1) {
+            console.log('Moving workspace:', activeId, 'to group:', targetGroupId, 'at index:', newIndex);
+            handleWorkspaceMove(activeId, newIndex, targetGroupId);
+        }
+    };
 
     const handleWorkspaceMove = useCallback(async (workspaceId: string, newIndex: number, targetGroupId?: string | null) => {
         console.log('🚀 Moving workspace:', { workspaceId, targetGroupId, newIndex });
@@ -265,38 +350,60 @@ export function WorkspaceGroups({
                 </div>
             </div>
 
-            <div className="space-y-8 relative">
-                {/* Ungrouped workspaces */}
-                <div className="space-y-4">
-                    <SortableWorkspaceList
-                        workspaces={ungroupedWorkspaces}
-                        currentWorkspaceId={currentWorkspaceId}
-                        onWorkspaceSelect={handleWorkspaceSelect}
-                        onWorkspaceEdit={handleEditWorkspace}
-                        onWorkspaceDelete={handleDeleteWorkspace}
-                        onWorkspaceMove={handleWorkspaceMove}
-                        groupId={null}
-                        className="border-transparent hover:border-border"
-                    />
-                </div>
-
-                {/* Groups */}
-                <div className="space-y-6">
-                    {groups.map((group) => (
-                        <WorkspaceGroupCard
-                            key={group.id}
-                            group={group}
-                            workspaces={groupedWorkspaces[group.id] || []}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="space-y-8 relative">
+                    {/* Ungrouped workspaces */}
+                    <div className="space-y-4">
+                        <SortableWorkspaceList
+                            workspaces={ungroupedWorkspaces}
+                            currentWorkspaceId={currentWorkspaceId}
                             onWorkspaceSelect={handleWorkspaceSelect}
                             onWorkspaceEdit={handleEditWorkspace}
                             onWorkspaceDelete={handleDeleteWorkspace}
                             onWorkspaceMove={handleWorkspaceMove}
-                            currentWorkspaceId={currentWorkspaceId}
-                            userId={userId}
+                            groupId={null}
+                            className="border-transparent hover:border-border"
                         />
-                    ))}
+                    </div>
+
+                    {/* Groups */}
+                    <div className="space-y-6">
+                        {groups.map((group) => (
+                            <WorkspaceGroupCard
+                                key={group.id}
+                                group={group}
+                                workspaces={groupedWorkspaces[group.id] || []}
+                                onWorkspaceSelect={handleWorkspaceSelect}
+                                onWorkspaceEdit={handleEditWorkspace}
+                                onWorkspaceDelete={handleDeleteWorkspace}
+                                onWorkspaceMove={handleWorkspaceMove}
+                                currentWorkspaceId={currentWorkspaceId}
+                                userId={userId}
+                            />
+                        ))}
+                    </div>
                 </div>
-            </div>
+
+                <DragOverlay>
+                    {activeId ? (
+                        <div className="opacity-80 transform rotate-2 scale-105">
+                            <WorkspaceCard
+                                workspace={workspaces.find(w => w.id === activeId)!}
+                                isActive={false}
+                                onSelect={() => { }}
+                                onEdit={() => { }}
+                                onDelete={() => { }}
+                            />
+                        </div>
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
 
             {/* Edit Workspace Dialog */}
             <Dialog open={!!editingWorkspace} onOpenChange={(open) => !open && setEditingWorkspace(null)}>
@@ -364,7 +471,6 @@ export function WorkspaceGroups({
 
             {showOrganizeGroups && (
                 <OrganizeGroupsDialog
-                    userId={userId}
                     groups={groups}
                     onClose={() => setShowOrganizeGroups(false)}
                 />

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
     DndContext,
     DragEndEvent,
+    DragOverEvent,
     DragStartEvent,
     DragOverlay,
     closestCenter,
@@ -15,6 +16,7 @@ import {
     SortableContext,
     verticalListSortingStrategy,
     useSortable,
+    arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card, CardContent } from '@/components/ui/card';
@@ -89,6 +91,12 @@ function SortableGroupItem({
 
 export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListProps) {
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [localGroups, setLocalGroups] = useState(groups);
+
+    // Update local groups when props change
+    React.useEffect(() => {
+        setLocalGroups(groups);
+    }, [groups]);
 
     // Configure sensors for drag and drop
     const sensors = useSensors(
@@ -105,6 +113,25 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
         console.log('Group drag started:', event.active.id);
     };
 
+    // Handle drag over for smooth sorting
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        if (activeId !== overId) {
+            const activeIndex = localGroups.findIndex(group => group.id === activeId);
+            const overIndex = localGroups.findIndex(group => group.id === overId);
+
+            if (activeIndex !== -1 && overIndex !== -1) {
+                setLocalGroups(prev => arrayMove(prev, activeIndex, overIndex));
+            }
+        }
+    };
+
     // Handle drag end
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -113,6 +140,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
 
         if (!over) {
             console.log('Group drag ended: No drop target');
+            setLocalGroups(groups); // Reset to original order
             return;
         }
 
@@ -121,15 +149,17 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
 
         if (activeId !== overId) {
             const oldIndex = groups.findIndex(group => group.id === activeId);
-            const newIndex = groups.findIndex(group => group.id === overId);
+            const newIndex = localGroups.findIndex(group => group.id === overId);
 
             console.log(`Moving group ${activeId} from ${oldIndex} to ${newIndex}`);
             onGroupReorder(activeId, newIndex);
+        } else {
+            setLocalGroups(groups); // Reset if no actual move
         }
     };
 
     // Get group IDs for sortable context
-    const groupIds = groups.map(g => g.id);
+    const groupIds = localGroups.map(g => g.id);
 
 
 
@@ -140,11 +170,12 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
         >
             <SortableContext items={groupIds} strategy={verticalListSortingStrategy}>
                 <div className="space-y-1.5">
-                    {groups.map((group) => (
+                    {localGroups.map((group) => (
                         <SortableGroupItem
                             key={group.id}
                             group={group}
