@@ -79,6 +79,7 @@ export function SortableWorkspaceList({
             sortableRef.current = Sortable.create(listRef.current, {
                 group: 'shared', // Simple string like official example
                 animation: 150,
+                filter: '[data-workspace-id="placeholder"]', // Ignore the placeholder element
                 onStart: (evt) => {
                     console.log('DRAG START:', evt.item.getAttribute('data-workspace-id'));
                     isDragOperationRef.current = true;
@@ -182,6 +183,16 @@ export function SortableWorkspaceList({
                     />
                 </div>
             ))}
+
+            {/* Shadow/placeholder element to prevent SortableJS removeChild errors when removing last workspace */}
+            <div
+                key="sortable-placeholder"
+                data-workspace-id="placeholder"
+                className="hidden"
+                style={{ display: 'none', visibility: 'hidden', height: 0, width: 0, overflow: 'hidden' }}
+            >
+                {/* This invisible element ensures SortableJS always has at least one child to work with */}
+            </div>
         </div>
     );
 }
