@@ -44,6 +44,24 @@ export interface BatchUpdateWorkspacesRequest {
     }>;
 }
 
+// Define a type for the workspace structure as expected in the cache
+interface CachedWorkspace {
+    id: string;
+    name: string;
+    templateType: string;
+    workspaceRules: string;
+    isActive: boolean;
+    createdAt: string;
+    groupId?: string | null;
+    sortOrder?: number;
+}
+
+interface CachedWorkspacesData {
+    workspaces: CachedWorkspace[];
+    // Add other properties if the cached object for ['workspaces', 'user', userId] has more fields
+}
+
+
 // API functions using apiClient methods
 const workspaceGroupsApi = {
     getUserGroups: (userId: string) => apiClient.getUserWorkspaceGroups(userId),
@@ -174,17 +192,101 @@ export function useMoveWorkspaceToGroup() {
 }
 
 export function useMoveWorkspaceToGroupOptimistic() {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: ({ userId, ...data }: { userId: string } & MoveWorkspaceToGroupRequest) =>
             workspaceGroupsApi.moveWorkspaceToGroup(userId, data),
 
-        // No automatic refetching - let the component handle state updates manually
-        onSuccess: () => {
-            console.log('✅ Workspace move API call completed successfully');
-        },
+        onMutate: async (variables: { userId: string } & MoveWorkspaceToGroupRequest) => {
+            const { userId, workspaceId, groupId: targetGroupId, sortOrder: newSortIndex } = variables;
+            const workspacesQueryKey: readonly string[] = ['workspaces', 'user', userId];
 
-        onError: (error) => {
-            console.error('❌ Error moving workspace:', error);
+            await queryClient.cancelQueries({ queryKey: workspacesQueryKey });
+
+            const previousWorkspacesData = queryClient.getQueryData<CachedWorkspacesData>(workspacesQueryKey);
+
+            queryClient.setQueryData<CachedWorkspacesData | undefined>(workspacesQueryKey, (oldData) => {
+                if (!oldData || !oldData.workspaces) {
+                    console.warn('Optimistic update for move: No old data or workspaces array.');
+                    return oldData;
+                }
+
+                const currentMovedWorkspace = oldData.workspaces.find(ws => ws.id === workspaceId);
+                if (!currentMovedWorkspace) {
+                    console.warn('Optimistic update for move: Moved workspace not found in cache.');
+                    return oldData;
+                }
+
+                // Create the updated version of the moved workspace
+                const typedMovedWorkspace: CachedWorkspace = { 
+                    ...currentMovedWorkspace, 
+                    groupId: targetGroupId, 
+                    sortOrder: newSortIndex 
+                };
+
+                // Filter out the moved workspace from its original position
+                const workspacesWithoutMoved = oldData.workspaces.filter(ws => ws.id !== workspaceId);
+                
+                const targetGroupWorkspaces: CachedWorkspace[] = [];
+                const otherWorkspaces: CachedWorkspace[] = [];
+
+                workspacesWithoutMoved.forEach(ws => {
+                    if (ws.groupId === targetGroupId) {
+                        targetGroupWorkspaces.push(ws);
+                    } else {
+                        otherWorkspaces.push(ws);
+                    }
+                });
+
+                // Insert the moved workspace into the target group at the specified newSortIndex
+                // Ensure newSortIndex is a valid number; if undefined or null, place at the end.
+                const insertionIndex = (newSortIndex !== undefined && newSortIndex !== null && newSortIndex >= 0 && newSortIndex <= targetGroupWorkspaces.length) 
+                    ? newSortIndex 
+                    : targetGroupWorkspaces.length;
+                targetGroupWorkspaces.splice(insertionIndex, 0, typedMovedWorkspace);
+
+                // Update sortOrder for all workspaces in the target group
+                targetGroupWorkspaces.forEach((ws, index) => {
+                    ws.sortOrder = index;
+                });
+
+                const finalWorkspacesList = [...otherWorkspaces, ...targetGroupWorkspaces].sort((a, b) => {
+                    // Grouped items come before ungrouped items
+                    if (a.groupId && !b.groupId) return -1;
+                    if (!a.groupId && b.groupId) return 1;
+
+                    // If both are in the same group or both are ungrouped, sort by sortOrder
+                    if (a.groupId === b.groupId || (!a.groupId && !b.groupId)) {
+                        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+                    }
+                    
+                    // If items are in different groups (and not null), sort by groupId string comparison as a fallback
+                    // A more robust solution would involve a predefined group order if necessary.
+                    if (a.groupId && b.groupId) {
+                        return a.groupId.localeCompare(b.groupId);
+                    }
+                    return 0;
+                });
+
+                return { ...oldData, workspaces: finalWorkspacesList };
+            });
+
+            console.log('✨ Optimistically updated workspace move for workspace:', workspaceId);
+            return { previousWorkspacesData, workspacesQueryKey };
+        },
+        onError: (error: Error, variables: { userId: string } & MoveWorkspaceToGroupRequest, context?: { previousWorkspacesData?: CachedWorkspacesData; workspacesQueryKey?: readonly string[] }) => {
+            console.error('❌ Error moving workspace, rolling back optimistic update:', error);
+            if (context?.previousWorkspacesData && context?.workspacesQueryKey) {
+                queryClient.setQueryData(context.workspacesQueryKey, context.previousWorkspacesData);
+            }
+        },
+        onSettled: (data: unknown, error: Error | null, variables: { userId: string } & MoveWorkspaceToGroupRequest, context?: { previousWorkspacesData?: CachedWorkspacesData; workspacesQueryKey?: readonly string[] }) => {
+            console.log('🔄 Workspace move API call settled, invalidating workspaces query');
+            if (context?.workspacesQueryKey) {
+                 queryClient.invalidateQueries({ queryKey: context.workspacesQueryKey });
+            }
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
         },
     });
 }
