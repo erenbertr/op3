@@ -11,6 +11,13 @@ import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
+import { MoreHorizontal } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ChatSidebarProps {
     className?: string;
@@ -22,6 +29,7 @@ interface ChatSidebarProps {
     chatSessions?: ChatSession[];
     onSessionsUpdate?: (sessions: ChatSession[]) => void;
     isLoading?: boolean;
+    onChatDeselect?: () => void; // New callback for deselection
 }
 
 export function ChatSidebar({
@@ -33,11 +41,13 @@ export function ChatSidebar({
     activeChatId,
     chatSessions = [],
     onSessionsUpdate,
-    isLoading = false
+    isLoading = false,
+    onChatDeselect
 }: ChatSidebarProps) {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
+    const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
 
@@ -96,6 +106,53 @@ export function ChatSidebar({
             });
         } finally {
             setIsCreatingChat(false);
+        }
+    };
+
+    const handleDeleteChat = async (chatId: string) => {
+        if (deletingChatId === chatId) return; // Prevent multiple clicks
+        setDeletingChatId(chatId);
+        console.log('Attempting to delete chat:', chatId);
+
+        try {
+            const result = await apiClient.deleteChatSession(chatId);
+            if (result.success) {
+                addToast({
+                    title: "Chat Deleted",
+                    description: result.message || "The chat session has been successfully deleted.",
+                });
+
+                // Optimistically update the UI by removing the chat from the local list
+                const updatedSessions = chatSessions.filter(session => session.id !== chatId);
+                onSessionsUpdate?.(updatedSessions);
+
+                // If the active chat was deleted, navigate away or select another
+                if (activeChatId === chatId) {
+                    router.push(`/ws/${workspaceId}`);
+                    onChatDeselect?.(); // Signal to parent to clear content
+                }
+
+                // Invalidate queries to refetch from server
+                queryClient.invalidateQueries({
+                    queryKey: queryKeys.chats.byWorkspace(userId, workspaceId)
+                });
+
+            } else {
+                addToast({
+                    title: "Error Deleting Chat",
+                    description: result.message || "Failed to delete the chat session.",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting chat session:', error);
+            addToast({
+                title: "Error",
+                description: "An unexpected error occurred while deleting the chat.",
+                variant: "destructive"
+            });
+        } finally {
+            setDeletingChatId(null);
         }
     };
 
@@ -202,25 +259,57 @@ export function ChatSidebar({
                                         </h3>
                                         <div className="space-y-1">
                                             {groupChats.map((chat) => (
-                                                <button
+                                                <div // Main container for the chat item
                                                     key={chat.id}
                                                     className={cn(
-                                                        "w-full text-left px-3 py-3 rounded-md transition-colors select-none",
+                                                        "group w-full text-left px-3 py-2.5 rounded-md transition-colors select-none relative flex items-center justify-between cursor-pointer",
                                                         "hover:bg-accent hover:text-accent-foreground",
-                                                        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", // Use focus-within for better accessibility
                                                         activeChatId === chat.id
                                                             ? "bg-accent text-accent-foreground"
                                                             : "text-foreground"
                                                     )}
-                                                    onClick={() => handleChatClick(chat)}
+                                                    onClick={() => handleChatClick(chat)} // Main click action to select chat
                                                 >
-                                                    <div
-                                                        className="text-sm font-medium truncate"
+                                                    <div // Chat title part
+                                                        className="text-sm font-medium truncate flex-grow mr-2" // flex-grow to take available space, mr-2 for spacing
                                                         title={chat.title}
                                                     >
                                                         {chat.title}
                                                     </div>
-                                                </button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" // Adjusted size, padding, added flex-shrink-0
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation(); // Prevent chat click when clicking dots
+                                                                }}
+                                                            >
+                                                                {deletingChatId === chat.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                                                                <span className="sr-only">Open chat actions</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent 
+                                                            align="end" // Align dropdown to the right
+                                                            onClick={(e) => e.stopPropagation()} // Prevent chat click when dropdown content is interacted with
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation(); // Ensure no other click events fire
+                                                                    if (deletingChatId !== chat.id) { // Prevent action if already deleting this chat
+                                                                        handleDeleteChat(chat.id);
+                                                                    }
+                                                                }}
+                                                                disabled={deletingChatId === chat.id}
+                                                                className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50 dark:text-red-500 dark:hover:!text-red-500 dark:focus:!text-red-500 dark:hover:!bg-red-900/50 dark:focus:!bg-red-900/50 cursor-pointer"
+                                                            >
+                                                                {deletingChatId === chat.id ? 'Deleting...' : 'Delete'}
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
