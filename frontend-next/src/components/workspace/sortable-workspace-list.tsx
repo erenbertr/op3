@@ -36,6 +36,8 @@ export function SortableWorkspaceList({
     groupId = null,
     className = ""
 }: SortableWorkspaceListProps) {
+
+    const DISABLE_SORTABLE = false;
     const listRef = useRef<HTMLDivElement>(null);
     const sortableRef = useRef<Sortable | null>(null);
     const isInitializedRef = useRef(false);
@@ -57,6 +59,11 @@ export function SortableWorkspaceList({
 
     useEffect(() => {
         if (!listRef.current) return;
+
+        if (DISABLE_SORTABLE) {
+            console.log('SortableJS disabled for testing');
+            return;
+        }
 
         if (isDragging || isCrossGroupDragRef.current) {
             console.log('Skipping useEffect due to active drag operation');
@@ -131,40 +138,13 @@ export function SortableWorkspaceList({
             setIsDragging(false);
             setDraggedItemId(null);
         };
-    }, [workspaces.length, isDragging]); // Recreate when workspace count changes or drag state changes
-
-    // Track workspace IDs to detect when workspaces are added/removed
-    const workspaceIds = workspaces.map(w => w.id).join(',');
-    const prevWorkspaceIdsRef = useRef<string>('');
+    }, []);
 
     useEffect(() => {
-        // Only destroy sortable if workspaces were actually added/removed (not just reordered)
         if (!isDragging && !isCrossGroupDragRef.current && !isDragOperationRef.current && sortableRef.current) {
-            const currentIds = workspaceIds;
-            const prevIds = prevWorkspaceIdsRef.current;
-
-            // Check if workspaces were added or removed (not just reordered)
-            const currentSet = new Set(currentIds.split(',').filter(Boolean));
-            const prevSet = new Set(prevIds.split(',').filter(Boolean));
-
-            const wasAdded = currentSet.size > prevSet.size;
-            const wasRemoved = currentSet.size < prevSet.size;
-
-            if (wasAdded || wasRemoved) {
-                console.log('Workspaces added/removed, destroying sortable instance');
-                try {
-                    sortableRef.current.destroy();
-                    sortableRef.current = null;
-                    console.log('Sortable instance destroyed due to workspace changes');
-                } catch (error) {
-                    console.warn('Error destroying sortable instance:', error);
-                    sortableRef.current = null;
-                }
-            }
-
-            prevWorkspaceIdsRef.current = currentIds;
+            console.log('Workspaces changed, but sortable instance exists and no drag active');
         }
-    }, [workspaceIds, isDragging]);
+    }, [workspaces, isDragging]);
 
     // Process pending moves when drag operation is complete
     useEffect(() => {
@@ -180,14 +160,6 @@ export function SortableWorkspaceList({
             onWorkspaceMove(move.workspaceId, move.newIndex, move.targetGroupId);
         }
     }, [isDragging, onWorkspaceMove]);
-
-    // Simple wrapper to handle delete with a small delay to prevent DOM conflicts
-    const handleDelete = (workspace: Workspace) => {
-        // Small delay to let any SortableJS operations complete
-        setTimeout(() => {
-            onWorkspaceDelete(workspace);
-        }, 10);
-    };
 
     return (
         <div
@@ -206,7 +178,7 @@ export function SortableWorkspaceList({
                         isActive={workspace.id === currentWorkspaceId}
                         onSelect={() => onWorkspaceSelect(workspace)}
                         onEdit={() => onWorkspaceEdit(workspace)}
-                        onDelete={() => handleDelete(workspace)}
+                        onDelete={() => onWorkspaceDelete(workspace)}
                     />
                 </div>
             ))}

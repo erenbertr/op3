@@ -69,15 +69,11 @@ export function useUpdateWorkspace() {
 }
 
 export function useDeleteWorkspace() {
-    const queryClient = useQueryClient();
-
     return useMutation({
         mutationFn: (data: { workspaceId: string; userId: string }) =>
             apiClient.deleteWorkspace(data.workspaceId, data.userId),
-        onSuccess: (_data, variables) => {
-            // Invalidate workspaces list
-            queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.byUser(variables.userId) });
-        },
+        // Removed automatic query invalidation - let parent component handle it via callback
+        // This prevents duplicate API requests when deleting workspaces
     });
 }
 
