@@ -6,7 +6,6 @@ import {
     DragEndEvent,
     DragOverEvent,
     DragStartEvent,
-    DragOverlay,
     closestCenter,
     PointerSensor,
     useSensor,
@@ -64,8 +63,8 @@ function SortableGroupItem({
             style={style}
             data-group-id={group.id}
         >
-            <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="px-3 py-1">
+            <Card className="hover:shadow-md transition-shadow py-1 px-3">
+                <CardContent className="p-0">
                     <div className="flex items-center gap-2">
                         <div
                             className="drag-handle cursor-grab hover:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
@@ -165,23 +164,7 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 </div>
             </SortableContext>
 
-            <DragOverlay>
-                {activeId ? (
-                    <div className="opacity-80">
-                        <Card className="hover:shadow-md transition-shadow">
-                            <CardContent className="px-3 py-1">
-                                <div className="flex items-center gap-2">
-                                    <GripVertical className="h-3 w-3 text-muted-foreground" />
-                                    <Folder className="h-3 w-3 text-muted-foreground" />
-                                    <span className="font-medium text-sm truncate">
-                                        {groups.find(g => g.id === activeId)?.name}
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                ) : null}
-            </DragOverlay>
+
         </DndContext>
     );
 }

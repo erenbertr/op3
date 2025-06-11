@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { SortableGroupList } from './sortable-group-list';
 import { useReorderWorkspaceGroupsOptimistic } from '@/lib/hooks/use-workspace-groups';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface OrganizeGroupsDialogProps {
     groups: Array<{
@@ -32,6 +33,7 @@ export function OrganizeGroupsDialog({
     const [open] = useState(true);
     const [localGroups, setLocalGroups] = useState(groups);
     const reorderGroupsMutation = useReorderWorkspaceGroupsOptimistic();
+    const queryClient = useQueryClient();
 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
@@ -68,6 +70,10 @@ export function OrganizeGroupsDialog({
                 userId,
                 groupOrders
             });
+
+            // Manually invalidate queries to update the main workspace view
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', userId] });
+            console.log('✅ Group reorder completed and queries invalidated');
         } catch (error) {
             console.error('Failed to reorder groups:', error);
             // Optionally revert the local state on error
