@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoreHorizontal, Edit2, Trash2, Check, X } from 'lucide-react';
+import { MoreHorizontal, Edit2, Trash2, Check, X, Pin, PinOff } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,7 +12,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SortableWorkspaceList } from './sortable-workspace-list';
-import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup, useDeleteWorkspaceGroupWithWorkspaces } from '@/lib/hooks/use-workspace-groups';
+import { useUpdateWorkspaceGroup, useDeleteWorkspaceGroup, useDeleteWorkspaceGroupWithWorkspaces, usePinWorkspaceGroup } from '@/lib/hooks/use-workspace-groups';
 import { DeleteGroupDialog } from './delete-group-dialog';
 
 type Workspace = {
@@ -31,6 +31,7 @@ interface WorkspaceGroupCardProps {
         id: string;
         name: string;
         sortOrder: number;
+        isPinned: boolean;
         createdAt: string;
         workspaceCount: number;
     };
@@ -62,6 +63,7 @@ export function WorkspaceGroupCard({
     const updateGroupMutation = useUpdateWorkspaceGroup();
     const deleteGroupMutation = useDeleteWorkspaceGroup();
     const deleteGroupWithWorkspacesMutation = useDeleteWorkspaceGroupWithWorkspaces();
+    const pinGroupMutation = usePinWorkspaceGroup();
 
     const handleSaveEdit = async () => {
         if (editName.trim() && editName.trim() !== group.name) {
@@ -105,6 +107,18 @@ export function WorkspaceGroupCard({
             setShowDeleteDialog(false);
         } catch (error) {
             console.error('Error deleting group with workspaces:', error);
+        }
+    };
+
+    const handleTogglePin = async () => {
+        try {
+            await pinGroupMutation.mutateAsync({
+                userId,
+                groupId: group.id,
+                isPinned: !group.isPinned
+            });
+        } catch (error) {
+            console.error('Error toggling group pin:', error);
         }
     };
 
@@ -160,6 +174,22 @@ export function WorkspaceGroupCard({
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    onClick={handleTogglePin}
+                                    disabled={pinGroupMutation.isPending}
+                                >
+                                    {group.isPinned ? (
+                                        <>
+                                            <PinOff className="h-4 w-4 mr-2" />
+                                            Remove from Top Bar
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Pin className="h-4 w-4 mr-2" />
+                                            Add to Top Bar
+                                        </>
+                                    )}
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setIsEditing(true)}>
                                     <Edit2 className="h-4 w-4 mr-2" />
                                     Rename

@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
+import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ChatView } from '@/components/workspace/chat/chat-view';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 
@@ -44,52 +45,63 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id, 'WorkspaceApplication');
 
     // Parse route parameters from pathname (memoized to prevent re-renders)
-    const { currentView, routeParams } = useMemo(() => {
-        const parseRoute = (path: string): { view: string; params: RouteParams } => {
+    const { currentView, routeParams, queryParams } = useMemo(() => {
+        const parseRoute = (path: string): { view: string; params: RouteParams; queryParams: Record<string, string> } => {
+            // Extract query parameters
+            const [pathname, search] = path.split('?');
+            const urlParams = new URLSearchParams(search || '');
+            const queryParams: Record<string, string> = {};
+            urlParams.forEach((value, key) => {
+                queryParams[key] = value;
+            });
+
             // Handle workspace routes - treat both workspace and chat routes as 'workspace' view
-            const wsMatch = path.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
+            const wsMatch = pathname.match(/^\/ws\/([^\/]+)(?:\/chat\/([^\/]+))?$/);
             if (wsMatch) {
                 return {
                     view: 'workspace',
                     params: {
                         workspaceId: wsMatch[1],
                         chatId: wsMatch[2]
-                    }
+                    },
+                    queryParams
                 };
             }
 
             // Handle settings routes
-            if (path.startsWith('/settings')) {
+            if (pathname.startsWith('/settings')) {
                 // Future-proofing: if more settings are added, they can be handled here
-                if (path === '/settings/ai-providers') {
-                    return { view: 'settings-ai-providers', params: {} };
+                if (pathname === '/settings/ai-providers') {
+                    return { view: 'settings-ai-providers', params: {}, queryParams };
                 }
                 // Default to AI providers settings
-                return { view: 'settings-ai-providers', params: {} };
+                return { view: 'settings-ai-providers', params: {}, queryParams };
             }
 
             // Handle other routes
-            if (path === '/workspaces') return { view: 'selection', params: {} };
-            if (path === '/personalities') return { view: 'personalities', params: {} };
-            if (path === '/add/workspace') return { view: 'create', params: {} };
+            if (pathname === '/workspaces') return { view: 'selection', params: {}, queryParams };
+            if (pathname === '/personalities') return { view: 'personalities', params: {}, queryParams };
+            if (pathname === '/add/workspace') return { view: 'create', params: {}, queryParams };
 
-            const addChatMatch = path.match(/^\/add\/chat\/([^\/]+)$/);
+            const addChatMatch = pathname.match(/^\/add\/chat\/([^\/]+)$/);
             if (addChatMatch) {
                 return {
                     view: 'create-chat',
-                    params: { workspaceId: addChatMatch[1] }
+                    params: { workspaceId: addChatMatch[1] },
+                    queryParams
                 };
             }
 
             // Default to workspace selection if no match
-            return { view: 'selection', params: {} };
+            return { view: 'selection', params: {}, queryParams };
         };
 
-        const { view, params } = parseRoute(currentPathname);
+        const { view, params, queryParams } = parseRoute(currentPathname);
 
         return {
             currentView: view,
-            routeParams: params
+            routeParams: params,
+            queryParams
         };
     }, [currentPathname]);
 
@@ -209,6 +221,15 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     currentWorkspaceId={routeParams.workspaceId || null}
                     onRefresh={setRefreshWorkspaces}
                     onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
+                />
+            </div>
+
+            {/* Pinned Group Tabs */}
+            <div className="flex-shrink-0">
+                <PinnedGroupTabs
+                    userId={currentUser.id}
+                    currentWorkspaceId={routeParams.workspaceId || null}
+                    currentView={currentView}
                 />
             </div>
 
@@ -338,6 +359,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                 <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
                                 <WorkspaceSetup
                                     userId={currentUser.id}
+                                    groupId={queryParams.groupId || null}
                                     onComplete={async (workspace) => {
                                         if (workspace) {
                                             // Invalidate workspace cache immediately

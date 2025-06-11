@@ -388,6 +388,7 @@ export interface WorkspaceGroup {
     id: string;
     name: string;
     sortOrder: number;
+    isPinned: boolean;
     createdAt: string;
     workspaceCount: number;
 }
@@ -663,6 +664,13 @@ class ApiClient {
         return this.request<{ success: boolean }>(`/workspace-groups/batch-update`, {
             method: 'PUT',
             body: JSON.stringify({ userId, updates }),
+        });
+    }
+
+    async pinWorkspaceGroup(userId: string, groupId: string, isPinned: boolean): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>('/workspace-groups/pin', {
+            method: 'PUT',
+            body: JSON.stringify({ userId, groupId, isPinned }),
         });
     }
 

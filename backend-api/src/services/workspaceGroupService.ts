@@ -7,7 +7,9 @@ import {
     WorkspaceGroupResponse,
     WorkspaceGroupsResponse,
     ReorderGroupsRequest,
-    MoveWorkspaceToGroupRequest
+    MoveWorkspaceToGroupRequest,
+    PinGroupRequest,
+    PinGroupResponse
 } from '../types/workspace-group';
 
 export class WorkspaceGroupService {
@@ -51,6 +53,7 @@ export class WorkspaceGroupService {
                 userId,
                 name: request.name,
                 sortOrder,
+                isPinned: false, // Default to not pinned
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
@@ -64,14 +67,15 @@ export class WorkspaceGroupService {
                 case 'postgresql':
                     await this.createGroupTableIfNotExists(connection, config.type);
                     const query = `
-                        INSERT INTO workspace_groups (id, userId, name, sortOrder, createdAt, updatedAt)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO workspace_groups (id, userId, name, sortOrder, isPinned, createdAt, updatedAt)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     `;
                     await connection.execute(query, [
                         group.id,
                         group.userId,
                         group.name,
                         group.sortOrder,
+                        group.isPinned,
                         group.createdAt.toISOString(),
                         group.updatedAt.toISOString()
                     ]);
@@ -81,13 +85,14 @@ export class WorkspaceGroupService {
                     await this.createGroupTableIfNotExistsSQLite(connection);
                     await new Promise<void>((resolve, reject) => {
                         connection.run(`
-                            INSERT INTO workspace_groups (id, userId, name, sortOrder, createdAt, updatedAt)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO workspace_groups (id, userId, name, sortOrder, isPinned, createdAt, updatedAt)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
                         `, [
                             group.id,
                             group.userId,
                             group.name,
                             group.sortOrder,
+                            group.isPinned ? 1 : 0, // SQLite uses 1/0 for boolean
                             group.createdAt.toISOString(),
                             group.updatedAt.toISOString()
                         ], (err: any) => {
@@ -105,6 +110,7 @@ export class WorkspaceGroupService {
                             user_id: group.userId,
                             name: group.name,
                             sort_order: group.sortOrder,
+                            is_pinned: group.isPinned,
                             created_at: group.createdAt.toISOString(),
                             updated_at: group.updatedAt.toISOString()
                         }]);
@@ -125,6 +131,7 @@ export class WorkspaceGroupService {
                     id: group.id,
                     name: group.name,
                     sortOrder: group.sortOrder,
+                    isPinned: group.isPinned,
                     createdAt: group.createdAt.toISOString()
                 }
             };
@@ -173,6 +180,7 @@ export class WorkspaceGroupService {
                                 id: 1,
                                 name: 1,
                                 sortOrder: 1,
+                                isPinned: 1,
                                 createdAt: 1,
                                 workspaceCount: { $size: '$workspaces' }
                             }
@@ -186,13 +194,13 @@ export class WorkspaceGroupService {
                 case 'postgresql':
                     await this.createGroupTableIfNotExists(connection, config.type);
                     const query = `
-                        SELECT 
-                            wg.id, wg.name, wg.sortOrder, wg.createdAt,
+                        SELECT
+                            wg.id, wg.name, wg.sortOrder, wg.isPinned, wg.createdAt,
                             COUNT(w.id) as workspaceCount
                         FROM workspace_groups wg
                         LEFT JOIN workspaces w ON wg.id = w.groupId
                         WHERE wg.userId = ?
-                        GROUP BY wg.id, wg.name, wg.sortOrder, wg.createdAt
+                        GROUP BY wg.id, wg.name, wg.sortOrder, wg.isPinned, wg.createdAt
                         ORDER BY wg.sortOrder ASC
                     `;
                     const [rows] = await connection.execute(query, [userId]);
@@ -203,13 +211,13 @@ export class WorkspaceGroupService {
                     await this.createGroupTableIfNotExistsSQLite(connection);
                     groups = await new Promise<any[]>((resolve, reject) => {
                         connection.all(`
-                            SELECT 
-                                wg.id, wg.name, wg.sortOrder, wg.createdAt,
+                            SELECT
+                                wg.id, wg.name, wg.sortOrder, wg.isPinned, wg.createdAt,
                                 COUNT(w.id) as workspaceCount
                             FROM workspace_groups wg
                             LEFT JOIN workspaces w ON wg.id = w.groupId
                             WHERE wg.userId = ?
-                            GROUP BY wg.id, wg.name, wg.sortOrder, wg.createdAt
+                            GROUP BY wg.id, wg.name, wg.sortOrder, wg.isPinned, wg.createdAt
                             ORDER BY wg.sortOrder ASC
                         `, [userId], (err: any, rows: any[]) => {
                             if (err) reject(err);
@@ -225,6 +233,7 @@ export class WorkspaceGroupService {
                             id,
                             name,
                             sort_order,
+                            is_pinned,
                             created_at,
                             workspaces!workspace_groups_id_fkey(count)
                         `)
@@ -239,6 +248,7 @@ export class WorkspaceGroupService {
                         id: group.id,
                         name: group.name,
                         sortOrder: group.sort_order,
+                        isPinned: group.is_pinned,
                         createdAt: group.created_at,
                         workspaceCount: group.workspaces?.length || 0
                     }));
@@ -255,6 +265,7 @@ export class WorkspaceGroupService {
                     id: group.id,
                     name: group.name,
                     sortOrder: group.sortOrder || 0,
+                    isPinned: group.isPinned || false,
                     createdAt: group.createdAt,
                     workspaceCount: group.workspaceCount || 0
                 }))
@@ -361,6 +372,7 @@ export class WorkspaceGroupService {
                     const updateDoc: any = { updatedAt };
                     if (request.name !== undefined) updateDoc.name = request.name;
                     if (request.sortOrder !== undefined) updateDoc.sortOrder = request.sortOrder;
+                    if (request.isPinned !== undefined) updateDoc.isPinned = request.isPinned;
 
                     await connection.collection('workspace_groups').updateOne(
                         { id: groupId, userId },
@@ -381,6 +393,10 @@ export class WorkspaceGroupService {
                         setParts.push('sortOrder = ?');
                         values.push(request.sortOrder);
                     }
+                    if (request.isPinned !== undefined) {
+                        setParts.push('isPinned = ?');
+                        values.push(request.isPinned);
+                    }
 
                     values.push(groupId, userId);
 
@@ -399,6 +415,10 @@ export class WorkspaceGroupService {
                     if (request.sortOrder !== undefined) {
                         setPartsLite.push('sortOrder = ?');
                         valuesLite.push(request.sortOrder);
+                    }
+                    if (request.isPinned !== undefined) {
+                        setPartsLite.push('isPinned = ?');
+                        valuesLite.push(request.isPinned ? 1 : 0); // SQLite uses 1/0 for boolean
                     }
 
                     valuesLite.push(groupId, userId);
@@ -419,6 +439,7 @@ export class WorkspaceGroupService {
                     const updateData: any = { updated_at: updatedAt.toISOString() };
                     if (request.name !== undefined) updateData.name = request.name;
                     if (request.sortOrder !== undefined) updateData.sort_order = request.sortOrder;
+                    if (request.isPinned !== undefined) updateData.is_pinned = request.isPinned;
 
                     const { error } = await connection
                         .from('workspace_groups')
@@ -809,6 +830,7 @@ export class WorkspaceGroupService {
                 userId VARCHAR(36) NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 sortOrder INT NOT NULL DEFAULT 0,
+                isPinned BOOLEAN NOT NULL DEFAULT FALSE,
                 createdAt DATETIME NOT NULL,
                 updatedAt DATETIME NOT NULL,
                 INDEX idx_userId (userId),
@@ -820,6 +842,7 @@ export class WorkspaceGroupService {
                 userId VARCHAR(36) NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 sortOrder INTEGER NOT NULL DEFAULT 0,
+                isPinned BOOLEAN NOT NULL DEFAULT FALSE,
                 createdAt TIMESTAMP NOT NULL,
                 updatedAt TIMESTAMP NOT NULL
             );
@@ -838,6 +861,7 @@ export class WorkspaceGroupService {
                     userId TEXT NOT NULL,
                     name TEXT NOT NULL,
                     sortOrder INTEGER NOT NULL DEFAULT 0,
+                    isPinned INTEGER NOT NULL DEFAULT 0,
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL
                 )
@@ -865,5 +889,82 @@ export class WorkspaceGroupService {
                 else resolve();
             });
         });
+    }
+
+    /**
+     * Pin or unpin a workspace group
+     */
+    public async pinGroup(userId: string, groupId: string, isPinned: boolean): Promise<WorkspaceGroupResponse> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            if (!connection) {
+                throw new Error('Failed to get database connection');
+            }
+
+            const updatedAt = new Date();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('workspace_groups').updateOne(
+                        { id: groupId, userId },
+                        { $set: { isPinned, updatedAt } }
+                    );
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'UPDATE workspace_groups SET isPinned = ?, updatedAt = ? WHERE id = ? AND userId = ?';
+                    await connection.execute(query, [isPinned, updatedAt.toISOString(), groupId, userId]);
+                    break;
+
+                case 'localdb':
+                    await new Promise<void>((resolve, reject) => {
+                        connection.run(
+                            'UPDATE workspace_groups SET isPinned = ?, updatedAt = ? WHERE id = ? AND userId = ?',
+                            [isPinned ? 1 : 0, updatedAt.toISOString(), groupId, userId],
+                            (err: any) => {
+                                if (err) reject(err);
+                                else resolve();
+                            }
+                        );
+                    });
+                    break;
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('workspace_groups')
+                        .update({
+                            is_pinned: isPinned,
+                            updated_at: updatedAt.toISOString()
+                        })
+                        .eq('id', groupId)
+                        .eq('user_id', userId);
+
+                    if (error) {
+                        throw new Error(`Supabase error: ${error.message}`);
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for workspace group operations`);
+            }
+
+            return {
+                success: true,
+                message: `Workspace group ${isPinned ? 'pinned' : 'unpinned'} successfully`
+            };
+
+        } catch (error) {
+            console.error('Error pinning/unpinning workspace group:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to pin/unpin workspace group'
+            };
+        }
     }
 }

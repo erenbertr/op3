@@ -6,7 +6,8 @@ import {
     CreateWorkspaceGroupRequest,
     UpdateWorkspaceGroupRequest,
     ReorderGroupsRequest,
-    MoveWorkspaceToGroupRequest
+    MoveWorkspaceToGroupRequest,
+    PinGroupRequest
 } from '../types/workspace-group';
 
 const router = express.Router();
@@ -130,6 +131,31 @@ router.put('/batch-update', asyncHandler(async (req: Request, res: Response) => 
 
     if (!result.success) {
         throw createError(result.message || 'Failed to update workspaces', 400);
+    }
+
+    res.json(result);
+}));
+
+// Pin/unpin workspace group
+router.put('/pin', asyncHandler(async (req: Request, res: Response) => {
+    const { userId, groupId, isPinned }: { userId: string } & PinGroupRequest = req.body;
+
+    if (!userId) {
+        throw createError('User ID is required', 400);
+    }
+
+    if (!groupId) {
+        throw createError('Group ID is required', 400);
+    }
+
+    if (typeof isPinned !== 'boolean') {
+        throw createError('isPinned must be a boolean', 400);
+    }
+
+    const result = await workspaceGroupService.pinGroup(userId, groupId, isPinned);
+
+    if (!result.success) {
+        throw createError(result.message, 400);
     }
 
     res.json(result);

@@ -3,6 +3,7 @@ export interface WorkspaceGroup {
     userId: string;
     name: string;
     sortOrder: number;
+    isPinned: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -15,6 +16,7 @@ export interface CreateWorkspaceGroupRequest {
 export interface UpdateWorkspaceGroupRequest {
     name?: string;
     sortOrder?: number;
+    isPinned?: boolean;
 }
 
 export interface WorkspaceGroupResponse {
@@ -24,6 +26,7 @@ export interface WorkspaceGroupResponse {
         id: string;
         name: string;
         sortOrder: number;
+        isPinned: boolean;
         createdAt: string;
     };
 }
@@ -35,6 +38,7 @@ export interface WorkspaceGroupsResponse {
         id: string;
         name: string;
         sortOrder: number;
+        isPinned: boolean;
         createdAt: string;
         workspaceCount: number;
     }>;
@@ -51,4 +55,19 @@ export interface MoveWorkspaceToGroupRequest {
     workspaceId: string;
     groupId: string | null; // null means ungrouped
     sortOrder?: number;
+}
+
+export interface PinGroupRequest {
+    groupId: string;
+    isPinned: boolean;
+}
+
+export interface PinGroupResponse {
+    success: boolean;
+    message: string;
+    group?: {
+        id: string;
+        name: string;
+        isPinned: boolean;
+    };
 }

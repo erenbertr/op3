@@ -3,6 +3,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
+import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { authService, AuthUser } from '@/lib/auth';
@@ -97,6 +98,15 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
                     currentWorkspaceId={currentWorkspaceId}
                     onRefresh={setRefreshWorkspaces}
                     onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
+                />
+            </div>
+
+            {/* Pinned Group Tabs */}
+            <div className="flex-shrink-0">
+                <PinnedGroupTabs
+                    userId={currentUser.id}
+                    currentWorkspaceId={currentWorkspaceId}
+                    currentView={currentView}
                 />
             </div>
 

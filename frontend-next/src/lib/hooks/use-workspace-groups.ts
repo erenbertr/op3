@@ -8,6 +8,7 @@ export interface WorkspaceGroup {
     id: string;
     name: string;
     sortOrder: number;
+    isPinned: boolean;
     createdAt: string;
     workspaceCount: number;
 }
@@ -59,7 +60,9 @@ const workspaceGroupsApi = {
     moveWorkspaceToGroup: (userId: string, data: MoveWorkspaceToGroupRequest) =>
         apiClient.moveWorkspaceToGroup(userId, data.workspaceId, data.groupId, data.sortOrder),
     batchUpdateWorkspaces: (userId: string, data: BatchUpdateWorkspacesRequest) =>
-        apiClient.batchUpdateWorkspaces(userId, data.updates)
+        apiClient.batchUpdateWorkspaces(userId, data.updates),
+    pinGroup: (userId: string, groupId: string, isPinned: boolean) =>
+        apiClient.pinWorkspaceGroup(userId, groupId, isPinned)
 };
 
 // Query hooks
@@ -196,6 +199,19 @@ export function useBatchUpdateWorkspaces() {
             // Invalidate both groups and workspaces queries
             queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
             queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', variables.userId] });
+        },
+    });
+}
+
+export function usePinWorkspaceGroup() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ userId, groupId, isPinned }: { userId: string; groupId: string; isPinned: boolean }) =>
+            workspaceGroupsApi.pinGroup(userId, groupId, isPinned),
+        onSuccess: (_, variables) => {
+            // Invalidate workspace groups query to refresh the data
+            queryClient.invalidateQueries({ queryKey: ['workspace-groups', 'user', variables.userId] });
         },
     });
 }
