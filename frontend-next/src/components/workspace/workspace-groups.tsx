@@ -230,35 +230,54 @@ export function WorkspaceGroups({
 
         console.log('Global drag ended:', activeId, 'to:', overId);
 
-        // Find the workspace being dragged in the original workspaces
-        const activeWorkspace = workspaces.find(w => w.id === activeId);
-        const overWorkspace = localWorkspaces.find(w => w.id === overId); // Use localWorkspaces for current position
+        // If dropping on itself, no change needed
+        if (activeId === overId) {
+            return;
+        }
+
+        // Find the workspace being dragged and the target workspace
+        const activeWorkspace = localWorkspaces.find(w => w.id === activeId);
+        const overWorkspace = localWorkspaces.find(w => w.id === overId);
 
         if (!activeWorkspace || !overWorkspace) {
-            // Reset local workspaces to original state
+            console.log('Could not find active or over workspace');
             setLocalWorkspaces(workspaces);
             return;
         }
 
-        // Determine target group and new index based on the final position
         const targetGroupId = overWorkspace.groupId || null;
         const currentGroupId = activeWorkspace.groupId || null;
 
-        // Calculate the new index within the target group using localWorkspaces
+        // Get the final position from the current local state (after all drag over operations)
         const targetWorkspaces = targetGroupId
             ? localWorkspaces.filter(w => w.groupId === targetGroupId)
             : localWorkspaces.filter(w => !w.groupId);
 
-        const newIndex = targetWorkspaces.findIndex(w => w.id === overId);
+        // Find the current position of the active workspace in the target group
+        const finalIndex = targetWorkspaces.findIndex(w => w.id === activeId);
 
-        // Only move if group changed or position changed within group
-        if (currentGroupId !== targetGroupId || newIndex !== -1) {
-            console.log('Moving workspace:', activeId, 'to group:', targetGroupId, 'at index:', newIndex);
+        if (finalIndex === -1) {
+            console.log('Could not find final position of dragged workspace');
+            setLocalWorkspaces(workspaces);
+            return;
+        }
 
-            // Make the API call - React Query's optimistic updates will handle the rest
-            handleWorkspaceMove(activeId, newIndex, targetGroupId);
+        // Only make API call if there's an actual change
+        const originalActiveWorkspace = workspaces.find(w => w.id === activeId);
+        const hasGroupChanged = currentGroupId !== targetGroupId;
+        const hasPositionChanged = finalIndex !== (originalActiveWorkspace ?
+            (targetGroupId
+                ? workspaces.filter(w => w.groupId === targetGroupId).findIndex(w => w.id === activeId)
+                : workspaces.filter(w => !w.groupId).findIndex(w => w.id === activeId)
+            ) : -1);
+
+        if (hasGroupChanged || hasPositionChanged) {
+            console.log('Moving workspace:', activeId, 'to group:', targetGroupId, 'at final index:', finalIndex);
+
+            // Make the API call with the final position
+            handleWorkspaceMove(activeId, finalIndex, targetGroupId);
         } else {
-            // Reset local workspaces to original state if no actual move
+            console.log('No actual change detected, resetting local state');
             setLocalWorkspaces(workspaces);
         }
     };
