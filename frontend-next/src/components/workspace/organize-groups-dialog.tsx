@@ -46,7 +46,7 @@ export function OrganizeGroupsDialog({
 
                 <div className="py-1">
                     {groups.length > 0 ? (
-                        <div className="space-y-0.5">
+                        <div className="space-y-2">
                             {groups.map((group, index) => (
                                 <div key={group.id} className="flex items-center gap-2 p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors">
                                     <Folder className="h-3 w-3 text-muted-foreground flex-shrink-0" />
