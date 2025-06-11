@@ -64,7 +64,7 @@ function SortableGroupItem({
             data-group-id={group.id}
         >
             <Card className="hover:shadow-md transition-shadow">
-                <CardContent className="p-3">
+                <CardContent className="p-2">
                     <div className="flex items-center gap-2">
                         <div
                             className="drag-handle cursor-grab hover:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
@@ -74,12 +74,9 @@ function SortableGroupItem({
                             <GripVertical className="h-3 w-3" />
                         </div>
                         <Folder className="h-3 w-3 text-muted-foreground" />
-                        <div className="flex-1">
-                            <h3 className="font-medium text-sm">{group.name}</h3>
-                            <p className="text-xs text-muted-foreground">
-                                {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
-                            </p>
-                        </div>
+                        <span className="font-medium text-sm truncate" title={group.name}>
+                            {group.name}
+                        </span>
                     </div>
                 </CardContent>
             </Card>
@@ -166,19 +163,13 @@ export function SortableGroupList({ groups, onGroupReorder }: SortableGroupListP
                 {activeId ? (
                     <div className="opacity-80">
                         <Card className="hover:shadow-md transition-shadow">
-                            <CardContent className="p-3">
+                            <CardContent className="p-2">
                                 <div className="flex items-center gap-2">
                                     <GripVertical className="h-3 w-3 text-muted-foreground" />
                                     <Folder className="h-3 w-3 text-muted-foreground" />
-                                    <div className="flex-1">
-                                        <h3 className="font-medium text-sm">
-                                            {groups.find(g => g.id === activeId)?.name}
-                                        </h3>
-                                        <p className="text-xs text-muted-foreground">
-                                            {groups.find(g => g.id === activeId)?.workspaceCount} workspace
-                                            {groups.find(g => g.id === activeId)?.workspaceCount !== 1 ? 's' : ''}
-                                        </p>
-                                    </div>
+                                    <span className="font-medium text-sm truncate">
+                                        {groups.find(g => g.id === activeId)?.name}
+                                    </span>
                                 </div>
                             </CardContent>
                         </Card>
