@@ -9,7 +9,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Folder } from 'lucide-react';
 
 interface OrganizeGroupsDialogProps {
@@ -45,30 +44,24 @@ export function OrganizeGroupsDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-2">
+                <div className="py-1">
                     {groups.length > 0 ? (
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             {groups.map((group, index) => (
-                                <Card key={group.id}>
-                                    <CardContent className="p-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="p-1 rounded-full bg-muted text-muted-foreground">
-                                                <Folder className="h-3 w-3" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-medium text-sm truncate" title={group.name}>
-                                                    {group.name}
-                                                </h4>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
-                                                </p>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                #{index + 1}
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <div key={group.id} className="flex items-center gap-2 p-2 rounded-md border bg-card hover:bg-accent/50 transition-colors">
+                                    <Folder className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <span className="font-medium text-sm truncate block" title={group.name}>
+                                            {group.name}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {group.workspaceCount} workspace{group.workspaceCount !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex-shrink-0">
+                                        #{index + 1}
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     ) : (
