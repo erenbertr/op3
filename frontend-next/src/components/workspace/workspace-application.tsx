@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { ChatView } from '@/components/workspace/chat/chat-view';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
+import { TestDndGrid } from '@/components/workspace/test-dnd-grid';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 
@@ -318,14 +319,26 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 {currentView === 'selection' && (
                     <div className="h-full overflow-y-auto">
                         <div className="container mx-auto px-4 py-6">
-                            <WorkspaceGroups
-                                userId={currentUser.id}
-                                currentWorkspaceId={routeParams.workspaceId || null}
-                                openWorkspace={openWorkspaceRef.current}
-                                onWorkspaceSelect={navigateToWorkspace}
-                                onWorkspaceUpdated={handleWorkspaceUpdated}
-                                onWorkspaceDeleted={handleWorkspaceDeleted}
-                            />
+                            {/* Test DnD Grid for comparison */}
+                            <div className="mb-8">
+                                <TestDndGrid />
+                            </div>
+
+                            {/* Separator */}
+                            <div className="border-t border-gray-300 my-8"></div>
+
+                            {/* Original WorkspaceGroups */}
+                            <div>
+                                <h2 className="text-xl font-semibold mb-4">Current Implementation</h2>
+                                <WorkspaceGroups
+                                    userId={currentUser.id}
+                                    currentWorkspaceId={routeParams.workspaceId || null}
+                                    openWorkspace={openWorkspaceRef.current}
+                                    onWorkspaceSelect={navigateToWorkspace}
+                                    onWorkspaceUpdated={handleWorkspaceUpdated}
+                                    onWorkspaceDeleted={handleWorkspaceDeleted}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}

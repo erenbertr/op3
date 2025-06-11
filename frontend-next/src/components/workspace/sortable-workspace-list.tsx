@@ -3,7 +3,7 @@
 import React from 'react';
 import {
     SortableContext,
-    verticalListSortingStrategy,
+    rectSortingStrategy,
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -95,7 +95,7 @@ export function SortableWorkspaceList({
     const workspaceIds = workspaces.map(w => w.id);
 
     return (
-        <SortableContext items={workspaceIds} strategy={verticalListSortingStrategy}>
+        <SortableContext items={workspaceIds} strategy={rectSortingStrategy}>
             <div
                 id={`droppable-${groupId || 'ungrouped'}`}
                 data-group-id={groupId}

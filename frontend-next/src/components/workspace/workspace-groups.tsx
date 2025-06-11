@@ -23,13 +23,12 @@ import {
     DragEndEvent,
     DragOverEvent,
     DragStartEvent,
-    DragOverlay,
     PointerSensor,
     useSensor,
     useSensors,
     rectIntersection,
 } from '@dnd-kit/core';
-import { WorkspaceCard } from './workspace-card';
+import { arrayMove } from '@dnd-kit/sortable';
 
 
 // Helper type, can be moved to a types file if needed
@@ -93,12 +92,20 @@ export function WorkspaceGroups({
     const workspaces = useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
     const groups = useMemo(() => groupsResult?.groups || [], [groupsResult]);
 
-    // Organize workspaces by groups
-    const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
-        const grouped: Record<string, typeof workspaces> = {};
-        const ungrouped: typeof workspaces = [];
+    // Local state for real-time drag feedback
+    const [localWorkspaces, setLocalWorkspaces] = useState(workspaces);
 
-        workspaces.forEach(workspace => {
+    // Update local workspaces when props change
+    React.useEffect(() => {
+        setLocalWorkspaces(workspaces);
+    }, [workspaces]);
+
+    // Organize workspaces by groups (using localWorkspaces for real-time updates)
+    const { groupedWorkspaces, ungroupedWorkspaces } = useMemo(() => {
+        const grouped: Record<string, typeof localWorkspaces> = {};
+        const ungrouped: typeof localWorkspaces = [];
+
+        localWorkspaces.forEach(workspace => {
             if (workspace.groupId && groups.find(g => g.id === workspace.groupId)) {
                 if (!grouped[workspace.groupId]) {
                     grouped[workspace.groupId] = [];
@@ -120,7 +127,7 @@ export function WorkspaceGroups({
             groupedWorkspaces: grouped,
             ungroupedWorkspaces: ungrouped
         };
-    }, [workspaces, groups]);
+    }, [localWorkspaces, groups]);
 
     // Global drag handlers for cross-group dragging
     const handleDragStart = (event: DragStartEvent) => {
@@ -133,7 +140,72 @@ export function WorkspaceGroups({
 
         if (!over) return;
 
-        console.log('Global drag over:', active.id, 'over:', over.id);
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        // Find the active workspace
+        const activeWorkspace = localWorkspaces.find(w => w.id === activeId);
+        if (!activeWorkspace) return;
+
+        // Find the over workspace
+        const overWorkspace = localWorkspaces.find(w => w.id === overId);
+        if (!overWorkspace) return;
+
+        // If they're the same, no need to do anything
+        if (activeId === overId) return;
+
+        const activeGroupId = activeWorkspace.groupId;
+        const overGroupId = overWorkspace.groupId;
+
+        // If moving within the same group, reorder
+        if (activeGroupId === overGroupId) {
+            // Get all workspaces in this group
+            const groupWorkspaces = localWorkspaces.filter(w => w.groupId === activeGroupId);
+            const activeIndex = groupWorkspaces.findIndex(w => w.id === activeId);
+            const overIndex = groupWorkspaces.findIndex(w => w.id === overId);
+
+            if (activeIndex !== overIndex) {
+                // Reorder within the group
+                const reorderedGroupWorkspaces = arrayMove(groupWorkspaces, activeIndex, overIndex);
+
+                // Update the local workspaces with the new order
+                setLocalWorkspaces(prev => {
+                    const newWorkspaces = [...prev];
+                    // Remove all workspaces from this group
+                    const otherWorkspaces = newWorkspaces.filter(w => w.groupId !== activeGroupId);
+                    // Add back the reordered group workspaces
+                    return [...otherWorkspaces, ...reorderedGroupWorkspaces];
+                });
+            }
+        } else {
+            // Moving between different groups
+            // Move the workspace to the new group at the position of the over workspace
+
+            setLocalWorkspaces(prev => {
+                const newWorkspaces = [...prev];
+                // Find and update the active workspace's group
+                const activeIndex = newWorkspaces.findIndex(w => w.id === activeId);
+                if (activeIndex !== -1) {
+                    newWorkspaces[activeIndex] = { ...newWorkspaces[activeIndex], groupId: overGroupId };
+                }
+
+                // Reorder within the target group
+                const updatedGroupWorkspaces = newWorkspaces.filter(w => w.groupId === overGroupId);
+                const newActiveIndex = updatedGroupWorkspaces.findIndex(w => w.id === activeId);
+                const newOverIndex = updatedGroupWorkspaces.findIndex(w => w.id === overId);
+
+                if (newActiveIndex !== -1 && newOverIndex !== -1) {
+                    const reorderedGroupWorkspaces = arrayMove(updatedGroupWorkspaces, newActiveIndex, newOverIndex);
+                    // Update the full workspace list
+                    const otherWorkspaces = newWorkspaces.filter(w => w.groupId !== overGroupId);
+                    return [...otherWorkspaces, ...reorderedGroupWorkspaces];
+                }
+
+                return newWorkspaces;
+            });
+        }
+
+        console.log('Global drag over:', activeId, 'over:', overId);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -143,6 +215,8 @@ export function WorkspaceGroups({
 
         if (!over) {
             console.log('Global drag ended: No drop target');
+            // Reset local workspaces to original state
+            setLocalWorkspaces(workspaces);
             return;
         }
 
@@ -151,37 +225,34 @@ export function WorkspaceGroups({
 
         console.log('Global drag ended:', activeId, 'to:', overId);
 
-        // Find the workspace being dragged
+        // Find the workspace being dragged in the original workspaces
         const activeWorkspace = workspaces.find(w => w.id === activeId);
-        if (!activeWorkspace) return;
-
-        // Determine target group and new index
-        let targetGroupId: string | null = null;
-        let newIndex = 0;
-
-        // Check if dropping over another workspace
         const overWorkspace = workspaces.find(w => w.id === overId);
-        if (overWorkspace) {
-            // Dropping over another workspace - use its group and position
-            targetGroupId = overWorkspace.groupId || null;
-            const targetWorkspaces = targetGroupId
-                ? groupedWorkspaces[targetGroupId] || []
-                : ungroupedWorkspaces;
-            newIndex = targetWorkspaces.findIndex(w => w.id === overId);
-        } else {
-            // Check if dropping over a group container
-            const overElement = document.querySelector(`[data-group-id="${overId}"]`);
-            if (overElement) {
-                targetGroupId = overId === 'null' ? null : overId;
-                newIndex = 0; // Add to beginning of target group
-            }
+
+        if (!activeWorkspace || !overWorkspace) {
+            // Reset local workspaces to original state
+            setLocalWorkspaces(workspaces);
+            return;
         }
 
-        // Only move if group changed or position changed within group
+        // Determine target group and new index based on the final position
+        const targetGroupId = overWorkspace.groupId || null;
         const currentGroupId = activeWorkspace.groupId || null;
+
+        // Calculate the new index within the target group
+        const targetWorkspaces = targetGroupId
+            ? workspaces.filter(w => w.groupId === targetGroupId)
+            : workspaces.filter(w => !w.groupId);
+
+        const newIndex = targetWorkspaces.findIndex(w => w.id === overId);
+
+        // Only move if group changed or position changed within group
         if (currentGroupId !== targetGroupId || newIndex !== -1) {
             console.log('Moving workspace:', activeId, 'to group:', targetGroupId, 'at index:', newIndex);
             handleWorkspaceMove(activeId, newIndex, targetGroupId);
+        } else {
+            // Reset local workspaces to original state if no actual move
+            setLocalWorkspaces(workspaces);
         }
     };
 
@@ -307,7 +378,7 @@ export function WorkspaceGroups({
 
     const isLoading = workspacesLoading || groupsLoading;
 
-    if (isLoading && workspaces.length === 0 && groups.length === 0) {
+    if (isLoading && localWorkspaces.length === 0 && groups.length === 0) {
         return (
             <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -390,19 +461,7 @@ export function WorkspaceGroups({
                     </div>
                 </div>
 
-                <DragOverlay>
-                    {activeId ? (
-                        <div className="opacity-80 transform rotate-2 scale-105">
-                            <WorkspaceCard
-                                workspace={workspaces.find(w => w.id === activeId)!}
-                                isActive={false}
-                                onSelect={() => { }}
-                                onEdit={() => { }}
-                                onDelete={() => { }}
-                            />
-                        </div>
-                    ) : null}
-                </DragOverlay>
+
             </DndContext>
 
             {/* Edit Workspace Dialog */}
