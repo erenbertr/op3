@@ -849,6 +849,13 @@ const translations: Translations = {
         fr: 'Replicate',
         de: 'Replicate'
     },
+    'aiProvider.type.openrouter': {
+        en: 'OpenRouter',
+        tr: 'OpenRouter',
+        es: 'OpenRouter',
+        fr: 'OpenRouter',
+        de: 'OpenRouter'
+    },
     'aiProvider.type.custom': {
         en: 'Custom Provider',
         tr: 'Özel Sağlayıcı',

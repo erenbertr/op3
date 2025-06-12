@@ -575,6 +575,13 @@ class ApiClient {
         });
     }
 
+    async fetchOpenRouterModels(apiKey: string): Promise<{ success: boolean; models?: OpenRouterModel[]; message?: string; error?: string }> {
+        return this.request<{ success: boolean; models?: OpenRouterModel[]; message?: string; error?: string }>('/ai-providers/openrouter/models', {
+            method: 'POST',
+            body: JSON.stringify({ apiKey }),
+        });
+    }
+
     // Test an AI provider connection
     async testAIProvider(providerId: string): Promise<AIProviderTestResult> {
         return this.request<AIProviderTestResult>(`/ai-providers/${providerId}/test`, {

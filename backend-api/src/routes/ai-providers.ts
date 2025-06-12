@@ -185,4 +185,20 @@ router.post('/:id/test', asyncHandler(async (req: Request, res: Response) => {
     }
 }));
 
+// Fetch OpenRouter models
+router.post('/openrouter/models', asyncHandler(async (req: Request, res: Response) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        throw createError('API key is required', 400);
+    }
+
+    try {
+        const result = await aiProviderService.fetchOpenRouterModels(apiKey);
+        res.json(result);
+    } catch (error) {
+        throw createError('Failed to fetch OpenRouter models', 500);
+    }
+}));
+
 export default router;

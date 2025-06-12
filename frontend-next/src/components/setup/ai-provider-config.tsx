@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/toast';
 // Create schema function that takes translation function
 const createAIProviderSchema = (t: (key: string) => string) => z.object({
     providers: z.array(z.object({
-        type: z.enum(['openai', 'anthropic', 'google', 'replicate', 'custom'], {
+        type: z.enum(['openai', 'anthropic', 'google', 'replicate', 'openrouter', 'custom'], {
             required_error: t('validation.aiProvider.type.required')
         }),
         name: z.string()
@@ -106,6 +106,8 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                 return 'gemini-1.5-pro';
             case 'replicate':
                 return 'meta/llama-2-70b-chat';
+            case 'openrouter':
+                return 'openai/gpt-4o';
             case 'custom':
                 return '';
             default:
@@ -325,6 +327,7 @@ export function AIProviderConfigForm({ onNext, onBack, defaultValues }: AIProvid
                                                         <SelectItem value="anthropic">{getProviderTypeLabel('anthropic')}</SelectItem>
                                                         <SelectItem value="google">{getProviderTypeLabel('google')}</SelectItem>
                                                         <SelectItem value="replicate">{getProviderTypeLabel('replicate')}</SelectItem>
+                                                        <SelectItem value="openrouter">{getProviderTypeLabel('openrouter')}</SelectItem>
                                                         <SelectItem value="custom">{getProviderTypeLabel('custom')}</SelectItem>
                                                     </SelectContent>
                                                 </Select>

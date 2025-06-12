@@ -7,10 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-
+import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { Edit2, Trash2, Plus, TestTube } from 'lucide-react';
-import { AIProviderConfig, AIProviderType } from '@/lib/api';
+import { Edit2, Trash2, Plus, TestTube, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { AIProviderConfig, AIProviderType, OpenRouterModel, apiClient } from '@/lib/api';
 import { useAIProviders, useSaveAIProvider, useDeleteAIProvider, useTestAIProvider } from '@/lib/hooks/use-query-hooks';
 import { useToast } from '@/components/ui/toast';
 
@@ -50,6 +50,10 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
     const [editingProvider, setEditingProvider] = useState<EditingProvider | null>(null);
     const [deletingProviderId, setDeletingProviderId] = useState<string | null>(null);
     const [testStatus, setTestStatus] = useState<Record<string, 'testing' | 'success' | 'error'>>({});
+    const [openRouterModels, setOpenRouterModels] = useState<OpenRouterModel[]>([]);
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
+    const [selectedModels, setSelectedModels] = useState<string[]>([]);
+    const [showOpenRouterModels, setShowOpenRouterModels] = useState(false);
     const { addToast } = useToast();
 
     // Use TanStack Query for data fetching
@@ -106,6 +110,17 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         }
 
         if (!editingProvider.apiKey.trim()) {
+            return;
+        }
+
+        // For OpenRouter, handle model selection differently
+        if (editingProvider.type === 'openrouter') {
+            if (showOpenRouterModels) {
+                await handleSaveOpenRouterProvider();
+            } else {
+                // First, fetch models
+                await fetchOpenRouterModels(editingProvider.apiKey);
+            }
             return;
         }
 
@@ -223,6 +238,102 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
             type,
             model: DEFAULT_MODELS[type]
         } : null);
+
+        // Reset OpenRouter specific state when changing away from OpenRouter
+        if (type !== 'openrouter') {
+            setOpenRouterModels([]);
+            setSelectedModels([]);
+            setShowOpenRouterModels(false);
+        }
+    };
+
+    const fetchOpenRouterModels = async (apiKey: string) => {
+        if (!apiKey.trim()) {
+            addToast({
+                title: "Error",
+                description: "Please enter an API key first",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setIsLoadingModels(true);
+        try {
+            const result = await apiClient.fetchOpenRouterModels(apiKey);
+            if (result.success && result.models) {
+                setOpenRouterModels(result.models);
+                setShowOpenRouterModels(true);
+                addToast({
+                    title: "Success",
+                    description: `Loaded ${result.models.length} models`,
+                    variant: "success"
+                });
+            } else {
+                addToast({
+                    title: "Error",
+                    description: result.message || "Failed to fetch models",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            addToast({
+                title: "Error",
+                description: "Failed to fetch OpenRouter models",
+                variant: "destructive"
+            });
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
+
+    const handleModelSelection = (modelId: string, checked: boolean) => {
+        setSelectedModels(prev => {
+            if (checked) {
+                return [...prev, modelId];
+            } else {
+                return prev.filter(id => id !== modelId);
+            }
+        });
+    };
+
+    const handleSaveOpenRouterProvider = async () => {
+        if (!editingProvider || selectedModels.length === 0) {
+            addToast({
+                title: "Error",
+                description: "Please select at least one model",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        // Create multiple providers, one for each selected model
+        try {
+            for (const modelId of selectedModels) {
+                const providerData: AIProviderConfig = {
+                    type: 'openrouter',
+                    name: `${editingProvider.name} (${modelId.replace('openai/', '').replace('anthropic/', '').replace('google/', '')})`,
+                    apiKey: editingProvider.apiKey.trim(),
+                    model: modelId,
+                    endpoint: 'https://openrouter.ai/api/v1',
+                    isActive: editingProvider.isActive
+                };
+
+                await saveProviderMutation.mutateAsync(providerData);
+            }
+
+            addToast({
+                title: "Success",
+                description: `Created ${selectedModels.length} OpenRouter provider(s)`,
+                variant: "success"
+            });
+
+            setEditingProvider(null);
+            setOpenRouterModels([]);
+            setSelectedModels([]);
+            setShowOpenRouterModels(false);
+        } catch (error) {
+            console.error('Error saving OpenRouter providers:', error);
+        }
     };
 
     if (isLoading && providers.length === 0) {
@@ -378,16 +489,52 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                     disabled={saveProviderMutation.isPending}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="provider-model">Model</Label>
-                                <Input
-                                    id="provider-model"
-                                    value={editingProvider.model}
-                                    onChange={(e) => setEditingProvider(prev => prev ? { ...prev, model: e.target.value } : null)}
-                                    placeholder="e.g., gpt-4o"
-                                    disabled={saveProviderMutation.isPending}
-                                />
-                            </div>
+                            {editingProvider.type !== 'openrouter' && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="provider-model">Model</Label>
+                                    <Input
+                                        id="provider-model"
+                                        value={editingProvider.model}
+                                        onChange={(e) => setEditingProvider(prev => prev ? { ...prev, model: e.target.value } : null)}
+                                        placeholder="e.g., gpt-4o"
+                                        disabled={saveProviderMutation.isPending}
+                                    />
+                                </div>
+                            )}
+                            {editingProvider.type === 'openrouter' && showOpenRouterModels && (
+                                <div className="space-y-2">
+                                    <Label>Select Models</Label>
+                                    <div className="max-h-60 overflow-y-auto border rounded-md p-3 space-y-2">
+                                        {openRouterModels.map((model) => (
+                                            <div key={model.id} className="flex items-start space-x-2">
+                                                <Checkbox
+                                                    id={model.id}
+                                                    checked={selectedModels.includes(model.id)}
+                                                    onCheckedChange={(checked) => handleModelSelection(model.id, checked as boolean)}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <label htmlFor={model.id} className="text-sm font-medium cursor-pointer">
+                                                        {model.name || model.id}
+                                                    </label>
+                                                    {model.description && (
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            {model.description}
+                                                        </p>
+                                                    )}
+                                                    {model.pricing && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            ${model.pricing.prompt}/1K prompt • ${model.pricing.completion}/1K completion
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Selected {selectedModels.length} model(s). Each model will create a separate provider.
+                                    </p>
+                                </div>
+                            )}
                             {(editingProvider.type === 'custom' || editingProvider.type === 'replicate') && (
                                 <div className="space-y-2">
                                     <Label htmlFor="provider-endpoint">Endpoint (Optional)</Label>
@@ -411,11 +558,24 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setEditingProvider(null)} disabled={saveProviderMutation.isPending}>
+                            <Button variant="outline" onClick={() => setEditingProvider(null)} disabled={saveProviderMutation.isPending || isLoadingModels}>
                                 Cancel
                             </Button>
-                            <Button onClick={handleSaveProvider} disabled={saveProviderMutation.isPending}>
-                                {editingProvider.id ? 'Save Changes' : 'Add Provider'}
+                            <Button onClick={handleSaveProvider} disabled={saveProviderMutation.isPending || isLoadingModels || (editingProvider.type === 'openrouter' && showOpenRouterModels && selectedModels.length === 0)}>
+                                {isLoadingModels ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Loading Models...
+                                    </>
+                                ) : editingProvider.type === 'openrouter' && !showOpenRouterModels ? (
+                                    'Fetch Models'
+                                ) : editingProvider.type === 'openrouter' && showOpenRouterModels ? (
+                                    `Add ${selectedModels.length} Provider(s)`
+                                ) : editingProvider.id ? (
+                                    'Save Changes'
+                                ) : (
+                                    'Add Provider'
+                                )}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

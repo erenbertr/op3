@@ -66,14 +66,6 @@ export function ChatInput({
     const providerDropdownRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Fetch OpenRouter settings for this workspace
-    const { data: openRouterSettings } = useQuery({
-        queryKey: ['workspace-openrouter-settings', workspaceId],
-        queryFn: () => workspaceId ? apiClient.getWorkspaceOpenRouterSettings(workspaceId) : null,
-        enabled: !!workspaceId,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-    });
-
     // Auto-resize textarea (use ref callback instead of useEffect)
     React.useLayoutEffect(() => {
         const textarea = textareaRef.current;
@@ -101,6 +93,11 @@ export function ChatInput({
             return () => clearTimeout(timer);
         }
     }, [autoFocus, disabled]);
+
+    // Combine regular providers with any additional providers (like OpenRouter)
+    const allProviders = useMemo(() => {
+        return [...(aiProviders || [])];
+    }, [aiProviders]);
 
     // Derived state for personality selection
     const derivedPersonality = useMemo(() => {
@@ -326,28 +323,6 @@ export function ChatInput({
         p?.title?.toLowerCase().includes(personalitySearch.toLowerCase())
     );
 
-    // Create virtual providers for OpenRouter models
-    const openRouterVirtualProviders = useMemo(() => {
-        if (!openRouterSettings?.settings?.isEnabled || !openRouterSettings.settings.selectedModels) {
-            return [];
-        }
-
-        return openRouterSettings.settings.selectedModels.map(modelId => ({
-            id: `openrouter:${modelId}`,
-            type: 'openrouter' as const,
-            name: `OpenRouter`,
-            model: modelId,
-            apiKey: '***',
-            isActive: true,
-            endpoint: 'https://openrouter.ai/api/v1'
-        }));
-    }, [openRouterSettings]);
-
-    // Combine regular providers with OpenRouter virtual providers
-    const allProviders = useMemo(() => {
-        return [...(aiProviders || []), ...openRouterVirtualProviders];
-    }, [aiProviders, openRouterVirtualProviders]);
-
     const filteredProviders = allProviders.filter(p =>
         (p?.name || p?.type || '').toLowerCase().includes(providerSearch.toLowerCase()) ||
         (p?.model || '').toLowerCase().includes(providerSearch.toLowerCase())
@@ -485,18 +460,8 @@ export function ChatInput({
                         >
                             {selectedProviderObj ? (
                                 <span className="flex items-center gap-2 text-muted-foreground">
-                                    <span>
-                                        {selectedProviderObj.type === 'openrouter'
-                                            ? 'OpenRouter'
-                                            : (selectedProviderObj.name || selectedProviderObj.type)
-                                        }
-                                    </span>
-                                    <span className="text-xs">
-                                        {selectedProviderObj.type === 'openrouter'
-                                            ? selectedProviderObj.model?.replace('openai/', '').replace('anthropic/', '').replace('google/', '') || 'Unknown Model'
-                                            : selectedProviderObj.model
-                                        }
-                                    </span>
+                                    <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
+                                    <span className="text-xs">{selectedProviderObj.model}</span>
                                 </span>
                             ) : (
                                 <span className="text-muted-foreground">Select AI provider</span>
@@ -526,16 +491,10 @@ export function ChatInput({
                                             }}
                                         >
                                             <div className="font-medium">
-                                                {provider?.type === 'openrouter'
-                                                    ? `OpenRouter`
-                                                    : (provider?.name || provider?.type || 'Unknown Provider')
-                                                }
+                                                {provider?.name || provider?.type || 'Unknown Provider'}
                                             </div>
                                             <div className="text-xs text-muted-foreground">
-                                                {provider?.type === 'openrouter'
-                                                    ? provider?.model?.replace('openai/', '').replace('anthropic/', '').replace('google/', '') || 'Unknown Model'
-                                                    : (provider?.model || 'Unknown Model')
-                                                }
+                                                {provider?.model || 'Unknown Model'}
                                             </div>
                                         </div>
                                     ))}
