@@ -1,4 +1,4 @@
-export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'custom';
+export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'openrouter' | 'custom';
 
 export interface AIProviderConfig {
     id?: string;
@@ -30,6 +30,11 @@ export interface GoogleConfig extends AIProviderConfig {
 export interface ReplicateConfig extends AIProviderConfig {
     type: 'replicate';
     endpoint?: string; // Default: https://api.replicate.com
+}
+
+export interface OpenRouterConfig extends AIProviderConfig {
+    type: 'openrouter';
+    endpoint?: string; // Default: https://openrouter.ai/api/v1
 }
 
 export interface CustomConfig extends AIProviderConfig {
@@ -73,6 +78,7 @@ export const DEFAULT_ENDPOINTS: Record<AIProviderType, string | null> = {
     anthropic: 'https://api.anthropic.com',
     google: 'https://generativelanguage.googleapis.com',
     replicate: 'https://api.replicate.com',
+    openrouter: 'https://openrouter.ai/api/v1',
     custom: null // Custom providers must specify their own endpoint
 };
 
@@ -82,6 +88,7 @@ export const DEFAULT_MODELS: Record<AIProviderType, string[]> = {
     anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
     google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'],
     replicate: [], // Allow custom model input for Replicate
+    openrouter: [], // OpenRouter models are fetched dynamically from API
     custom: [] // Custom providers can specify any model
 };
 
@@ -91,5 +98,46 @@ export const API_KEY_PATTERNS: Record<AIProviderType, RegExp | null> = {
     anthropic: /^sk-ant-[a-zA-Z0-9-_]{95,}$/, // Anthropic keys start with 'sk-ant-'
     google: /^[a-zA-Z0-9_-]{20,}$/, // Google API keys are variable length, at least 20 chars
     replicate: /^r8_[a-zA-Z0-9]{40}$/, // Replicate keys start with 'r8_'
+    openrouter: /^sk-or-v1-[a-zA-Z0-9-_]{64}$/, // OpenRouter keys start with 'sk-or-v1-'
     custom: null // Custom providers can have any format
 };
+
+// OpenRouter specific types
+export interface OpenRouterModel {
+    id: string;
+    name: string;
+    description?: string;
+    context_length?: number;
+    pricing?: {
+        prompt: string;
+        completion: string;
+    };
+    top_provider?: {
+        max_completion_tokens?: number;
+    };
+}
+
+export interface OpenRouterModelsResponse {
+    data: OpenRouterModel[];
+}
+
+export interface WorkspaceOpenRouterSettings {
+    id?: string;
+    workspaceId: string;
+    apiKey: string;
+    selectedModels: string[]; // Array of model IDs
+    isEnabled: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export interface OpenRouterValidationRequest {
+    apiKey: string;
+}
+
+export interface OpenRouterValidationResponse {
+    success: boolean;
+    message: string;
+    models?: OpenRouterModel[];
+    error?: string;
+}

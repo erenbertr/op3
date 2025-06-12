@@ -207,6 +207,8 @@ export class AIProviderService {
                     return await this.testGoogle(apiKey, model, endpoint);
                 case 'replicate':
                     return await this.testReplicate(apiKey, model, endpoint);
+                case 'openrouter':
+                    return await this.testOpenRouter(apiKey, model, endpoint);
                 case 'custom':
                     return await this.testCustomProvider(apiKey, model, endpoint);
                 default:
@@ -366,6 +368,50 @@ export class AIProviderService {
         }
     }
 
+    // Test OpenRouter connection
+    private async testOpenRouter(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
+        try {
+            // Test with a simple models list request
+            const response = await fetch(`${endpoint}/models`, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json() as any;
+                // Check if the response has the expected structure
+                if (data && Array.isArray(data.data)) {
+                    return {
+                        success: true,
+                        message: 'OpenRouter connection successful',
+                        model: model
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'Invalid response format from OpenRouter API',
+                        error: 'INVALID_RESPONSE'
+                    };
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({})) as any;
+                return {
+                    success: false,
+                    message: errorData.error?.message || `HTTP ${response.status}`,
+                    error: 'API_ERROR'
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Network error',
+                error: 'NETWORK_ERROR'
+            };
+        }
+    }
+
     // Test custom provider connection
     private async testCustomProvider(apiKey: string, model: string, endpoint: string): Promise<{ success: boolean; message?: string; error?: string; model?: string }> {
         try {
@@ -478,5 +524,56 @@ export class AIProviderService {
     // Check if any providers are configured
     public hasProviders(): boolean {
         return this.providers.size > 0;
+    }
+
+    // Fetch available models from OpenRouter
+    public async fetchOpenRouterModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        try {
+            const endpoint = DEFAULT_ENDPOINTS.openrouter;
+            if (!endpoint) {
+                return {
+                    success: false,
+                    message: 'OpenRouter endpoint not configured',
+                    error: 'MISSING_ENDPOINT'
+                };
+            }
+
+            const response = await fetch(`${endpoint}/models`, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json() as any;
+                if (data && Array.isArray(data.data)) {
+                    return {
+                        success: true,
+                        models: data.data,
+                        message: 'Models fetched successfully'
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'Invalid response format from OpenRouter API',
+                        error: 'INVALID_RESPONSE'
+                    };
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({})) as any;
+                return {
+                    success: false,
+                    message: errorData.error?.message || `HTTP ${response.status}`,
+                    error: 'API_ERROR'
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Network error',
+                error: 'NETWORK_ERROR'
+            };
+        }
     }
 }

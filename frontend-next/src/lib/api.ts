@@ -24,7 +24,7 @@ export interface AdminConfig {
     confirmPassword: string;
 }
 
-export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'custom';
+export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'openrouter' | 'custom';
 
 export interface AIProviderConfig {
     id?: string;
@@ -1069,6 +1069,88 @@ class ApiClient {
             options.endDate
         );
     }
+
+    // OpenRouter API methods
+    async validateOpenRouterApiKey(request: ValidateOpenRouterApiKeyRequest): Promise<ValidateOpenRouterApiKeyResponse> {
+        return this.request<ValidateOpenRouterApiKeyResponse>('/workspace-openrouter/validate', {
+            method: 'POST',
+            body: JSON.stringify(request)
+        });
+    }
+
+    async getWorkspaceOpenRouterSettings(workspaceId: string): Promise<GetWorkspaceOpenRouterSettingsResponse> {
+        return this.request<GetWorkspaceOpenRouterSettingsResponse>(`/workspace-openrouter/${workspaceId}`);
+    }
+
+    async saveWorkspaceOpenRouterSettings(request: SaveWorkspaceOpenRouterSettingsRequest): Promise<SaveWorkspaceOpenRouterSettingsResponse> {
+        return this.request<SaveWorkspaceOpenRouterSettingsResponse>(`/workspace-openrouter/${request.workspaceId}`, {
+            method: 'POST',
+            body: JSON.stringify(request)
+        });
+    }
+
+    async deleteWorkspaceOpenRouterSettings(workspaceId: string): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>(`/workspace-openrouter/${workspaceId}`, {
+            method: 'DELETE'
+        });
+    }
+}
+
+// OpenRouter specific types
+export interface OpenRouterModel {
+    id: string;
+    name: string;
+    description?: string;
+    context_length?: number;
+    pricing?: {
+        prompt: string;
+        completion: string;
+    };
+    top_provider?: {
+        max_completion_tokens?: number;
+    };
+}
+
+export interface WorkspaceOpenRouterSettings {
+    id?: string;
+    workspaceId: string;
+    apiKey: string;
+    selectedModels: string[];
+    isEnabled: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export interface ValidateOpenRouterApiKeyRequest {
+    apiKey: string;
+}
+
+export interface ValidateOpenRouterApiKeyResponse {
+    success: boolean;
+    message: string;
+    models?: OpenRouterModel[];
+    error?: string;
+}
+
+export interface SaveWorkspaceOpenRouterSettingsRequest {
+    workspaceId: string;
+    apiKey: string;
+    selectedModels: string[];
+    isEnabled: boolean;
+}
+
+export interface SaveWorkspaceOpenRouterSettingsResponse {
+    success: boolean;
+    message: string;
+    settings?: WorkspaceOpenRouterSettings;
+    error?: string;
+}
+
+export interface GetWorkspaceOpenRouterSettingsResponse {
+    success: boolean;
+    settings?: WorkspaceOpenRouterSettings;
+    message?: string;
+    error?: string;
 }
 
 export const apiClient = new ApiClient();

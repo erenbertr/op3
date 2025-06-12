@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Search, Paperclip, X, Upload, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Personality, AIProviderConfig, FileAttachment, apiClient } from '@/lib/api';
+import { Personality, AIProviderConfig, FileAttachment, apiClient, OpenRouterModel } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface ChatInputProps {
     onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, reasoningEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
@@ -23,6 +24,7 @@ interface ChatInputProps {
     onInterruptStreaming?: () => void;
     sessionId?: string;
     userId?: string;
+    workspaceId?: string;
 }
 
 export function ChatInput({
@@ -39,7 +41,8 @@ export function ChatInput({
     autoFocus = false,
     onInterruptStreaming,
     sessionId,
-    userId
+    userId,
+    workspaceId
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -56,13 +59,20 @@ export function ChatInput({
     const [uploadedFileIds, setUploadedFileIds] = useState<string[]>([]);
     const [uploadedAttachments, setUploadedAttachments] = useState<FileAttachment[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [showOpenRouterSubmenu, setShowOpenRouterSubmenu] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
     const providerDropdownRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-
+    // Fetch OpenRouter settings for this workspace
+    const { data: openRouterSettings } = useQuery({
+        queryKey: ['workspace-openrouter-settings', workspaceId],
+        queryFn: () => workspaceId ? apiClient.getWorkspaceOpenRouterSettings(workspaceId) : null,
+        enabled: !!workspaceId,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
 
     // Auto-resize textarea (use ref callback instead of useEffect)
     React.useLayoutEffect(() => {
@@ -103,20 +113,20 @@ export function ChatInput({
     // Derived state for AI provider selection
     const derivedProvider = useMemo(() => {
         // If session has a specific provider ID and it exists in available providers, use it
-        if (sessionAIProviderId && aiProviders && aiProviders.length > 0) {
-            const sessionProvider = aiProviders.find(p => p?.id === sessionAIProviderId);
+        if (sessionAIProviderId && allProviders && allProviders.length > 0) {
+            const sessionProvider = allProviders.find(p => p?.id === sessionAIProviderId);
             if (sessionProvider) {
                 return sessionAIProviderId;
             }
         }
 
         // Otherwise, fall back to active provider or first available
-        if (aiProviders && aiProviders.length > 0) {
-            const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
+        if (allProviders && allProviders.length > 0) {
+            const activeProvider = allProviders.find(p => p?.isActive) || allProviders[0];
             return activeProvider?.id || '';
         }
         return '';
-    }, [sessionAIProviderId, aiProviders]);
+    }, [sessionAIProviderId, allProviders]);
 
     // Update state when derived values change - use useEffect instead of useMemo for side effects
     React.useEffect(() => {
@@ -155,15 +165,15 @@ export function ChatInput({
 
     // Validate selected provider (derived validation)
     const validatedProvider = useMemo(() => {
-        if (selectedProvider && aiProviders && aiProviders.length > 0) {
-            const providerExists = aiProviders.find(p => p?.id === selectedProvider);
+        if (selectedProvider && allProviders && allProviders.length > 0) {
+            const providerExists = allProviders.find(p => p?.id === selectedProvider);
             if (!providerExists) {
-                const activeProvider = aiProviders.find(p => p?.isActive) || aiProviders[0];
+                const activeProvider = allProviders.find(p => p?.isActive) || allProviders[0];
                 return activeProvider?.id || '';
             }
         }
         return selectedProvider;
-    }, [aiProviders, selectedProvider]);
+    }, [allProviders, selectedProvider]);
 
     // Validate selected personality (derived validation)
     const validatedPersonality = useMemo(() => {
@@ -316,13 +326,35 @@ export function ChatInput({
         p?.title?.toLowerCase().includes(personalitySearch.toLowerCase())
     );
 
-    const filteredProviders = (aiProviders || []).filter(p =>
+    // Create virtual providers for OpenRouter models
+    const openRouterVirtualProviders = useMemo(() => {
+        if (!openRouterSettings?.settings?.isEnabled || !openRouterSettings.settings.selectedModels) {
+            return [];
+        }
+
+        return openRouterSettings.settings.selectedModels.map(modelId => ({
+            id: `openrouter:${modelId}`,
+            type: 'openrouter' as const,
+            name: `OpenRouter`,
+            model: modelId,
+            apiKey: '***',
+            isActive: true,
+            endpoint: 'https://openrouter.ai/api/v1'
+        }));
+    }, [openRouterSettings]);
+
+    // Combine regular providers with OpenRouter virtual providers
+    const allProviders = useMemo(() => {
+        return [...(aiProviders || []), ...openRouterVirtualProviders];
+    }, [aiProviders, openRouterVirtualProviders]);
+
+    const filteredProviders = allProviders.filter(p =>
         (p?.name || p?.type || '').toLowerCase().includes(providerSearch.toLowerCase()) ||
         (p?.model || '').toLowerCase().includes(providerSearch.toLowerCase())
     );
 
     const selectedPersonalityObj = (personalities || []).find(p => p?.id === selectedPersonality);
-    const selectedProviderObj = (aiProviders || []).find(p => p?.id === selectedProvider);
+    const selectedProviderObj = allProviders.find(p => p?.id === selectedProvider);
 
     // Debug logging for provider selection
     React.useEffect(() => {
@@ -331,9 +363,9 @@ export function ChatInput({
             derivedProvider: derivedProvider,
             selectedProvider: selectedProvider,
             selectedProviderObj: selectedProviderObj ? { id: selectedProviderObj.id, name: selectedProviderObj.name } : null,
-            aiProviders: aiProviders?.map(p => ({ id: p.id, name: p.name, isActive: p.isActive }))
+            allProviders: allProviders?.map(p => ({ id: p.id, name: p.name, isActive: p.isActive, type: p.type }))
         });
-    }, [selectedProvider, selectedProviderObj, sessionAIProviderId, derivedProvider, aiProviders]);
+    }, [selectedProvider, selectedProviderObj, sessionAIProviderId, derivedProvider, allProviders]);
 
     return (
         <div className={cn("w-full max-w-4xl mx-auto", className)}>
@@ -453,9 +485,17 @@ export function ChatInput({
                         >
                             {selectedProviderObj ? (
                                 <span className="flex items-center gap-2 text-muted-foreground">
-                                    <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
+                                    <span>
+                                        {selectedProviderObj.type === 'openrouter'
+                                            ? 'OpenRouter'
+                                            : (selectedProviderObj.name || selectedProviderObj.type)
+                                        }
+                                    </span>
                                     <span className="text-xs">
-                                        {selectedProviderObj.model}
+                                        {selectedProviderObj.type === 'openrouter'
+                                            ? selectedProviderObj.model?.replace('openai/', '').replace('anthropic/', '').replace('google/', '') || 'Unknown Model'
+                                            : selectedProviderObj.model
+                                        }
                                     </span>
                                 </span>
                             ) : (
@@ -485,8 +525,18 @@ export function ChatInput({
                                                 setProviderSearch('');
                                             }}
                                         >
-                                            <div className="font-medium">{provider?.name || provider?.type || 'Unknown Provider'}</div>
-                                            <div className="text-xs text-muted-foreground">{provider?.model || 'Unknown Model'}</div>
+                                            <div className="font-medium">
+                                                {provider?.type === 'openrouter'
+                                                    ? `OpenRouter`
+                                                    : (provider?.name || provider?.type || 'Unknown Provider')
+                                                }
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {provider?.type === 'openrouter'
+                                                    ? provider?.model?.replace('openai/', '').replace('anthropic/', '').replace('google/', '') || 'Unknown Model'
+                                                    : (provider?.model || 'Unknown Model')
+                                                }
+                                            </div>
                                         </div>
                                     ))}
                                     {filteredProviders.length === 0 && providerSearch && (

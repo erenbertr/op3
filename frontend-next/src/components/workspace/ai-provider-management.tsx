@@ -33,6 +33,7 @@ const PROVIDER_TYPES: { value: AIProviderType; label: string }[] = [
     { value: 'anthropic', label: 'Anthropic' },
     { value: 'google', label: 'Google' },
     { value: 'replicate', label: 'Replicate' },
+    { value: 'openrouter', label: 'OpenRouter' },
     { value: 'custom', label: 'Custom' }
 ];
 
@@ -41,6 +42,7 @@ const DEFAULT_MODELS: Record<AIProviderType, string> = {
     anthropic: 'claude-3-5-sonnet-20241022',
     google: 'gemini-1.5-pro',
     replicate: 'meta/llama-2-70b-chat',
+    openrouter: 'openai/gpt-4o',
     custom: ''
 };
 

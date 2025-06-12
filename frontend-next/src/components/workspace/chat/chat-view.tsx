@@ -337,6 +337,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 userId={user?.id || ''}
                                 className="h-full"
                                 autoFocusInput={shouldAutoFocus}
+                                workspaceId={workspaceId}
                             />
                         ) : (
                             <EmptyChatState />

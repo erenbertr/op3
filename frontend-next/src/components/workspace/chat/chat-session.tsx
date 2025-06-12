@@ -21,6 +21,7 @@ interface ChatSessionProps {
     className?: string;
     userId: string;
     autoFocusInput?: boolean;
+    workspaceId?: string;
 }
 
 export function ChatSessionComponent({
@@ -30,7 +31,8 @@ export function ChatSessionComponent({
     onSessionUpdate,
     className,
     userId,
-    autoFocusInput = false
+    autoFocusInput = false,
+    workspaceId
 }: ChatSessionProps) {
     // Simple message state - always managed manually
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1013,6 +1015,7 @@ export function ChatSessionComponent({
                         onInterruptStreaming={handleInterruptStreaming}
                         sessionId={session?.id}
                         userId={userId}
+                        workspaceId={workspaceId}
                     />
                 </div>
             </div>
