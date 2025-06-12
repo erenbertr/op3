@@ -7,10 +7,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { apiClient, ChatSession, UpdateChatSessionResponse } from '@/lib/api';
+import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query-client';
 import { MoreHorizontal } from 'lucide-react';
 import {
     DropdownMenu,
@@ -48,72 +46,49 @@ export function ChatSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+    // Local state for optimistic pin updates to avoid flashing
+    const [localPinUpdates, setLocalPinUpdates] = useState<Record<string, boolean>>({});
     const { addToast } = useToast();
-    const queryClient = useQueryClient();
 
-    interface PinMutationVariables {
-        chatId: string;
-        isPinned: boolean;
-    }
+    // Simple pin/unpin handler without TanStack Query optimistic updates
+    const handlePinToggle = async (chatId: string, currentPinStatus: boolean) => {
+        const newPinStatus = !currentPinStatus;
 
-    interface PinMutationContext {
-        previousChatSessions?: ChatSession[];
-    }
+        // Immediately update local state for instant UI feedback
+        setLocalPinUpdates(prev => ({
+            ...prev,
+            [chatId]: newPinStatus
+        }));
 
-    const updatePinStatusMutation = useMutation<
-        UpdateChatSessionResponse, 
-        Error,                   
-        PinMutationVariables,    
-        PinMutationContext       
-    >({
-        mutationFn: async (variables: PinMutationVariables) => {
-            const { chatId, isPinned } = variables;
-            return apiClient.updateChatSessionPinStatus(chatId, { isPinned });
-        },
-        onMutate: async (variables: PinMutationVariables) => {
-                const { chatId, isPinned } = variables;
-                // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-                await queryClient.cancelQueries({ queryKey: queryKeys.chats.byWorkspace(userId, workspaceId) });
+        try {
+            // Make API call in background
+            await apiClient.updateChatSessionPinStatus(chatId, { isPinned: newPinStatus });
 
-                // Snapshot the previous value
-                const previousChatSessions = queryClient.getQueryData<ChatSession[]>(queryKeys.chats.byWorkspace(userId, workspaceId));
+            // Success - keep the local update, no need to refetch
+        } catch (error) {
+            // Revert local update on error
+            setLocalPinUpdates(prev => {
+                const updated = { ...prev };
+                delete updated[chatId];
+                return updated;
+            });
 
-                // Optimistically update to the new value
-                queryClient.setQueryData<ChatSession[]>(queryKeys.chats.byWorkspace(userId, workspaceId), (oldSessions = []) =>
-                    oldSessions.map(session =>
-                        session.id === chatId ? { ...session, isPinned } : session
-                    )
-                );
-
-                // Return a context object with the snapshotted value
-                return { previousChatSessions };
-            },
-            onError: (err: Error, variables: PinMutationVariables, _context?: PinMutationContext) => {
-                // If the mutation fails, use the context returned from onMutate to roll back
-                if (_context?.previousChatSessions) {
-                    queryClient.setQueryData<ChatSession[]>(queryKeys.chats.byWorkspace(userId, workspaceId), _context.previousChatSessions);
-                }
-                addToast({
-                    title: "Error",
-                    description: `Failed to ${variables.isPinned ? 'pin' : 'unpin'} chat. Please try again.`,
-                    variant: "destructive",
-                });
-            },
-            onSuccess: (_data: UpdateChatSessionResponse, variables: PinMutationVariables, _context?: PinMutationContext) => {
-                addToast({
-                    title: "Success",
-                    description: `Chat successfully ${variables.isPinned ? 'pinned' : 'unpinned'}.`,
-                });
-            },
-            onSettled: (_data?: UpdateChatSessionResponse, _error?: Error | null, _variables?: PinMutationVariables, _context?: PinMutationContext) => {
-                // Always refetch after error or success
-                queryClient.invalidateQueries({ queryKey: queryKeys.chats.byWorkspace(userId, workspaceId) });
-            },
+            addToast({
+                title: "Error",
+                description: `Failed to ${newPinStatus ? 'pin' : 'unpin'} chat. Please try again.`,
+                variant: "destructive",
+            });
         }
-    ); // End of useMutation options
+    };
+
+    // Apply local pin updates to chat sessions for instant UI feedback
+    const chatsWithLocalUpdates = (chatSessions || []).map(chat => ({
+        ...chat,
+        isPinned: localPinUpdates.hasOwnProperty(chat.id) ? localPinUpdates[chat.id] : (chat.isPinned || false)
+    }));
 
     // Filter chats based on search query
-    const filteredChats = (chatSessions || []).filter(chat =>
+    const filteredChats = chatsWithLocalUpdates.filter(chat =>
         chat?.title?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -142,12 +117,7 @@ export function ChatSidebar({
                 // Navigate to the new chat using Next.js router
                 router.push(`/ws/${workspaceId}/chat/${result.session.id}`);
 
-                // Invalidate and refetch chat sessions to get the latest data (delayed)
-                setTimeout(() => {
-                    queryClient.invalidateQueries({
-                        queryKey: queryKeys.chats.byWorkspace(userId, workspaceId)
-                    });
-                }, 500);
+                // Note: No need to invalidate queries since we use onSessionsUpdate for optimistic updates
 
                 // Also call the callback for backward compatibility
                 onNewChat?.(result.session);
@@ -193,10 +163,7 @@ export function ChatSidebar({
                     onChatDeselect?.(); // Signal to parent to clear content
                 }
 
-                // Invalidate queries to refetch from server
-                queryClient.invalidateQueries({
-                    queryKey: queryKeys.chats.byWorkspace(userId, workspaceId)
-                });
+                // Note: No need to invalidate queries since we use onSessionsUpdate for optimistic updates
 
             } else {
                 addToast({
@@ -218,8 +185,8 @@ export function ChatSidebar({
     };
 
     const groupAndPinChats = (chatsToGroup: ChatSession[]) => {
-        const pinnedChats = chatsToGroup.filter(chat => chat.isPinned);
-        const unpinnedChats = chatsToGroup.filter(chat => !chat.isPinned);
+        const pinnedChats = chatsToGroup.filter(chat => chat.isPinned === true);
+        const unpinnedChats = chatsToGroup.filter(chat => chat.isPinned !== true); // Include undefined as unpinned
 
         // Sort pinned chats by their original updatedAt to maintain some order within pinned items
         // Pinned items should generally appear in the order they were pinned or by recency.
@@ -349,8 +316,7 @@ export function ChatSidebar({
                                                         "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", // Use focus-within for better accessibility
                                                         activeChatId === chat.id
                                                             ? "bg-accent text-accent-foreground"
-                                                            : "text-foreground",
-                                                        chat.isPinned && "bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-800/40"
+                                                            : "text-foreground"
                                                     )}
                                                     onClick={() => handleChatClick(chat)} // Main click action to select chat
                                                 >
@@ -374,21 +340,19 @@ export function ChatSidebar({
                                                                 <span className="sr-only">Open chat actions</span>
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent 
+                                                        <DropdownMenuContent
                                                             align="end" // Align dropdown to the right
                                                             onClick={(e) => e.stopPropagation()} // Prevent chat click when dropdown content is interacted with
                                                         >
                                                             <DropdownMenuItem
                                                                 onClick={(e) => {
                                                                     e.stopPropagation(); // Prevent chat click
-                                                                    updatePinStatusMutation.mutate({ chatId: chat.id, isPinned: !chat.isPinned });
+                                                                    const currentPinStatus = chat.isPinned || false; // Default to false if undefined
+                                                                    handlePinToggle(chat.id, currentPinStatus);
                                                                 }}
-                                                                disabled={updatePinStatusMutation.isPending}
                                                                 className="cursor-pointer"
                                                             >
-                                                                {updatePinStatusMutation.isPending && updatePinStatusMutation.variables?.chatId === chat.id 
-                                                                    ? (updatePinStatusMutation.variables?.isPinned ? 'Pinning...' : 'Unpinning...') 
-                                                                    : (chat.isPinned ? 'Unpin chat' : 'Pin chat')}
+                                                                {(chat.isPinned || false) ? 'Unpin chat' : 'Pin chat'}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem
                                                                 onClick={(e) => {
