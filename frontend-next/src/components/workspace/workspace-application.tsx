@@ -11,7 +11,6 @@ import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 
 import { AIProviderSettingsView } from '@/components/workspace/ai-provider-settings-view';
-import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { AuthUser } from '@/lib/auth';
@@ -76,7 +75,9 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     return { view: 'settings-ai-providers', params: {}, queryParams };
                 }
                 if (pathname === '/settings/openrouter') {
-                    return { view: 'settings-openrouter', params: {}, queryParams };
+                    // Redirect OpenRouter settings to AI providers since OpenRouter is now global
+                    navigationUtils.pushState('/settings/ai-providers');
+                    return { view: 'settings-ai-providers', params: {}, queryParams };
                 }
                 // Default to AI providers settings
                 return { view: 'settings-ai-providers', params: {}, queryParams };
@@ -341,11 +342,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     </SettingsLayout>
                 )}
 
-                {currentView === 'settings-openrouter' && (
-                    <SettingsLayout currentView="openrouter">
-                        <OpenRouterSettingsView workspaceId={routeParams.workspaceId} />
-                    </SettingsLayout>
-                )}
+
 
                 {currentView === 'selection' && (
                     <div className="h-full overflow-y-auto">
@@ -444,15 +441,8 @@ function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
             id: 'ai-providers',
             label: 'AI Providers',
             icon: <Bot className="h-4 w-4" />,
-            description: 'Configure AI providers and models',
+            description: 'Configure AI providers and models (including OpenRouter)',
             path: '/settings/ai-providers'
-        },
-        {
-            id: 'openrouter',
-            label: 'OpenRouter',
-            icon: <Bot className="h-4 w-4" />,
-            description: 'Configure OpenRouter API and models',
-            path: '/settings/openrouter'
         }
     ];
 
