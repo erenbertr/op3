@@ -189,7 +189,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                                     }`}
                             >
                                 {/* Group Name Label */}
-                                <div className="px-3 py-2 text-sm font-medium text-muted-foreground border-r border-border pointer-events-none">
+                                <div className="px-3 py-2 text-sm font-medium text-muted-foreground pointer-events-none">
                                     {group.name}
                                 </div>
 
@@ -219,13 +219,13 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                                                     handleWorkspaceClick(workspace.id);
                                                 }
                                             }}
-                                            className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all select-none pointer-events-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                            className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all select-none pointer-events-auto ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                                 ? 'bg-primary/10 border-primary text-primary'
                                                 : 'border-transparent hover:border-primary/50'
                                                 }`}
                                             title={workspace.name}
                                         >
-                                            <span className="text-sm font-medium truncate max-w-32">
+                                            <span className="text-sm font-medium truncate max-w-32 pointer-events-none">
                                                 {workspace.name}
                                             </span>
                                         </Button>
