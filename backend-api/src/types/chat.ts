@@ -5,6 +5,7 @@ export interface ChatSession {
     title: string;
     lastUsedPersonalityId?: string;
     lastUsedAIProviderId?: string;
+    isPinned?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -85,6 +86,7 @@ export interface ChatMessagesResponse {
 
 export interface UpdateChatSessionRequest {
     title?: string;
+    isPinned?: boolean;
 }
 
 export interface UpdateChatSessionSettingsRequest {

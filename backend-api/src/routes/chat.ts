@@ -91,17 +91,18 @@ router.post('/sessions/:sessionId/messages', asyncHandler(async (req: Request, r
     res.json(result);
 }));
 
-// Update a chat session (e.g., change title)
+// Update a chat session (e.g., change title, pin status)
 router.patch('/sessions/:sessionId', asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { title }: UpdateChatSessionRequest = req.body;
+    const { title, isPinned }: UpdateChatSessionRequest = req.body;
 
     if (!sessionId) {
         throw createError('Session ID is required', 400);
     }
 
     const result = await chatService.updateChatSession(sessionId, {
-        title
+        title,
+        isPinned
     });
 
     res.json(result);

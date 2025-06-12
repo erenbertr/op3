@@ -184,6 +184,9 @@ export class ChatService {
             if (request.title) {
                 session.title = request.title;
             }
+            if (request.isPinned !== undefined) {
+                session.isPinned = request.isPinned;
+            }
             session.updatedAt = new Date();
 
             await this.updateChatSessionInDb(session);
@@ -522,6 +525,7 @@ export class ChatService {
                     title TEXT NOT NULL,
                     lastUsedPersonalityId TEXT,
                     lastUsedAIProviderId TEXT,
+                    isPinned BOOLEAN DEFAULT 0,
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL,
                     FOREIGN KEY (userId) REFERENCES users(id)
@@ -534,8 +538,8 @@ export class ChatService {
 
                 // Insert session
                 db.run(`
-                    INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, createdAt, updatedAt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, isPinned, createdAt, updatedAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     session.id,
                     session.userId,
@@ -543,6 +547,7 @@ export class ChatService {
                     session.title,
                     session.lastUsedPersonalityId || null,
                     session.lastUsedAIProviderId || null,
+                    session.isPinned ? 1 : 0,
                     session.createdAt.toISOString(),
                     session.updatedAt.toISOString()
                 ], (err: any) => {
@@ -683,8 +688,8 @@ export class ChatService {
     private async updateChatSessionSQLite(db: any, session: ChatSession): Promise<void> {
         return new Promise((resolve, reject) => {
             db.run(
-                'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, updatedAt = ? WHERE id = ?',
-                [session.title, session.lastUsedPersonalityId || null, session.lastUsedAIProviderId || null, session.updatedAt.toISOString(), session.id],
+                'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, isPinned = ?, updatedAt = ? WHERE id = ?',
+                [session.title, session.lastUsedPersonalityId || null, session.lastUsedAIProviderId || null, session.isPinned ? 1 : 0, session.updatedAt.toISOString(), session.id],
                 (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -735,6 +740,7 @@ export class ChatService {
             title: session.title,
             lastUsedPersonalityId: session.lastUsedPersonalityId,
             lastUsedAIProviderId: session.lastUsedAIProviderId,
+            isPinned: session.isPinned || false,
             createdAt: session.createdAt,
             updatedAt: session.updatedAt
         });
@@ -804,6 +810,7 @@ export class ChatService {
                     title: session.title,
                     lastUsedPersonalityId: session.lastUsedPersonalityId,
                     lastUsedAIProviderId: session.lastUsedAIProviderId,
+                    isPinned: session.isPinned || false,
                     updatedAt: session.updatedAt
                 }
             }
@@ -833,6 +840,7 @@ export class ChatService {
                 title VARCHAR(255) NOT NULL,
                 lastUsedPersonalityId VARCHAR(36),
                 lastUsedAIProviderId VARCHAR(36),
+                isPinned BOOLEAN DEFAULT FALSE,
                 createdAt DATETIME NOT NULL,
                 updatedAt DATETIME NOT NULL,
                 INDEX idx_userId (userId),
@@ -842,9 +850,9 @@ export class ChatService {
         `);
 
         await connection.execute(`
-            INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [session.id, session.userId, session.workspaceId, session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.createdAt, session.updatedAt]);
+            INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, isPinned, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [session.id, session.userId, session.workspaceId, session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.isPinned || false, session.createdAt, session.updatedAt]);
     }
 
     private async saveChatMessageSQL(connection: any, message: ChatMessage): Promise<void> {
@@ -912,8 +920,8 @@ export class ChatService {
 
     private async updateChatSessionSQL(connection: any, session: ChatSession): Promise<void> {
         await connection.execute(
-            'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, updatedAt = ? WHERE id = ?',
-            [session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.updatedAt, session.id]
+            'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, isPinned = ?, updatedAt = ? WHERE id = ?',
+            [session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.isPinned || false, session.updatedAt, session.id]
         );
     }
 
@@ -938,6 +946,7 @@ export class ChatService {
                 title: session.title,
                 lastUsedPersonalityId: session.lastUsedPersonalityId,
                 lastUsedAIProviderId: session.lastUsedAIProviderId,
+                isPinned: session.isPinned || false,
                 createdAt: session.createdAt.toISOString(),
                 updatedAt: session.updatedAt.toISOString()
             }]);
@@ -1018,6 +1027,7 @@ export class ChatService {
                 title: session.title,
                 lastUsedPersonalityId: session.lastUsedPersonalityId,
                 lastUsedAIProviderId: session.lastUsedAIProviderId,
+                isPinned: session.isPinned || false,
                 updatedAt: session.updatedAt.toISOString()
             })
             .eq('id', session.id);
@@ -1054,6 +1064,7 @@ export class ChatService {
             title: row.title,
             lastUsedPersonalityId: row.lastUsedPersonalityId,
             lastUsedAIProviderId: row.lastUsedAIProviderId,
+            isPinned: Boolean(row.isPinned),
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
         };
@@ -1100,6 +1111,7 @@ export class ChatService {
             title: doc.title,
             lastUsedPersonalityId: doc.lastUsedPersonalityId,
             lastUsedAIProviderId: doc.lastUsedAIProviderId,
+            isPinned: Boolean(doc.isPinned),
             createdAt: doc.createdAt,
             updatedAt: doc.updatedAt
         };
@@ -1128,6 +1140,7 @@ export class ChatService {
             title: row.title,
             lastUsedPersonalityId: row.lastUsedPersonalityId,
             lastUsedAIProviderId: row.lastUsedAIProviderId,
+            isPinned: Boolean(row.isPinned),
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
         };
