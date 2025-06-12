@@ -56,6 +56,17 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
     const [showOpenRouterModels, setShowOpenRouterModels] = useState(false);
     const { addToast } = useToast();
 
+    // Safe toast function with error handling
+    const safeAddToast = React.useCallback((toast: Parameters<typeof addToast>[0]) => {
+        try {
+            addToast(toast);
+        } catch (error) {
+            console.error('Toast error:', error);
+            // Fallback to console log if toast fails
+            console.log(`${toast.variant?.toUpperCase() || 'INFO'}: ${toast.title} - ${toast.description}`);
+        }
+    }, [addToast]);
+
     // Use TanStack Query for data fetching
     const {
         data: providersResponse,
@@ -141,7 +152,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
 
             await saveProviderMutation.mutateAsync(providerData);
 
-            addToast({
+            safeAddToast({
                 title: "Success",
                 description: editingProvider.id ? "AI provider updated successfully" : "AI provider created successfully",
                 variant: "success"
@@ -158,7 +169,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
         try {
             await deleteProviderMutation.mutateAsync(providerId);
 
-            addToast({
+            safeAddToast({
                 title: "Success",
                 description: "AI provider deleted successfully",
                 variant: "success"
@@ -180,7 +191,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
 
             await saveProviderMutation.mutateAsync(updatedProvider);
 
-            addToast({
+            safeAddToast({
                 title: "Success",
                 description: `AI provider ${updatedProvider.isActive ? 'enabled' : 'disabled'} successfully`,
                 variant: "success"
@@ -202,14 +213,14 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
             await testProviderMutation.mutateAsync(provider.id);
 
             setTestStatus(prev => ({ ...prev, [provider.id!]: 'success' }));
-            addToast({
+            safeAddToast({
                 title: "Test Successful",
                 description: "AI provider is working correctly",
                 variant: "success"
             });
         } catch (error) {
             setTestStatus(prev => ({ ...prev, [provider.id!]: 'error' }));
-            addToast({
+            safeAddToast({
                 title: "Test Failed",
                 description: error instanceof Error ? error.message : "AI provider test failed",
                 variant: "destructive"
@@ -249,7 +260,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
 
     const fetchOpenRouterModels = async (apiKey: string) => {
         if (!apiKey.trim()) {
-            addToast({
+            safeAddToast({
                 title: "Error",
                 description: "Please enter an API key first",
                 variant: "destructive"
@@ -263,20 +274,20 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
             if (result.success && result.models) {
                 setOpenRouterModels(result.models);
                 setShowOpenRouterModels(true);
-                addToast({
+                safeAddToast({
                     title: "Success",
                     description: `Loaded ${result.models.length} models`,
                     variant: "success"
                 });
             } else {
-                addToast({
+                safeAddToast({
                     title: "Error",
                     description: result.message || "Failed to fetch models",
                     variant: "destructive"
                 });
             }
         } catch (error) {
-            addToast({
+            safeAddToast({
                 title: "Error",
                 description: "Failed to fetch OpenRouter models",
                 variant: "destructive"
@@ -298,7 +309,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
 
     const handleSaveOpenRouterProvider = async () => {
         if (!editingProvider || selectedModels.length === 0) {
-            addToast({
+            safeAddToast({
                 title: "Error",
                 description: "Please select at least one model",
                 variant: "destructive"
@@ -321,7 +332,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                 await saveProviderMutation.mutateAsync(providerData);
             }
 
-            addToast({
+            safeAddToast({
                 title: "Success",
                 description: `Created ${selectedModels.length} OpenRouter provider(s)`,
                 variant: "success"
