@@ -48,9 +48,9 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
         [groups]
     );
 
-    // Drag and drop state
-    const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
-    const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+    // Drag and drop state for workspace tabs
+    const [draggedWorkspaceId, setDraggedWorkspaceId] = useState<string | null>(null);
+    const [dragOverWorkspaceId, setDragOverWorkspaceId] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
     // Group workspaces by group ID
@@ -83,12 +83,12 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
         navigationUtils.pushState(`/add/workspace?groupId=${groupId}`);
     }, []);
 
-    // Drag and drop handlers for group reordering
-    const handleGroupDragStart = useCallback((e: React.DragEvent, groupId: string) => {
-        setDraggedGroupId(groupId);
+    // Drag and drop handlers for workspace reordering within groups
+    const handleWorkspaceDragStart = useCallback((e: React.DragEvent, workspaceId: string) => {
+        setDraggedWorkspaceId(workspaceId);
         setIsDragging(true);
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', groupId);
+        e.dataTransfer.setData('text/plain', workspaceId);
 
         // Add visual feedback
         if (e.currentTarget instanceof HTMLElement) {
@@ -96,9 +96,9 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
         }
     }, []);
 
-    const handleGroupDragEnd = useCallback((e: React.DragEvent) => {
-        setDraggedGroupId(null);
-        setDragOverGroupId(null);
+    const handleWorkspaceDragEnd = useCallback((e: React.DragEvent) => {
+        setDraggedWorkspaceId(null);
+        setDragOverWorkspaceId(null);
 
         // Reset visual feedback
         if (e.currentTarget instanceof HTMLElement) {
@@ -111,54 +111,64 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
         }, 100);
     }, []);
 
-    const handleGroupDragOver = useCallback((e: React.DragEvent, groupId: string) => {
+    const handleWorkspaceDragOver = useCallback((e: React.DragEvent, workspaceId: string) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        setDragOverGroupId(groupId);
+        setDragOverWorkspaceId(workspaceId);
     }, []);
 
-    const handleGroupDragLeave = useCallback((e: React.DragEvent) => {
-        // Only clear if we're leaving the group entirely
+    const handleWorkspaceDragLeave = useCallback((e: React.DragEvent) => {
+        // Only clear if we're leaving the workspace tab entirely
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            setDragOverGroupId(null);
+            setDragOverWorkspaceId(null);
         }
     }, []);
 
-    const handleGroupDrop = useCallback(async (e: React.DragEvent, targetGroupId: string) => {
+    const handleWorkspaceDrop = useCallback(async (e: React.DragEvent, targetWorkspaceId: string) => {
         e.preventDefault();
-        const draggedGroupId = e.dataTransfer.getData('text/plain');
+        const draggedWorkspaceId = e.dataTransfer.getData('text/plain');
 
-        if (draggedGroupId && draggedGroupId !== targetGroupId) {
-            // Create new order array
-            const newGroups = [...pinnedGroups];
-            const draggedIndex = newGroups.findIndex(g => g.id === draggedGroupId);
-            const targetIndex = newGroups.findIndex(g => g.id === targetGroupId);
+        if (draggedWorkspaceId && draggedWorkspaceId !== targetWorkspaceId) {
+            // Find the group that contains both workspaces
+            const draggedWorkspace = workspaces.find(w => w.id === draggedWorkspaceId);
+            const targetWorkspace = workspaces.find(w => w.id === targetWorkspaceId);
 
-            if (draggedIndex !== -1 && targetIndex !== -1) {
-                // Remove the dragged item
-                const [draggedGroup] = newGroups.splice(draggedIndex, 1);
-                // Insert it at the target position
-                newGroups.splice(targetIndex, 0, draggedGroup);
+            if (draggedWorkspace && targetWorkspace && draggedWorkspace.groupId === targetWorkspace.groupId) {
+                const groupId = draggedWorkspace.groupId;
+                const groupWorkspaces = groupedWorkspaces[groupId!] || [];
 
-                // Update sort orders and call API
-                const groupOrders = newGroups.map((group, index) => ({
-                    groupId: group.id,
-                    sortOrder: index
-                }));
+                // Create new order array
+                const newWorkspaces = [...groupWorkspaces];
+                const draggedIndex = newWorkspaces.findIndex(w => w.id === draggedWorkspaceId);
+                const targetIndex = newWorkspaces.findIndex(w => w.id === targetWorkspaceId);
 
-                try {
-                    await apiClient.reorderWorkspaceGroups(userId, groupOrders);
-                    // Note: Not calling invalidateQueries per user preference
-                    // The UI will update on next data fetch
-                } catch (error) {
-                    console.error('Error reordering groups:', error);
+                if (draggedIndex !== -1 && targetIndex !== -1) {
+                    // Remove the dragged item
+                    const [draggedWs] = newWorkspaces.splice(draggedIndex, 1);
+                    // Insert it at the target position
+                    newWorkspaces.splice(targetIndex, 0, draggedWs);
+
+                    // Update sort orders and call API
+                    const updates = newWorkspaces.map((workspace, index) => ({
+                        workspaceId: workspace.id,
+                        groupId: groupId,
+                        sortOrder: index
+                    }));
+
+                    try {
+                        await apiClient.batchUpdateWorkspaces(userId, updates);
+                        // Note: Not calling invalidateQueries per user preference
+                        // The UI will update on next data fetch
+                    } catch (error) {
+                        console.error('Error reordering workspaces:', error);
+                    }
                 }
             }
         }
 
-        setDraggedGroupId(null);
-        setDragOverGroupId(null);
-    }, [pinnedGroups, userId]);
+        setDraggedWorkspaceId(null);
+        setDragOverWorkspaceId(null);
+    }, [workspaces, groupedWorkspaces, userId]);
 
     // Don't render anything if there are no pinned groups
     if (pinnedGroups.length === 0) {
@@ -169,24 +179,14 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
         <div className="border-b bg-background">
             <div className="container mx-auto px-4">
                 <div className="space-y-0">
-                    {pinnedGroups.map((group) => {
+                    {pinnedGroups.map((group, groupIndex) => {
                         const groupWorkspaces = groupedWorkspaces[group.id] || [];
 
                         return (
                             <div
                                 key={group.id}
-                                draggable
-                                onDragStart={(e) => handleGroupDragStart(e, group.id)}
-                                onDragEnd={handleGroupDragEnd}
-                                onDragOver={(e) => handleGroupDragOver(e, group.id)}
-                                onDragLeave={handleGroupDragLeave}
-                                onDrop={(e) => handleGroupDrop(e, group.id)}
-                                className={`flex items-center h-12 gap-1 overflow-x-auto transition-all select-none ${draggedGroupId === group.id ? 'opacity-50' : ''
-                                    } ${dragOverGroupId === group.id && draggedGroupId !== group.id
-                                        ? 'border-t-4 border-t-primary bg-primary/5'
-                                        : ''
+                                className={`flex items-center h-12 gap-1 overflow-x-auto transition-all select-none ${groupIndex > 0 ? 'border-t border-border' : ''
                                     }`}
-                                title={`${group.name} - Drag to reorder`}
                             >
                                 {/* Group Name Label */}
                                 <div className="px-3 py-2 text-sm font-medium text-muted-foreground border-r border-border pointer-events-none">
@@ -195,26 +195,41 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
 
                                 {/* Workspace Tabs for this Group */}
                                 {groupWorkspaces.map((workspace) => (
-                                    <Button
+                                    <div
                                         key={workspace.id}
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            // Prevent navigation if we just finished dragging
-                                            if (!isDragging) {
-                                                handleWorkspaceClick(workspace.id);
-                                            }
-                                        }}
-                                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all select-none pointer-events-auto ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                        draggable
+                                        onDragStart={(e) => handleWorkspaceDragStart(e, workspace.id)}
+                                        onDragEnd={handleWorkspaceDragEnd}
+                                        onDragOver={(e) => handleWorkspaceDragOver(e, workspace.id)}
+                                        onDragLeave={handleWorkspaceDragLeave}
+                                        onDrop={(e) => handleWorkspaceDrop(e, workspace.id)}
+                                        className={`relative transition-all ${draggedWorkspaceId === workspace.id ? 'opacity-50' : ''
+                                            } ${dragOverWorkspaceId === workspace.id && draggedWorkspaceId !== workspace.id
+                                                ? 'border-l-4 border-l-primary bg-primary/5'
+                                                : ''
+                                            }`}
+                                        title={`${workspace.name} - Drag to reorder`}
+                                    >
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                // Prevent navigation if we just finished dragging
+                                                if (!isDragging) {
+                                                    handleWorkspaceClick(workspace.id);
+                                                }
+                                            }}
+                                            className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all select-none pointer-events-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                                 ? 'bg-primary/10 border-primary text-primary'
                                                 : 'border-transparent hover:border-primary/50'
-                                            }`}
-                                        title={workspace.name}
-                                    >
-                                        <span className="text-sm font-medium truncate max-w-32">
-                                            {workspace.name}
-                                        </span>
-                                    </Button>
+                                                }`}
+                                            title={workspace.name}
+                                        >
+                                            <span className="text-sm font-medium truncate max-w-32">
+                                                {workspace.name}
+                                            </span>
+                                        </Button>
+                                    </div>
                                 ))}
 
                                 {/* Add Workspace Button */}
@@ -227,7 +242,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                                             handleAddWorkspace(group.id);
                                         }
                                     }}
-                                    className="h-10 px-2 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50 pointer-events-auto"
+                                    className="h-10 px-2 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
                                     title={`Add workspace to ${group.name}`}
                                 >
                                     <Plus className="h-4 w-4" />
