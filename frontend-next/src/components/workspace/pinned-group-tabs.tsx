@@ -42,6 +42,19 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
     const groups = React.useMemo(() => groupsResult?.groups || [], [groupsResult]);
     const workspaces = React.useMemo(() => workspacesResult?.workspaces || [], [workspacesResult]);
 
+    // Local state for optimistic updates
+    const [localWorkspaces, setLocalWorkspaces] = useState<Workspace[]>([]);
+
+    // Use local workspaces if available, otherwise use server data
+    const currentWorkspaces = localWorkspaces.length > 0 ? localWorkspaces : workspaces;
+
+    // Update local workspaces when server data changes
+    React.useEffect(() => {
+        if (workspaces.length > 0) {
+            setLocalWorkspaces(workspaces);
+        }
+    }, [workspaces]);
+
     // Filter only pinned groups and sort by sortOrder
     const pinnedGroups = React.useMemo(() =>
         groups.filter(group => group.isPinned).sort((a, b) => a.sortOrder - b.sortOrder),
@@ -56,7 +69,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
     // Group workspaces by group ID
     const groupedWorkspaces = React.useMemo(() => {
         const grouped: Record<string, Workspace[]> = {};
-        workspaces.forEach(workspace => {
+        currentWorkspaces.forEach(workspace => {
             if (workspace.groupId) {
                 if (!grouped[workspace.groupId]) {
                     grouped[workspace.groupId] = [];
@@ -71,7 +84,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
         });
 
         return grouped;
-    }, [workspaces]);
+    }, [currentWorkspaces]);
 
     const handleWorkspaceClick = useCallback(async (workspaceId: string) => {
         // Navigate immediately for smooth UX
@@ -130,8 +143,8 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
 
         if (draggedWorkspaceId && draggedWorkspaceId !== targetWorkspaceId) {
             // Find the group that contains both workspaces
-            const draggedWorkspace = workspaces.find(w => w.id === draggedWorkspaceId);
-            const targetWorkspace = workspaces.find(w => w.id === targetWorkspaceId);
+            const draggedWorkspace = currentWorkspaces.find(w => w.id === draggedWorkspaceId);
+            const targetWorkspace = currentWorkspaces.find(w => w.id === targetWorkspaceId);
 
             if (draggedWorkspace && targetWorkspace && draggedWorkspace.groupId === targetWorkspace.groupId) {
                 const groupId = draggedWorkspace.groupId;
@@ -148,8 +161,26 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                     // Insert it at the target position
                     newWorkspaces.splice(targetIndex, 0, draggedWs);
 
-                    // Update sort orders and call API
-                    const updates = newWorkspaces.map((workspace, index) => ({
+                    // Update sort orders for the reordered workspaces
+                    const updatedWorkspaces = newWorkspaces.map((workspace, index) => ({
+                        ...workspace,
+                        sortOrder: index
+                    }));
+
+                    // Optimistically update local state immediately
+                    setLocalWorkspaces(prevWorkspaces => {
+                        const updated = [...prevWorkspaces];
+                        updatedWorkspaces.forEach(updatedWs => {
+                            const index = updated.findIndex(w => w.id === updatedWs.id);
+                            if (index !== -1) {
+                                updated[index] = updatedWs;
+                            }
+                        });
+                        return updated;
+                    });
+
+                    // Prepare API updates
+                    const updates = updatedWorkspaces.map((workspace, index) => ({
                         workspaceId: workspace.id,
                         groupId: groupId,
                         sortOrder: index
@@ -157,10 +188,11 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
 
                     try {
                         await apiClient.batchUpdateWorkspaces(userId, updates);
-                        // Note: Not calling invalidateQueries per user preference
-                        // The UI will update on next data fetch
+                        console.log('Workspace reordering successful');
                     } catch (error) {
                         console.error('Error reordering workspaces:', error);
+                        // Revert optimistic update on error
+                        setLocalWorkspaces(workspaces);
                     }
                 }
             }
@@ -168,7 +200,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
 
         setDraggedWorkspaceId(null);
         setDragOverWorkspaceId(null);
-    }, [workspaces, groupedWorkspaces, userId]);
+    }, [currentWorkspaces, groupedWorkspaces, userId, workspaces]);
 
     // Don't render anything if there are no pinned groups
     if (pinnedGroups.length === 0) {
