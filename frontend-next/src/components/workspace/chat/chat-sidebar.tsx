@@ -1,15 +1,15 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { apiClient, ChatSession } from '@/lib/api';
+import { apiClient, ChatSession, UpdateChatSessionResponse } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import { MoreHorizontal } from 'lucide-react';
 import {
@@ -48,38 +48,69 @@ export function ChatSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
-    const [pinnedChatIds, setPinnedChatIds] = useState<string[]>([]);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
 
-    // Load pinned chats from localStorage on mount
-    useEffect(() => {
-        const storedPinnedChats = localStorage.getItem(`pinnedChats_${workspaceId}`);
-        if (storedPinnedChats) {
-            setPinnedChatIds(JSON.parse(storedPinnedChats));
+    interface PinMutationVariables {
+        chatId: string;
+        isPinned: boolean;
+    }
+
+    interface PinMutationContext {
+        previousChatSessions?: ChatSession[];
+    }
+
+    const updatePinStatusMutation = useMutation<
+        UpdateChatSessionResponse, 
+        Error,                   
+        PinMutationVariables,    
+        PinMutationContext       
+    >({
+        mutationFn: async (variables: PinMutationVariables) => {
+            const { chatId, isPinned } = variables;
+            return apiClient.updateChatSessionPinStatus(chatId, { isPinned });
+        },
+        onMutate: async (variables: PinMutationVariables) => {
+                const { chatId, isPinned } = variables;
+                // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+                await queryClient.cancelQueries({ queryKey: queryKeys.chats.byWorkspace(userId, workspaceId) });
+
+                // Snapshot the previous value
+                const previousChatSessions = queryClient.getQueryData<ChatSession[]>(queryKeys.chats.byWorkspace(userId, workspaceId));
+
+                // Optimistically update to the new value
+                queryClient.setQueryData<ChatSession[]>(queryKeys.chats.byWorkspace(userId, workspaceId), (oldSessions = []) =>
+                    oldSessions.map(session =>
+                        session.id === chatId ? { ...session, isPinned } : session
+                    )
+                );
+
+                // Return a context object with the snapshotted value
+                return { previousChatSessions };
+            },
+            onError: (err: Error, variables: PinMutationVariables, _context?: PinMutationContext) => {
+                // If the mutation fails, use the context returned from onMutate to roll back
+                if (_context?.previousChatSessions) {
+                    queryClient.setQueryData<ChatSession[]>(queryKeys.chats.byWorkspace(userId, workspaceId), _context.previousChatSessions);
+                }
+                addToast({
+                    title: "Error",
+                    description: `Failed to ${variables.isPinned ? 'pin' : 'unpin'} chat. Please try again.`,
+                    variant: "destructive",
+                });
+            },
+            onSuccess: (_data: UpdateChatSessionResponse, variables: PinMutationVariables, _context?: PinMutationContext) => {
+                addToast({
+                    title: "Success",
+                    description: `Chat successfully ${variables.isPinned ? 'pinned' : 'unpinned'}.`,
+                });
+            },
+            onSettled: (_data?: UpdateChatSessionResponse, _error?: Error | null, _variables?: PinMutationVariables, _context?: PinMutationContext) => {
+                // Always refetch after error or success
+                queryClient.invalidateQueries({ queryKey: queryKeys.chats.byWorkspace(userId, workspaceId) });
+            },
         }
-    }, [workspaceId]);
-
-    // Save pinned chats to localStorage when they change
-    useEffect(() => {
-        // Only save if workspaceId is present to avoid saving with a temporary/null key
-        if (workspaceId) {
-            localStorage.setItem(`pinnedChats_${workspaceId}`, JSON.stringify(pinnedChatIds));
-        }
-    }, [pinnedChatIds, workspaceId]);
-
-    const handlePinChat = (chatId: string) => {
-        setPinnedChatIds(prev => {
-            const newPinned = Array.from(new Set([...prev, chatId]));
-            return newPinned;
-        });
-    };
-
-    const handleUnpinChat = (chatId: string) => {
-        setPinnedChatIds(prev => prev.filter(id => id !== chatId));
-    };
-
-    const isChatPinned = (chatId: string) => pinnedChatIds.includes(chatId);
+    ); // End of useMutation options
 
     // Filter chats based on search query
     const filteredChats = (chatSessions || []).filter(chat =>
@@ -145,7 +176,7 @@ export function ChatSidebar({
         console.log('Attempting to delete chat:', chatId);
 
         try {
-            const result = await apiClient.deleteChatSession(chatId);
+            const result = await apiClient.deleteChatSession(chatId, userId);
             if (result.success) {
                 addToast({
                     title: "Chat Deleted",
@@ -187,8 +218,8 @@ export function ChatSidebar({
     };
 
     const groupAndPinChats = (chatsToGroup: ChatSession[]) => {
-        const pinnedChats = chatsToGroup.filter(chat => isChatPinned(chat.id));
-        const unpinnedChats = chatsToGroup.filter(chat => !isChatPinned(chat.id));
+        const pinnedChats = chatsToGroup.filter(chat => chat.isPinned);
+        const unpinnedChats = chatsToGroup.filter(chat => !chat.isPinned);
 
         // Sort pinned chats by their original updatedAt to maintain some order within pinned items
         // Pinned items should generally appear in the order they were pinned or by recency.
@@ -318,7 +349,8 @@ export function ChatSidebar({
                                                         "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", // Use focus-within for better accessibility
                                                         activeChatId === chat.id
                                                             ? "bg-accent text-accent-foreground"
-                                                            : "text-foreground"
+                                                            : "text-foreground",
+                                                        chat.isPinned && "bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-800/40"
                                                     )}
                                                     onClick={() => handleChatClick(chat)} // Main click action to select chat
                                                 >
@@ -349,15 +381,14 @@ export function ChatSidebar({
                                                             <DropdownMenuItem
                                                                 onClick={(e) => {
                                                                     e.stopPropagation(); // Prevent chat click
-                                                                    if (isChatPinned(chat.id)) {
-                                                                        handleUnpinChat(chat.id);
-                                                                    } else {
-                                                                        handlePinChat(chat.id);
-                                                                    }
+                                                                    updatePinStatusMutation.mutate({ chatId: chat.id, isPinned: !chat.isPinned });
                                                                 }}
+                                                                disabled={updatePinStatusMutation.isPending}
                                                                 className="cursor-pointer"
                                                             >
-                                                                {isChatPinned(chat.id) ? 'Unpin chat' : 'Pin chat'}
+                                                                {updatePinStatusMutation.isPending && updatePinStatusMutation.variables?.chatId === chat.id 
+                                                                    ? (updatePinStatusMutation.variables?.isPinned ? 'Pinning...' : 'Unpinning...') 
+                                                                    : (chat.isPinned ? 'Unpin chat' : 'Pin chat')}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem
                                                                 onClick={(e) => {

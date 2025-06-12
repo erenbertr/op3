@@ -109,6 +109,7 @@ export interface ChatSession {
     lastUsedAIProviderId?: string;
     createdAt: string;
     updatedAt: string;
+    isPinned?: boolean;
 }
 
 export interface ChatMessage {
@@ -186,6 +187,10 @@ export interface UpdateChatSessionResponse {
     session?: ChatSession;
 }
 
+export interface UpdateChatSessionPinStatusRequest {
+    isPinned: boolean;
+}
+
 // File attachment types
 export interface FileAttachment {
     id: string;
@@ -247,6 +252,14 @@ export interface WorkspaceStatistics {
     costByProvider: { [key: string]: number };
     dailyUsage: { date: string; messages: number; tokens: number; cost: number }[];
 }
+
+export type ProviderStatisticsData = Record<string, unknown>;
+export type UsageTrendsData = Record<string, unknown>;
+export type SummaryStatisticsData = Record<string, unknown>;
+
+export type ProviderStatisticsResponse = ApiResponse<ProviderStatisticsData>;
+export type UsageTrendsResponse = ApiResponse<UsageTrendsData>;
+export type SummaryStatisticsResponse = ApiResponse<SummaryStatisticsData>;
 
 export interface StatisticsResponse {
     success: boolean;
@@ -709,6 +722,20 @@ class ApiClient {
         });
     }
 
+    async updateChatSession(sessionId: string, request: UpdateChatSessionRequest): Promise<UpdateChatSessionResponse> {
+        return this.request<UpdateChatSessionResponse>(`/chat/sessions/${sessionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async updateChatSessionPinStatus(sessionId: string, data: UpdateChatSessionPinStatusRequest): Promise<UpdateChatSessionResponse> {
+        return this.request<UpdateChatSessionResponse>(`/chat/sessions/${sessionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
     async getChatSessions(userId: string, workspaceId: string): Promise<ChatSessionsListResponse> {
         return this.request<ChatSessionsListResponse>(`/chat/sessions/${userId}/${workspaceId}`);
     }
@@ -724,13 +751,6 @@ class ApiClient {
         });
     }
 
-    async updateChatSession(sessionId: string, request: UpdateChatSessionRequest): Promise<UpdateChatSessionResponse> {
-        return this.request<UpdateChatSessionResponse>(`/chat/sessions/${sessionId}`, {
-            method: 'PATCH',
-            body: JSON.stringify(request),
-        });
-    }
-
     async updateChatSessionSettings(sessionId: string, request: UpdateChatSessionSettingsRequest): Promise<UpdateChatSessionSettingsResponse> {
         return this.request<UpdateChatSessionSettingsResponse>(`/chat/sessions/${sessionId}/settings`, {
             method: 'PATCH',
@@ -738,11 +758,14 @@ class ApiClient {
         });
     }
 
-    async deleteChatSession(sessionId: string): Promise<DeleteChatSessionResponse> {
+    async deleteChatSession(sessionId: string, userId: string): Promise<DeleteChatSessionResponse> {
         return this.request<DeleteChatSessionResponse>(`/chat/sessions/${sessionId}`, {
             method: 'DELETE',
+            body: JSON.stringify({ userId }),
         });
     }
+
+
 
     // Save a chat message directly (for partial messages)
     async saveChatMessage(message: ChatMessage): Promise<{ success: boolean; message: string; savedMessage?: ChatMessage }> {
@@ -923,7 +946,7 @@ class ApiClient {
                                 } else if (data.type === 'search_results') {
                                     callbacks.onSearchResults?.(data.searchQuery, data.searchResults);
                                 }
-                            } catch (error) {
+                            } catch {
                                 // Ignore parsing errors for malformed SSE data
                                 console.warn('Failed to parse SSE data:', line);
                             }
@@ -991,13 +1014,13 @@ class ApiClient {
         workspaceId: string,
         userId: string,
         dateRange: string = 'this-week'
-    ): Promise<any> {
+    ): Promise<ProviderStatisticsResponse> {
         const params = new URLSearchParams({
             userId,
             dateRange
         });
 
-        return this.request<any>(
+        return this.request<ProviderStatisticsResponse>(
             `/statistics/workspace/${workspaceId}/providers?${params.toString()}`
         );
     }
@@ -1006,13 +1029,13 @@ class ApiClient {
         workspaceId: string,
         userId: string,
         dateRange: string = 'this-week'
-    ): Promise<any> {
+    ): Promise<UsageTrendsResponse> {
         const params = new URLSearchParams({
             userId,
             dateRange
         });
 
-        return this.request<any>(
+        return this.request<UsageTrendsResponse>(
             `/statistics/workspace/${workspaceId}/trends?${params.toString()}`
         );
     }
@@ -1021,13 +1044,13 @@ class ApiClient {
         workspaceId: string,
         userId: string,
         dateRange: string = 'this-week'
-    ): Promise<any> {
+    ): Promise<SummaryStatisticsResponse> {
         const params = new URLSearchParams({
             userId,
             dateRange
         });
 
-        return this.request<any>(
+        return this.request<SummaryStatisticsResponse>(
             `/statistics/workspace/${workspaceId}/summary?${params.toString()}`
         );
     }
