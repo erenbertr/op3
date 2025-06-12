@@ -23,7 +23,7 @@ interface OpenRouterSettingsViewProps {
 export function OpenRouterSettingsView({ workspaceId }: OpenRouterSettingsViewProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { toast } = useToast();
+    const { addToast } = useToast();
     const queryClient = useQueryClient();
 
     const [apiKey, setApiKey] = useState('');
@@ -110,9 +110,10 @@ export function OpenRouterSettingsView({ workspaceId }: OpenRouterSettingsViewPr
                 setAvailableModels(result.models);
                 setIsValidated(true);
                 setValidationError(null);
-                toast({
+                addToast({
                     title: "API Key Valid",
                     description: `Found ${result.models.length} available models`,
+                    variant: "success"
                 });
             } else {
                 setValidationError(result.message || 'Invalid API key');
@@ -144,14 +145,15 @@ export function OpenRouterSettingsView({ workspaceId }: OpenRouterSettingsViewPr
         },
         onSuccess: (data) => {
             if (data.success) {
-                toast({
+                addToast({
                     title: "Settings Saved",
                     description: "OpenRouter settings have been saved successfully",
+                    variant: "success"
                 });
                 // Invalidate and refetch settings
                 queryClient.invalidateQueries({ queryKey: ['workspace-openrouter-settings', currentWorkspaceId] });
             } else {
-                toast({
+                addToast({
                     title: "Save Failed",
                     description: data.message || "Failed to save settings",
                     variant: "destructive"
@@ -159,7 +161,7 @@ export function OpenRouterSettingsView({ workspaceId }: OpenRouterSettingsViewPr
             }
         },
         onError: (error) => {
-            toast({
+            addToast({
                 title: "Save Failed",
                 description: error instanceof Error ? error.message : "Failed to save settings",
                 variant: "destructive"
