@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Search, Paperclip, X, Upload, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Personality, AIProviderConfig, apiClient } from '@/lib/api';
+import { Personality, AIProviderConfig, FileAttachment, apiClient } from '@/lib/api';
 
 interface ChatInputProps {
     onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, reasoningEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
