@@ -14,6 +14,7 @@ export interface StreamingChatRequest {
     sessionId: string;
     userId: string;
     searchEnabled?: boolean;
+    reasoningEnabled?: boolean;
     fileAttachments?: string[];
 }
 
@@ -108,7 +109,8 @@ export class AIChatService {
                 onChunk,
                 request.searchEnabled,
                 request.fileAttachments,
-                request.sessionId
+                request.sessionId,
+                request.reasoningEnabled
             );
 
             return result;
@@ -204,7 +206,8 @@ export class AIChatService {
         onChunk: (chunk: AIStreamChunk) => void,
         searchEnabled?: boolean,
         fileAttachments?: string[],
-        sessionId?: string
+        sessionId?: string,
+        reasoningEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const messageId = crypto.randomUUID();
         const startTime = Date.now();
@@ -222,7 +225,7 @@ export class AIChatService {
 
             switch (provider.type) {
                 case 'openai':
-                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk, searchEnabled, fileAttachments, sessionId);
+                    result = await this.streamFromOpenAI(provider, fullConversation, messageId, onChunk, searchEnabled, fileAttachments, sessionId, reasoningEnabled);
                     break;
                 case 'anthropic':
                     result = await this.streamFromAnthropic(provider, fullConversation, messageId, onChunk);
@@ -277,7 +280,8 @@ export class AIChatService {
         onChunk: (chunk: AIStreamChunk) => void,
         searchEnabled?: boolean,
         fileAttachments?: string[],
-        sessionId?: string
+        sessionId?: string,
+        reasoningEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
@@ -301,10 +305,11 @@ export class AIChatService {
         };
 
         // Handle file search or web search using Responses API
-        if ((fileAttachments && fileAttachments.length > 0) || (searchEnabled && this.supportsOpenAIWebSearch(provider))) {
+        const requiresResponsesApi = provider.model.startsWith('o');
+        if (requiresResponsesApi || (fileAttachments && fileAttachments.length > 0) || (searchEnabled && this.supportsOpenAIWebSearch(provider))) {
             try {
                 // Use Responses API for file search or web search
-                return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk, fileAttachments, sessionId);
+                return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk, fileAttachments, sessionId, reasoningEnabled);
             } catch (error) {
                 console.warn('OpenAI Responses API failed:', error);
                 if (searchEnabled) {
@@ -429,7 +434,8 @@ export class AIChatService {
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
         fileAttachments?: string[],
-        sessionId?: string
+        sessionId?: string,
+        reasoningEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
@@ -481,11 +487,17 @@ export class AIChatService {
             }
         }
 
-        const requestBody = {
+        const requestBody: any = {
             model: provider.model,
             input: input,
             tools: tools
-        };
+        } as any;
+
+        // Include reasoning parameter when enabled or required by model
+        const requiresReasoning = provider.model.startsWith('o');
+        if (reasoningEnabled || requiresReasoning) {
+            requestBody.reasoning = { effort: 'medium' };
+        }
 
         console.log('OpenAI Responses API Request:', JSON.stringify(requestBody, null, 2));
         console.log('File attachments provided:', fileAttachments);

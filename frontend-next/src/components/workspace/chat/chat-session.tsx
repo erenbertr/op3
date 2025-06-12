@@ -447,7 +447,15 @@ export function ChatSessionComponent({
         }
     };
 
-    const handleSendMessage = async (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => {
+    const handleSendMessage = async (
+        content: string,
+        personalityId?: string,
+        aiProviderId?: string,
+        searchEnabled?: boolean,
+        reasoningEnabled?: boolean,
+        fileAttachments?: string[],
+        attachmentData?: FileAttachment[]
+    ) => {
         if (!content?.trim()) {
             console.warn('Empty message content provided');
             return;
@@ -663,6 +671,7 @@ export function ChatSessionComponent({
                         aiProviderId,
                         userId,
                         searchEnabled,
+                        reasoningEnabled,
                         fileAttachments
                     },
                     callbacks,

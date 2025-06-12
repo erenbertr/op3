@@ -153,6 +153,7 @@ export interface SendMessageRequest {
     personalityId?: string;
     aiProviderId?: string;
     searchEnabled?: boolean;
+    reasoningEnabled?: boolean;
     fileAttachments?: string[];
 }
 

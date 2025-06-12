@@ -60,6 +60,7 @@ export interface SendMessageRequest {
     aiProviderId?: string;
     isContinuation?: boolean;
     searchEnabled?: boolean;
+    reasoningEnabled?: boolean;
     fileAttachments?: string[]; // Array of file attachment IDs
 }
 
@@ -106,4 +107,15 @@ export interface UpdateChatSessionResponse {
 export interface DeleteChatSessionResponse {
     success: boolean;
     message: string;
+}
+
+export interface StreamingChatRequest {
+    content: string;
+    personalityId?: string;
+    aiProviderId?: string;
+    sessionId: string;
+    userId: string;
+    searchEnabled?: boolean;
+    reasoningEnabled?: boolean;
+    fileAttachments?: string[];
 }

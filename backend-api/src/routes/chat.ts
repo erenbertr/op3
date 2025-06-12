@@ -159,13 +159,14 @@ router.post('/sessions/:sessionId/save-message', asyncHandler(async (req: Reques
 // AI Chat streaming endpoint
 router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { content, personalityId, aiProviderId, userId, isContinuation, searchEnabled, fileAttachments }: SendMessageRequest & { userId: string } = req.body;
+    const { content, personalityId, aiProviderId, userId, isContinuation, searchEnabled, reasoningEnabled, fileAttachments }: SendMessageRequest & { userId: string } = req.body;
 
     console.log('AI Chat Stream Request:', {
         sessionId,
         content,
         fileAttachments,
         searchEnabled,
+        reasoningEnabled,
         hasFileAttachments: fileAttachments && fileAttachments.length > 0,
         fullRequest: req.body
     });
@@ -226,6 +227,7 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
             aiProviderId,
             userId,
             searchEnabled,
+            reasoningEnabled,
             fileAttachments
         }, (chunk) => {
             if (chunk.type === 'chunk' && chunk.content) {

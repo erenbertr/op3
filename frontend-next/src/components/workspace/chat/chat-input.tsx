@@ -4,12 +4,12 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Search, Paperclip, X, Upload } from 'lucide-react';
+import { Search, Paperclip, X, Upload, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality, AIProviderConfig, apiClient } from '@/lib/api';
 
 interface ChatInputProps {
-    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
+    onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, reasoningEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
     personalities: Personality[];
     aiProviders: AIProviderConfig[];
     isLoading?: boolean;
@@ -49,6 +49,7 @@ export function ChatInput({
     const [showPersonalityDropdown, setShowPersonalityDropdown] = useState(false);
     const [showProviderDropdown, setShowProviderDropdown] = useState(false);
     const [searchEnabled, setSearchEnabled] = useState(false);
+    const [reasoningEnabled, setReasoningEnabled] = useState(false);
     const [fileAttachEnabled, setFileAttachEnabled] = useState(false);
     const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -284,6 +285,7 @@ export function ChatInput({
                 selectedPersonality || undefined,
                 selectedProvider || undefined,
                 searchEnabled,
+                reasoningEnabled,
                 allFileIds.length > 0 ? allFileIds : undefined,
                 uploadedAttachments.length > 0 ? uploadedAttachments : undefined
             );
@@ -507,6 +509,18 @@ export function ChatInput({
                         title="Toggle search functionality"
                     >
                         <Search className="h-4 w-4" />
+                    </Button>
+
+                    {/* Reasoning toggle */}
+                    <Button
+                        type="button"
+                        variant={reasoningEnabled ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                        className="h-8 w-8 p-0"
+                        title="Toggle model reasoning"
+                    >
+                        <Brain className="h-4 w-4" />
                     </Button>
 
                     <div className="relative">
