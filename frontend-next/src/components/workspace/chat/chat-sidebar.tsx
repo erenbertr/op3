@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,8 +48,38 @@ export function ChatSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+    const [pinnedChatIds, setPinnedChatIds] = useState<string[]>([]);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
+
+    // Load pinned chats from localStorage on mount
+    useEffect(() => {
+        const storedPinnedChats = localStorage.getItem(`pinnedChats_${workspaceId}`);
+        if (storedPinnedChats) {
+            setPinnedChatIds(JSON.parse(storedPinnedChats));
+        }
+    }, [workspaceId]);
+
+    // Save pinned chats to localStorage when they change
+    useEffect(() => {
+        // Only save if workspaceId is present to avoid saving with a temporary/null key
+        if (workspaceId) {
+            localStorage.setItem(`pinnedChats_${workspaceId}`, JSON.stringify(pinnedChatIds));
+        }
+    }, [pinnedChatIds, workspaceId]);
+
+    const handlePinChat = (chatId: string) => {
+        setPinnedChatIds(prev => {
+            const newPinned = Array.from(new Set([...prev, chatId]));
+            return newPinned;
+        });
+    };
+
+    const handleUnpinChat = (chatId: string) => {
+        setPinnedChatIds(prev => prev.filter(id => id !== chatId));
+    };
+
+    const isChatPinned = (chatId: string) => pinnedChatIds.includes(chatId);
 
     // Filter chats based on search query
     const filteredChats = (chatSessions || []).filter(chat =>
@@ -156,6 +186,27 @@ export function ChatSidebar({
         }
     };
 
+    const groupAndPinChats = (chatsToGroup: ChatSession[]) => {
+        const pinnedChats = chatsToGroup.filter(chat => isChatPinned(chat.id));
+        const unpinnedChats = chatsToGroup.filter(chat => !isChatPinned(chat.id));
+
+        // Sort pinned chats by their original updatedAt to maintain some order within pinned items
+        // Pinned items should generally appear in the order they were pinned or by recency.
+        // For now, let's sort them by updatedAt descending (newest pinned first).
+        const sortedPinnedChats = [...pinnedChats].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+        const groupedUnpinnedChats = groupChatsByDate(unpinnedChats);
+
+        const result: { [key: string]: ChatSession[] } = {};
+        if (sortedPinnedChats.length > 0) {
+            result['Pinned'] = sortedPinnedChats;
+        }
+        for (const groupName in groupedUnpinnedChats) {
+            result[groupName] = groupedUnpinnedChats[groupName];
+        }
+        return result;
+    };
+
     const groupChatsByDate = (chats: ChatSession[]) => {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -252,7 +303,7 @@ export function ChatSidebar({
                             ) : null
                         ) : (
                             <div className="space-y-4">
-                                {Object.entries(groupChatsByDate(filteredChats)).map(([groupName, groupChats]) => (
+                                {Object.entries(groupAndPinChats(filteredChats)).map(([groupName, groupChats]) => (
                                     <div key={groupName} className="space-y-1">
                                         <h3 className="text-xs font-medium text-muted-foreground px-2 py-1 select-none">
                                             {groupName}
@@ -295,6 +346,19 @@ export function ChatSidebar({
                                                             align="end" // Align dropdown to the right
                                                             onClick={(e) => e.stopPropagation()} // Prevent chat click when dropdown content is interacted with
                                                         >
+                                                            <DropdownMenuItem
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation(); // Prevent chat click
+                                                                    if (isChatPinned(chat.id)) {
+                                                                        handleUnpinChat(chat.id);
+                                                                    } else {
+                                                                        handlePinChat(chat.id);
+                                                                    }
+                                                                }}
+                                                                className="cursor-pointer"
+                                                            >
+                                                                {isChatPinned(chat.id) ? 'Unpin chat' : 'Pin chat'}
+                                                            </DropdownMenuItem>
                                                             <DropdownMenuItem
                                                                 onClick={(e) => {
                                                                     e.stopPropagation(); // Ensure no other click events fire
