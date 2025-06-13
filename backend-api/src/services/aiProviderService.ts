@@ -548,8 +548,9 @@ export class AIProviderService {
             if (response.ok) {
                 const data = await response.json() as any;
                 if (data && Array.isArray(data.data)) {
-                    // Filter and enhance models with additional metadata
-                    const enhancedModels = await this.enhanceOpenAIModels(data.data, apiKey);
+                    // Add basic enhancements using only the data from /v1/models endpoint
+                    const enhancedModels = this.addBasicEnhancements(data.data);
+
                     return {
                         success: true,
                         models: enhancedModels,
@@ -630,56 +631,17 @@ export class AIProviderService {
         }
     }
 
-    // Enhance OpenAI models with additional metadata
-    private async enhanceOpenAIModels(models: any[], apiKey: string): Promise<any[]> {
-        const enhancedModels = [];
-
-        for (const model of models) {
-            try {
-                // Fetch detailed model information
-                const detailResponse = await fetch(`https://api.openai.com/v1/models/${model.id}`, {
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                let enhancedModel = { ...model };
-
-                if (detailResponse.ok) {
-                    const detailData = await detailResponse.json() as any;
-                    enhancedModel = {
-                        ...model,
-                        ...detailData,
-                        capabilities: this.inferModelCapabilities(model.id),
-                        category: this.categorizeModel(model.id),
-                        isRecommended: this.isRecommendedModel(model.id)
-                    };
-                } else {
-                    // If detail fetch fails, add basic enhancements
-                    enhancedModel = {
-                        ...model,
-                        capabilities: this.inferModelCapabilities(model.id),
-                        category: this.categorizeModel(model.id),
-                        isRecommended: this.isRecommendedModel(model.id)
-                    };
-                }
-
-                enhancedModels.push(enhancedModel);
-            } catch (error) {
-                console.warn(`Error enhancing model ${model.id}:`, error);
-                // Add basic model with minimal enhancements
-                enhancedModels.push({
-                    ...model,
-                    capabilities: this.inferModelCapabilities(model.id),
-                    category: this.categorizeModel(model.id),
-                    isRecommended: this.isRecommendedModel(model.id)
-                });
-            }
-        }
-
-        return enhancedModels;
+    // Add basic enhancements without making additional API calls (fast)
+    private addBasicEnhancements(models: any[]): any[] {
+        return models.map(model => ({
+            ...model,
+            capabilities: this.inferModelCapabilities(model.id),
+            category: this.categorizeModel(model.id),
+            isRecommended: this.isRecommendedModel(model.id)
+        }));
     }
+
+
 
     // Infer model capabilities based on model ID
     private inferModelCapabilities(modelId: string): any {
