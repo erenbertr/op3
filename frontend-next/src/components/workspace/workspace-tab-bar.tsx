@@ -292,7 +292,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         variant={currentView === 'ai-providers' ? 'secondary' : 'ghost'}
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => navigationUtils.pushState('/ai-providers/openrouter')}
+                        onClick={() => navigationUtils.pushState('/ai-providers/openai')}
                     >
                         <Bot className="h-4 w-4" />
                     </Button>

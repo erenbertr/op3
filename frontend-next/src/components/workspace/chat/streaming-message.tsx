@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Square, RotateCcw, AlertCircle, Brain, Loader2 } from 'lucide-react';
+import { Square, RotateCcw, AlertCircle, Brain, Loader2, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { Personality } from '@/lib/api';
+import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
 
 interface StreamingMessageProps {
     content: string;
@@ -21,6 +22,7 @@ interface StreamingMessageProps {
     className?: string;
     // New props for provider/personality info
     personality?: Personality;
+    aiProviderId?: string;
     // New prop for search pending state
     isSearchPending?: boolean;
 }
@@ -36,10 +38,31 @@ export function StreamingMessage({
     onRetry,
     className,
     personality,
+    aiProviderId,
     isSearchPending = false
 }: StreamingMessageProps) {
     const [showCursor, setShowCursor] = useState(true);
     const contentRef = useRef<HTMLDivElement>(null);
+
+    // Get OpenAI model configurations to resolve provider info
+    const { data: openaiModelConfigsData } = useOpenAIModelConfigs();
+    const openaiModelConfigs = openaiModelConfigsData?.success ? openaiModelConfigsData.data || [] : [];
+
+    // Get provider info from OpenAI model config
+    const getProviderInfo = () => {
+        if (aiProviderId && openaiModelConfigs.length > 0) {
+            const modelConfig = openaiModelConfigs.find(config => config.id === aiProviderId);
+            if (modelConfig) {
+                return {
+                    name: modelConfig.customName || modelConfig.modelName,
+                    model: modelConfig.modelId
+                };
+            }
+        }
+        return null;
+    };
+
+    const providerInfo = getProviderInfo();
 
     // Cursor blinking effect
     useEffect(() => {
@@ -156,9 +179,16 @@ export function StreamingMessage({
             <div className="space-y-2">
                 {/* Status/Header area - maintain consistent spacing with regular messages */}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
-                    {/* Show badges for AI messages with personality info */}
-                    {personality ? (
+                    {/* Show badges for AI messages with personality or provider info */}
+                    {(personality || providerInfo) ? (
                         <>
+                            {/* Provider badge */}
+                            {providerInfo && (
+                                <Badge variant="outline" className="text-xs">
+                                    <Bot className="h-3 w-3" />
+                                    {providerInfo.name}
+                                </Badge>
+                            )}
 
                             {/* Personality badge */}
                             {personality && (

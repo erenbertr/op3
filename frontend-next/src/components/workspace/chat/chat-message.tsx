@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Brain, Copy, RotateCcw, Check, Play } from 'lucide-react';
+import { Brain, Copy, RotateCcw, Check, Play, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality } from '@/lib/api';
+import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
 import { FileAttachmentDisplay } from './file-attachment-display';
 
@@ -27,6 +28,36 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
+
+    // Get OpenAI model configurations to resolve provider info
+    const { data: openaiModelConfigsData } = useOpenAIModelConfigs();
+    const openaiModelConfigs = openaiModelConfigsData?.success ? openaiModelConfigsData.data || [] : [];
+
+    // Get provider info from OpenAI model config or API metadata
+    const getProviderInfo = () => {
+        // First try to get from API metadata (most reliable)
+        if (message.apiMetadata?.provider && message.apiMetadata?.model) {
+            return {
+                name: message.apiMetadata.provider,
+                model: message.apiMetadata.model
+            };
+        }
+
+        // Fall back to OpenAI model config lookup
+        if (message.aiProviderId && openaiModelConfigs.length > 0) {
+            const modelConfig = openaiModelConfigs.find(config => config.id === message.aiProviderId);
+            if (modelConfig) {
+                return {
+                    name: modelConfig.customName || modelConfig.modelName,
+                    model: modelConfig.modelId
+                };
+            }
+        }
+
+        return null;
+    };
+
+    const providerInfo = getProviderInfo();
 
     // Copy to clipboard functionality
     const handleCopy = async () => {
@@ -139,9 +170,17 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
 
             {/* Message content */}
             <div className="space-y-2">
-                {/* Status/Header area - only show for AI messages with personality info */}
-                {isAssistant && personality && (
+                {/* Status/Header area - show for AI messages with personality or provider info */}
+                {isAssistant && (personality || providerInfo) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
+                        {/* Provider badge */}
+                        {providerInfo && (
+                            <Badge variant="outline" className="text-xs">
+                                <Bot className="h-3 w-3" />
+                                {providerInfo.name}
+                            </Badge>
+                        )}
+
                         {/* Personality badge */}
                         {personality && (
                             <Badge variant="secondary" className="text-xs">

@@ -77,8 +77,8 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 if (pathname === '/ai-providers/openai') {
                     return { view: 'ai-providers-openai', params: {}, queryParams };
                 }
-                // Default to OpenRouter
-                return { view: 'ai-providers-openrouter', params: {}, queryParams };
+                // Default to OpenAI (first menu)
+                return { view: 'ai-providers-openai', params: {}, queryParams };
             }
 
             // Handle other routes

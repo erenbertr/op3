@@ -983,6 +983,8 @@ export function ChatSessionComponent({
                                                 className=""
                                                 // Pass current streaming personality
                                                 personality={getCurrentStreamingPersonality()}
+                                                // Pass current streaming AI provider ID
+                                                aiProviderId={currentStreamingAIProviderId}
                                                 // Pass search pending state
                                                 isSearchPending={isSearchPending}
                                             />
