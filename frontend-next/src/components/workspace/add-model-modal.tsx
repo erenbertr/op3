@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Brain, Search, FileUp, Image, FileText, Eye, Code, Calculator, Zap, Filter, X } from 'lucide-react';
 import { ModelCapabilities, ModelPricing } from '@/lib/api/openai-model-configs';
@@ -281,20 +281,16 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                         <Label className="text-sm font-medium">Capabilities:</Label>
                                         <div className="flex flex-wrap gap-2">
                                             {allCapabilities.map(capability => (
-                                                <div key={capability} className="flex items-center space-x-1">
-                                                    <Checkbox
-                                                        id={capability}
-                                                        checked={capabilityFilters.includes(capability)}
-                                                        onCheckedChange={() => handleCapabilityFilterToggle(capability)}
-                                                    />
-                                                    <Label
-                                                        htmlFor={capability}
-                                                        className="text-xs cursor-pointer flex items-center gap-1"
-                                                    >
-                                                        {getCapabilityIcon(capability)}
-                                                        {getCapabilityLabel(capability)}
-                                                    </Label>
-                                                </div>
+                                                <Button
+                                                    key={capability}
+                                                    variant={capabilityFilters.includes(capability) ? "default" : "outline"}
+                                                    size="sm"
+                                                    onClick={() => handleCapabilityFilterToggle(capability)}
+                                                    className="h-8 text-xs"
+                                                >
+                                                    {getCapabilityIcon(capability)}
+                                                    {getCapabilityLabel(capability)}
+                                                </Button>
                                             ))}
                                         </div>
                                     </div>
