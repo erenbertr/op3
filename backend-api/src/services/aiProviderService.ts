@@ -647,10 +647,10 @@ export class AIProviderService {
                 let enhancedModel = { ...model };
 
                 if (detailResponse.ok) {
-                    const detailData = await detailResponse.json();
+                    const detailData = await detailResponse.json() as any;
                     enhancedModel = {
                         ...model,
-                        ...(detailData || {}),
+                        ...detailData,
                         capabilities: this.inferModelCapabilities(model.id),
                         category: this.categorizeModel(model.id),
                         isRecommended: this.isRecommendedModel(model.id)

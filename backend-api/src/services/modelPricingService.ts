@@ -91,13 +91,13 @@ export class ModelPricingService {
         try {
             // This is a hypothetical API - replace with actual pricing API
             const response = await fetch(`https://api.llmpricecheck.com/v1/models/${modelId}/pricing`);
-            
+
             if (!response.ok) {
                 return null;
             }
 
-            const data = await response.json();
-            
+            const data = await response.json() as any;
+
             return {
                 inputTokens: data.input_price_per_million ? `$${data.input_price_per_million}` : undefined,
                 outputTokens: data.output_price_per_million ? `$${data.output_price_per_million}` : undefined,
@@ -114,17 +114,17 @@ export class ModelPricingService {
         try {
             // This is a hypothetical API - replace with actual pricing API
             const response = await fetch(`https://api.aimodels.fyi/v1/pricing/${modelId}`);
-            
+
             if (!response.ok) {
                 return null;
             }
 
-            const data = await response.json();
-            
+            const data = await response.json() as any;
+
             return {
-                inputTokens: data.pricing?.input_tokens ? `$${data.pricing.input_tokens}` : undefined,
-                outputTokens: data.pricing?.output_tokens ? `$${data.pricing.output_tokens}` : undefined,
-                contextLength: data.specs?.context_length || undefined
+                inputTokens: (data as any).pricing?.input_tokens ? `$${(data as any).pricing.input_tokens}` : undefined,
+                outputTokens: (data as any).pricing?.output_tokens ? `$${(data as any).pricing.output_tokens}` : undefined,
+                contextLength: (data as any).specs?.context_length || undefined
             };
         } catch (error) {
             console.warn('Error fetching AI Models pricing:', error);
