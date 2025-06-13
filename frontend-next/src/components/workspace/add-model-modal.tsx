@@ -238,7 +238,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                 <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                            <Loader2 className="h-6 w-6 animate-spin" />
                             <span>Loading available models...</span>
                         </div>
                     ) : (
@@ -307,7 +307,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                             onClick={clearAllFilters}
                                             className="ml-auto"
                                         >
-                                            <X className="h-4 w-4 mr-1" />
+                                            <X className="h-4 w-4" />
                                             Clear Filters
                                         </Button>
                                     )}
@@ -421,7 +421,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                 >
                                     {isSubmitting ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                            <Loader2 className="h-4 w-4 animate-spin" />
                                             Adding...
                                         </>
                                     ) : (
