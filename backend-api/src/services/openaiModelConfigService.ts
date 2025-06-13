@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { DatabaseManager } from '../config/database';
+import { ModelPricingService } from './modelPricingService';
 import {
     OpenAIModelConfig,
     CreateOpenAIModelConfigRequest,
@@ -24,110 +25,164 @@ export class OpenAIModelConfigService {
         return OpenAIModelConfigService.instance;
     }
 
-    // Get model capabilities based on model ID
-    private getModelCapabilities(modelId: string): ModelCapabilities {
+    // Get model capabilities from OpenAI API
+    private async getModelCapabilities(modelId: string, apiKey: string): Promise<ModelCapabilities> {
+        try {
+            // Fetch model details from OpenAI API
+            const response = await fetch(`https://api.openai.com/v1/models/${modelId}`, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.warn(`Failed to fetch model details for ${modelId}, using fallback capabilities`);
+                return this.getFallbackCapabilities(modelId);
+            }
+
+            const modelData = await response.json();
+            return this.parseCapabilitiesFromModelData(modelData);
+        } catch (error) {
+            console.warn(`Error fetching model capabilities for ${modelId}:`, error);
+            return this.getFallbackCapabilities(modelId);
+        }
+    }
+
+    // Parse capabilities from OpenAI model data
+    private parseCapabilitiesFromModelData(modelData: any): ModelCapabilities {
+        const capabilities: ModelCapabilities = {};
+        const modelId = modelData.id || '';
+
+        // Check if model supports function calling
+        if (modelData.capabilities?.function_calling ||
+            modelId.includes('gpt-4') ||
+            modelId.includes('gpt-3.5-turbo')) {
+            capabilities.functionCalling = true;
+        }
+
+        // Check for vision capabilities
+        if (modelData.capabilities?.vision ||
+            modelId.includes('vision') ||
+            modelId.includes('gpt-4o')) {
+            capabilities.vision = true;
+            capabilities.image = true;
+        }
+
+        // Check for reasoning capabilities (O1 models and GPT-4 series)
+        if (modelId.includes('o1') || modelId.includes('gpt-4')) {
+            capabilities.reasoning = true;
+        }
+
+        // Check for web search support (specific models that support Responses API)
+        if (this.supportsWebSearch(modelId)) {
+            capabilities.search = true;
+        }
+
+        // File upload and PDF support for newer models
+        if (modelId.includes('gpt-4o') || modelId.includes('gpt-4-turbo')) {
+            capabilities.fileUpload = true;
+            capabilities.pdf = true;
+            capabilities.codeInterpreter = true;
+        }
+
+        return capabilities;
+    }
+
+    // Fallback capabilities for when API call fails
+    private getFallbackCapabilities(modelId: string): ModelCapabilities {
         const capabilities: ModelCapabilities = {};
 
-        // O1 series models (dedicated reasoning models)
-        if (modelId.includes('o1-preview') || modelId.includes('o1-mini') || modelId.startsWith('o1')) {
+        // Basic fallback logic based on model name patterns
+        if (modelId.includes('o1')) {
             capabilities.reasoning = true;
-            // O1 models are specialized for reasoning but have limited other capabilities
-            // Note: O1 models don't support web search via Responses API
-        }
-        // GPT-4o models
-        else if (modelId.includes('gpt-4o')) {
+        } else if (modelId.includes('gpt-4o')) {
             capabilities.reasoning = true;
-            capabilities.search = true; // Web search via OpenAI Responses API
+            capabilities.search = true;
             capabilities.vision = true;
             capabilities.image = true;
             capabilities.pdf = true;
             capabilities.functionCalling = true;
             capabilities.codeInterpreter = true;
             capabilities.fileUpload = true;
-        }
-        // GPT-4 Turbo models
-        else if (modelId.includes('gpt-4-turbo') || modelId.includes('gpt-4-1106') || modelId.includes('gpt-4-0125')) {
+        } else if (modelId.includes('gpt-4')) {
             capabilities.reasoning = true;
-            capabilities.search = true; // Web search via OpenAI Responses API
-            capabilities.vision = modelId.includes('vision');
-            capabilities.image = modelId.includes('vision');
             capabilities.functionCalling = true;
-            capabilities.codeInterpreter = true;
-            capabilities.fileUpload = true;
-        }
-        // GPT-4 models
-        else if (modelId.includes('gpt-4')) {
-            capabilities.reasoning = true;
-            capabilities.search = true; // Web search via OpenAI Responses API
+            if (modelId.includes('turbo')) {
+                capabilities.search = true;
+                capabilities.codeInterpreter = true;
+                capabilities.fileUpload = true;
+            }
+            if (modelId.includes('vision')) {
+                capabilities.vision = true;
+                capabilities.image = true;
+            }
+        } else if (modelId.includes('gpt-3.5-turbo')) {
             capabilities.functionCalling = true;
-            capabilities.codeInterpreter = true;
-        }
-        // GPT-3.5 Turbo models
-        else if (modelId.includes('gpt-3.5-turbo')) {
-            capabilities.functionCalling = true;
-            // GPT-3.5 models don't support web search via Responses API
         }
 
         return capabilities;
     }
 
-    // Get model pricing based on model ID
-    private getModelPricing(modelId: string): ModelPricing {
+    // Check if model supports web search via Responses API
+    private supportsWebSearch(modelId: string): boolean {
+        const webSearchModels = [
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4-turbo',
+            'gpt-4-turbo-preview'
+        ];
+        return webSearchModels.some(model => modelId.includes(model));
+    }
+
+    // Get model pricing from external pricing services
+    private async getModelPricing(modelId: string, apiKey: string): Promise<ModelPricing> {
+        try {
+            // Use the ModelPricingService to get real-time pricing
+            const pricingService = ModelPricingService.getInstance();
+            return await pricingService.getModelPricing(modelId);
+        } catch (error) {
+            console.warn(`Error fetching pricing for ${modelId}:`, error);
+            return this.getFallbackPricing(modelId);
+        }
+    }
+
+
+
+    // Fallback pricing when API doesn't provide pricing info
+    private getFallbackPricing(modelId: string): ModelPricing {
         const pricing: ModelPricing = {};
 
-        // O1 series models
-        if (modelId === 'o1-preview') {
+        // Note: These are approximate prices and should be updated regularly
+        // In production, consider using a pricing service or regular updates
+
+        if (modelId.includes('o1-preview')) {
             pricing.inputTokens = '$15.00';
             pricing.outputTokens = '$60.00';
             pricing.contextLength = 128000;
-        }
-        else if (modelId === 'o1-mini') {
+        } else if (modelId.includes('o1-mini')) {
             pricing.inputTokens = '$3.00';
             pricing.outputTokens = '$12.00';
             pricing.contextLength = 128000;
-        }
-        // GPT-4o models
-        else if (modelId === 'gpt-4o') {
-            pricing.inputTokens = '$5.00';
-            pricing.outputTokens = '$15.00';
-            pricing.contextLength = 128000;
-        }
-        else if (modelId === 'gpt-4o-mini') {
+        } else if (modelId.includes('gpt-4o-mini')) {
             pricing.inputTokens = '$0.15';
             pricing.outputTokens = '$0.60';
             pricing.contextLength = 128000;
-        }
-        // GPT-4 Turbo models
-        else if (modelId === 'gpt-4-turbo' || modelId === 'gpt-4-turbo-2024-04-09') {
+        } else if (modelId.includes('gpt-4o')) {
+            pricing.inputTokens = '$5.00';
+            pricing.outputTokens = '$15.00';
+            pricing.contextLength = 128000;
+        } else if (modelId.includes('gpt-4-turbo')) {
             pricing.inputTokens = '$10.00';
             pricing.outputTokens = '$30.00';
             pricing.contextLength = 128000;
-        }
-        else if (modelId === 'gpt-4-turbo-preview' || modelId === 'gpt-4-0125-preview') {
-            pricing.inputTokens = '$10.00';
-            pricing.outputTokens = '$30.00';
-            pricing.contextLength = 128000;
-        }
-        // GPT-4 models
-        else if (modelId === 'gpt-4') {
+        } else if (modelId.includes('gpt-4')) {
             pricing.inputTokens = '$30.00';
             pricing.outputTokens = '$60.00';
             pricing.contextLength = 8192;
-        }
-        else if (modelId === 'gpt-4-32k') {
-            pricing.inputTokens = '$60.00';
-            pricing.outputTokens = '$120.00';
-            pricing.contextLength = 32768;
-        }
-        // GPT-3.5 Turbo models
-        else if (modelId === 'gpt-3.5-turbo') {
+        } else if (modelId.includes('gpt-3.5-turbo')) {
             pricing.inputTokens = '$0.50';
             pricing.outputTokens = '$1.50';
-            pricing.contextLength = 16385;
-        }
-        else if (modelId === 'gpt-3.5-turbo-16k') {
-            pricing.inputTokens = '$3.00';
-            pricing.outputTokens = '$4.00';
             pricing.contextLength = 16385;
         }
 
@@ -171,7 +226,7 @@ export class OpenAIModelConfigService {
                 };
             }
 
-            // Get key name from the openai_providers table
+            // Get key name and API key from the openai_providers table
             const keyInfo = await this.getKeyInfo(request.keyId);
             if (!keyInfo) {
                 return {
@@ -181,6 +236,12 @@ export class OpenAIModelConfigService {
                 };
             }
 
+            // Fetch real model capabilities and pricing from OpenAI API
+            const [capabilities, pricing] = await Promise.all([
+                this.getModelCapabilities(request.modelId, keyInfo.apiKey),
+                this.getModelPricing(request.modelId, keyInfo.apiKey)
+            ]);
+
             const modelConfig: OpenAIModelConfig = {
                 id: crypto.randomUUID(),
                 keyId: request.keyId,
@@ -188,8 +249,8 @@ export class OpenAIModelConfigService {
                 modelId: request.modelId,
                 modelName: request.modelId, // Use model ID as default name
                 customName: request.customName,
-                capabilities: this.getModelCapabilities(request.modelId),
-                pricing: this.getModelPricing(request.modelId),
+                capabilities,
+                pricing,
                 isActive: true,
                 createdAt: new Date(),
                 updatedAt: new Date()

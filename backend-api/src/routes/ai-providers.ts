@@ -217,4 +217,21 @@ router.post('/openrouter/models', asyncHandler(async (req: Request, res: Respons
     }
 }));
 
+// Refresh model metadata (capabilities and pricing) from APIs
+router.post('/refresh-metadata', asyncHandler(async (req: Request, res: Response) => {
+    const { modelId, apiKey } = req.body;
+
+    if (!modelId || !apiKey) {
+        throw createError('Model ID and API key are required', 400);
+    }
+
+    try {
+        // This would trigger a refresh of model metadata from external APIs
+        const result = await aiProviderService.refreshModelMetadata(modelId, apiKey);
+        res.json(result);
+    } catch (error) {
+        throw createError('Failed to refresh model metadata', 500);
+    }
+}));
+
 export default router;

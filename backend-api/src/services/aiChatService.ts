@@ -387,16 +387,16 @@ export class AIChatService {
                 searchQuery: conversationHistory[conversationHistory.length - 1].content
             });
 
-            // Try Responses API first, but expect it to fail for now
+            // Try Responses API - it should be working now
             try {
                 return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk, fileAttachments, sessionId, reasoningEnabled);
             } catch (error) {
-                console.warn('OpenAI Responses API not available:', error);
-                // Show clear message about web search status
+                console.error('OpenAI Responses API error:', error);
+                // Show clear error message about web search failure
                 onChunk({
                     type: 'chunk',
                     messageId,
-                    content: '[Note: Web search functionality requires OpenAI\'s Responses API which is currently in limited preview. Responding with training data and general knowledge.]\n\n'
+                    content: '[Note: Web search failed. Responding with training data and general knowledge.]\n\n'
                 });
             }
         } else if (searchEnabled) {
@@ -516,10 +516,10 @@ export class AIChatService {
     private supportsOpenAIWebSearch(provider: AIProviderConfig): boolean {
         // Models that support web search via Responses API
         const webSearchModels = [
-            'gpt-4.1',
-            'gpt-4.1-mini',
             'gpt-4o',
-            'gpt-4o-mini'
+            'gpt-4o-mini',
+            'gpt-4-turbo',
+            'gpt-4-turbo-preview'
         ];
         return webSearchModels.includes(provider.model);
     }

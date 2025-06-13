@@ -82,11 +82,11 @@ export const DEFAULT_ENDPOINTS: Record<AIProviderType, string | null> = {
     custom: null // Custom providers must specify their own endpoint
 };
 
-// Default models for each provider type
-export const DEFAULT_MODELS: Record<AIProviderType, string[]> = {
-    openai: ['o1-preview', 'o1-mini', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
-    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'],
-    google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'],
+// Default models for each provider type - these are fallbacks when API calls fail
+export const FALLBACK_MODELS: Record<AIProviderType, string[]> = {
+    openai: [], // OpenAI models are fetched dynamically from API
+    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+    google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'],
     replicate: [], // Allow custom model input for Replicate
     openrouter: [], // OpenRouter models are fetched dynamically from API
     custom: [] // Custom providers can specify any model

@@ -8,7 +8,7 @@ import {
     AIProviderType,
     DEFAULT_ENDPOINTS,
     API_KEY_PATTERNS,
-    DEFAULT_MODELS
+    FALLBACK_MODELS
 } from '../types/ai-provider';
 
 export class AIProviderService {
@@ -548,9 +548,11 @@ export class AIProviderService {
             if (response.ok) {
                 const data = await response.json() as any;
                 if (data && Array.isArray(data.data)) {
+                    // Filter and enhance models with additional metadata
+                    const enhancedModels = await this.enhanceOpenAIModels(data.data, apiKey);
                     return {
                         success: true,
-                        models: data.data,
+                        models: enhancedModels,
                         message: 'Models fetched successfully'
                     };
                 } else {
@@ -624,6 +626,161 @@ export class AIProviderService {
                 success: false,
                 message: error instanceof Error ? error.message : 'Network error',
                 error: 'NETWORK_ERROR'
+            };
+        }
+    }
+
+    // Enhance OpenAI models with additional metadata
+    private async enhanceOpenAIModels(models: any[], apiKey: string): Promise<any[]> {
+        const enhancedModels = [];
+
+        for (const model of models) {
+            try {
+                // Fetch detailed model information
+                const detailResponse = await fetch(`https://api.openai.com/v1/models/${model.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                let enhancedModel = { ...model };
+
+                if (detailResponse.ok) {
+                    const detailData = await detailResponse.json();
+                    enhancedModel = {
+                        ...model,
+                        ...(detailData || {}),
+                        capabilities: this.inferModelCapabilities(model.id),
+                        category: this.categorizeModel(model.id),
+                        isRecommended: this.isRecommendedModel(model.id)
+                    };
+                } else {
+                    // If detail fetch fails, add basic enhancements
+                    enhancedModel = {
+                        ...model,
+                        capabilities: this.inferModelCapabilities(model.id),
+                        category: this.categorizeModel(model.id),
+                        isRecommended: this.isRecommendedModel(model.id)
+                    };
+                }
+
+                enhancedModels.push(enhancedModel);
+            } catch (error) {
+                console.warn(`Error enhancing model ${model.id}:`, error);
+                // Add basic model with minimal enhancements
+                enhancedModels.push({
+                    ...model,
+                    capabilities: this.inferModelCapabilities(model.id),
+                    category: this.categorizeModel(model.id),
+                    isRecommended: this.isRecommendedModel(model.id)
+                });
+            }
+        }
+
+        return enhancedModels;
+    }
+
+    // Infer model capabilities based on model ID
+    private inferModelCapabilities(modelId: string): any {
+        const capabilities: any = {};
+
+        if (modelId.includes('o1')) {
+            capabilities.reasoning = true;
+            capabilities.complexTasks = true;
+        }
+
+        if (modelId.includes('gpt-4o')) {
+            capabilities.vision = true;
+            capabilities.multimodal = true;
+            capabilities.functionCalling = true;
+            capabilities.webSearch = true;
+            capabilities.fileUpload = true;
+        }
+
+        if (modelId.includes('gpt-4')) {
+            capabilities.functionCalling = true;
+            capabilities.reasoning = true;
+            if (modelId.includes('turbo')) {
+                capabilities.webSearch = true;
+            }
+            if (modelId.includes('vision')) {
+                capabilities.vision = true;
+                capabilities.multimodal = true;
+            }
+        }
+
+        if (modelId.includes('gpt-3.5')) {
+            capabilities.functionCalling = true;
+            capabilities.fastResponse = true;
+        }
+
+        return capabilities;
+    }
+
+    // Categorize models for better organization
+    private categorizeModel(modelId: string): string {
+        if (modelId.includes('o1')) return 'reasoning';
+        if (modelId.includes('gpt-4o')) return 'multimodal';
+        if (modelId.includes('gpt-4')) return 'advanced';
+        if (modelId.includes('gpt-3.5')) return 'standard';
+        if (modelId.includes('whisper')) return 'audio';
+        if (modelId.includes('dall-e')) return 'image-generation';
+        if (modelId.includes('tts')) return 'text-to-speech';
+        if (modelId.includes('embedding')) return 'embedding';
+        return 'other';
+    }
+
+    // Determine if model is recommended for general use
+    private isRecommendedModel(modelId: string): boolean {
+        const recommendedModels = [
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4-turbo',
+            'o1-preview',
+            'o1-mini'
+        ];
+        return recommendedModels.some(recommended => modelId.includes(recommended));
+    }
+
+    // Refresh model metadata from APIs
+    public async refreshModelMetadata(modelId: string, apiKey: string): Promise<{ success: boolean; message: string; data?: any }> {
+        try {
+            // Fetch fresh model data from OpenAI API
+            const response = await fetch(`https://api.openai.com/v1/models/${modelId}`, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                return {
+                    success: false,
+                    message: `Failed to fetch model data: ${response.status} ${response.statusText}`
+                };
+            }
+
+            const modelData = await response.json();
+
+            // Enhance with capabilities and other metadata
+            const enhancedData = {
+                ...(modelData || {}),
+                capabilities: this.inferModelCapabilities(modelId),
+                category: this.categorizeModel(modelId),
+                isRecommended: this.isRecommendedModel(modelId),
+                lastUpdated: new Date().toISOString()
+            };
+
+            return {
+                success: true,
+                message: 'Model metadata refreshed successfully',
+                data: enhancedData
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to refresh model metadata'
             };
         }
     }
