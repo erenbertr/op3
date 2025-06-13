@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Brain, Copy, RotateCcw, Check, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { ChatMessage as ChatMessageType, Personality, AIProviderConfig } from '@/lib/api';
+import { ChatMessage as ChatMessageType, Personality } from '@/lib/api';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
 import { FileAttachmentDisplay } from './file-attachment-display';
 
@@ -17,13 +17,12 @@ import remarkGfm from 'remark-gfm';
 interface ChatMessageProps {
     message: ChatMessageType;
     personality?: Personality;
-    aiProvider?: AIProviderConfig;
     className?: string;
     onRetry?: (messageId: string) => void;
     onContinue?: (messageId: string) => void;
 }
 
-export function ChatMessage({ message, personality, aiProvider, className, onRetry, onContinue }: ChatMessageProps) {
+export function ChatMessage({ message, personality, className, onRetry, onContinue }: ChatMessageProps) {
     const [copyButtonText, setCopyButtonText] = useState('Copy');
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
@@ -140,16 +139,9 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
 
             {/* Message content */}
             <div className="space-y-2">
-                {/* Status/Header area - only show for AI messages with provider/personality info */}
-                {isAssistant && (aiProvider || personality) && (
+                {/* Status/Header area - only show for AI messages with personality info */}
+                {isAssistant && personality && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
-                        {/* AI Provider badge */}
-                        {aiProvider && (
-                            <Badge variant="outline" className="text-xs">
-                                {aiProvider.name || aiProvider.type}
-                            </Badge>
-                        )}
-
                         {/* Personality badge */}
                         {personality && (
                             <Badge variant="secondary" className="text-xs">
@@ -234,7 +226,6 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
 interface ChatMessageListProps {
     messages: ChatMessageType[];
     personalities: Personality[];
-    aiProviders: AIProviderConfig[];
     pendingUserMessage?: ChatMessageType | null;
     className?: string;
     onRetry?: (messageId: string) => void;
@@ -246,7 +237,6 @@ interface ChatMessageListProps {
 export function ChatMessageList({
     messages = [],
     personalities = [],
-    aiProviders = [],
     pendingUserMessage,
     className,
     onRetry,
@@ -259,7 +249,8 @@ export function ChatMessageList({
     };
 
     const getAIProvider = (aiProviderId?: string) => {
-        return aiProviderId && aiProviders ? aiProviders.find(p => p?.id === aiProviderId) : undefined;
+        // Remove old provider lookup - now using model configs
+        return undefined;
     };
 
     // Combine saved messages with pending user message
@@ -327,7 +318,6 @@ export function ChatMessageList({
                     <ChatMessage
                         message={message}
                         personality={getPersonality(message.personalityId)}
-                        aiProvider={getAIProvider(message.aiProviderId)}
                         onRetry={onRetry}
                         onContinue={onContinue}
                     />

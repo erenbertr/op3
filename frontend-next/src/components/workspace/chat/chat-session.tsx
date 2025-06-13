@@ -7,7 +7,7 @@ import { ChatMessageList } from './chat-message';
 import { StreamingMessage } from './streaming-message';
 import { SearchIndicator } from './search-indicator';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
-import { apiClient, ChatMessage, ChatSession, Personality, AIProviderConfig, StreamingState, StreamingCallbacks } from '@/lib/api';
+import { apiClient, ChatMessage, ChatSession, Personality, StreamingState, StreamingCallbacks } from '@/lib/api';
 import { truncateText } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 
@@ -920,8 +920,8 @@ export function ChatSessionComponent({
     };
 
     const getCurrentStreamingAIProvider = () => {
-        const aiProviderId = currentStreamingAIProviderId;
-        return aiProviderId && aiProviders ? aiProviders.find(p => p?.id === aiProviderId) : undefined;
+        // Remove old provider lookup - now using model configs
+        return undefined;
     };
 
     // Retry streaming function
@@ -954,7 +954,6 @@ export function ChatSessionComponent({
                                 <ChatMessageList
                                     messages={messages}
                                     personalities={personalities}
-                                    aiProviders={aiProviders}
                                     pendingUserMessage={null}
                                     className={messages.length === 0 ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
@@ -982,9 +981,8 @@ export function ChatSessionComponent({
                                                 onStop={handleStopStreaming}
                                                 onRetry={handleRetryStreaming}
                                                 className=""
-                                                // Pass current streaming personality and AI provider
+                                                // Pass current streaming personality
                                                 personality={getCurrentStreamingPersonality()}
-                                                aiProvider={getCurrentStreamingAIProvider()}
                                                 // Pass search pending state
                                                 isSearchPending={isSearchPending}
                                             />

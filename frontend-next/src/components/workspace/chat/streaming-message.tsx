@@ -7,7 +7,7 @@ import { Square, RotateCcw, AlertCircle, Brain, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { Personality, AIProviderConfig } from '@/lib/api';
+import { Personality } from '@/lib/api';
 
 interface StreamingMessageProps {
     content: string;
@@ -20,7 +20,6 @@ interface StreamingMessageProps {
     onRetry?: () => void;
     className?: string;
     // New props for provider/personality info
-    aiProvider?: AIProviderConfig;
     personality?: Personality;
     // New prop for search pending state
     isSearchPending?: boolean;
@@ -36,7 +35,6 @@ export function StreamingMessage({
     onStop,
     onRetry,
     className,
-    aiProvider,
     personality,
     isSearchPending = false
 }: StreamingMessageProps) {
@@ -158,25 +156,9 @@ export function StreamingMessage({
             <div className="space-y-2">
                 {/* Status/Header area - maintain consistent spacing with regular messages */}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
-                    {/* Show badges for AI messages with provider/personality info */}
-                    {(aiProvider || personality) ? (
+                    {/* Show badges for AI messages with personality info */}
+                    {personality ? (
                         <>
-                            {/* AI Provider badge - always visible with subtle animation during streaming */}
-                            {aiProvider && (
-                                <Badge
-                                    variant="outline"
-                                    className={cn(
-                                        "text-xs transition-all duration-300 flex items-center gap-1",
-                                        isStreaming && !hasError && "animate-pulse border-primary/50"
-                                    )}
-                                >
-                                    {aiProvider.name || aiProvider.type}
-                                    {/* Show small spinner when search is pending */}
-                                    {isSearchPending && (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                    )}
-                                </Badge>
-                            )}
 
                             {/* Personality badge */}
                             {personality && (
