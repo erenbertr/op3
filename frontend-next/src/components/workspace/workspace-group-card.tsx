@@ -180,18 +180,18 @@ export function WorkspaceGroupCard({
                                 >
                                     {group.isPinned ? (
                                         <>
-                                            <PinOff className="h-4 w-4 mr-2" />
+                                            <PinOff className="h-4 w-4" />
                                             Remove from Top Bar
                                         </>
                                     ) : (
                                         <>
-                                            <Pin className="h-4 w-4 mr-2" />
+                                            <Pin className="h-4 w-4" />
                                             Add to Top Bar
                                         </>
                                     )}
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                                    <Edit2 className="h-4 w-4 mr-2" />
+                                    <Edit2 className="h-4 w-4" />
                                     Rename
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
@@ -199,7 +199,7 @@ export function WorkspaceGroupCard({
                                     className="text-destructive"
                                     disabled={deleteGroupMutation.isPending || deleteGroupWithWorkspacesMutation.isPending}
                                 >
-                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    <Trash2 className="h-4 w-4" />
                                     Delete
                                 </DropdownMenuItem>
                             </DropdownMenuContent>

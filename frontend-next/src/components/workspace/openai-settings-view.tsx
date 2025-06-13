@@ -422,7 +422,7 @@ export function OpenAISettingsView() {
                 {/* Right: Add New Button (only show on Keys tab) */}
                 {activeTab === 'keys' && (
                     <Button onClick={handleAddNewKey}>
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="h-4 w-4" />
                         Add New API Key
                     </Button>
                 )}
@@ -495,12 +495,12 @@ export function OpenAISettingsView() {
                         >
                             {isValidatingKey ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                     Validating...
                                 </>
                             ) : (
                                 <>
-                                    <TestTube className="mr-2 h-4 w-4" />
+                                    <TestTube className="h-4 w-4" />
                                     Test Key
                                 </>
                             )}
@@ -520,12 +520,12 @@ export function OpenAISettingsView() {
                         >
                             {saveKeyMutation.isPending ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                     Saving...
                                 </>
                             ) : (
                                 <>
-                                    <Save className="mr-2 h-4 w-4" />
+                                    <Save className="h-4 w-4" />
                                     {editingKey ? 'Update Key' : 'Save Key'}
                                 </>
                             )}
@@ -559,7 +559,7 @@ export function OpenAISettingsView() {
                                     You haven't added any OpenAI API keys yet. Add your first key to get started with OpenAI models.
                                 </p>
                                 <Button onClick={handleAddNewKey}>
-                                    <Plus className="mr-2 h-4 w-4" />
+                                    <Plus className="h-4 w-4" />
                                     Add Your First API Key
                                 </Button>
                             </div>
@@ -792,7 +792,7 @@ export function OpenAISettingsView() {
                                                 }}
                                                 className="w-full"
                                             >
-                                                <Plus className="mr-2 h-4 w-4" />
+                                                <Plus className="h-4 w-4" />
                                                 Add {selectedModels.length} Selected Model{selectedModels.length > 1 ? 's' : ''}
                                             </Button>
                                         )}

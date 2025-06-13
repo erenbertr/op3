@@ -181,7 +181,7 @@ export function StreamingMessage({
                             {/* Personality badge */}
                             {personality && (
                                 <Badge variant="secondary" className="text-xs">
-                                    <Brain className="h-3 w-3 mr-1" />
+                                    <Brain className="h-3 w-3" />
                                     {personality.title}
                                 </Badge>
                             )}

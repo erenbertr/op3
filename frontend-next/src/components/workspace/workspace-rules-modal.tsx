@@ -38,7 +38,7 @@ export function WorkspaceRulesModal({
                 disabled
                 className="opacity-50 cursor-not-allowed"
             >
-                <FileText className="h-4 w-4 mr-2" />
+                <FileText className="h-4 w-4" />
                 {triggerText}
             </Button>
         );

@@ -73,7 +73,7 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                                 <a {...props} target="_blank" rel="noopener noreferrer" />
                             ),
                             // Custom renderer for code blocks
-                            code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children: React.ReactNode; [key: string]: unknown }) => {
+                            code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children: React.ReactNode;[key: string]: unknown }) => {
                                 const match = /language-(\w+)/.exec(className || '');
                                 if (!inline && match) {
                                     const codeString = String(children).replace(/\n$/, '');
@@ -153,7 +153,7 @@ export function ChatMessage({ message, personality, aiProvider, className, onRet
                         {/* Personality badge */}
                         {personality && (
                             <Badge variant="secondary" className="text-xs">
-                                <Brain className="h-3 w-3 mr-1" />
+                                <Brain className="h-3 w-3" />
                                 {personality.title}
                             </Badge>
                         )}

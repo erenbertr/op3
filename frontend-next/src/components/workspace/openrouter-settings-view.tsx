@@ -925,9 +925,9 @@ export function OpenRouterSettingsView() {
                             className="min-w-32"
                         >
                             {saveSettingsMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                                <Save className="h-4 w-4 mr-2" />
+                                <Save className="h-4 w-4" />
                             )}
                             Save & Continue
                         </Button>

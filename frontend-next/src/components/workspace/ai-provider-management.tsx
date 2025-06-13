@@ -265,7 +265,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                         <CardContent className="py-8 text-center">
                             <p className="text-muted-foreground">No AI providers configured yet.</p>
                             <Button onClick={handleAddProvider} className="mt-4">
-                                <Plus className="h-4 w-4 mr-2" />
+                                <Plus className="h-4 w-4" />
                                 Add Your First Provider
                             </Button>
                         </CardContent>
@@ -298,7 +298,7 @@ export const AIProviderManagement = forwardRef<{ handleAddProvider: () => void }
                                                 onClick={() => handleTestProvider(provider)}
                                                 disabled={saveProviderMutation.isPending || deleteProviderMutation.isPending || testStatus[provider.id] === 'testing'}
                                             >
-                                                <TestTube className="h-4 w-4 mr-2" />
+                                                <TestTube className="h-4 w-4" />
                                                 {testStatus[provider.id] === 'testing' ? 'Testing...' : 'Test'}
                                             </Button>
                                         )}

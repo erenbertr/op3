@@ -252,7 +252,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                                         </CardDescription>
                                     </div>
                                     <Badge variant="secondary" className="ml-2 flex-shrink-0">
-                                        <User className="h-3 w-3 mr-1" />
+                                        <User className="h-3 w-3" />
                                         AI
                                     </Badge>
                                 </div>
@@ -275,7 +275,7 @@ export function PersonalitiesManagement({ userId }: PersonalitiesManagementProps
                                                 className="flex-1"
                                                 onClick={() => setEditingPersonality(personality)}
                                             >
-                                                <Edit className="h-3 w-3 mr-1" />
+                                                <Edit className="h-3 w-3" />
                                                 Edit
                                             </Button>
                                         </DialogTrigger>
