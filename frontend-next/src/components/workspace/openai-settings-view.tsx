@@ -44,7 +44,7 @@ export function OpenAISettingsView() {
     const queryClient = useQueryClient();
 
     // Tab management
-    const [activeTab, setActiveTab] = useState<'keys' | 'models'>('keys');
+    const [activeTab, setActiveTab] = useState<'keys' | 'models'>('models');
 
     // Keys management state
     const [keys, setKeys] = useState<OpenAIKey[]>([]);
@@ -68,16 +68,16 @@ export function OpenAISettingsView() {
     // Define tabs
     const tabs = [
         {
-            id: 'keys' as const,
-            label: 'API Keys',
-            icon: <Key className="h-4 w-4" />,
-            description: 'Manage your OpenAI API keys'
-        },
-        {
             id: 'models' as const,
             label: 'Models',
             icon: <Bot className="h-4 w-4" />,
             description: 'Configure models for each API key'
+        },
+        {
+            id: 'keys' as const,
+            label: 'API Keys',
+            icon: <Key className="h-4 w-4" />,
+            description: 'Manage your OpenAI API keys'
         }
     ];
 

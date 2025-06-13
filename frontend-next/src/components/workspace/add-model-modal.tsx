@@ -69,8 +69,13 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
     const getModelCapabilities = (modelId: string): ModelCapabilities => {
         const capabilities: ModelCapabilities = {};
 
+        // O1 series models (dedicated reasoning models)
+        if (modelId.includes('o1-preview') || modelId.includes('o1-mini') || modelId.startsWith('o1')) {
+            capabilities.reasoning = true;
+            // O1 models are specialized for reasoning but have limited other capabilities
+        }
         // GPT-4o models
-        if (modelId.includes('gpt-4o')) {
+        else if (modelId.includes('gpt-4o')) {
             capabilities.reasoning = true;
             capabilities.vision = true;
             capabilities.image = true;
@@ -105,8 +110,19 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
     const getModelPricing = (modelId: string): ModelPricing => {
         const pricing: ModelPricing = {};
 
+        // O1 series models
+        if (modelId === 'o1-preview') {
+            pricing.inputTokens = '$15.00';
+            pricing.outputTokens = '$60.00';
+            pricing.contextLength = 128000;
+        }
+        else if (modelId === 'o1-mini') {
+            pricing.inputTokens = '$3.00';
+            pricing.outputTokens = '$12.00';
+            pricing.contextLength = 128000;
+        }
         // GPT-4o models
-        if (modelId === 'gpt-4o') {
+        else if (modelId === 'gpt-4o') {
             pricing.inputTokens = '$5.00';
             pricing.outputTokens = '$15.00';
             pricing.contextLength = 128000;
