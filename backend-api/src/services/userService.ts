@@ -863,4 +863,218 @@ export class UserService {
             return false;
         }
     }
+
+    /**
+     * Update user profile information
+     */
+    public async updateUserProfile(userId: string, profileData: {
+        username?: string;
+        firstName?: string;
+        lastName?: string;
+    }): Promise<any> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            const now = new Date();
+
+            // Build update object with only provided fields
+            const updateFields: any = { updatedAt: now };
+            if (profileData.username !== undefined) updateFields.username = profileData.username;
+            if (profileData.firstName !== undefined) updateFields.firstName = profileData.firstName;
+            if (profileData.lastName !== undefined) updateFields.lastName = profileData.lastName;
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('users').updateOne(
+                        { id: userId },
+                        { $set: updateFields }
+                    );
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const setClause = Object.keys(updateFields).map(key => `${key} = ?`).join(', ');
+                    const values = Object.values(updateFields);
+                    const query = `UPDATE users SET ${setClause} WHERE id = ?`;
+                    await connection.execute(query, [...values, userId]);
+                    break;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        const setClause = Object.keys(updateFields).map(key => `${key} = ?`).join(', ');
+                        const values = Object.values(updateFields).map(val =>
+                            val instanceof Date ? val.toISOString() : val
+                        );
+                        const query = `UPDATE users SET ${setClause} WHERE id = ?`;
+                        connection.run(query, [...values, userId], (err: any) => {
+                            if (err) reject(err);
+                            else resolve(undefined);
+                        });
+                    });
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('users')
+                        .update(updateFields)
+                        .eq('id', userId);
+
+                    if (error) {
+                        throw error;
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error updating user profile:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Change user password
+     */
+    public async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<any> {
+        try {
+            // First, get the user to verify current password
+            const user = await this.getUserById(userId);
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Verify current password
+            const isCurrentPasswordValid = await this.verifyPassword(currentPassword, user.password);
+            if (!isCurrentPasswordValid) {
+                throw new Error('Invalid current password');
+            }
+
+            // Validate new password
+            const passwordErrors = this.validatePassword(newPassword);
+            if (passwordErrors.length > 0) {
+                throw new Error(passwordErrors[0].message);
+            }
+
+            // Hash new password
+            const hashedNewPassword = await this.hashPassword(newPassword);
+
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            const now = new Date();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('users').updateOne(
+                        { id: userId },
+                        { $set: { password: hashedNewPassword, updatedAt: now } }
+                    );
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'UPDATE users SET password = ?, updatedAt = ? WHERE id = ?';
+                    await connection.execute(query, [hashedNewPassword, now, userId]);
+                    break;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.run(
+                            'UPDATE users SET password = ?, updatedAt = ? WHERE id = ?',
+                            [hashedNewPassword, now.toISOString(), userId],
+                            (err: any) => {
+                                if (err) reject(err);
+                                else resolve(undefined);
+                            }
+                        );
+                    });
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('users')
+                        .update({
+                            password: hashedNewPassword,
+                            updatedAt: now.toISOString()
+                        })
+                        .eq('id', userId);
+
+                    if (error) {
+                        throw error;
+                    }
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error changing password:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get user by ID
+     */
+    private async getUserById(userId: string): Promise<User | null> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    const mongoUser = await connection.collection('users').findOne({ id: userId });
+                    return mongoUser ? this.mapMongoUser(mongoUser) : null;
+
+                case 'mysql':
+                case 'postgresql':
+                    const query = 'SELECT * FROM users WHERE id = ?';
+                    const [rows] = await connection.execute(query, [userId]);
+                    return rows.length > 0 ? this.mapSQLUser(rows[0]) : null;
+
+                case 'localdb':
+                    return new Promise((resolve, reject) => {
+                        connection.get('SELECT * FROM users WHERE id = ?', [userId], (err: any, row: any) => {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                resolve(row ? this.mapSQLUser(row) : null);
+                            }
+                        });
+                    });
+
+                case 'supabase':
+                    const { data, error } = await connection
+                        .from('users')
+                        .select('*')
+                        .eq('id', userId)
+                        .single();
+
+                    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+                        throw error;
+                    }
+                    return data ? this.mapSupabaseUser(data) : null;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+        } catch (error) {
+            console.error('Error getting user by ID:', error);
+            return null;
+        }
+    }
 }

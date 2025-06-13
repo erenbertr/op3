@@ -12,9 +12,9 @@ import { PersonalitiesManagement } from '@/components/personalities/personalitie
 
 import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
+import { AccountSettings } from '@/components/account/account-settings';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
-import { AuthUser } from '@/lib/auth';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
@@ -22,7 +22,15 @@ import { Loader2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceApplicationProps {
-    currentUser: AuthUser;
+    currentUser: {
+        id: string;
+        email: string;
+        username?: string;
+        firstName?: string;
+        lastName?: string;
+        hasCompletedWorkspaceSetup?: boolean;
+        role?: string;
+    };
     onLogout: () => void;
 }
 
@@ -85,6 +93,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             if (pathname === '/workspaces') return { view: 'selection', params: {}, queryParams };
             if (pathname === '/personalities') return { view: 'personalities', params: {}, queryParams };
             if (pathname === '/add/workspace') return { view: 'create', params: {}, queryParams };
+            if (pathname === '/account') return { view: 'account', params: {}, queryParams };
 
             const addChatMatch = pathname.match(/^\/add\/chat\/([^\/]+)$/);
             if (addChatMatch) {
@@ -409,6 +418,12 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                             <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
                             <PersonalitiesManagement userId={currentUser.id} />
                         </div>
+                    </div>
+                )}
+
+                {currentView === 'account' && (
+                    <div className="h-full overflow-y-auto">
+                        <AccountSettings currentUser={currentUser} />
                     </div>
                 )}
             </main>

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { UserService } from '../services/userService';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -134,6 +135,58 @@ router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
         success: true,
         message: 'Logout successful'
     });
+}));
+
+// Update user profile
+router.patch('/profile', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const { username, firstName, lastName } = req.body;
+    const userId = req.user!.id;
+
+    try {
+        const result = await userService.updateUserProfile(userId, {
+            username,
+            firstName,
+            lastName
+        });
+
+        res.json({
+            success: true,
+            message: 'Profile updated successfully',
+            user: result
+        });
+    } catch (error) {
+        console.error('Profile update error:', error);
+        throw createError('Failed to update profile', 500);
+    }
+}));
+
+// Change user password
+router.patch('/password', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user!.id;
+
+    if (!currentPassword || !newPassword) {
+        throw createError('Current password and new password are required', 400);
+    }
+
+    if (newPassword.length < 6) {
+        throw createError('New password must be at least 6 characters long', 400);
+    }
+
+    try {
+        const result = await userService.changePassword(userId, currentPassword, newPassword);
+
+        res.json({
+            success: true,
+            message: 'Password changed successfully'
+        });
+    } catch (error) {
+        console.error('Password change error:', error);
+        if (error instanceof Error && error.message.includes('Invalid current password')) {
+            throw createError('Invalid current password', 400);
+        }
+        throw createError('Failed to change password', 500);
+    }
 }));
 
 // Debug endpoint to create a test admin user (remove in production)
