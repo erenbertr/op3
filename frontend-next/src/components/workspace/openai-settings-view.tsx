@@ -14,7 +14,10 @@ import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import { openaiProvidersAPI, type OpenAIProvider } from '@/lib/api/openai-providers';
+import { openaiModelConfigsAPI, type OpenAIModelConfig as APIModelConfig } from '@/lib/api/openai-model-configs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AddModelModal from './add-model-modal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface OpenAIModel {
     id: string;
@@ -32,16 +35,8 @@ interface OpenAIKey {
     updatedAt: string;
 }
 
-interface OpenAIModelConfig {
-    id: string;
-    keyId: string;
-    keyName: string;
-    modelId: string;
-    modelName: string;
-    isActive: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
-}
+// Use the API type directly
+type OpenAIModelConfig = APIModelConfig;
 
 export function OpenAISettingsView() {
     const router = useRouter();
@@ -64,6 +59,9 @@ export function OpenAISettingsView() {
     const [availableModels, setAvailableModels] = useState<OpenAIModel[]>([]);
     const [selectedModels, setSelectedModels] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isAddModelModalOpen, setIsAddModelModalOpen] = useState(false);
+    const [selectedKeyForModel, setSelectedKeyForModel] = useState<string>('');
+    const [isLoadingModelsForKey, setIsLoadingModelsForKey] = useState(false);
 
     const user = authService.getCurrentUser();
 
@@ -84,7 +82,7 @@ export function OpenAISettingsView() {
     ];
 
     // Fetch OpenAI keys using the new dedicated API
-    const { data: keysData, isLoading: isLoadingKeys } = useQuery({
+    const { data: keysData, isLoading: isLoadingKeys, error: keysError } = useQuery({
         queryKey: ['openai-keys'],
         queryFn: async () => {
             const providers = await openaiProvidersAPI.getProviders();
@@ -100,14 +98,10 @@ export function OpenAISettingsView() {
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
-    // Fetch OpenAI models configurations (we'll need to create a new endpoint for this)
+    // Fetch OpenAI model configurations
     const { data: modelsData, isLoading: isLoadingModels } = useQuery({
-        queryKey: ['openai-models'],
-        queryFn: async () => {
-            // This would be a new endpoint to fetch model configurations
-            // For now, return empty array
-            return [] as OpenAIModelConfig[];
-        },
+        queryKey: ['openai-model-configs'],
+        queryFn: () => openaiModelConfigsAPI.getModelConfigs(),
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
@@ -253,7 +247,7 @@ export function OpenAISettingsView() {
                 variant: "success"
             });
             queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
-            queryClient.invalidateQueries({ queryKey: ['openai-models'] });
+            queryClient.invalidateQueries({ queryKey: ['openai-model-configs'] });
         },
         onError: (error) => {
             addToast({
@@ -278,6 +272,67 @@ export function OpenAISettingsView() {
             addToast({
                 title: "Test Failed",
                 description: error instanceof Error ? error.message : "Failed to test key",
+                variant: "destructive"
+            });
+        }
+    });
+
+    // Model configuration mutations
+    const createModelConfigMutation = useMutation({
+        mutationFn: (request: { keyId: string; modelId: string; customName?: string }) =>
+            openaiModelConfigsAPI.createModelConfig(request),
+        onSuccess: () => {
+            addToast({
+                title: "Model Added",
+                description: "Model configuration created successfully",
+                variant: "success"
+            });
+            queryClient.invalidateQueries({ queryKey: ['openai-model-configs'] });
+            setIsAddModelModalOpen(false);
+        },
+        onError: (error) => {
+            addToast({
+                title: "Add Model Failed",
+                description: error instanceof Error ? error.message : "Failed to add model",
+                variant: "destructive"
+            });
+        }
+    });
+
+    const updateModelConfigMutation = useMutation({
+        mutationFn: ({ id, ...request }: { id: string; customName?: string; isActive?: boolean }) =>
+            openaiModelConfigsAPI.updateModelConfig(id, request),
+        onSuccess: () => {
+            addToast({
+                title: "Model Updated",
+                description: "Model configuration updated successfully",
+                variant: "success"
+            });
+            queryClient.invalidateQueries({ queryKey: ['openai-model-configs'] });
+        },
+        onError: (error) => {
+            addToast({
+                title: "Update Failed",
+                description: error instanceof Error ? error.message : "Failed to update model",
+                variant: "destructive"
+            });
+        }
+    });
+
+    const deleteModelConfigMutation = useMutation({
+        mutationFn: (id: string) => openaiModelConfigsAPI.deleteModelConfig(id),
+        onSuccess: () => {
+            addToast({
+                title: "Model Deleted",
+                description: "Model configuration deleted successfully",
+                variant: "success"
+            });
+            queryClient.invalidateQueries({ queryKey: ['openai-model-configs'] });
+        },
+        onError: (error) => {
+            addToast({
+                title: "Delete Failed",
+                description: error instanceof Error ? error.message : "Failed to delete model",
                 variant: "destructive"
             });
         }
@@ -384,6 +439,74 @@ export function OpenAISettingsView() {
         }
     };
 
+    // Handle Add Model button click
+    const handleAddModelClick = () => {
+        if (keys.length === 0) {
+            addToast({
+                title: "No API Keys",
+                description: "Please add an API key first before adding models",
+                variant: "destructive"
+            });
+            return;
+        }
+        setIsAddModelModalOpen(true);
+    };
+
+    // Handle key selection in Add Model modal
+    const handleKeySelectForModel = async (keyId: string) => {
+        setSelectedKeyForModel(keyId);
+        setIsLoadingModelsForKey(true);
+
+        const key = keys.find(k => k.id === keyId);
+        if (!key) return;
+
+        try {
+            const result = await apiClient.fetchOpenAIModels({ apiKey: key.apiKey });
+            if (result.success && result.models) {
+                setAvailableModels(result.models);
+            }
+        } catch (error) {
+            addToast({
+                title: "Error",
+                description: "Failed to fetch models for this key",
+                variant: "destructive"
+            });
+        } finally {
+            setIsLoadingModelsForKey(false);
+        }
+    };
+
+    // Handle adding a model
+    const handleAddModel = async (modelId: string, customName?: string) => {
+        if (!selectedKeyForModel) {
+            addToast({
+                title: "No Key Selected",
+                description: "Please select an API key first",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        await createModelConfigMutation.mutateAsync({
+            keyId: selectedKeyForModel,
+            modelId,
+            customName
+        });
+    };
+
+    // Handle model toggle
+    const handleModelToggleActive = (modelConfig: OpenAIModelConfig) => {
+        updateModelConfigMutation.mutate({
+            id: modelConfig.id,
+            isActive: !modelConfig.isActive
+        });
+    };
+
+    // Handle model delete
+    const handleModelDelete = (modelConfig: OpenAIModelConfig) => {
+        deleteModelConfigMutation.mutate(modelConfig.id);
+    };
+
     if (!user) {
         return null;
     }
@@ -419,12 +542,45 @@ export function OpenAISettingsView() {
                     ))}
                 </div>
 
-                {/* Right: Add New Button (only show on Keys tab) */}
+                {/* Right: Add New Button */}
                 {activeTab === 'keys' && (
                     <Button onClick={handleAddNewKey}>
                         <Plus className="h-4 w-4" />
                         Add New API Key
                     </Button>
+                )}
+                {activeTab === 'models' && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button>
+                                <Plus className="h-4 w-4" />
+                                Add Model
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {keys.filter(key => key.isActive).length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-muted-foreground">
+                                    No active API keys available.
+                                    <br />
+                                    Please add an API key first.
+                                </div>
+                            ) : (
+                                keys.filter(key => key.isActive).map((key) => (
+                                    <DropdownMenuItem
+                                        key={key.id}
+                                        onClick={() => {
+                                            setSelectedKeyForModel(key.id);
+                                            handleKeySelectForModel(key.id);
+                                            setIsAddModelModalOpen(true);
+                                        }}
+                                    >
+                                        <Key className="h-4 w-4 mr-2" />
+                                        {key.name}
+                                    </DropdownMenuItem>
+                                ))
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 )}
             </div>
 
@@ -533,6 +689,19 @@ export function OpenAISettingsView() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Add Model Modal */}
+            <AddModelModal
+                isOpen={isAddModelModalOpen}
+                onClose={() => {
+                    setIsAddModelModalOpen(false);
+                    setSelectedKeyForModel('');
+                    setAvailableModels([]);
+                }}
+                onAddModel={handleAddModel}
+                availableModels={availableModels}
+                isLoading={isLoadingModelsForKey}
+            />
         </div>
     );
 
@@ -631,179 +800,130 @@ export function OpenAISettingsView() {
     function renderModelsTab() {
         return (
             <div className="space-y-6">
-                {/* Key Selection */}
+                {/* Configured Models */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Select API Key</CardTitle>
+                        <CardTitle>Configured Models</CardTitle>
                         <CardDescription>
-                            Choose an API key to manage its models
+                            Manage your OpenAI model configurations
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {keys.length === 0 ? (
-                            <div className="text-center py-8">
-                                <p className="text-muted-foreground">No API keys configured.</p>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                    Go to the Keys tab to add your first API key.
+                        {models.length === 0 ? (
+                            <div className="text-center py-12">
+                                <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
+                                    <Bot className="h-12 w-12 text-muted-foreground" />
+                                </div>
+                                <h3 className="text-lg font-semibold mb-2">No Models Configured</h3>
+                                <p className="text-muted-foreground mb-4 max-w-sm mx-auto">
+                                    You haven't configured any models yet. Add your first model to get started.
                                 </p>
+                                {keys.filter(key => key.isActive).length > 0 ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button>
+                                                <Plus className="h-4 w-4" />
+                                                Add Your First Model
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="center">
+                                            {keys.filter(key => key.isActive).map((key) => (
+                                                <DropdownMenuItem
+                                                    key={key.id}
+                                                    onClick={() => {
+                                                        setSelectedKeyForModel(key.id);
+                                                        handleKeySelectForModel(key.id);
+                                                        setIsAddModelModalOpen(true);
+                                                    }}
+                                                >
+                                                    <Key className="h-4 w-4 mr-2" />
+                                                    {key.name}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <div className="text-center">
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                            No active API keys available. Please add an API key first.
+                                        </p>
+                                        <Button variant="outline" onClick={() => setActiveTab('keys')}>
+                                            Go to API Keys
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <Label>Available Keys</Label>
-                                <div className="grid gap-2">
-                                    {keys.filter(key => key.isActive).map((key) => (
-                                        <Button
-                                            key={key.id}
-                                            variant={selectedKeyId === key.id ? "default" : "outline"}
-                                            className="justify-start h-auto p-3"
-                                            onClick={() => handleKeySelect(key.id)}
-                                        >
-                                            <div className="flex items-center gap-3 w-full">
-                                                <Key className="h-4 w-4" />
-                                                <div className="text-left flex-1">
-                                                    <div className="font-medium">{key.name}</div>
-                                                    <div className="text-xs opacity-70">
-                                                        {key.apiKey.substring(0, 8)}...
+                                {models.map((model) => (
+                                    <div key={model.id} className="flex items-center justify-between p-4 border rounded-lg">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3">
+                                                <h3 className="font-medium">
+                                                    {model.customName || model.modelName}
+                                                </h3>
+                                                {model.customName && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {model.modelId}
+                                                    </Badge>
+                                                )}
+                                                <Badge variant="outline">
+                                                    {model.keyName}
+                                                </Badge>
+                                                <Badge variant={model.isActive ? "default" : "secondary"}>
+                                                    {model.isActive ? "Active" : "Inactive"}
+                                                </Badge>
+                                            </div>
+                                            <div className="mt-1 space-y-1">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Model ID: {model.modelId}
+                                                </p>
+                                                {model.capabilities && Object.keys(model.capabilities).length > 0 && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Object.entries(model.capabilities).map(([key, value]) =>
+                                                            value && (
+                                                                <Badge key={key} variant="secondary" className="text-xs">
+                                                                    {key}
+                                                                </Badge>
+                                                            )
+                                                        )}
                                                     </div>
-                                                </div>
-                                                {selectedKeyId === key.id && (
-                                                    <CheckCircle className="h-4 w-4" />
+                                                )}
+                                                {model.pricing && (model.pricing.inputTokens || model.pricing.outputTokens) && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {model.pricing.inputTokens && `Input: ${model.pricing.inputTokens}/1M`}
+                                                        {model.pricing.inputTokens && model.pricing.outputTokens && ' • '}
+                                                        {model.pricing.outputTokens && `Output: ${model.pricing.outputTokens}/1M`}
+                                                    </p>
                                                 )}
                                             </div>
-                                        </Button>
-                                    ))}
-                                </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={model.isActive}
+                                                onCheckedChange={() => handleModelToggleActive(model)}
+                                                disabled={updateModelConfigMutation.isPending}
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleModelDelete(model)}
+                                                disabled={deleteModelConfigMutation.isPending}
+                                            >
+                                                {deleteModelConfigMutation.isPending ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </CardContent>
                 </Card>
 
-                {/* Models Management */}
-                {selectedKeyId && activeKey && (
-                    <>
-                        {/* Existing Models for this key */}
-                        {models.filter(m => m.keyId === selectedKeyId).length > 0 && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Configured Models</CardTitle>
-                                    <CardDescription>
-                                        Models configured for {activeKey.name}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {models.filter(m => m.keyId === selectedKeyId).map((model) => (
-                                        <div key={model.id} className="flex items-center justify-between p-4 border rounded-lg">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="font-medium">{model.modelName}</h3>
-                                                    <Badge variant="outline">
-                                                        {model.keyName}
-                                                    </Badge>
-                                                    <Badge variant={model.isActive ? "default" : "secondary"}>
-                                                        {model.isActive ? "Active" : "Inactive"}
-                                                    </Badge>
-                                                </div>
-                                                <p className="text-sm text-muted-foreground mt-1">
-                                                    Model ID: {model.modelId}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={model.isActive}
-                                                    onCheckedChange={() => {
-                                                        // Handle model toggle
-                                                    }}
-                                                />
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        // Handle model delete
-                                                    }}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Add Models */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Add Models</CardTitle>
-                                <CardDescription>
-                                    Select models to add for {activeKey.name}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {availableModels.length === 0 ? (
-                                    <div className="text-center py-4">
-                                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                                        <p className="text-muted-foreground">Loading available models...</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Search */}
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                            <Input
-                                                placeholder="Search models..."
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="pl-10"
-                                            />
-                                        </div>
-
-                                        {/* Models List */}
-                                        <div className="max-h-64 overflow-y-auto space-y-2 border rounded-md p-4">
-                                            {filteredAvailableModels.map((model) => (
-                                                <div key={model.id} className="flex items-center space-x-3">
-                                                    <input
-                                                        type="checkbox"
-                                                        id={model.id}
-                                                        checked={selectedModels.includes(model.id)}
-                                                        onChange={() => handleModelToggle(model.id)}
-                                                        className="rounded border-gray-300"
-                                                    />
-                                                    <label htmlFor={model.id} className="flex-1 cursor-pointer">
-                                                        <div className="font-medium">{model.id}</div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            Owner: {model.owned_by}
-                                                        </div>
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Add Models Button */}
-                                        {selectedModels.length > 0 && (
-                                            <Button
-                                                onClick={() => {
-                                                    // Handle adding selected models
-                                                    addToast({
-                                                        title: "Models Added",
-                                                        description: `Added ${selectedModels.length} models`,
-                                                        variant: "success"
-                                                    });
-                                                    setSelectedModels([]);
-                                                }}
-                                                className="w-full"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                                Add {selectedModels.length} Selected Model{selectedModels.length > 1 ? 's' : ''}
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </>
-                )}
             </div>
         );
     }
-
-}

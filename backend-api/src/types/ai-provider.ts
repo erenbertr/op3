@@ -141,6 +141,56 @@ export interface WorkspaceOpenRouterSettings {
     updatedAt?: Date;
 }
 
+// OpenAI Model Configuration types
+export interface OpenAIModelConfig {
+    id: string;
+    keyId: string;
+    keyName: string;
+    modelId: string;
+    modelName: string;
+    customName?: string;
+    capabilities?: ModelCapabilities;
+    pricing?: ModelPricing;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface ModelCapabilities {
+    reasoning?: boolean;
+    search?: boolean;
+    fileUpload?: boolean;
+    image?: boolean;
+    pdf?: boolean;
+    vision?: boolean;
+    functionCalling?: boolean;
+    codeInterpreter?: boolean;
+}
+
+export interface ModelPricing {
+    inputTokens?: string; // Price per 1M input tokens
+    outputTokens?: string; // Price per 1M output tokens
+    contextLength?: number;
+}
+
+export interface CreateOpenAIModelConfigRequest {
+    keyId: string;
+    modelId: string;
+    customName?: string;
+}
+
+export interface UpdateOpenAIModelConfigRequest {
+    customName?: string;
+    isActive?: boolean;
+}
+
+export interface OpenAIModelConfigResponse {
+    success: boolean;
+    message: string;
+    data?: OpenAIModelConfig | OpenAIModelConfig[];
+    error?: string;
+}
+
 export interface OpenRouterValidationRequest {
     apiKey: string;
 }

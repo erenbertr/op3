@@ -28,7 +28,7 @@ export interface OpenAIProviderResponse {
 }
 
 export class OpenAIProvidersAPI {
-    private baseUrl = '/api/v1/openai-providers';
+    private baseUrl = '/openai-providers';
 
     // Get all OpenAI providers
     async getProviders(): Promise<OpenAIProvider[]> {
