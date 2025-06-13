@@ -73,10 +73,12 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         if (modelId.includes('o1-preview') || modelId.includes('o1-mini') || modelId.startsWith('o1')) {
             capabilities.reasoning = true;
             // O1 models are specialized for reasoning but have limited other capabilities
+            // Note: O1 models don't support web search via Responses API
         }
         // GPT-4o models
         else if (modelId.includes('gpt-4o')) {
             capabilities.reasoning = true;
+            capabilities.search = true; // Web search via OpenAI Responses API
             capabilities.vision = true;
             capabilities.image = true;
             capabilities.pdf = true;
@@ -87,6 +89,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         // GPT-4 Turbo models
         else if (modelId.includes('gpt-4-turbo') || modelId.includes('gpt-4-1106') || modelId.includes('gpt-4-0125')) {
             capabilities.reasoning = true;
+            capabilities.search = true; // Web search via OpenAI Responses API
             capabilities.vision = modelId.includes('vision');
             capabilities.image = modelId.includes('vision');
             capabilities.functionCalling = true;
@@ -96,12 +99,14 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         // GPT-4 models
         else if (modelId.includes('gpt-4')) {
             capabilities.reasoning = true;
+            capabilities.search = true; // Web search via OpenAI Responses API
             capabilities.functionCalling = true;
             capabilities.codeInterpreter = true;
         }
         // GPT-3.5 Turbo models
         else if (modelId.includes('gpt-3.5-turbo')) {
             capabilities.functionCalling = true;
+            // GPT-3.5 models don't support web search via Responses API
         }
 
         return capabilities;

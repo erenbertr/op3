@@ -88,6 +88,15 @@ export function ChatSessionComponent({
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [isSearchPending, setIsSearchPending] = useState(false); // New state for pre-streaming search loading
+
+    // Reasoning state
+    const [currentReasoningEnabled, setCurrentReasoningEnabled] = useState(false);
+    const [reasoningSteps, setReasoningSteps] = useState<string[]>([]);
+    const [isReasoning, setIsReasoning] = useState(false);
+
+    // Current search enabled state for streaming
+    const [currentSearchEnabled, setCurrentSearchEnabled] = useState(false);
+
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const { addToast } = useToast();
 
@@ -117,6 +126,14 @@ export function ChatSessionComponent({
             setIsSearching(false);
             setSearchQuery('');
             setSearchResults([]);
+
+            // Clear reasoning states
+            setCurrentReasoningEnabled(false);
+            setReasoningSteps([]);
+            setIsReasoning(false);
+
+            // Clear search enabled state
+            setCurrentSearchEnabled(false);
 
             console.log('🔄 Session changed to:', currentSessionId);
         }
@@ -490,6 +507,18 @@ export function ChatSessionComponent({
         // Set search pending state if search is enabled
         if (searchEnabled) {
             setIsSearchPending(true);
+            setCurrentSearchEnabled(true);
+        } else {
+            setCurrentSearchEnabled(false);
+        }
+
+        // Set reasoning state if reasoning is enabled
+        if (reasoningEnabled) {
+            setCurrentReasoningEnabled(true);
+            setIsReasoning(true);
+            setReasoningSteps([]);
+        } else {
+            setCurrentReasoningEnabled(false);
         }
 
         // First, position the user message at the top with smooth animation
@@ -522,6 +551,12 @@ export function ChatSessionComponent({
                         setStreamingMessage(prev => prev + chunk.content);
                         // Clear search pending state when first chunk arrives (streaming has started)
                         setIsSearchPending(false);
+                        // Clear reasoning state when content starts streaming
+                        setIsReasoning(false);
+                    }
+                    // Handle reasoning steps (if the backend sends them)
+                    if (chunk.type === 'reasoning_step' && chunk.content) {
+                        setReasoningSteps(prev => [...prev, chunk.content]);
                     }
                 },
                 onSearchStart: (query) => {
@@ -570,6 +605,14 @@ export function ChatSessionComponent({
                     setSearchQuery('');
                     setSearchResults([]);
                     setIsSearchPending(false);
+
+                    // Clear reasoning state
+                    setCurrentReasoningEnabled(false);
+                    setReasoningSteps([]);
+                    setIsReasoning(false);
+
+                    // Clear search enabled state
+                    setCurrentSearchEnabled(false);
 
                     // Recalculate spacer height after streaming completes (without scrolling)
                     setTimeout(() => {
@@ -987,6 +1030,13 @@ export function ChatSessionComponent({
                                                 aiProviderId={currentStreamingAIProviderId}
                                                 // Pass search pending state
                                                 isSearchPending={isSearchPending}
+                                                // Pass reasoning state
+                                                reasoningEnabled={currentReasoningEnabled}
+                                                reasoningSteps={reasoningSteps}
+                                                isReasoning={isReasoning}
+                                                // Pass search state
+                                                searchEnabled={currentSearchEnabled}
+                                                isSearching={isSearching}
                                             />
                                         </>
                                     ) : null}

@@ -278,7 +278,7 @@ export interface StatisticsResponse {
 }
 
 export interface StreamChunk {
-    type: 'chunk' | 'error' | 'complete' | 'search_start' | 'search_results';
+    type: 'chunk' | 'error' | 'complete' | 'search_start' | 'search_results' | 'reasoning_step';
     content?: string;
     error?: string;
     message?: ChatMessage;
@@ -994,6 +994,8 @@ class ApiClient {
                                     callbacks.onSearchStart?.(data.searchQuery);
                                 } else if (data.type === 'search_results') {
                                     callbacks.onSearchResults?.(data.searchQuery, data.searchResults);
+                                } else if (data.type === 'reasoning_step') {
+                                    callbacks.onChunk(data);
                                 }
                             } catch {
                                 // Ignore parsing errors for malformed SSE data

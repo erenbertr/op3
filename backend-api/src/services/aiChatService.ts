@@ -6,8 +6,8 @@ import { OpenAIProviderService } from './openaiProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
 import { WorkspaceService } from './workspaceService';
-import { GoogleSearchService, createGoogleSearchService } from './googleSearchService';
-import { OpenAIFileService } from './openaiFileService';
+
+
 
 export interface StreamingChatRequest {
     content: string;
@@ -50,8 +50,8 @@ export class AIChatService {
     private personalityService: PersonalityService;
     private chatService: ChatService;
     private workspaceService: WorkspaceService;
-    private googleSearchService: GoogleSearchService | null;
-    private openaiFileService: OpenAIFileService;
+
+
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
@@ -60,8 +60,8 @@ export class AIChatService {
         this.personalityService = new PersonalityService();
         this.chatService = ChatService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
-        this.googleSearchService = createGoogleSearchService();
-        this.openaiFileService = OpenAIFileService.getInstance();
+
+
     }
 
     public static getInstance(): AIChatService {
@@ -379,23 +379,27 @@ export class AIChatService {
             return await this.streamFromOpenAIO1(provider, conversationHistory, messageId, onChunk, reasoningEnabled);
         }
 
-        // Handle file search or web search using Responses API (for non-o1 models)
-        const requiresResponsesApi = provider.model.startsWith('o') && !isO1Model; // Exclude o1 models
-        if (requiresResponsesApi || (fileAttachments && fileAttachments.length > 0) || (searchEnabled && this.supportsOpenAIWebSearch(provider))) {
-            try {
-                // Use Responses API for file search or web search
-                return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk, fileAttachments, sessionId, reasoningEnabled);
-            } catch (error) {
-                console.warn('OpenAI Responses API failed:', error);
-                if (searchEnabled) {
-                    console.warn('Falling back to Google Custom Search');
-                    // Fall back to Google Custom Search if Responses API fails
-                    await this.performWebSearch(conversationHistory, onChunk, messageId);
-                }
-            }
+        // Handle web search notification (for supported models)
+        if (searchEnabled && this.supportsOpenAIWebSearch(provider) && !isO1Model) {
+            // Notify that search is starting
+            onChunk({
+                type: 'search_start',
+                searchQuery: conversationHistory[conversationHistory.length - 1].content
+            });
+
+            // Add a note about web search status
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: '[Note: Web search functionality is currently under development. Responding with training data and general knowledge.]\n\n'
+            });
         } else if (searchEnabled) {
-            // Fall back to Google Custom Search for models that don't support OpenAI web search
-            await this.performWebSearch(conversationHistory, onChunk, messageId);
+            // Models that don't support web search - inform user
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: '[Note: This model does not support web search. Responding with training data only.]\n\n'
+            });
         }
 
         const response = await fetch(`${endpoint}/chat/completions`, {
@@ -496,84 +500,16 @@ export class AIChatService {
         };
     }
 
-    /**
-     * Perform web search using Google Custom Search
-     */
-    private async performWebSearch(
-        conversationHistory: ConversationMessage[],
-        onChunk: (chunk: AIStreamChunk) => void,
-        messageId: string
-    ): Promise<void> {
-        if (!this.googleSearchService || !this.googleSearchService.isConfigured()) {
-            onChunk({
-                type: 'chunk',
-                messageId,
-                content: '[Note: Web search is not configured. Please set GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.]\n\n'
-            });
-            return;
-        }
 
-        // Get the last user message as the search query
-        const lastUserMessage = conversationHistory.filter(msg => msg.role === 'user').pop();
-        if (!lastUserMessage) {
-            return;
-        }
-
-        const searchQuery = lastUserMessage.content;
-
-        try {
-            // Notify that search is starting
-            onChunk({
-                type: 'search_start',
-                searchQuery
-            });
-
-            // Perform the search
-            const searchResults = await this.googleSearchService.search(searchQuery, 5);
-
-            // Notify about search results
-            onChunk({
-                type: 'search_results',
-                searchQuery,
-                searchResults
-            });
-
-            // Add search results context to the conversation
-            if (searchResults.length > 0) {
-                const searchContext = `Based on recent web search results for "${searchQuery}":\n\n` +
-                    searchResults.map((result, index) =>
-                        `${index + 1}. ${result.title}\n   ${result.snippet}\n   Source: ${result.url}`
-                    ).join('\n\n') +
-                    '\n\nPlease use this information along with your training data to provide a comprehensive answer.\n\n';
-
-                onChunk({
-                    type: 'chunk',
-                    messageId,
-                    content: searchContext
-                });
-            }
-        } catch (error) {
-            console.error('Web search error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            onChunk({
-                type: 'chunk',
-                messageId,
-                content: `[Note: Web search failed: ${errorMessage}. Responding with training data only.]\n\n`
-            });
-        }
-    }
 
 
 
     /**
-     * Check if OpenAI model supports web search via Responses API
+     * Check if OpenAI model supports web search via function calling
      */
     private supportsOpenAIWebSearch(provider: AIProviderConfig): boolean {
-        // Models that support web search via Responses API
-        // Also include older models that might work with Responses API
+        // Models that support web search via function calling
         const webSearchModels = [
-            'gpt-4.1',
-            'gpt-4.1-mini',
             'gpt-4o',
             'gpt-4o-mini',
             'gpt-4-turbo',
@@ -582,180 +518,9 @@ export class AIChatService {
         return webSearchModels.includes(provider.model);
     }
 
-    /**
-     * Stream from OpenAI Responses API with web search and/or file search
-     */
-    private async streamFromOpenAIResponses(
-        provider: AIProviderConfig,
-        conversationHistory: ConversationMessage[],
-        messageId: string,
-        onChunk: (chunk: AIStreamChunk) => void,
-        fileAttachments?: string[],
-        sessionId?: string,
-        reasoningEnabled?: boolean
-    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
-        const endpoint = provider.endpoint || 'https://api.openai.com/v1';
-        // Check if API key is already decrypted (from OpenAI model config) or needs decryption (from old provider system)
-        const apiKey = provider.apiKey.includes(':') ? this.aiProviderService.decryptApiKey(provider.apiKey) : provider.apiKey;
 
-        // Get the last user message as input
-        const lastUserMessage = conversationHistory.filter(msg => msg.role === 'user').pop();
-        if (!lastUserMessage) {
-            throw new Error('No user message found');
-        }
 
-        // Build context from conversation history
-        let input = lastUserMessage.content;
-        if (conversationHistory.length > 1) {
-            const previousMessages = conversationHistory.slice(0, -1);
-            if (previousMessages.length > 0) {
-                const contextString = previousMessages.map(msg =>
-                    `${msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : 'System'}: ${msg.content}`
-                ).join('\n\n');
-                input = `Previous conversation:\n${contextString}\n\nCurrent question: ${lastUserMessage.content}`;
-            }
-        }
 
-        // Notify that search is starting
-        onChunk({
-            type: 'search_start',
-            searchQuery: lastUserMessage.content
-        });
-
-        // Build tools array based on what's needed
-        const tools: any[] = [];
-
-        // Add web search if no file attachments (or both if needed)
-        if (!fileAttachments || fileAttachments.length === 0) {
-            tools.push({
-                type: "web_search_preview",
-                search_context_size: "medium"
-            });
-        }
-
-        // Add file search if file attachments are present
-        if (fileAttachments && fileAttachments.length > 0 && sessionId) {
-            // Get vector store for the session
-            const vectorStoreResult = await this.getVectorStoreForSession(sessionId);
-            if (vectorStoreResult) {
-                tools.push({
-                    type: "file_search",
-                    vector_store_ids: [vectorStoreResult]
-                });
-            }
-        }
-
-        const requestBody: any = {
-            model: provider.model,
-            input: input,
-            tools: tools
-        } as any;
-
-        // Include reasoning parameter when enabled or required by model
-        const requiresReasoning = provider.model.startsWith('o');
-        if (reasoningEnabled || requiresReasoning) {
-            requestBody.reasoning = { effort: 'medium' };
-        }
-
-        console.log('OpenAI Responses API Request:', JSON.stringify(requestBody, null, 2));
-        console.log('File attachments provided:', fileAttachments);
-        console.log('Session ID:', sessionId);
-        if (sessionId) {
-            const vectorStoreId = await this.getVectorStoreForSession(sessionId);
-            console.log('Vector store result:', vectorStoreId);
-        }
-
-        const response = await fetch(`${endpoint}/responses`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('OpenAI Responses API error response:', errorText);
-            throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const data: any = await response.json();
-        console.log('OpenAI Responses API Response:', JSON.stringify(data, null, 2));
-        let finalContent = '';
-        let searchResults: any[] = [];
-
-        // Process the response output
-        if (data.output && Array.isArray(data.output)) {
-            for (const output of data.output) {
-                if (output.type === 'web_search_call') {
-                    // Web search was performed
-                    console.log('Web search call completed:', output.id);
-                } else if (output.type === 'message' && output.content) {
-                    for (const content of output.content) {
-                        if (content.type === 'output_text') {
-                            finalContent = content.text;
-
-                            // Extract citations as search results
-                            if (content.annotations) {
-                                searchResults = content.annotations
-                                    .filter((ann: any) => ann.type === 'url_citation')
-                                    .map((ann: any) => ({
-                                        title: ann.title || 'Web Result',
-                                        url: ann.url,
-                                        snippet: finalContent.substring(ann.start_index, ann.end_index) || 'Citation from web search'
-                                    }));
-                            }
-
-                            // Notify about search results
-                            if (searchResults.length > 0) {
-                                onChunk({
-                                    type: 'search_results',
-                                    searchQuery: lastUserMessage.content,
-                                    searchResults
-                                });
-                            }
-
-                            // Simulate streaming by sending content in chunks
-                            const words = finalContent.split(' ');
-                            for (let i = 0; i < words.length; i += 5) {
-                                const chunk = words.slice(i, i + 5).join(' ') + (i + 5 < words.length ? ' ' : '');
-                                onChunk({
-                                    type: 'chunk',
-                                    messageId,
-                                    content: chunk
-                                });
-                                // Small delay to simulate streaming
-                                await new Promise(resolve => setTimeout(resolve, 30));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        const metadata: ApiMetadata = {
-            model: provider.model,
-            totalTokens: data.usage?.total_tokens || 0,
-            inputTokens: data.usage?.input_tokens || 0,
-            outputTokens: data.usage?.output_tokens || 0,
-            searchResults,
-            searchQuery: lastUserMessage.content
-        };
-
-        onChunk({
-            type: 'end',
-            messageId,
-            metadata
-        });
-
-        return {
-            success: true,
-            message: 'Response generated successfully with web search',
-            finalContent,
-            metadata
-        };
-    }
 
     /**
      * Process OpenAI streaming response
@@ -822,36 +587,8 @@ export class AIChatService {
                                 });
                             }
 
-                            // Handle tool calls (web search)
-                            const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
-                            if (toolCalls && Array.isArray(toolCalls)) {
-                                for (const toolCall of toolCalls) {
-                                    if (toolCall.type === 'web_search') {
-                                        // Notify that search results are available
-                                        onChunk({
-                                            type: 'search_results',
-                                            searchQuery: toolCall.web_search?.query || '',
-                                            searchResults: toolCall.web_search?.results || []
-                                        });
-                                    }
-                                }
-                            }
-
-                            // Handle function calls (alternative format for tool calls)
-                            const functionCall = parsed.choices?.[0]?.delta?.function_call;
-                            if (functionCall && functionCall.name === 'web_search') {
-                                try {
-                                    const args = JSON.parse(functionCall.arguments || '{}');
-                                    if (args.query) {
-                                        onChunk({
-                                            type: 'search_start',
-                                            searchQuery: args.query
-                                        });
-                                    }
-                                } catch (e) {
-                                    // Ignore parsing errors for partial function calls
-                                }
-                            }
+                            // Tool calls are not currently implemented for web search
+                            // This section is reserved for future web search integration
 
                             // Capture token usage if available (OpenAI includes this in final chunk)
                             if (parsed.usage) {
@@ -1349,25 +1086,5 @@ export class AIChatService {
         return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
     }
 
-    /**
-     * Get vector store ID for a session
-     */
-    private async getVectorStoreForSession(sessionId: string): Promise<string | null> {
-        try {
-            // Get the first user from the session (simplified approach)
-            const chatSession = await this.chatService.getChatSession(sessionId);
-            if (!chatSession.success || !chatSession.session) {
-                return null;
-            }
 
-            const vectorStoreResult = await this.openaiFileService.getOrCreateVectorStore(sessionId, chatSession.session.userId);
-            if (vectorStoreResult.success && vectorStoreResult.vectorStore) {
-                return vectorStoreResult.vectorStore.openaiVectorStoreId;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error getting vector store for session:', error);
-            return null;
-        }
-    }
 }
