@@ -1,6 +1,8 @@
 import { AIProviderConfig } from '../types/ai-provider';
 import { ChatMessage, ApiMetadata } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
+import { OpenAIModelConfigService } from './openaiModelConfigService';
+import { OpenAIProviderService } from './openaiProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
 import { WorkspaceService } from './workspaceService';
@@ -43,6 +45,8 @@ export interface ConversationMessage {
 export class AIChatService {
     private static instance: AIChatService;
     private aiProviderService: AIProviderService;
+    private openaiModelConfigService: OpenAIModelConfigService;
+    private openaiProviderService: OpenAIProviderService;
     private personalityService: PersonalityService;
     private chatService: ChatService;
     private workspaceService: WorkspaceService;
@@ -51,6 +55,8 @@ export class AIChatService {
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
+        this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
+        this.openaiProviderService = OpenAIProviderService.getInstance();
         this.personalityService = new PersonalityService();
         this.chatService = ChatService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
@@ -73,15 +79,32 @@ export class AIChatService {
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         try {
-            // Get AI provider configuration with encrypted keys for internal use
-            const providers = this.aiProviderService.getProvidersWithEncryptedKeys();
             let selectedProvider: AIProviderConfig | undefined;
 
             if (request.aiProviderId) {
-                selectedProvider = providers.find(p => p.id === request.aiProviderId && p.isActive);
+                // First try to resolve as OpenAI model configuration
+                selectedProvider = await this.resolveOpenAIModelConfig(request.aiProviderId);
+
+                // If not found, try old AI provider system
+                if (!selectedProvider) {
+                    const providers = this.aiProviderService.getProvidersWithEncryptedKeys();
+                    selectedProvider = providers.find(p => p.id === request.aiProviderId && p.isActive);
+                }
             } else {
-                // Use first active provider as default
-                selectedProvider = providers.find(p => p.isActive);
+                // Use first active provider as default (try OpenAI model configs first)
+                const modelConfigs = await this.openaiModelConfigService.getAllModelConfigs();
+                if (modelConfigs.success && modelConfigs.data && Array.isArray(modelConfigs.data) && modelConfigs.data.length > 0) {
+                    const activeConfig = modelConfigs.data.find((config: any) => config.isActive);
+                    if (activeConfig) {
+                        selectedProvider = await this.resolveOpenAIModelConfig(activeConfig.id);
+                    }
+                }
+
+                // Fall back to old AI provider system
+                if (!selectedProvider) {
+                    const providers = this.aiProviderService.getProvidersWithEncryptedKeys();
+                    selectedProvider = providers.find(p => p.isActive);
+                }
             }
 
             if (!selectedProvider) {
@@ -124,6 +147,50 @@ export class AIChatService {
                 success: false,
                 message: `Failed to generate response: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
+        }
+    }
+
+    /**
+     * Resolve OpenAI model configuration to AIProviderConfig format
+     */
+    private async resolveOpenAIModelConfig(modelConfigId: string): Promise<AIProviderConfig | undefined> {
+        try {
+            // Get all model configurations and find the one with matching ID
+            const allConfigsResult = await this.openaiModelConfigService.getAllModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.data) {
+                return undefined;
+            }
+
+            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
+
+            if (!modelConfig || !modelConfig.isActive) {
+                return undefined;
+            }
+
+            // Get the decrypted API key for this model config
+            const decryptedApiKey = await this.openaiProviderService.getDecryptedApiKey(modelConfig.keyId);
+            if (!decryptedApiKey) {
+                return undefined;
+            }
+
+            // Convert to AIProviderConfig format
+            const aiProviderConfig: AIProviderConfig = {
+                id: modelConfig.id,
+                type: 'openai',
+                name: modelConfig.customName || modelConfig.modelName,
+                apiKey: decryptedApiKey, // Use decrypted API key directly
+                model: modelConfig.modelId,
+                endpoint: 'https://api.openai.com/v1',
+                isActive: modelConfig.isActive,
+                createdAt: modelConfig.createdAt,
+                updatedAt: modelConfig.updatedAt
+            };
+
+            return aiProviderConfig;
+        } catch (error) {
+            console.error('Error resolving OpenAI model config:', error);
+            return undefined;
         }
     }
 
@@ -284,7 +351,8 @@ export class AIChatService {
         reasoningEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
-        const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
+        // Check if API key is already decrypted (from OpenAI model config) or needs decryption (from old provider system)
+        const apiKey = provider.apiKey.includes(':') ? this.aiProviderService.decryptApiKey(provider.apiKey) : provider.apiKey;
 
         // Use the full conversation history
         const messages = conversationHistory.map(msg => ({
@@ -438,7 +506,8 @@ export class AIChatService {
         reasoningEnabled?: boolean
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://api.openai.com/v1';
-        const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
+        // Check if API key is already decrypted (from OpenAI model config) or needs decryption (from old provider system)
+        const apiKey = provider.apiKey.includes(':') ? this.aiProviderService.decryptApiKey(provider.apiKey) : provider.apiKey;
 
         // Get the last user message as input
         const lastUserMessage = conversationHistory.filter(msg => msg.role === 'user').pop();
