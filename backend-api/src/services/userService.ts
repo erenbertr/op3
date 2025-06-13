@@ -283,7 +283,7 @@ export class UserService {
             switch (config.type) {
                 case 'mongodb':
                     await connection.collection('users').updateOne(
-                        { id: userId },
+                        { _id: userId },
                         { $set: { lastLoginAt: now } }
                     );
                     break;
@@ -890,7 +890,7 @@ export class UserService {
             switch (config.type) {
                 case 'mongodb':
                     await connection.collection('users').updateOne(
-                        { id: userId },
+                        { _id: userId },
                         { $set: updateFields }
                     );
                     break;
@@ -975,7 +975,7 @@ export class UserService {
             switch (config.type) {
                 case 'mongodb':
                     await connection.collection('users').updateOne(
-                        { id: userId },
+                        { _id: userId },
                         { $set: { password: hashedNewPassword, updatedAt: now } }
                     );
                     break;
@@ -987,7 +987,7 @@ export class UserService {
                     break;
 
                 case 'localdb':
-                    return new Promise((resolve, reject) => {
+                    await new Promise((resolve, reject) => {
                         connection.run(
                             'UPDATE users SET password = ?, updatedAt = ? WHERE id = ?',
                             [hashedNewPassword, now.toISOString(), userId],
@@ -997,6 +997,7 @@ export class UserService {
                             }
                         );
                     });
+                    break;
 
                 case 'supabase':
                     const { error } = await connection
@@ -1028,6 +1029,7 @@ export class UserService {
      */
     private async getUserById(userId: string): Promise<User | null> {
         try {
+            console.log('🔍 getUserById called with userId:', userId);
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
                 throw new Error('No database configuration found');
@@ -1037,7 +1039,14 @@ export class UserService {
 
             switch (config.type) {
                 case 'mongodb':
-                    const mongoUser = await connection.collection('users').findOne({ id: userId });
+                    console.log('🔍 Searching MongoDB for user with _id:', userId);
+                    const mongoUser = await connection.collection('users').findOne({ _id: userId });
+                    console.log('🔍 MongoDB query result:', mongoUser ? 'User found' : 'User not found');
+                    if (!mongoUser) {
+                        // Let's also try to see what users exist
+                        const allUsers = await connection.collection('users').find({}).toArray();
+                        console.log('🔍 All users in database:', allUsers.map((u: any) => ({ _id: u._id, email: u.email })));
+                    }
                     return mongoUser ? this.mapMongoUser(mongoUser) : null;
 
                 case 'mysql':

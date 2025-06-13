@@ -169,10 +169,6 @@ router.patch('/password', authenticateToken, asyncHandler(async (req: Request, r
         throw createError('Current password and new password are required', 400);
     }
 
-    if (newPassword.length < 6) {
-        throw createError('New password must be at least 6 characters long', 400);
-    }
-
     try {
         const result = await userService.changePassword(userId, currentPassword, newPassword);
 
@@ -182,8 +178,22 @@ router.patch('/password', authenticateToken, asyncHandler(async (req: Request, r
         });
     } catch (error) {
         console.error('Password change error:', error);
-        if (error instanceof Error && error.message.includes('Invalid current password')) {
-            throw createError('Invalid current password', 400);
+        if (error instanceof Error) {
+            if (error.message.includes('Invalid current password')) {
+                throw createError('Invalid current password', 400);
+            }
+            if (error.message.includes('User not found')) {
+                throw createError('User not found', 404);
+            }
+            // Pass through validation errors (password requirements)
+            if (error.message.includes('Password must be') ||
+                error.message.includes('characters long') ||
+                error.message.includes('uppercase') ||
+                error.message.includes('lowercase') ||
+                error.message.includes('number') ||
+                error.message.includes('special character')) {
+                throw createError(error.message, 400);
+            }
         }
         throw createError('Failed to change password', 500);
     }

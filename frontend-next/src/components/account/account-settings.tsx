@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, EyeOff, Save, User, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Save, User, Mail, Lock, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/toast';
 import { apiClient } from '@/lib/api';
 
@@ -21,8 +21,8 @@ interface AccountSettingsProps {
 }
 
 export function AccountSettings({ currentUser }: AccountSettingsProps) {
-    const { toast } = useToast();
-    
+    const { addToast } = useToast();
+
     // Profile state
     const [profileData, setProfileData] = useState({
         email: currentUser.email,
@@ -30,20 +30,20 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
         firstName: currentUser.firstName || '',
         lastName: currentUser.lastName || '',
     });
-    
+
     // Password state
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
     });
-    
+
     const [showPasswords, setShowPasswords] = useState({
         current: false,
         new: false,
         confirm: false,
     });
-    
+
     const [isLoading, setIsLoading] = useState({
         profile: false,
         password: false,
@@ -54,21 +54,21 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
         setIsLoading(prev => ({ ...prev, profile: true }));
 
         try {
-            const response = await apiClient.patch(`/api/v1/auth/profile`, {
+            const response = await apiClient.patch(`/auth/profile`, {
                 username: profileData.username,
                 firstName: profileData.firstName,
                 lastName: profileData.lastName,
             });
 
             if (response.success) {
-                toast({
+                addToast({
                     title: "Profile Updated",
                     description: "Your profile information has been updated successfully.",
                 });
             }
         } catch (error) {
             console.error('Profile update error:', error);
-            toast({
+            addToast({
                 title: "Update Failed",
                 description: "Failed to update profile information. Please try again.",
                 variant: "destructive",
@@ -80,9 +80,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
 
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (passwordData.newPassword !== passwordData.confirmPassword) {
-            toast({
+            addToast({
                 title: "Password Mismatch",
                 description: "New password and confirmation do not match.",
                 variant: "destructive",
@@ -90,10 +90,20 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
             return;
         }
 
-        if (passwordData.newPassword.length < 6) {
-            toast({
-                title: "Password Too Short",
-                description: "Password must be at least 6 characters long.",
+        // Validate password requirements
+        const passwordRequirements = [
+            { met: passwordData.newPassword.length >= 8, text: 'At least 8 characters' },
+            { met: /[A-Z]/.test(passwordData.newPassword), text: 'One uppercase letter' },
+            { met: /[a-z]/.test(passwordData.newPassword), text: 'One lowercase letter' },
+            { met: /\d/.test(passwordData.newPassword), text: 'One number' },
+            { met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passwordData.newPassword), text: 'One special character' },
+        ];
+
+        const unmetRequirements = passwordRequirements.filter(req => !req.met);
+        if (unmetRequirements.length > 0) {
+            addToast({
+                title: "Password Requirements Not Met",
+                description: `Missing: ${unmetRequirements.map(req => req.text).join(', ')}`,
                 variant: "destructive",
             });
             return;
@@ -102,13 +112,13 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
         setIsLoading(prev => ({ ...prev, password: true }));
 
         try {
-            const response = await apiClient.patch(`/api/v1/auth/password`, {
+            const response = await apiClient.patch(`/auth/password`, {
                 currentPassword: passwordData.currentPassword,
                 newPassword: passwordData.newPassword,
             });
 
             if (response.success) {
-                toast({
+                addToast({
                     title: "Password Updated",
                     description: "Your password has been changed successfully.",
                 });
@@ -118,11 +128,20 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                     confirmPassword: '',
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Password change error:', error);
-            toast({
+
+            // Extract error message from API response
+            let errorMessage = "Failed to change password. Please try again.";
+            if (error?.response?.data?.error?.message) {
+                errorMessage = error.response.data.error.message;
+            } else if (error?.message) {
+                errorMessage = error.message;
+            }
+
+            addToast({
                 title: "Password Change Failed",
-                description: "Failed to change password. Please check your current password and try again.",
+                description: errorMessage,
                 variant: "destructive",
             });
         } finally {
@@ -171,9 +190,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             id="firstName"
                                             type="text"
                                             value={profileData.firstName}
-                                            onChange={(e) => setProfileData(prev => ({ 
-                                                ...prev, 
-                                                firstName: e.target.value 
+                                            onChange={(e) => setProfileData(prev => ({
+                                                ...prev,
+                                                firstName: e.target.value
                                             }))}
                                             placeholder="Enter your first name"
                                             disabled={isLoading.profile}
@@ -185,25 +204,25 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             id="lastName"
                                             type="text"
                                             value={profileData.lastName}
-                                            onChange={(e) => setProfileData(prev => ({ 
-                                                ...prev, 
-                                                lastName: e.target.value 
+                                            onChange={(e) => setProfileData(prev => ({
+                                                ...prev,
+                                                lastName: e.target.value
                                             }))}
                                             placeholder="Enter your last name"
                                             disabled={isLoading.profile}
                                         />
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label htmlFor="username">Username</Label>
                                     <Input
                                         id="username"
                                         type="text"
                                         value={profileData.username}
-                                        onChange={(e) => setProfileData(prev => ({ 
-                                            ...prev, 
-                                            username: e.target.value 
+                                        onChange={(e) => setProfileData(prev => ({
+                                            ...prev,
+                                            username: e.target.value
                                         }))}
                                         placeholder="Enter your username"
                                         disabled={isLoading.profile}
@@ -228,8 +247,8 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         disabled={isLoading.profile}
                                         className="flex items-center gap-2"
                                     >
@@ -262,9 +281,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             id="currentPassword"
                                             type={showPasswords.current ? 'text' : 'password'}
                                             value={passwordData.currentPassword}
-                                            onChange={(e) => setPasswordData(prev => ({ 
-                                                ...prev, 
-                                                currentPassword: e.target.value 
+                                            onChange={(e) => setPasswordData(prev => ({
+                                                ...prev,
+                                                currentPassword: e.target.value
                                             }))}
                                             placeholder="Enter your current password"
                                             required
@@ -276,9 +295,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             variant="ghost"
                                             size="sm"
                                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                            onClick={() => setShowPasswords(prev => ({ 
-                                                ...prev, 
-                                                current: !prev.current 
+                                            onClick={() => setShowPasswords(prev => ({
+                                                ...prev,
+                                                current: !prev.current
                                             }))}
                                             disabled={isLoading.password}
                                         >
@@ -298,9 +317,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             id="newPassword"
                                             type={showPasswords.new ? 'text' : 'password'}
                                             value={passwordData.newPassword}
-                                            onChange={(e) => setPasswordData(prev => ({ 
-                                                ...prev, 
-                                                newPassword: e.target.value 
+                                            onChange={(e) => setPasswordData(prev => ({
+                                                ...prev,
+                                                newPassword: e.target.value
                                             }))}
                                             placeholder="Enter your new password"
                                             required
@@ -312,9 +331,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             variant="ghost"
                                             size="sm"
                                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                            onClick={() => setShowPasswords(prev => ({ 
-                                                ...prev, 
-                                                new: !prev.new 
+                                            onClick={() => setShowPasswords(prev => ({
+                                                ...prev,
+                                                new: !prev.new
                                             }))}
                                             disabled={isLoading.password}
                                         >
@@ -327,6 +346,35 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                     </div>
                                 </div>
 
+                                {/* Password Requirements */}
+                                {passwordData.newPassword && (
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium text-muted-foreground">
+                                            Password Requirements:
+                                        </p>
+                                        <div className="grid grid-cols-1 gap-1">
+                                            {[
+                                                { key: 'length', met: passwordData.newPassword.length >= 8, text: 'At least 8 characters' },
+                                                { key: 'uppercase', met: /[A-Z]/.test(passwordData.newPassword), text: 'One uppercase letter' },
+                                                { key: 'lowercase', met: /[a-z]/.test(passwordData.newPassword), text: 'One lowercase letter' },
+                                                { key: 'number', met: /\d/.test(passwordData.newPassword), text: 'One number' },
+                                                { key: 'special', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(passwordData.newPassword), text: 'One special character' },
+                                            ].map((req) => (
+                                                <div key={req.key} className="flex items-center gap-2">
+                                                    {req.met ? (
+                                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                                    ) : (
+                                                        <XCircle className="h-4 w-4 text-red-500" />
+                                                    )}
+                                                    <span className={`text-sm ${req.met ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                                                        {req.text}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="space-y-2">
                                     <Label htmlFor="confirmPassword">Confirm New Password</Label>
                                     <div className="relative">
@@ -334,9 +382,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             id="confirmPassword"
                                             type={showPasswords.confirm ? 'text' : 'password'}
                                             value={passwordData.confirmPassword}
-                                            onChange={(e) => setPasswordData(prev => ({ 
-                                                ...prev, 
-                                                confirmPassword: e.target.value 
+                                            onChange={(e) => setPasswordData(prev => ({
+                                                ...prev,
+                                                confirmPassword: e.target.value
                                             }))}
                                             placeholder="Confirm your new password"
                                             required
@@ -348,9 +396,9 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                             variant="ghost"
                                             size="sm"
                                             className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                            onClick={() => setShowPasswords(prev => ({ 
-                                                ...prev, 
-                                                confirm: !prev.confirm 
+                                            onClick={() => setShowPasswords(prev => ({
+                                                ...prev,
+                                                confirm: !prev.confirm
                                             }))}
                                             disabled={isLoading.password}
                                         >
@@ -364,8 +412,8 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button 
-                                        type="submit" 
+                                    <Button
+                                        type="submit"
                                         disabled={isLoading.password}
                                         className="flex items-center gap-2"
                                     >

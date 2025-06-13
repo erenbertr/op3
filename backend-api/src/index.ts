@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3006;
 // Middleware
 app.use(helmet());
 app.use(cors({
-    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:3006'],
+    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3006'],
     credentials: true
 }));
 app.use(morgan('combined'));
@@ -68,6 +68,7 @@ server.listen(PORT, () => {
     console.log(`🔗 API endpoints: http://localhost:${PORT}/api/v1`);
     console.log(`🔌 WebSocket server: ws://localhost:${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔧 CORS enabled for: http://localhost:3000, http://localhost:3002, http://localhost:3006`);
 });
 
 export default app;
