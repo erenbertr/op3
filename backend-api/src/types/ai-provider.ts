@@ -114,6 +114,16 @@ export interface OpenRouterModel {
     };
     top_provider?: {
         max_completion_tokens?: number;
+        context_length?: number;
+    };
+    architecture?: {
+        modality?: string;
+        tokenizer?: string;
+        instruct_type?: string;
+    };
+    per_request_limits?: {
+        prompt_tokens?: string;
+        completion_tokens?: string;
     };
 }
 
