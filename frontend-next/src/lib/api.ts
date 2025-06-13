@@ -1107,6 +1107,10 @@ class ApiClient {
         return this.request<GetGlobalOpenRouterSettingsResponse>('/openrouter/settings');
     }
 
+    async getGlobalOpenRouterModels(): Promise<ValidateOpenRouterApiKeyResponse> {
+        return this.request<ValidateOpenRouterApiKeyResponse>('/openrouter/models');
+    }
+
     async saveGlobalOpenRouterSettings(request: SaveGlobalOpenRouterSettingsRequest): Promise<SaveGlobalOpenRouterSettingsResponse> {
         return this.request<SaveGlobalOpenRouterSettingsResponse>('/openrouter/settings', {
             method: 'POST',

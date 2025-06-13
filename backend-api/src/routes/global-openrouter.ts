@@ -31,6 +31,12 @@ router.get('/settings', asyncHandler(async (req: Request, res: Response) => {
     res.json(result);
 }));
 
+// Get available models using saved API key
+router.get('/models', asyncHandler(async (req: Request, res: Response) => {
+    const result = await globalOpenRouterService.getAvailableModels();
+    res.json(result);
+}));
+
 // Save global OpenRouter settings
 router.post('/settings', asyncHandler(async (req: Request, res: Response) => {
     const requestBody = req.body;

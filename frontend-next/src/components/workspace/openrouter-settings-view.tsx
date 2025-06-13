@@ -178,12 +178,21 @@ export function OpenRouterSettingsView() {
         }
     }, [settingsData]);
 
-    // Fetch models for existing configuration (we can't validate without the real API key)
+    // Fetch models for existing configuration using saved API key
     const fetchModelsForExistingConfig = async () => {
-        // For existing configurations, we'll show a message that models need to be fetched
-        // In a real scenario, you might want to store the models in the database
-        // or require re-validation of the API key
-        setAvailableModels([]); // Clear models, user will need to re-validate if they want to see/change models
+        try {
+            const result = await apiClient.getGlobalOpenRouterModels();
+            if (result.success && result.models) {
+                setAvailableModels(result.models);
+                setValidationError(null);
+            } else {
+                setValidationError(result.message || 'Failed to fetch models');
+                setAvailableModels([]);
+            }
+        } catch (error) {
+            setValidationError(error instanceof Error ? error.message : 'Failed to fetch models');
+            setAvailableModels([]);
+        }
     };
 
     // Validate API key and fetch models
@@ -643,20 +652,15 @@ export function OpenRouterSettingsView() {
                     <CardHeader>
                         <CardTitle>Model Selection</CardTitle>
                         <CardDescription>
-                            Manage your selected OpenRouter models
+                            Loading your available OpenRouter models...
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="text-center py-8">
+                            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
                             <p className="text-muted-foreground mb-4">
-                                You have an existing OpenRouter configuration with {selectedModels.length} selected models.
+                                Fetching available models using your saved API key...
                             </p>
-                            <p className="text-sm text-muted-foreground mb-4">
-                                To view and modify available models, please re-validate your API key in the previous step.
-                            </p>
-                            <Button variant="outline" onClick={() => setCurrentStep(0)}>
-                                Go Back to API Configuration
-                            </Button>
                         </div>
 
                         {selectedModels.length > 0 && (
@@ -671,22 +675,6 @@ export function OpenRouterSettingsView() {
                                 </div>
                             </div>
                         )}
-
-                        {/* Save Button for existing config */}
-                        <div className="flex justify-end pt-4 border-t">
-                            <Button
-                                onClick={handleSave}
-                                disabled={saveSettingsMutation.isPending || selectedModels.length === 0}
-                                className="min-w-32"
-                            >
-                                {saveSettingsMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                    <Save className="h-4 w-4 mr-2" />
-                                )}
-                                Save & Continue
-                            </Button>
-                        </div>
                     </CardContent>
                 </Card>
             );

@@ -179,6 +179,52 @@ export class GlobalOpenRouterService {
         }
     }
 
+    // Get available models using saved API key
+    public async getAvailableModels(): Promise<ValidateOpenRouterApiKeyResponse> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            await this.createTableIfNotExists(connection, config.type);
+
+            const settings = await this.getSettingsFromDatabase(connection, config.type);
+            if (!settings || !settings.apiKey) {
+                return {
+                    success: false,
+                    message: 'No API key found. Please configure OpenRouter first.',
+                    error: 'NO_API_KEY'
+                };
+            }
+
+            // Decrypt the API key and fetch models
+            const decryptedApiKey = this.decryptApiKey(settings.apiKey);
+            const result = await this.aiProviderService.fetchOpenRouterModels(decryptedApiKey);
+
+            if (result.success) {
+                return {
+                    success: true,
+                    message: 'Models fetched successfully',
+                    models: result.models
+                };
+            } else {
+                return {
+                    success: false,
+                    message: result.message || 'Failed to fetch models',
+                    error: result.error
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to fetch models',
+                error: 'FETCH_ERROR'
+            };
+        }
+    }
+
     // Get global OpenRouter settings
     public async getSettings(): Promise<GetGlobalOpenRouterSettingsResponse> {
         try {
