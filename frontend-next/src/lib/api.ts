@@ -1101,6 +1101,24 @@ class ApiClient {
             method: 'DELETE'
         });
     }
+
+    // Global OpenRouter API methods
+    async getGlobalOpenRouterSettings(): Promise<GetGlobalOpenRouterSettingsResponse> {
+        return this.request<GetGlobalOpenRouterSettingsResponse>('/openrouter/settings');
+    }
+
+    async saveGlobalOpenRouterSettings(request: SaveGlobalOpenRouterSettingsRequest): Promise<SaveGlobalOpenRouterSettingsResponse> {
+        return this.request<SaveGlobalOpenRouterSettingsResponse>('/openrouter/settings', {
+            method: 'POST',
+            body: JSON.stringify(request)
+        });
+    }
+
+    async deleteGlobalOpenRouterSettings(): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>('/openrouter/settings', {
+            method: 'DELETE'
+        });
+    }
 }
 
 // OpenRouter specific types
@@ -1156,6 +1174,36 @@ export interface SaveWorkspaceOpenRouterSettingsResponse {
 export interface GetWorkspaceOpenRouterSettingsResponse {
     success: boolean;
     settings?: WorkspaceOpenRouterSettings;
+    message?: string;
+    error?: string;
+}
+
+// Global OpenRouter types
+export interface GlobalOpenRouterSettings {
+    id?: string;
+    apiKey: string;
+    selectedModels: string[];
+    isEnabled: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export interface SaveGlobalOpenRouterSettingsRequest {
+    apiKey: string;
+    selectedModels: string[];
+    isEnabled: boolean;
+}
+
+export interface SaveGlobalOpenRouterSettingsResponse {
+    success: boolean;
+    message: string;
+    settings?: GlobalOpenRouterSettings;
+    error?: string;
+}
+
+export interface GetGlobalOpenRouterSettingsResponse {
+    success: boolean;
+    settings?: GlobalOpenRouterSettings;
     message?: string;
     error?: string;
 }

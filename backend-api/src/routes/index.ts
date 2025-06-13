@@ -3,6 +3,7 @@ import setupRouter from './setup';
 import workspaceRouter from './workspace';
 import workspaceGroupRouter from './workspace-group';
 import workspaceOpenRouterRouter from './workspace-openrouter';
+import globalOpenRouterRouter from './global-openrouter';
 import personalitiesRouter from './personalities';
 import chatRouter from './chat';
 import aiProvidersRouter from './ai-providers';
@@ -28,6 +29,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Workspace OpenRouter routes
     app.use(`${API_PREFIX}/workspace-openrouter`, workspaceOpenRouterRouter);
+
+    // Global OpenRouter routes
+    app.use(`${API_PREFIX}/openrouter`, globalOpenRouterRouter);
 
     // Personalities routes
     app.use(`${API_PREFIX}/personalities`, personalitiesRouter);
@@ -56,6 +60,7 @@ export const setupRoutes = (app: Express): void => {
                 workspace: `${API_PREFIX}/workspace`,
                 workspaceGroups: `${API_PREFIX}/workspace-groups`,
                 workspaceOpenRouter: `${API_PREFIX}/workspace-openrouter`,
+                openrouter: `${API_PREFIX}/openrouter`,
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,
                 aiProviders: `${API_PREFIX}/ai-providers`,
