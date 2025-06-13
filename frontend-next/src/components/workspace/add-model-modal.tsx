@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Brain, Search, FileUp, Image, FileText, Eye, Code, Calculator, Zap } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Brain, Search, FileUp, Image, FileText, Eye, Code, Calculator, Zap, Filter, X } from 'lucide-react';
 import { ModelCapabilities, ModelPricing } from '@/lib/api/openai-model-configs';
 
 interface OpenAIModel {
@@ -34,10 +36,18 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
     const [customName, setCustomName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Search and filter state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [ownerFilter, setOwnerFilter] = useState<string>('all');
+    const [capabilityFilters, setCapabilityFilters] = useState<string[]>([]);
+
     const handleClose = () => {
         setSelectedModel(null);
         setCustomName('');
         setIsSubmitting(false);
+        setSearchQuery('');
+        setOwnerFilter('all');
+        setCapabilityFilters([]);
         onClose();
     };
 
@@ -57,7 +67,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
 
     const getModelCapabilities = (modelId: string): ModelCapabilities => {
         const capabilities: ModelCapabilities = {};
-        
+
         // GPT-4o models
         if (modelId.includes('gpt-4o')) {
             capabilities.reasoning = true;
@@ -93,7 +103,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
 
     const getModelPricing = (modelId: string): ModelPricing => {
         const pricing: ModelPricing = {};
-        
+
         // GPT-4o models
         if (modelId === 'gpt-4o') {
             pricing.inputTokens = '$5.00';
@@ -155,14 +165,77 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         }
     };
 
+    // Get unique owners for filter dropdown
+    const uniqueOwners = useMemo(() => {
+        const owners = [...new Set(availableModels.map(model => model.owned_by))];
+        return owners.sort();
+    }, [availableModels]);
+
+    // Get all available capabilities for filter checkboxes
+    const allCapabilities = useMemo(() => {
+        const capabilitySet = new Set<string>();
+        availableModels.forEach(model => {
+            const capabilities = getModelCapabilities(model.id);
+            Object.entries(capabilities).forEach(([key, value]) => {
+                if (value) capabilitySet.add(key);
+            });
+        });
+        return Array.from(capabilitySet).sort();
+    }, [availableModels]);
+
+    // Filter and search models
+    const filteredModels = useMemo(() => {
+        return availableModels.filter(model => {
+            // Search filter
+            if (searchQuery.trim()) {
+                const query = searchQuery.toLowerCase();
+                const matchesSearch = model.id.toLowerCase().includes(query) ||
+                    model.owned_by.toLowerCase().includes(query);
+                if (!matchesSearch) return false;
+            }
+
+            // Owner filter
+            if (ownerFilter !== 'all' && model.owned_by !== ownerFilter) {
+                return false;
+            }
+
+            // Capability filters
+            if (capabilityFilters.length > 0) {
+                const modelCapabilities = getModelCapabilities(model.id);
+                const hasAllCapabilities = capabilityFilters.every(capability =>
+                    modelCapabilities[capability as keyof ModelCapabilities]
+                );
+                if (!hasAllCapabilities) return false;
+            }
+
+            return true;
+        });
+    }, [availableModels, searchQuery, ownerFilter, capabilityFilters]);
+
+    // Handle capability filter toggle
+    const handleCapabilityFilterToggle = (capability: string) => {
+        setCapabilityFilters(prev =>
+            prev.includes(capability)
+                ? prev.filter(c => c !== capability)
+                : [...prev, capability]
+        );
+    };
+
+    // Clear all filters
+    const clearAllFilters = () => {
+        setSearchQuery('');
+        setOwnerFilter('all');
+        setCapabilityFilters([]);
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogContent className="max-w-[80vw] max-h-[80vh] w-[80vw] h-[80vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Add Model</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-6">
+                <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -170,68 +243,157 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                         </div>
                     ) : (
                         <>
+                            {/* Search and Filters */}
+                            <div className="space-y-4 border-b pb-4">
+                                {/* Search Bar */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search models by name or owner..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-10"
+                                    />
+                                </div>
+
+                                {/* Filters Row */}
+                                <div className="flex flex-wrap gap-4 items-center">
+                                    {/* Owner Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-sm font-medium">Owner:</Label>
+                                        <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                                            <SelectTrigger className="w-40">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Owners</SelectItem>
+                                                {uniqueOwners.map(owner => (
+                                                    <SelectItem key={owner} value={owner}>
+                                                        {owner}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Capability Filters */}
+                                    <div className="flex items-center gap-2">
+                                        <Label className="text-sm font-medium">Capabilities:</Label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {allCapabilities.map(capability => (
+                                                <div key={capability} className="flex items-center space-x-1">
+                                                    <Checkbox
+                                                        id={capability}
+                                                        checked={capabilityFilters.includes(capability)}
+                                                        onCheckedChange={() => handleCapabilityFilterToggle(capability)}
+                                                    />
+                                                    <Label
+                                                        htmlFor={capability}
+                                                        className="text-xs cursor-pointer flex items-center gap-1"
+                                                    >
+                                                        {getCapabilityIcon(capability)}
+                                                        {getCapabilityLabel(capability)}
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Clear Filters */}
+                                    {(searchQuery || ownerFilter !== 'all' || capabilityFilters.length > 0) && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={clearAllFilters}
+                                            className="ml-auto"
+                                        >
+                                            <X className="h-4 w-4 mr-1" />
+                                            Clear Filters
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Results Count */}
+                                <div className="text-sm text-muted-foreground">
+                                    Showing {filteredModels.length} of {availableModels.length} models
+                                </div>
+                            </div>
+
                             {/* Model Selection */}
-                            <div className="space-y-4">
+                            <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                                 <Label>Select Model</Label>
-                                <div className="grid gap-3 max-h-64 overflow-y-auto">
-                                    {availableModels.map((model) => {
-                                        const capabilities = getModelCapabilities(model.id);
-                                        const pricing = getModelPricing(model.id);
-                                        const isSelected = selectedModel?.id === model.id;
-
-                                        return (
-                                            <Card 
-                                                key={model.id} 
-                                                className={`cursor-pointer transition-colors ${
-                                                    isSelected ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                                                }`}
-                                                onClick={() => setSelectedModel(model)}
+                                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                                    {filteredModels.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground">
+                                            <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                            <p>No models match your current filters</p>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={clearAllFilters}
+                                                className="mt-2"
                                             >
-                                                <CardHeader className="pb-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <CardTitle className="text-base">{model.id}</CardTitle>
-                                                        <Badge variant="outline">{model.owned_by}</Badge>
-                                                    </div>
-                                                </CardHeader>
-                                                <CardContent className="pt-0">
-                                                    {/* Capabilities */}
-                                                    {Object.keys(capabilities).length > 0 && (
-                                                        <div className="mb-3">
-                                                            <div className="text-sm font-medium mb-2">Capabilities</div>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {Object.entries(capabilities).map(([key, value]) => 
-                                                                    value && (
-                                                                        <Badge key={key} variant="secondary" className="text-xs">
-                                                                            {getCapabilityIcon(key)}
-                                                                            <span className="ml-1">{getCapabilityLabel(key)}</span>
-                                                                        </Badge>
-                                                                    )
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                Clear Filters
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        filteredModels.map((model) => {
+                                            const capabilities = getModelCapabilities(model.id);
+                                            const pricing = getModelPricing(model.id);
+                                            const isSelected = selectedModel?.id === model.id;
 
-                                                    {/* Pricing */}
-                                                    {(pricing.inputTokens || pricing.outputTokens || pricing.contextLength) && (
-                                                        <div>
-                                                            <div className="text-sm font-medium mb-2">Pricing & Limits</div>
-                                                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                                                {pricing.inputTokens && (
-                                                                    <span>Input: {pricing.inputTokens}/1M tokens</span>
-                                                                )}
-                                                                {pricing.outputTokens && (
-                                                                    <span>Output: {pricing.outputTokens}/1M tokens</span>
-                                                                )}
-                                                                {pricing.contextLength && (
-                                                                    <span>Context: {pricing.contextLength.toLocaleString()} tokens</span>
-                                                                )}
-                                                            </div>
+                                            return (
+                                                <Card
+                                                    key={model.id}
+                                                    className={`cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                                                        }`}
+                                                    onClick={() => setSelectedModel(model)}
+                                                >
+                                                    <CardHeader className="pb-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <CardTitle className="text-base">{model.id}</CardTitle>
+                                                            <Badge variant="outline">{model.owned_by}</Badge>
                                                         </div>
-                                                    )}
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })}
+                                                    </CardHeader>
+                                                    <CardContent className="pt-0">
+                                                        {/* Capabilities */}
+                                                        {Object.keys(capabilities).length > 0 && (
+                                                            <div className="mb-3">
+                                                                <div className="text-sm font-medium mb-2">Capabilities</div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {Object.entries(capabilities).map(([key, value]) =>
+                                                                        value && (
+                                                                            <Badge key={key} variant="secondary" className="text-xs">
+                                                                                {getCapabilityIcon(key)}
+                                                                                <span className="ml-1">{getCapabilityLabel(key)}</span>
+                                                                            </Badge>
+                                                                        )
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Pricing */}
+                                                        {(pricing.inputTokens || pricing.outputTokens || pricing.contextLength) && (
+                                                            <div>
+                                                                <div className="text-sm font-medium mb-2">Pricing & Limits</div>
+                                                                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                                                    {pricing.inputTokens && (
+                                                                        <span>Input: {pricing.inputTokens}/1M tokens</span>
+                                                                    )}
+                                                                    {pricing.outputTokens && (
+                                                                        <span>Output: {pricing.outputTokens}/1M tokens</span>
+                                                                    )}
+                                                                    {pricing.contextLength && (
+                                                                        <span>Context: {pricing.contextLength.toLocaleString()} tokens</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
+                                            );
+                                        })}
                                 </div>
                             </div>
 
@@ -253,8 +415,8 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                 <Button variant="outline" onClick={handleClose}>
                                     Cancel
                                 </Button>
-                                <Button 
-                                    onClick={handleSubmit} 
+                                <Button
+                                    onClick={handleSubmit}
                                     disabled={!selectedModel || isSubmitting}
                                 >
                                     {isSubmitting ? (
