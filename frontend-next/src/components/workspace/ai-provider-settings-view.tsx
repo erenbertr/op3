@@ -25,7 +25,7 @@ export function AIProviderSettingsView() {
             setTimeout(() => {
                 aiProviderManagementRef.current?.handleAddProvider();
                 // Remove the action parameter from URL
-                router.replace('/settings/ai-providers');
+                router.replace('/ai-providers/openai');
             }, 100);
         }
     }, [user, router, searchParams]);

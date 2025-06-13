@@ -526,6 +526,57 @@ export class AIProviderService {
         return this.providers.size > 0;
     }
 
+    // Fetch available models from OpenAI
+    public async fetchOpenAIModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        try {
+            const endpoint = DEFAULT_ENDPOINTS.openai;
+            if (!endpoint) {
+                return {
+                    success: false,
+                    message: 'OpenAI endpoint not configured',
+                    error: 'MISSING_ENDPOINT'
+                };
+            }
+
+            const response = await fetch(`${endpoint}/models`, {
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json() as any;
+                if (data && Array.isArray(data.data)) {
+                    return {
+                        success: true,
+                        models: data.data,
+                        message: 'Models fetched successfully'
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'Invalid response format from OpenAI API',
+                        error: 'INVALID_RESPONSE'
+                    };
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({})) as any;
+                return {
+                    success: false,
+                    message: errorData.error?.message || `HTTP ${response.status}`,
+                    error: 'API_ERROR'
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Network error',
+                error: 'NETWORK_ERROR'
+            };
+        }
+    }
+
     // Fetch available models from OpenRouter
     public async fetchOpenRouterModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
         try {

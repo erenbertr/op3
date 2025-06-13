@@ -575,6 +575,13 @@ class ApiClient {
         });
     }
 
+    async fetchOpenAIModels(request: { apiKey: string }): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        return this.request<{ success: boolean; models?: any[]; message?: string; error?: string }>('/ai-providers/openai/models', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
     async fetchOpenRouterModels(apiKey: string): Promise<{ success: boolean; models?: OpenRouterModel[]; message?: string; error?: string }> {
         return this.request<{ success: boolean; models?: OpenRouterModel[]; message?: string; error?: string }>('/ai-providers/openrouter/models', {
             method: 'POST',

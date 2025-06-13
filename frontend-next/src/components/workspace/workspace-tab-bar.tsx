@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
+import { Bot, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
 
@@ -11,7 +11,7 @@ import { useWorkspaceGroups } from '@/lib/hooks/use-workspace-groups';
 
 interface WorkspaceTabBarProps {
     userId: string;
-    currentView?: 'workspace' | 'settings' | 'create' | 'selection' | 'personalities' | 'statistics';
+    currentView?: 'workspace' | 'ai-providers' | 'create' | 'selection' | 'personalities' | 'statistics';
     currentWorkspaceId: string | null;
     onRefresh?: (refreshFn: () => void) => void;
     onOpenWorkspace?: (openWorkspaceFn: (workspaceId: string) => void) => void;
@@ -287,14 +287,14 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
         <div className="border-b bg-background">
             <div className="container mx-auto px-4">
                 <div className="flex items-center h-12 gap-1">
-                    {/* Settings Tab */}
+                    {/* AI Providers Tab */}
                     <Button
-                        variant={currentView === 'settings' ? 'secondary' : 'ghost'}
+                        variant={currentView === 'ai-providers' ? 'secondary' : 'ghost'}
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => navigationUtils.pushState('/settings/ai-providers')}
+                        onClick={() => navigationUtils.pushState('/ai-providers/openrouter')}
                     >
-                        <Settings className="h-4 w-4" />
+                        <Bot className="h-4 w-4" />
                     </Button>
 
                     {/* Statistics Tab */}

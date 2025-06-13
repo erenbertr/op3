@@ -185,6 +185,22 @@ router.post('/:id/test', asyncHandler(async (req: Request, res: Response) => {
     }
 }));
 
+// Fetch OpenAI models
+router.post('/openai/models', asyncHandler(async (req: Request, res: Response) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        throw createError('API key is required', 400);
+    }
+
+    try {
+        const result = await aiProviderService.fetchOpenAIModels(apiKey);
+        res.json(result);
+    } catch (error) {
+        throw createError('Failed to fetch OpenAI models', 500);
+    }
+}));
+
 // Fetch OpenRouter models
 router.post('/openrouter/models', asyncHandler(async (req: Request, res: Response) => {
     const { apiKey } = req.body;

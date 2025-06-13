@@ -10,15 +10,15 @@ import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 
-import { AIProviderSettingsView } from '@/components/workspace/ai-provider-settings-view';
 import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
+import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { AuthUser } from '@/lib/auth';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
-import { Loader2, Bot, Plus } from 'lucide-react';
+import { Loader2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WorkspaceApplicationProps {
@@ -69,17 +69,16 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 };
             }
 
-            // Handle settings routes
-            if (pathname.startsWith('/settings')) {
-                // Future-proofing: if more settings are added, they can be handled here
-                if (pathname === '/settings/ai-providers') {
-                    return { view: 'settings-ai-providers', params: {}, queryParams };
+            // Handle AI providers routes
+            if (pathname.startsWith('/ai-providers')) {
+                if (pathname === '/ai-providers/openrouter') {
+                    return { view: 'ai-providers-openrouter', params: {}, queryParams };
                 }
-                if (pathname === '/settings/openrouter') {
-                    return { view: 'settings-openrouter', params: {}, queryParams };
+                if (pathname === '/ai-providers/openai') {
+                    return { view: 'ai-providers-openai', params: {}, queryParams };
                 }
-                // Default to AI providers settings
-                return { view: 'settings-ai-providers', params: {}, queryParams };
+                // Default to OpenRouter
+                return { view: 'ai-providers-openrouter', params: {}, queryParams };
             }
 
             // Handle other routes
@@ -221,7 +220,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             <div className="flex-shrink-0">
                 <WorkspaceTabBar
                     userId={currentUser.id}
-                    currentView={currentView.startsWith('settings') ? 'settings' : currentView as 'workspace' | 'settings' | 'create' | 'selection' | 'personalities' | 'statistics'}
+                    currentView={currentView.startsWith('ai-providers') ? 'ai-providers' : currentView as 'workspace' | 'ai-providers' | 'create' | 'selection' | 'personalities' | 'statistics'}
                     currentWorkspaceId={routeParams.workspaceId || null}
                     onRefresh={setRefreshWorkspaces}
                     onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
@@ -335,16 +334,16 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     </>
                 )}
 
-                {currentView === 'settings-ai-providers' && (
-                    <SettingsLayout currentView="ai-providers">
-                        <AIProviderSettingsView />
-                    </SettingsLayout>
+                {currentView === 'ai-providers-openrouter' && (
+                    <AIProvidersLayout currentView="openrouter">
+                        <OpenRouterSettingsView />
+                    </AIProvidersLayout>
                 )}
 
-                {currentView === 'settings-openrouter' && (
-                    <SettingsLayout currentView="openrouter">
-                        <OpenRouterSettingsView />
-                    </SettingsLayout>
+                {currentView === 'ai-providers-openai' && (
+                    <AIProvidersLayout currentView="openai">
+                        <OpenAISettingsView />
+                    </AIProvidersLayout>
                 )}
 
 
@@ -433,39 +432,35 @@ function ChatViewInternal({ workspaceId, chatId }: ChatViewInternalProps) {
     );
 }
 
-// Internal SettingsLayout component for client-side routing
-interface SettingsLayoutProps {
+// Internal AIProvidersLayout component for client-side routing
+interface AIProvidersLayoutProps {
     children: React.ReactNode;
-    currentView: 'ai-providers' | 'openrouter';
+    currentView: 'openai' | 'openrouter';
 }
 
-function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
+function AIProvidersLayout({ children, currentView }: AIProvidersLayoutProps) {
 
-    const SETTINGS_TABS = [
+    const AI_PROVIDER_TABS = [
         {
-            id: 'ai-providers',
-            label: 'AI Providers',
+            id: 'openai',
+            label: 'OpenAI',
             icon: <Bot className="h-4 w-4" />,
-            description: 'Configure AI providers and models',
-            path: '/settings/ai-providers'
+            description: 'Configure OpenAI API and models',
+            path: '/ai-providers/openai'
         },
         {
             id: 'openrouter',
             label: 'OpenRouter',
             icon: <Bot className="h-4 w-4" />,
             description: 'Configure OpenRouter API and models',
-            path: '/settings/openrouter'
+            path: '/ai-providers/openrouter'
         }
     ];
 
-    const activeTab = SETTINGS_TABS.find(tab => tab.id === currentView);
+    const activeTab = AI_PROVIDER_TABS.find(tab => tab.id === currentView);
 
     const handleTabClick = (path: string) => {
         navigationUtils.pushState(path);
-    };
-
-    const handleAddProvider = () => {
-        navigationUtils.pushState('/settings/ai-providers?action=add');
     };
 
     return (
@@ -474,7 +469,7 @@ function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
                 {/* Vertical Tabs Sidebar */}
                 <div className="w-96 h-full overflow-y-auto">
                     <div className="py-6 space-y-2">
-                        {SETTINGS_TABS.map((tab) => (
+                        {AI_PROVIDER_TABS.map((tab) => (
                             <Button
                                 key={tab.id}
                                 variant={currentView === tab.id ? "default" : "ghost"}
@@ -509,12 +504,7 @@ function SettingsLayout({ children, currentView }: SettingsLayoutProps) {
                                     {activeTab?.description || 'Manage your application settings'}
                                 </p>
                             </div>
-                            {currentView === 'ai-providers' && (
-                                <Button onClick={handleAddProvider} className="ml-4">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Provider
-                                </Button>
-                            )}
+
                         </div>
 
                         {/* Tab Content */}
