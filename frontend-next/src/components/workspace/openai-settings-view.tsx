@@ -547,71 +547,87 @@ export function OpenAISettingsView() {
     function renderKeysTab() {
         return (
             <div className="space-y-6">
-                {/* Existing Keys */}
-                {keys.length > 0 && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>API Keys</CardTitle>
-                            <CardDescription>
-                                Manage your OpenAI API keys
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {keys.map((key) => (
-                                <div key={key.id} className="flex items-center justify-between p-4 border rounded-lg">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3">
-                                            <h3 className="font-medium">{key.name}</h3>
-                                            <Badge variant={key.isActive ? "default" : "secondary"}>
-                                                {key.isActive ? "Active" : "Inactive"}
-                                            </Badge>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Key: {key.apiKey.substring(0, 8)}...
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Switch
-                                            checked={key.isActive}
-                                            onCheckedChange={() => handleKeyToggleActive(key)}
-                                        />
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => testKeyMutation.mutate(key.id)}
-                                            disabled={testKeyMutation.isPending}
-                                        >
-                                            {testKeyMutation.isPending ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <TestTube className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleKeyEdit(key)}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => deleteKeyMutation.mutate(key.id)}
-                                            disabled={deleteKeyMutation.isPending}
-                                        >
-                                            {deleteKeyMutation.isPending ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                    </div>
+                {/* Existing Keys or Empty State */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>API Keys</CardTitle>
+                        <CardDescription>
+                            Manage your OpenAI API keys
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {keys.length === 0 ? (
+                            <div className="text-center py-12">
+                                <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
+                                    <Key className="h-12 w-12 text-muted-foreground" />
                                 </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                )}
+                                <h3 className="text-lg font-semibold mb-2">No API Keys</h3>
+                                <p className="text-muted-foreground mb-4 max-w-sm mx-auto">
+                                    You haven't added any OpenAI API keys yet. Add your first key to get started with OpenAI models.
+                                </p>
+                                <Button onClick={handleAddNewKey}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Your First API Key
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {keys.map((key) => (
+                                    <div key={key.id} className="flex items-center justify-between p-4 border rounded-lg">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3">
+                                                <h3 className="font-medium">{key.name}</h3>
+                                                <Badge variant={key.isActive ? "default" : "secondary"}>
+                                                    {key.isActive ? "Active" : "Inactive"}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Key: {key.apiKey.substring(0, 8)}...
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={key.isActive}
+                                                onCheckedChange={() => handleKeyToggleActive(key)}
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => testKeyMutation.mutate(key.id)}
+                                                disabled={testKeyMutation.isPending}
+                                            >
+                                                {testKeyMutation.isPending ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <TestTube className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleKeyEdit(key)}
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => deleteKeyMutation.mutate(key.id)}
+                                                disabled={deleteKeyMutation.isPending}
+                                            >
+                                                {deleteKeyMutation.isPending ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
 
             </div>
