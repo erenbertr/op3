@@ -8,16 +8,27 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Save, Search, Filter, X } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Save, Search, Filter, X, ArrowRight, ArrowLeft, RotateCcw, Settings, Key } from 'lucide-react';
 import { authService } from '@/lib/auth';
 import { apiClient, OpenRouterModel } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+interface OpenRouterStep {
+    id: string;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    completed: boolean;
+}
+
 export function OpenRouterSettingsView() {
     const router = useRouter();
     const { addToast } = useToast();
     const queryClient = useQueryClient();
+
+    // Step management
+    const [currentStep, setCurrentStep] = useState(0);
 
     const [apiKey, setApiKey] = useState('');
     const [showApiKey, setShowApiKey] = useState(false);
@@ -34,6 +45,31 @@ export function OpenRouterSettingsView() {
     const [contextFilter, setContextFilter] = useState<'all' | 'small' | 'medium' | 'large'>('all');
 
     const user = authService.getCurrentUser();
+
+    // Define wizard steps
+    const steps: OpenRouterStep[] = [
+        {
+            id: 'api-key',
+            title: 'API Configuration',
+            description: 'Enter and validate your OpenRouter API key',
+            icon: <Key className="h-5 w-5" />,
+            completed: isValidated && !!apiKey.trim(),
+        },
+        {
+            id: 'model-selection',
+            title: 'Model Selection',
+            description: 'Choose the models you want to use',
+            icon: <Settings className="h-5 w-5" />,
+            completed: isValidated && selectedModels.length > 0,
+        },
+        {
+            id: 'complete',
+            title: 'Complete',
+            description: 'Review and finish setup',
+            icon: <CheckCircle className="h-5 w-5" />,
+            completed: false,
+        },
+    ];
 
     // Extract unique providers from available models
     const availableProviders = useMemo(() => {
@@ -129,6 +165,13 @@ export function OpenRouterSettingsView() {
             setSelectedModels(settingsData.settings.selectedModels || []);
             setIsValidated(true);
             // Don't set the API key as it's masked
+
+            // If we have existing settings, start from completion step
+            if (settingsData.settings.selectedModels && settingsData.settings.selectedModels.length > 0) {
+                setCurrentStep(2); // Go to completion step
+            } else if (settingsData.settings.apiKey && settingsData.settings.apiKey !== '***') {
+                setCurrentStep(1); // Go to model selection step
+            }
         }
     }, [settingsData]);
 
@@ -149,11 +192,24 @@ export function OpenRouterSettingsView() {
                 setAvailableModels(result.models);
                 setIsValidated(true);
                 setValidationError(null);
+
+                // Save API key to database immediately after validation
+                await apiClient.saveGlobalOpenRouterSettings({
+                    apiKey: apiKey.trim(),
+                    selectedModels: [], // Empty for now, will be updated in next step
+                    isEnabled: true
+                });
+
                 addToast({
                     title: "API Key Valid",
                     description: `Found ${result.models.length} available models`,
                     variant: "success"
                 });
+
+                // Auto-proceed to next step
+                setTimeout(() => {
+                    nextStep();
+                }, 1000);
             } else {
                 setValidationError(result.message || 'Invalid API key');
                 setIsValidated(false);
@@ -190,6 +246,9 @@ export function OpenRouterSettingsView() {
                 });
                 // Invalidate and refetch settings
                 queryClient.invalidateQueries({ queryKey: ['global-openrouter-settings'] });
+
+                // Proceed to completion step
+                nextStep();
             } else {
                 addToast({
                     title: "Save Failed",
@@ -265,6 +324,49 @@ export function OpenRouterSettingsView() {
         });
     };
 
+    // Step navigation functions
+    const nextStep = () => {
+        if (currentStep < steps.length - 1) {
+            setCurrentStep(currentStep + 1);
+        }
+    };
+
+    const prevStep = () => {
+        if (currentStep > 0) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const resetWizard = async () => {
+        try {
+            // Delete settings from database
+            await apiClient.deleteGlobalOpenRouterSettings();
+
+            // Reset local state
+            setCurrentStep(0);
+            setApiKey('');
+            setSelectedModels([]);
+            setAvailableModels([]);
+            setIsValidated(false);
+            setValidationError(null);
+
+            // Clear any cached settings
+            queryClient.invalidateQueries({ queryKey: ['global-openrouter-settings'] });
+
+            addToast({
+                title: "Configuration Reset",
+                description: "OpenRouter configuration has been reset",
+                variant: "success"
+            });
+        } catch (error) {
+            addToast({
+                title: "Reset Failed",
+                description: error instanceof Error ? error.message : "Failed to reset configuration",
+                variant: "destructive"
+            });
+        }
+    };
+
     const handleSave = () => {
         if (!isValidated) {
             setValidationError('Please validate your API key first');
@@ -291,9 +393,134 @@ export function OpenRouterSettingsView() {
         );
     }
 
+    // Render step content
+    const renderStepContent = () => {
+        switch (currentStep) {
+            case 0:
+                return renderApiKeyStep();
+            case 1:
+                return renderModelSelectionStep();
+            case 2:
+                return renderCompletionStep();
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="space-y-6">
-            {/* API Key Configuration */}
+            {/* Header */}
+            <div className="text-center">
+                <h1 className="text-2xl font-bold mb-2">OpenRouter Configuration</h1>
+                <p className="text-muted-foreground">
+                    Configure OpenRouter API and models
+                </p>
+            </div>
+
+            {/* Horizontal Steps Overview */}
+            <div className="mb-8">
+                <div className="flex items-center justify-center gap-4 p-4">
+                    {steps.map((step, index) => {
+                        const isActive = index === currentStep;
+                        const isCompleted = step.completed;
+
+                        return (
+                            <React.Fragment key={step.id}>
+                                {/* Step */}
+                                <div className={`flex items-center gap-3 transition-all duration-300 ${isActive
+                                    ? 'bg-white dark:bg-gray-900 p-4 rounded-xl border-2 border-primary shadow-lg'
+                                    : 'p-2'
+                                    }`}>
+                                    {/* Icon */}
+                                    <div
+                                        className={`flex items-center justify-center rounded-full transition-all duration-300 ${isActive
+                                            ? 'w-12 h-12 bg-primary text-primary-foreground'
+                                            : isCompleted
+                                                ? 'w-10 h-10 bg-green-500 text-white'
+                                                : 'w-10 h-10 bg-muted text-muted-foreground'
+                                            }`}
+                                    >
+                                        {isCompleted ? (
+                                            <CheckCircle className={isActive ? "h-6 w-6" : "h-5 w-5"} />
+                                        ) : (
+                                            <div className={`flex items-center justify-center ${isActive ? "h-6 w-6" : "h-5 w-5"}`}>
+                                                {React.cloneElement(step.icon as React.ReactElement<{ className?: string }>, {
+                                                    className: isActive ? "h-6 w-6" : "h-5 w-5"
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Title and Description - Only for active step */}
+                                    {isActive && (
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-lg font-semibold truncate">{step.title}</h3>
+                                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                                {step.description}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Badge for active step */}
+                                    {isActive && isCompleted && (
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 ml-2">
+                                            Complete
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                {/* Connector Line */}
+                                {index < steps.length - 1 && (
+                                    <div className={`h-0.5 w-8 transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-muted'
+                                        }`} />
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Step Content */}
+            {renderStepContent()}
+
+            {/* Navigation */}
+            <div className="flex justify-between items-center pt-6 border-t">
+                <div>
+                    {settingsData?.settings && (
+                        <Button
+                            variant="outline"
+                            onClick={resetWizard}
+                            className="text-destructive hover:text-destructive"
+                        >
+                            <RotateCcw className="h-4 w-4 mr-2" />
+                            Reset Configuration
+                        </Button>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    {currentStep > 0 && (
+                        <Button variant="outline" onClick={prevStep}>
+                            <ArrowLeft className="h-4 w-4 mr-2" />
+                            Back
+                        </Button>
+                    )}
+                    {currentStep < steps.length - 1 && currentStep !== 1 && (
+                        <Button
+                            onClick={nextStep}
+                            disabled={currentStep === 0 && !isValidated}
+                        >
+                            Next
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
+    // Step 1: API Key Configuration
+    function renderApiKeyStep() {
+        return (
             <Card>
                 <CardHeader>
                     <CardTitle>API Configuration</CardTitle>
@@ -337,7 +564,7 @@ export function OpenRouterSettingsView() {
                                 ) : isValidated ? (
                                     <CheckCircle className="h-4 w-4 mr-2" />
                                 ) : null}
-                                {isValidating ? 'Validating...' : 'Validate'}
+                                {isValidating ? 'Validating...' : 'Validate & Save'}
                             </Button>
                         </div>
                         {validationError && (
@@ -349,265 +576,347 @@ export function OpenRouterSettingsView() {
                         {isValidated && !validationError && (
                             <div className="flex items-center gap-2 text-sm text-green-600">
                                 <CheckCircle className="h-4 w-4" />
-                                API key is valid
+                                API key is valid and saved
                             </div>
                         )}
                     </div>
                 </CardContent>
             </Card>
+        );
+    }
 
-            {/* Model Selection */}
-            {isValidated && availableModels.length > 0 && (
+    // Step 2: Model Selection
+    function renderModelSelectionStep() {
+        if (!isValidated || availableModels.length === 0) {
+            return (
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Model Selection</CardTitle>
-                        <CardDescription>
-                            Select the OpenRouter models you want to use globally ({filteredModels.length} of {availableModels.length} models)
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {/* Search and Filters */}
-                        <div className="space-y-4">
-                            {/* Search */}
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search models by name or description..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-10"
-                                />
-                                {searchQuery && (
+                    <CardContent className="text-center py-8">
+                        <p className="text-muted-foreground">Please validate your API key first.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Model Selection</CardTitle>
+                    <CardDescription>
+                        Select the OpenRouter models you want to use globally ({filteredModels.length} of {availableModels.length} models)
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {/* Search and Filters */}
+                    <div className="space-y-4">
+                        {/* Search */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search models by name or description..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10"
+                            />
+                            {searchQuery && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                                    onClick={() => setSearchQuery('')}
+                                >
+                                    <X className="h-3 w-3" />
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Provider Filters */}
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Filter className="h-4 w-4 text-muted-foreground" />
+                                <Label className="text-sm font-medium">AI Providers</Label>
+                                {selectedProviders.length > 0 && (
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                                        onClick={() => setSearchQuery('')}
+                                        onClick={() => setSelectedProviders([])}
+                                        className="h-6 px-2 text-xs"
                                     >
-                                        <X className="h-3 w-3" />
+                                        Clear
                                     </Button>
                                 )}
                             </div>
-
-                            {/* Provider Filters */}
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <Filter className="h-4 w-4 text-muted-foreground" />
-                                    <Label className="text-sm font-medium">AI Providers</Label>
-                                    {selectedProviders.length > 0 && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => setSelectedProviders([])}
-                                            className="h-6 px-2 text-xs"
-                                        >
-                                            Clear
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {majorProviders.map((provider) => (
-                                        <Button
-                                            key={provider.id}
-                                            variant={selectedProviders.includes(provider.id) ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => handleProviderToggle(provider.id)}
-                                            className="h-7 text-xs"
-                                        >
-                                            {provider.name}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Additional Filters */}
-                            <div className="flex flex-wrap gap-4">
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">Price</Label>
-                                    <select
-                                        value={priceFilter}
-                                        onChange={(e) => setPriceFilter(e.target.value as any)}
-                                        className="text-xs border rounded px-2 py-1 bg-background"
+                            <div className="flex flex-wrap gap-2">
+                                {majorProviders.map((provider) => (
+                                    <Button
+                                        key={provider.id}
+                                        variant={selectedProviders.includes(provider.id) ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleProviderToggle(provider.id)}
+                                        className="h-7 text-xs"
                                     >
-                                        <option value="all">All</option>
-                                        <option value="free">Free</option>
-                                        <option value="paid">Paid</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">Context Length</Label>
-                                    <select
-                                        value={contextFilter}
-                                        onChange={(e) => setContextFilter(e.target.value as any)}
-                                        className="text-xs border rounded px-2 py-1 bg-background"
-                                    >
-                                        <option value="all">All</option>
-                                        <option value="small">≤8K tokens</option>
-                                        <option value="medium">8K-32K tokens</option>
-                                        <option value="large">>32K tokens</option>
-                                    </select>
-                                </div>
-                                {(searchQuery || selectedProviders.length > 0 || priceFilter !== 'all' || contextFilter !== 'all') && (
-                                    <div className="flex items-end">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={clearAllFilters}
-                                            className="h-7 text-xs"
-                                        >
-                                            Clear All
-                                        </Button>
-                                    </div>
-                                )}
+                                        {provider.name}
+                                    </Button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Quick Actions */}
-                        {filteredModels.length > 0 && (
-                            <div className="flex gap-2 pb-2 border-b">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={selectAllFilteredModels}
-                                    className="h-7 text-xs"
+                        {/* Additional Filters */}
+                        <div className="flex flex-wrap gap-4">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Price</Label>
+                                <select
+                                    value={priceFilter}
+                                    onChange={(e) => setPriceFilter(e.target.value as any)}
+                                    className="text-xs border rounded px-2 py-1 bg-background"
                                 >
-                                    Select All ({filteredModels.length})
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={selectPopularModels}
-                                    className="h-7 text-xs"
-                                >
-                                    Select Popular
-                                </Button>
+                                    <option value="all">All</option>
+                                    <option value="free">Free</option>
+                                    <option value="paid">Paid</option>
+                                </select>
                             </div>
-                        )}
-
-                        {/* Models List */}
-                        <div className="space-y-3 max-h-96 overflow-y-auto">
-                            {filteredModels.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <p>No models found matching your filters.</p>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Context Length</Label>
+                                <select
+                                    value={contextFilter}
+                                    onChange={(e) => setContextFilter(e.target.value as any)}
+                                    className="text-xs border rounded px-2 py-1 bg-background"
+                                >
+                                    <option value="all">All</option>
+                                    <option value="small">≤8K tokens</option>
+                                    <option value="medium">8K-32K tokens</option>
+                                    <option value="large">>32K tokens</option>
+                                </select>
+                            </div>
+                            {(searchQuery || selectedProviders.length > 0 || priceFilter !== 'all' || contextFilter !== 'all') && (
+                                <div className="flex items-end">
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={clearAllFilters}
-                                        className="mt-2"
-                                    >
-                                        Clear filters
-                                    </Button>
-                                </div>
-                            ) : (
-                                filteredModels.map((model) => {
-                                    const providerInfo = getProviderInfo(model.id);
-                                    return (
-                                        <div key={model.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                                            <Checkbox
-                                                id={model.id}
-                                                checked={selectedModels.includes(model.id)}
-                                                onCheckedChange={() => handleModelToggle(model.id)}
-                                            />
-                                            <div className="flex-1 space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    <Label htmlFor={model.id} className="text-sm font-medium cursor-pointer">
-                                                        {model.name}
-                                                    </Label>
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className={`text-xs ${providerInfo.color}`}
-                                                    >
-                                                        {providerInfo.name}
-                                                    </Badge>
-                                                </div>
-                                                {model.description && (
-                                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                                        {model.description}
-                                                    </p>
-                                                )}
-                                                <div className="flex flex-wrap gap-2">
-                                                    {model.context_length && (
-                                                        <Badge variant="outline" className="text-xs">
-                                                            {model.context_length.toLocaleString()} tokens
-                                                        </Badge>
-                                                    )}
-                                                    {model.pricing && (
-                                                        <Badge variant="outline" className="text-xs">
-                                                            ${model.pricing.prompt}/${model.pricing.completion}
-                                                        </Badge>
-                                                    )}
-                                                    {model.top_provider?.max_completion_tokens && (
-                                                        <Badge variant="outline" className="text-xs">
-                                                            Max: {model.top_provider.max_completion_tokens.toLocaleString()}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        {selectedModels.length > 0 && (
-                            <div className="mt-4 p-3 bg-muted rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-medium">
-                                        Selected Models ({selectedModels.length}):
-                                    </p>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => setSelectedModels([])}
-                                        className="h-6 px-2 text-xs"
+                                        className="h-7 text-xs"
                                     >
                                         Clear All
                                     </Button>
                                 </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedModels.map((modelId) => {
-                                        const model = availableModels.find(m => m.id === modelId);
-                                        const providerInfo = getProviderInfo(modelId);
-                                        return (
-                                            <div key={modelId} className="flex items-center gap-1">
-                                                <Badge variant="default" className="text-xs">
-                                                    {model?.name || modelId}
-                                                </Badge>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleModelToggle(modelId)}
-                                                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    {filteredModels.length > 0 && (
+                        <div className="flex gap-2 pb-2 border-b">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={selectAllFilteredModels}
+                                className="h-7 text-xs"
+                            >
+                                Select All ({filteredModels.length})
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={selectPopularModels}
+                                className="h-7 text-xs"
+                            >
+                                Select Popular
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Models List */}
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                        {filteredModels.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                <p>No models found matching your filters.</p>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={clearAllFilters}
+                                    className="mt-2"
+                                >
+                                    Clear filters
+                                </Button>
+                            </div>
+                        ) : (
+                            filteredModels.map((model) => {
+                                const providerInfo = getProviderInfo(model.id);
+                                return (
+                                    <div key={model.id} className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                                        <Checkbox
+                                            id={model.id}
+                                            checked={selectedModels.includes(model.id)}
+                                            onCheckedChange={() => handleModelToggle(model.id)}
+                                        />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <Label htmlFor={model.id} className="text-sm font-medium cursor-pointer">
+                                                    {model.name}
+                                                </Label>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`text-xs ${providerInfo.color}`}
                                                 >
-                                                    <X className="h-2 w-2" />
-                                                </Button>
+                                                    {providerInfo.name}
+                                                </Badge>
                                             </div>
+                                            {model.description && (
+                                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                                    {model.description}
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap gap-2">
+                                                {model.context_length && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {model.context_length.toLocaleString()} tokens
+                                                    </Badge>
+                                                )}
+                                                {model.pricing && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        ${model.pricing.prompt}/${model.pricing.completion}
+                                                    </Badge>
+                                                )}
+                                                {model.top_provider?.max_completion_tokens && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        Max: {model.top_provider.max_completion_tokens.toLocaleString()}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {selectedModels.length > 0 && (
+                        <div className="mt-4 p-3 bg-muted rounded-lg">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-medium">
+                                    Selected Models ({selectedModels.length}):
+                                </p>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedModels([])}
+                                    className="h-6 px-2 text-xs"
+                                >
+                                    Clear All
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {selectedModels.map((modelId) => {
+                                    const model = availableModels.find(m => m.id === modelId);
+                                    return (
+                                        <div key={modelId} className="flex items-center gap-1">
+                                            <Badge variant="default" className="text-xs">
+                                                {model?.name || modelId}
+                                            </Badge>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleModelToggle(modelId)}
+                                                className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                            >
+                                                <X className="h-2 w-2" />
+                                            </Button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Save Button for this step */}
+                    <div className="flex justify-end pt-4 border-t">
+                        <Button
+                            onClick={handleSave}
+                            disabled={saveSettingsMutation.isPending || selectedModels.length === 0}
+                            className="min-w-32"
+                        >
+                            {saveSettingsMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                                <Save className="h-4 w-4 mr-2" />
+                            )}
+                            Save & Continue
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    // Step 3: Completion
+    function renderCompletionStep() {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Configuration Complete</CardTitle>
+                    <CardDescription>
+                        Your OpenRouter configuration has been successfully saved
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="text-center py-8">
+                        <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">Setup Complete!</h3>
+                        <p className="text-muted-foreground mb-4">
+                            OpenRouter has been configured with {selectedModels.length} models
+                        </p>
+                    </div>
+
+                    {/* Configuration Summary */}
+                    <div className="space-y-4">
+                        <div className="p-4 bg-muted rounded-lg">
+                            <h4 className="font-medium mb-2">Configuration Summary</h4>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">API Key:</span>
+                                    <span>Configured and validated</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Selected Models:</span>
+                                    <span>{selectedModels.length} models</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Status:</span>
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                        Active
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        {selectedModels.length > 0 && (
+                            <div className="p-4 bg-muted rounded-lg">
+                                <h4 className="font-medium mb-2">Selected Models</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedModels.slice(0, 10).map((modelId) => {
+                                        const model = availableModels.find(m => m.id === modelId);
+                                        return (
+                                            <Badge key={modelId} variant="outline" className="text-xs">
+                                                {model?.name || modelId}
+                                            </Badge>
                                         );
                                     })}
+                                    {selectedModels.length > 10 && (
+                                        <Badge variant="outline" className="text-xs">
+                                            +{selectedModels.length - 10} more
+                                        </Badge>
+                                    )}
                                 </div>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
-            )}
+                    </div>
 
-            {/* Save Button */}
-            {isValidated && (
-                <div className="flex justify-end">
-                    <Button
-                        onClick={handleSave}
-                        disabled={saveSettingsMutation.isPending || selectedModels.length === 0}
-                        className="min-w-32"
-                    >
-                        {saveSettingsMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        ) : (
-                            <Save className="h-4 w-4 mr-2" />
-                        )}
-                        Save Settings
-                    </Button>
-                </div>
-            )}
-        </div>
-    );
+                    <div className="text-center text-sm text-muted-foreground">
+                        You can now use OpenRouter models in your chat sessions.
+                        <br />
+                        To reconfigure, use the "Reset Configuration" button below.
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 }
