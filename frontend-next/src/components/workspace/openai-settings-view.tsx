@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Save, Search, Trash2, TestTube, Plus, Key, Bot, Edit } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
@@ -54,6 +55,7 @@ export function OpenAISettingsView() {
     const [editingKey, setEditingKey] = useState<OpenAIKey | null>(null);
     const [keyForm, setKeyForm] = useState({ name: '', apiKey: '', showApiKey: false });
     const [isValidatingKey, setIsValidatingKey] = useState(false);
+    const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
 
     // Models management state
     const [models, setModels] = useState<OpenAIModelConfig[]>([]);
@@ -233,7 +235,7 @@ export function OpenAISettingsView() {
                     variant: "success"
                 });
                 queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
-                resetKeyForm();
+                resetKeyForm(); // This will also close the modal
             } else {
                 addToast({
                     title: "Save Failed",
@@ -297,11 +299,19 @@ export function OpenAISettingsView() {
     const resetKeyForm = () => {
         setKeyForm({ name: '', apiKey: '', showApiKey: false });
         setEditingKey(null);
+        setIsKeyModalOpen(false);
     };
 
     const handleKeyEdit = (key: OpenAIKey) => {
         setEditingKey(key);
         setKeyForm({ name: key.name, apiKey: '***', showApiKey: false });
+        setIsKeyModalOpen(true);
+    };
+
+    const handleAddNewKey = () => {
+        setEditingKey(null);
+        setKeyForm({ name: '', apiKey: '', showApiKey: false });
+        setIsKeyModalOpen(true);
     };
 
     const handleKeySave = async () => {
@@ -412,8 +422,8 @@ export function OpenAISettingsView() {
                             variant="ghost"
                             size="sm"
                             className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === tab.id
-                                    ? "bg-background text-foreground shadow-sm"
-                                    : "hover:bg-background/50"
+                                ? "bg-background text-foreground shadow-sm"
+                                : "hover:bg-background/50"
                                 }`}
                             onClick={() => setActiveTab(tab.id)}
                         >
@@ -429,6 +439,106 @@ export function OpenAISettingsView() {
                 {activeTab === 'keys' && renderKeysTab()}
                 {activeTab === 'models' && renderModelsTab()}
             </div>
+
+            {/* Key Modal */}
+            <Dialog open={isKeyModalOpen} onOpenChange={setIsKeyModalOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {editingKey ? 'Edit API Key' : 'Add New API Key'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingKey
+                                ? 'Update your OpenAI API key configuration'
+                                : 'Add a new OpenAI API key with a custom name'
+                            }
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="modal-keyName">Key Name</Label>
+                            <Input
+                                id="modal-keyName"
+                                value={keyForm.name}
+                                onChange={(e) => setKeyForm(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="e.g., Personal Key, Work Key, etc."
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="modal-apiKey">OpenAI API Key</Label>
+                            <div className="relative">
+                                <Input
+                                    id="modal-apiKey"
+                                    type={keyForm.showApiKey ? "text" : "password"}
+                                    value={keyForm.apiKey}
+                                    onChange={(e) => setKeyForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                                    placeholder="sk-..."
+                                    className="pr-10"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setKeyForm(prev => ({ ...prev, showApiKey: !prev.showApiKey }))}
+                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                                >
+                                    {keyForm.showApiKey ? (
+                                        <EyeOff className="h-4 w-4" />
+                                    ) : (
+                                        <Eye className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <Button
+                            onClick={validateApiKey}
+                            disabled={isValidatingKey || !keyForm.apiKey.trim()}
+                            variant="outline"
+                            className="w-full"
+                        >
+                            {isValidatingKey ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Validating...
+                                </>
+                            ) : (
+                                <>
+                                    <TestTube className="mr-2 h-4 w-4" />
+                                    Test Key
+                                </>
+                            )}
+                        </Button>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={resetKeyForm}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleKeySave}
+                            disabled={saveKeyMutation.isPending || !keyForm.name.trim() || !keyForm.apiKey.trim()}
+                        >
+                            {saveKeyMutation.isPending ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {editingKey ? 'Update Key' : 'Save Key'}
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 
@@ -502,102 +612,13 @@ export function OpenAISettingsView() {
                     </Card>
                 )}
 
-                {/* Add New Key Form */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Plus className="h-5 w-5" />
-                            {editingKey ? 'Edit API Key' : 'Add New API Key'}
-                        </CardTitle>
-                        <CardDescription>
-                            {editingKey ? 'Update your OpenAI API key' : 'Add a new OpenAI API key with a custom name'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="keyName">Key Name</Label>
-                            <Input
-                                id="keyName"
-                                value={keyForm.name}
-                                onChange={(e) => setKeyForm(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder="e.g., Personal Key, Work Key, etc."
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="apiKey">OpenAI API Key</Label>
-                            <div className="relative">
-                                <Input
-                                    id="apiKey"
-                                    type={keyForm.showApiKey ? "text" : "password"}
-                                    value={keyForm.apiKey}
-                                    onChange={(e) => setKeyForm(prev => ({ ...prev, apiKey: e.target.value }))}
-                                    placeholder="sk-..."
-                                    className="pr-10"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setKeyForm(prev => ({ ...prev, showApiKey: !prev.showApiKey }))}
-                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
-                                >
-                                    {keyForm.showApiKey ? (
-                                        <EyeOff className="h-4 w-4" />
-                                    ) : (
-                                        <Eye className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <Button
-                                onClick={validateApiKey}
-                                disabled={isValidatingKey || !keyForm.apiKey.trim()}
-                                variant="outline"
-                                className="flex-1"
-                            >
-                                {isValidatingKey ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Validating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <TestTube className="mr-2 h-4 w-4" />
-                                        Test Key
-                                    </>
-                                )}
-                            </Button>
-                            <Button
-                                onClick={handleKeySave}
-                                disabled={saveKeyMutation.isPending || !keyForm.name.trim() || !keyForm.apiKey.trim()}
-                                className="flex-1"
-                            >
-                                {saveKeyMutation.isPending ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="mr-2 h-4 w-4" />
-                                        {editingKey ? 'Update Key' : 'Save Key'}
-                                    </>
-                                )}
-                            </Button>
-                            {editingKey && (
-                                <Button
-                                    variant="outline"
-                                    onClick={resetKeyForm}
-                                >
-                                    Cancel
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Add New Key Button */}
+                <div className="flex justify-center">
+                    <Button onClick={handleAddNewKey} className="w-full max-w-md">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add New API Key
+                    </Button>
+                </div>
             </div>
         );
     }
