@@ -372,8 +372,15 @@ export class AIChatService {
             }
         };
 
-        // Handle file search or web search using Responses API
-        const requiresResponsesApi = provider.model.startsWith('o');
+        // Handle o1 models separately (they don't support Responses API)
+        const isO1Model = provider.model.startsWith('o1');
+        if (isO1Model) {
+            // O1 models use regular Chat Completions API but with special handling
+            return await this.streamFromOpenAIO1(provider, conversationHistory, messageId, onChunk, reasoningEnabled);
+        }
+
+        // Handle file search or web search using Responses API (for non-o1 models)
+        const requiresResponsesApi = provider.model.startsWith('o') && !isO1Model; // Exclude o1 models
         if (requiresResponsesApi || (fileAttachments && fileAttachments.length > 0) || (searchEnabled && this.supportsOpenAIWebSearch(provider))) {
             try {
                 // Use Responses API for file search or web search
@@ -405,6 +412,87 @@ export class AIChatService {
         }
 
         return await this.processOpenAIStream(response, messageId, onChunk, provider.model);
+    }
+
+    /**
+     * Stream from OpenAI O1 models (special handling for reasoning models)
+     */
+    private async streamFromOpenAIO1(
+        provider: AIProviderConfig,
+        conversationHistory: ConversationMessage[],
+        messageId: string,
+        onChunk: (chunk: AIStreamChunk) => void,
+        reasoningEnabled?: boolean
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
+        const endpoint = provider.endpoint || 'https://api.openai.com/v1';
+        const apiKey = provider.apiKey.includes(':') ? this.aiProviderService.decryptApiKey(provider.apiKey) : provider.apiKey;
+
+        // O1 models don't support system messages, so we need to convert them to user messages
+        const processedMessages = conversationHistory.map(msg => {
+            if (msg.role === 'system') {
+                return {
+                    role: 'user' as const,
+                    content: `[System instruction: ${msg.content}]`
+                };
+            }
+            return msg;
+        });
+
+        const requestBody = {
+            model: provider.model,
+            messages: processedMessages,
+            stream: false, // O1 models don't support streaming
+            max_completion_tokens: 32768, // O1 models use max_completion_tokens instead of max_tokens
+        };
+
+        console.log('OpenAI O1 API Request:', JSON.stringify(requestBody, null, 2));
+
+        const response = await fetch(`${endpoint}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('OpenAI O1 API error:', errorData);
+            throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json() as any;
+        console.log('OpenAI O1 API Response:', JSON.stringify(data, null, 2));
+
+        const content = data.choices?.[0]?.message?.content || 'No response generated';
+        const usage = data.usage || {};
+
+        // Simulate streaming by sending the content in chunks
+        const words = content.split(' ');
+        for (let i = 0; i < words.length; i += 5) {
+            const chunk = words.slice(i, i + 5).join(' ') + (i + 5 < words.length ? ' ' : '');
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: chunk
+            });
+            // Small delay to simulate streaming
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        return {
+            success: true,
+            message: 'Response generated successfully',
+            finalContent: content,
+            metadata: {
+                inputTokens: usage.prompt_tokens || 0,
+                outputTokens: usage.completion_tokens || 0,
+                totalTokens: usage.total_tokens || 0,
+                model: provider.model,
+                provider: 'openai'
+            }
+        };
     }
 
     /**
