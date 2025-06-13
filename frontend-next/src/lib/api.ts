@@ -1114,6 +1114,13 @@ class ApiClient {
         });
     }
 
+    async updateGlobalOpenRouterModels(selectedModels: string[]): Promise<SaveGlobalOpenRouterSettingsResponse> {
+        return this.request<SaveGlobalOpenRouterSettingsResponse>('/openrouter/settings/models', {
+            method: 'PATCH',
+            body: JSON.stringify({ selectedModels })
+        });
+    }
+
     async deleteGlobalOpenRouterSettings(): Promise<{ success: boolean; message: string }> {
         return this.request<{ success: boolean; message: string }>('/openrouter/settings', {
             method: 'DELETE'

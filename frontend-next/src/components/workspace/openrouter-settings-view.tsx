@@ -164,16 +164,27 @@ export function OpenRouterSettingsView() {
         if (settingsData?.settings) {
             setSelectedModels(settingsData.settings.selectedModels || []);
             setIsValidated(true);
-            // Don't set the API key as it's masked
+            // Set a placeholder API key to indicate it exists
+            setApiKey('existing-api-key-configured');
 
             // If we have existing settings, start from completion step
             if (settingsData.settings.selectedModels && settingsData.settings.selectedModels.length > 0) {
                 setCurrentStep(2); // Go to completion step
             } else if (settingsData.settings.apiKey && settingsData.settings.apiKey !== '***') {
                 setCurrentStep(1); // Go to model selection step
+                // We need to fetch models for existing configuration
+                fetchModelsForExistingConfig();
             }
         }
     }, [settingsData]);
+
+    // Fetch models for existing configuration (we can't validate without the real API key)
+    const fetchModelsForExistingConfig = async () => {
+        // For existing configurations, we'll show a message that models need to be fetched
+        // In a real scenario, you might want to store the models in the database
+        // or require re-validation of the API key
+        setAvailableModels([]); // Clear models, user will need to re-validate if they want to see/change models
+    };
 
     // Validate API key and fetch models
     const validateApiKey = async () => {
@@ -227,6 +238,13 @@ export function OpenRouterSettingsView() {
     // Save settings mutation
     const saveSettingsMutation = useMutation({
         mutationFn: async () => {
+            // If we have existing settings and the API key is the placeholder,
+            // use the new endpoint to update only models
+            if (apiKey === 'existing-api-key-configured' && settingsData?.settings) {
+                return apiClient.updateGlobalOpenRouterModels(selectedModels);
+            }
+
+            // For new configurations, save everything including API key
             if (!apiKey.trim()) {
                 throw new Error('API key is required');
             }
@@ -368,7 +386,8 @@ export function OpenRouterSettingsView() {
     };
 
     const handleSave = () => {
-        if (!isValidated) {
+        // For existing configurations, we don't need to validate the API key again
+        if (!isValidated && apiKey !== 'existing-api-key-configured') {
             setValidationError('Please validate your API key first');
             return;
         }
@@ -507,7 +526,7 @@ export function OpenRouterSettingsView() {
                     {currentStep < steps.length - 1 && currentStep !== 1 && (
                         <Button
                             onClick={nextStep}
-                            disabled={currentStep === 0 && !isValidated}
+                            disabled={currentStep === 0 && !isValidated && apiKey !== 'existing-api-key-configured'}
                         >
                             Next
                             <ArrowRight className="h-4 w-4 ml-2" />
@@ -520,24 +539,43 @@ export function OpenRouterSettingsView() {
 
     // Step 1: API Key Configuration
     function renderApiKeyStep() {
+        const hasExistingConfig = apiKey === 'existing-api-key-configured';
+
         return (
             <Card>
                 <CardHeader>
                     <CardTitle>API Configuration</CardTitle>
                     <CardDescription>
-                        Enter your OpenRouter API key to access their models
+                        {hasExistingConfig
+                            ? 'Your OpenRouter API key is already configured. You can proceed to model selection or enter a new key.'
+                            : 'Enter your OpenRouter API key to access their models'
+                        }
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {hasExistingConfig && (
+                        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+                                <CheckCircle className="h-4 w-4" />
+                                API key is already configured and validated
+                            </div>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                You can proceed to model selection or enter a new API key below to replace the existing one.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
-                        <Label htmlFor="apiKey">OpenRouter API Key</Label>
+                        <Label htmlFor="apiKey">
+                            {hasExistingConfig ? 'New OpenRouter API Key (optional)' : 'OpenRouter API Key'}
+                        </Label>
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <Input
                                     id="apiKey"
                                     type={showApiKey ? "text" : "password"}
-                                    placeholder="sk-or-v1-..."
-                                    value={apiKey}
+                                    placeholder={hasExistingConfig ? "Enter new API key to replace existing..." : "sk-or-v1-..."}
+                                    value={hasExistingConfig ? '' : apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
                                     className="pr-10"
                                 />
@@ -557,14 +595,14 @@ export function OpenRouterSettingsView() {
                             </div>
                             <Button
                                 onClick={validateApiKey}
-                                disabled={isValidating || !apiKey.trim()}
+                                disabled={isValidating || (!hasExistingConfig && !apiKey.trim())}
                             >
                                 {isValidating ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : isValidated ? (
+                                ) : isValidated && !hasExistingConfig ? (
                                     <CheckCircle className="h-4 w-4 mr-2" />
                                 ) : null}
-                                {isValidating ? 'Validating...' : 'Validate & Save'}
+                                {isValidating ? 'Validating...' : hasExistingConfig ? 'Update API Key' : 'Validate & Save'}
                             </Button>
                         </div>
                         {validationError && (
@@ -573,7 +611,7 @@ export function OpenRouterSettingsView() {
                                 {validationError}
                             </div>
                         )}
-                        {isValidated && !validationError && (
+                        {isValidated && !validationError && !hasExistingConfig && (
                             <div className="flex items-center gap-2 text-sm text-green-600">
                                 <CheckCircle className="h-4 w-4" />
                                 API key is valid and saved
@@ -587,11 +625,68 @@ export function OpenRouterSettingsView() {
 
     // Step 2: Model Selection
     function renderModelSelectionStep() {
-        if (!isValidated || availableModels.length === 0) {
+        const hasExistingConfig = apiKey === 'existing-api-key-configured';
+
+        if (!isValidated && !hasExistingConfig) {
             return (
                 <Card>
                     <CardContent className="text-center py-8">
                         <p className="text-muted-foreground">Please validate your API key first.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        if (hasExistingConfig && availableModels.length === 0) {
+            return (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Model Selection</CardTitle>
+                        <CardDescription>
+                            Manage your selected OpenRouter models
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="text-center py-8">
+                            <p className="text-muted-foreground mb-4">
+                                You have an existing OpenRouter configuration with {selectedModels.length} selected models.
+                            </p>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                To view and modify available models, please re-validate your API key in the previous step.
+                            </p>
+                            <Button variant="outline" onClick={() => setCurrentStep(0)}>
+                                Go Back to API Configuration
+                            </Button>
+                        </div>
+
+                        {selectedModels.length > 0 && (
+                            <div className="mt-6 p-4 bg-muted rounded-lg">
+                                <h4 className="font-medium mb-2">Currently Selected Models ({selectedModels.length})</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedModels.map((modelId) => (
+                                        <Badge key={modelId} variant="outline" className="text-xs">
+                                            {modelId}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Save Button for existing config */}
+                        <div className="flex justify-end pt-4 border-t">
+                            <Button
+                                onClick={handleSave}
+                                disabled={saveSettingsMutation.isPending || selectedModels.length === 0}
+                                className="min-w-32"
+                            >
+                                {saveSettingsMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                    <Save className="h-4 w-4 mr-2" />
+                                )}
+                                Save & Continue
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
             );

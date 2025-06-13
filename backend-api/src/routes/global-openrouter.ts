@@ -53,6 +53,18 @@ router.post('/settings', asyncHandler(async (req: Request, res: Response) => {
     res.json(result);
 }));
 
+// Update only selected models (keeping existing API key)
+router.patch('/settings/models', asyncHandler(async (req: Request, res: Response) => {
+    const requestBody = req.body;
+
+    if (!Array.isArray(requestBody.selectedModels)) {
+        throw createError('Selected models must be an array', 400);
+    }
+
+    const result = await globalOpenRouterService.updateSelectedModels(requestBody.selectedModels);
+    res.json(result);
+}));
+
 // Delete global OpenRouter settings
 router.delete('/settings', asyncHandler(async (req: Request, res: Response) => {
     // For now, we'll disable the settings instead of deleting

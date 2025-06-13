@@ -133,6 +133,52 @@ export class GlobalOpenRouterService {
         }
     }
 
+    // Update only selected models (keeping existing API key)
+    public async updateSelectedModels(selectedModels: string[]): Promise<SaveGlobalOpenRouterSettingsResponse> {
+        try {
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            // Ensure table exists
+            await this.createTableIfNotExists(connection, config.type);
+
+            // Get existing settings
+            const existingSettings = await this.getSettingsFromDatabase(connection, config.type);
+            if (!existingSettings) {
+                throw new Error('No existing OpenRouter configuration found. Please configure API key first.');
+            }
+
+            // Update only the selected models and timestamp
+            const updatedSettings: GlobalOpenRouterSettings = {
+                ...existingSettings,
+                selectedModels,
+                updatedAt: new Date()
+            };
+
+            // Save to database
+            await this.saveSettingsToDatabase(connection, config.type, updatedSettings);
+
+            return {
+                success: true,
+                message: 'Selected models updated successfully',
+                settings: {
+                    ...updatedSettings,
+                    apiKey: '***' // Don't return the actual API key
+                }
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update selected models',
+                error: 'UPDATE_ERROR'
+            };
+        }
+    }
+
     // Get global OpenRouter settings
     public async getSettings(): Promise<GetGlobalOpenRouterSettingsResponse> {
         try {
