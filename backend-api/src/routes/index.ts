@@ -10,6 +10,7 @@ import aiProvidersRouter from './ai-providers';
 import statisticsRouter from './statistics';
 import authRouter from './auth';
 import filesRouter from './files';
+import openaiProvidersRouter from './openai-providers';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -42,6 +43,9 @@ export const setupRoutes = (app: Express): void => {
     // AI Providers routes
     app.use(`${API_PREFIX}/ai-providers`, aiProvidersRouter);
 
+    // OpenAI Providers routes
+    app.use(`${API_PREFIX}/openai-providers`, openaiProvidersRouter);
+
     // Files routes
     app.use(`${API_PREFIX}/files`, filesRouter);
 
@@ -64,6 +68,7 @@ export const setupRoutes = (app: Express): void => {
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,
                 aiProviders: `${API_PREFIX}/ai-providers`,
+                openaiProviders: `${API_PREFIX}/openai-providers`,
                 files: `${API_PREFIX}/files`,
                 statistics: `${API_PREFIX}/statistics`,
                 health: '/health'

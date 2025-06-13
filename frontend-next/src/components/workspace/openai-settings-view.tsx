@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { authService } from '@/lib/auth';
 import { apiClient } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
+import { openaiProvidersAPI, type OpenAIProvider } from '@/lib/api/openai-providers';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface OpenAIModel {
@@ -27,8 +28,8 @@ interface OpenAIKey {
     name: string;
     apiKey: string;
     isActive: boolean;
-    createdAt?: Date;
-    updatedAt?: Date;
+    createdAt: string;
+    updatedAt: string;
 }
 
 interface OpenAIModelConfig {
@@ -82,22 +83,19 @@ export function OpenAISettingsView() {
         }
     ];
 
-    // Fetch OpenAI keys (we'll store them as AI providers with type 'openai')
+    // Fetch OpenAI keys using the new dedicated API
     const { data: keysData, isLoading: isLoadingKeys } = useQuery({
         queryKey: ['openai-keys'],
         queryFn: async () => {
-            // For now, we'll use the existing AI providers API but filter for OpenAI
-            const result = await apiClient.getAIProviders();
-            if (result.success && result.providers) {
-                const openaiProviders = result.providers.filter(p => p.type === 'openai');
-                return openaiProviders.map(p => ({
-                    id: p.id!,
-                    name: p.name,
-                    apiKey: p.apiKey,
-                    isActive: p.isActive
-                })) as OpenAIKey[];
-            }
-            return [];
+            const providers = await openaiProvidersAPI.getProviders();
+            return providers.map(p => ({
+                id: p.id,
+                name: p.name,
+                apiKey: p.apiKey,
+                isActive: p.isActive,
+                createdAt: p.createdAt,
+                updatedAt: p.updatedAt
+            })) as OpenAIKey[];
         },
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
@@ -213,36 +211,28 @@ export function OpenAISettingsView() {
     // Save key mutation
     const saveKeyMutation = useMutation({
         mutationFn: async (keyData: { name: string; apiKey: string }) => {
-            const provider = {
-                type: 'openai' as const,
-                name: keyData.name,
-                apiKey: keyData.apiKey,
-                model: 'gpt-4o', // Default model
-                isActive: true
-            };
-
             if (editingKey?.id) {
-                return apiClient.updateAIProvider(editingKey.id, provider);
+                return openaiProvidersAPI.updateProvider(editingKey.id, {
+                    name: keyData.name,
+                    apiKey: keyData.apiKey,
+                    isActive: true
+                });
             } else {
-                return apiClient.createAIProvider(provider);
+                return openaiProvidersAPI.createProvider({
+                    name: keyData.name,
+                    apiKey: keyData.apiKey,
+                    isActive: true
+                });
             }
         },
         onSuccess: (data) => {
-            if (data.success) {
-                addToast({
-                    title: editingKey ? "Key Updated" : "Key Created",
-                    description: "OpenAI API key has been saved successfully",
-                    variant: "success"
-                });
-                queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
-                resetKeyForm(); // This will also close the modal
-            } else {
-                addToast({
-                    title: "Save Failed",
-                    description: data.message || "Failed to save key",
-                    variant: "destructive"
-                });
-            }
+            addToast({
+                title: editingKey ? "Key Updated" : "Key Created",
+                description: "OpenAI API key has been saved successfully",
+                variant: "success"
+            });
+            queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
+            resetKeyForm(); // This will also close the modal
         },
         onError: (error) => {
             addToast({
@@ -255,17 +245,15 @@ export function OpenAISettingsView() {
 
     // Delete key mutation
     const deleteKeyMutation = useMutation({
-        mutationFn: (keyId: string) => apiClient.deleteAIProvider(keyId),
-        onSuccess: (data) => {
-            if (data.success) {
-                addToast({
-                    title: "Key Deleted",
-                    description: "OpenAI API key has been deleted successfully",
-                    variant: "success"
-                });
-                queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
-                queryClient.invalidateQueries({ queryKey: ['openai-models'] });
-            }
+        mutationFn: (keyId: string) => openaiProvidersAPI.deleteProvider(keyId),
+        onSuccess: () => {
+            addToast({
+                title: "Key Deleted",
+                description: "OpenAI API key has been deleted successfully",
+                variant: "success"
+            });
+            queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
+            queryClient.invalidateQueries({ queryKey: ['openai-models'] });
         },
         onError: (error) => {
             addToast({
@@ -278,12 +266,12 @@ export function OpenAISettingsView() {
 
     // Test key mutation
     const testKeyMutation = useMutation({
-        mutationFn: (keyId: string) => apiClient.testAIProvider(keyId),
-        onSuccess: (data) => {
+        mutationFn: (keyId: string) => openaiProvidersAPI.testProvider(keyId),
+        onSuccess: () => {
             addToast({
-                title: data.success ? "Test Successful" : "Test Failed",
-                description: data.message,
-                variant: data.success ? "success" : "destructive"
+                title: "Test Successful",
+                description: "API key is valid and working",
+                variant: "success"
             });
         },
         onError: (error) => {
@@ -302,10 +290,23 @@ export function OpenAISettingsView() {
         setIsKeyModalOpen(false);
     };
 
-    const handleKeyEdit = (key: OpenAIKey) => {
+    const handleKeyEdit = async (key: OpenAIKey) => {
         setEditingKey(key);
-        setKeyForm({ name: key.name, apiKey: '***', showApiKey: false });
         setIsKeyModalOpen(true);
+
+        try {
+            // Fetch the decrypted API key for editing
+            const decryptedApiKey = await openaiProvidersAPI.getDecryptedApiKey(key.id);
+            setKeyForm({ name: key.name, apiKey: decryptedApiKey, showApiKey: false });
+        } catch (error) {
+            // If we can't get the decrypted key, show placeholder
+            setKeyForm({ name: key.name, apiKey: '', showApiKey: false });
+            addToast({
+                title: "Warning",
+                description: "Could not load API key for editing. Please enter the key again.",
+                variant: "destructive"
+            });
+        }
     };
 
     const handleAddNewKey = () => {
@@ -324,7 +325,7 @@ export function OpenAISettingsView() {
             return;
         }
 
-        if (!keyForm.apiKey.trim() || keyForm.apiKey === '***') {
+        if (!keyForm.apiKey.trim()) {
             addToast({
                 title: "Validation Error",
                 description: "API key is required",
@@ -334,7 +335,7 @@ export function OpenAISettingsView() {
         }
 
         // Validate key first if it's a new key or the key has changed
-        if (!editingKey || keyForm.apiKey !== '***') {
+        if (!editingKey || keyForm.apiKey.trim()) {
             const isValid = await validateApiKey();
             if (!isValid) return;
         }
@@ -346,24 +347,16 @@ export function OpenAISettingsView() {
     };
 
     const handleKeyToggleActive = async (key: OpenAIKey) => {
-        const updatedKey = { ...key, isActive: !key.isActive };
         try {
-            const provider = {
-                type: 'openai' as const,
-                name: updatedKey.name,
-                apiKey: updatedKey.apiKey,
-                model: 'gpt-4o',
-                isActive: updatedKey.isActive
-            };
-            const result = await apiClient.updateAIProvider(key.id, provider);
-            if (result.success) {
-                queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
-                addToast({
-                    title: "Key Updated",
-                    description: `Key ${updatedKey.isActive ? 'enabled' : 'disabled'}`,
-                    variant: "success"
-                });
-            }
+            await openaiProvidersAPI.updateProvider(key.id, {
+                isActive: !key.isActive
+            });
+            queryClient.invalidateQueries({ queryKey: ['openai-keys'] });
+            addToast({
+                title: "Key Updated",
+                description: `Key ${!key.isActive ? 'enabled' : 'disabled'}`,
+                variant: "success"
+            });
         } catch (error) {
             addToast({
                 title: "Update Failed",
