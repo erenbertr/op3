@@ -405,16 +405,9 @@ export function OpenAISettingsView() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="text-center">
-                <h1 className="text-2xl font-bold mb-2">OpenAI Configuration</h1>
-                <p className="text-muted-foreground">
-                    Configure OpenAI API keys and models
-                </p>
-            </div>
-
-            {/* Horizontal Tabs */}
-            <div className="flex justify-center">
+            {/* Tabs and Add Button Row */}
+            <div className="flex items-center justify-between">
+                {/* Left: Tabs */}
                 <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
                     {tabs.map((tab) => (
                         <Button
@@ -432,6 +425,14 @@ export function OpenAISettingsView() {
                         </Button>
                     ))}
                 </div>
+
+                {/* Right: Add New Button (only show on Keys tab) */}
+                {activeTab === 'keys' && (
+                    <Button onClick={handleAddNewKey}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add New API Key
+                    </Button>
+                )}
             </div>
 
             {/* Tab Content */}
@@ -612,13 +613,7 @@ export function OpenAISettingsView() {
                     </Card>
                 )}
 
-                {/* Add New Key Button */}
-                <div className="flex justify-center">
-                    <Button onClick={handleAddNewKey} className="w-full max-w-md">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add New API Key
-                    </Button>
-                </div>
+
             </div>
         );
     }
