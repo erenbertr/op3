@@ -159,25 +159,6 @@ export function OpenRouterSettingsView() {
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
-    // Load existing settings when data is available
-    React.useEffect(() => {
-        if (settingsData?.settings) {
-            setSelectedModels(settingsData.settings.selectedModels || []);
-            setIsValidated(true);
-            // Set a placeholder API key to indicate it exists
-            setApiKey('existing-api-key-configured');
-
-            // If we have existing settings, start from completion step
-            if (settingsData.settings.selectedModels && settingsData.settings.selectedModels.length > 0) {
-                setCurrentStep(2); // Go to completion step
-            } else if (settingsData.settings.apiKey && settingsData.settings.apiKey !== '***') {
-                setCurrentStep(1); // Go to model selection step
-                // We need to fetch models for existing configuration
-                fetchModelsForExistingConfig();
-            }
-        }
-    }, [settingsData]);
-
     // Fetch models for existing configuration using saved API key
     const fetchModelsForExistingConfig = async () => {
         try {
@@ -194,6 +175,32 @@ export function OpenRouterSettingsView() {
             setAvailableModels([]);
         }
     };
+
+    // Load existing settings when data is available
+    React.useEffect(() => {
+        if (settingsData?.settings) {
+            setSelectedModels(settingsData.settings.selectedModels || []);
+            setIsValidated(true);
+            // Set a placeholder API key to indicate it exists
+            setApiKey('existing-api-key-configured');
+
+            // If we have existing settings, start from completion step
+            if (settingsData.settings.selectedModels && settingsData.settings.selectedModels.length > 0) {
+                setCurrentStep(2); // Go to completion step
+            } else {
+                setCurrentStep(1); // Go to model selection step
+                // We need to fetch models for existing configuration
+                fetchModelsForExistingConfig();
+            }
+        }
+    }, [settingsData]);
+
+    // Auto-fetch models when on step 1 with no models
+    React.useEffect(() => {
+        if (currentStep === 1 && availableModels.length === 0 && settingsData?.settings?.apiKey) {
+            fetchModelsForExistingConfig();
+        }
+    }, [currentStep, availableModels.length, settingsData?.settings?.apiKey]);
 
     // Validate API key and fetch models
     const validateApiKey = async () => {
