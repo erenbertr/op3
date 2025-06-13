@@ -286,7 +286,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                                     variant={capabilityFilters.includes(capability) ? "default" : "outline"}
                                                     size="sm"
                                                     onClick={() => handleCapabilityFilterToggle(capability)}
-                                                    className="h-8 text-xs"
+                                                    className="h-8 text-xs border border-solid box-border flex-shrink-0"
                                                 >
                                                     {getCapabilityIcon(capability)}
                                                     {getCapabilityLabel(capability)}
