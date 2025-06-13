@@ -297,9 +297,29 @@ export function OpenAISettingsView() {
             setIsAddModelModalOpen(false);
         },
         onError: (error) => {
+            // Extract user-friendly error message
+            let errorMessage = 'Failed to add model. Please try again.';
+
+            if (error instanceof Error && error.message) {
+                if (error.message.includes('Model configuration already exists')) {
+                    errorMessage = 'This model is already configured for the selected API key. Please choose a different model or use a different API key.';
+                } else if (error.message.includes('Key ID and Model ID are required')) {
+                    errorMessage = 'Missing required information. Please try again.';
+                } else if (error.message.includes('INVALID_KEY')) {
+                    errorMessage = 'The selected API key is invalid or has been removed.';
+                } else if (error.message.includes('HTTP error! status: 409')) {
+                    errorMessage = 'This model is already configured for the selected API key. Please choose a different model or use a different API key.';
+                } else if (error.message.includes('HTTP error! status:')) {
+                    // Generic HTTP error handling
+                    errorMessage = 'Server error occurred. Please try again later.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
             addToast({
                 title: "Add Model Failed",
-                description: error instanceof Error ? error.message : "Failed to add model",
+                description: errorMessage,
                 variant: "destructive"
             });
         }

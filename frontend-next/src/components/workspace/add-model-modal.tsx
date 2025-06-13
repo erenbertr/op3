@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Brain, Search, FileUp, Image, FileText, Eye, Code, Calculator, Zap, Filter, X, AlertCircle } from 'lucide-react';
+import { Loader2, Brain, Search, FileUp, Image, FileText, Eye, Code, Calculator, Zap, Filter, X } from 'lucide-react';
 import { ModelCapabilities, ModelPricing } from '@/lib/api/openai-model-configs';
 
 interface OpenAIModel {
@@ -35,7 +35,6 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
     const [selectedModel, setSelectedModel] = useState<OpenAIModel | null>(null);
     const [customName, setCustomName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     // Search and filter state
     const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +45,6 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         setSelectedModel(null);
         setCustomName('');
         setIsSubmitting(false);
-        setError(null);
         setSearchQuery('');
         setOwnerFilter('all');
         setCapabilityFilters([]);
@@ -57,30 +55,12 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
         if (!selectedModel) return;
 
         setIsSubmitting(true);
-        setError(null);
-
         try {
             await onAddModel(selectedModel.id, customName.trim() || undefined);
             handleClose();
-        } catch (error: unknown) {
+        } catch (error) {
             console.error('Error adding model:', error);
-
-            // Extract user-friendly error message
-            let errorMessage = 'Failed to add model. Please try again.';
-
-            if (error instanceof Error && error.message) {
-                if (error.message.includes('Model configuration already exists')) {
-                    errorMessage = 'This model is already configured for the selected API key. Please choose a different model or use a different API key.';
-                } else if (error.message.includes('Key ID and Model ID are required')) {
-                    errorMessage = 'Missing required information. Please try again.';
-                } else if (error.message.includes('INVALID_KEY')) {
-                    errorMessage = 'The selected API key is invalid or has been removed.';
-                } else {
-                    errorMessage = error.message;
-                }
-            }
-
-            setError(errorMessage);
+            // Error handling is done at the parent component level
         } finally {
             setIsSubmitting(false);
         }
@@ -255,14 +235,6 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                 <DialogHeader>
                     <DialogTitle>Add Model</DialogTitle>
                 </DialogHeader>
-
-                {/* Error Display */}
-                {error && (
-                    <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                        <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                        <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                )}
 
                 <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                     {isLoading ? (
