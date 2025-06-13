@@ -231,6 +231,12 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
             }
 
             return true;
+        }).sort((a, b) => {
+            // Sort by name length (shorter names first), then alphabetically
+            if (a.id.length !== b.id.length) {
+                return a.id.length - b.id.length;
+            }
+            return a.id.localeCompare(b.id);
         });
     }, [availableModels, searchQuery, ownerFilter, capabilityFilters]);
 
@@ -260,7 +266,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                 <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin" />
+                            <Loader2 className="h-6 w-6 animate-spin mr-3" />
                             <span>Loading available models...</span>
                         </div>
                     ) : (
