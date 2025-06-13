@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, DatabaseConfig, AIProviderConfig } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
+import { openaiModelConfigsAPI } from '@/lib/api/openai-model-configs';
 
 // Database hooks
 export function useDatabaseConnectionTest() {
@@ -293,5 +294,19 @@ export function useStatistics(workspaceId: string, userId: string, options: { ra
         queryKey: queryKeys.statistics.byWorkspace(workspaceId, userId, options),
         queryFn: () => apiClient.getStatistics(workspaceId, userId, options),
         enabled: !!workspaceId && !!userId,
+    });
+}
+
+// OpenAI Model Configs hooks
+export function useOpenAIModelConfigs() {
+    return useQuery({
+        queryKey: ['openai-model-configs'],
+        queryFn: () => openaiModelConfigsAPI.getModelConfigs(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 }

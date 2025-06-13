@@ -30,8 +30,8 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const [justCopied, setJustCopied] = useState(false);
 
     // Get OpenAI model configurations to resolve provider info
-    const { data: openaiModelConfigsData } = useOpenAIModelConfigs();
-    const openaiModelConfigs = openaiModelConfigsData?.success ? openaiModelConfigsData.data || [] : [];
+    const { data: openaiModelConfigs } = useOpenAIModelConfigs();
+    const modelConfigs = openaiModelConfigs || [];
 
     // Get provider info from OpenAI model config or API metadata
     const getProviderInfo = () => {
@@ -44,8 +44,8 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
         }
 
         // Fall back to OpenAI model config lookup
-        if (message.aiProviderId && openaiModelConfigs.length > 0) {
-            const modelConfig = openaiModelConfigs.find(config => config.id === message.aiProviderId);
+        if (message.aiProviderId && modelConfigs.length > 0) {
+            const modelConfig = modelConfigs.find(config => config.id === message.aiProviderId);
             if (modelConfig) {
                 return {
                     name: modelConfig.customName || modelConfig.modelName,

@@ -45,13 +45,13 @@ export function StreamingMessage({
     const contentRef = useRef<HTMLDivElement>(null);
 
     // Get OpenAI model configurations to resolve provider info
-    const { data: openaiModelConfigsData } = useOpenAIModelConfigs();
-    const openaiModelConfigs = openaiModelConfigsData?.success ? openaiModelConfigsData.data || [] : [];
+    const { data: openaiModelConfigs } = useOpenAIModelConfigs();
+    const modelConfigs = openaiModelConfigs || [];
 
     // Get provider info from OpenAI model config
     const getProviderInfo = () => {
-        if (aiProviderId && openaiModelConfigs.length > 0) {
-            const modelConfig = openaiModelConfigs.find(config => config.id === aiProviderId);
+        if (aiProviderId && modelConfigs.length > 0) {
+            const modelConfig = modelConfigs.find(config => config.id === aiProviderId);
             if (modelConfig) {
                 return {
                     name: modelConfig.customName || modelConfig.modelName,
