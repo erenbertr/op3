@@ -394,51 +394,40 @@ export function OpenAISettingsView() {
     }
 
     return (
-        <div className="h-full">
-            <div className="container mx-auto px-4 h-full flex">
-                {/* Vertical Tabs Sidebar */}
-                <div className="w-80 h-full overflow-y-auto border-r">
-                    <div className="py-6 space-y-2">
-                        {tabs.map((tab) => (
-                            <Button
-                                key={tab.id}
-                                variant={activeTab === tab.id ? "default" : "ghost"}
-                                className={`w-full justify-start h-auto p-3 select-none ${activeTab === tab.id
-                                    ? "bg-primary text-primary-foreground"
-                                    : "hover:bg-muted"
-                                    }`}
-                                onClick={() => setActiveTab(tab.id)}
-                            >
-                                <div className="flex items-center gap-3">
-                                    {tab.icon}
-                                    <div className="text-left">
-                                        <div className="font-medium">{tab.label}</div>
-                                        <div className="text-xs opacity-70">{tab.description}</div>
-                                    </div>
-                                </div>
-                            </Button>
-                        ))}
-                    </div>
-                </div>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="text-center">
+                <h1 className="text-2xl font-bold mb-2">OpenAI Configuration</h1>
+                <p className="text-muted-foreground">
+                    Configure OpenAI API keys and models
+                </p>
+            </div>
 
-                {/* Main Content Area */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="pl-8 pr-4 py-6">
-                        {/* Tab Header */}
-                        <div className="mb-6">
-                            <h2 className="text-2xl font-bold">
-                                {tabs.find(t => t.id === activeTab)?.label || 'OpenAI Configuration'}
-                            </h2>
-                            <p className="text-muted-foreground">
-                                {tabs.find(t => t.id === activeTab)?.description || 'Configure OpenAI settings'}
-                            </p>
-                        </div>
-
-                        {/* Tab Content */}
-                        {activeTab === 'keys' && renderKeysTab()}
-                        {activeTab === 'models' && renderModelsTab()}
-                    </div>
+            {/* Horizontal Tabs */}
+            <div className="flex justify-center">
+                <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                    {tabs.map((tab) => (
+                        <Button
+                            key={tab.id}
+                            variant="ghost"
+                            size="sm"
+                            className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === tab.id
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "hover:bg-background/50"
+                                }`}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            {tab.icon}
+                            <span className="ml-2">{tab.label}</span>
+                        </Button>
+                    ))}
                 </div>
+            </div>
+
+            {/* Tab Content */}
+            <div className="mt-6">
+                {activeTab === 'keys' && renderKeysTab()}
+                {activeTab === 'models' && renderModelsTab()}
             </div>
         </div>
     );
