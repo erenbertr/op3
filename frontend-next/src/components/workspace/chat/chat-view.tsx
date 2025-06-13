@@ -6,7 +6,7 @@ import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
 import { authService, AuthUser } from '@/lib/auth';
 import { ChatSession } from '@/lib/api';
-import { useChatSessions, usePersonalities, useAIProviders } from '@/lib/hooks/use-query-hooks';
+import { useChatSessions, usePersonalities } from '@/lib/hooks/use-query-hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 
@@ -51,12 +51,6 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     } = usePersonalities(user?.id || '');
 
     const {
-        data: aiProvidersData,
-        isLoading: aiProvidersLoading,
-        error: aiProvidersError
-    } = useAIProviders();
-
-    const {
         data: chatSessionsData,
         isLoading: chatSessionsLoading,
         error: chatSessionsError,
@@ -65,14 +59,13 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     // Extract data from query results
     const personalities = personalitiesData?.success ? personalitiesData.personalities : [];
-    const aiProviders = aiProvidersData?.success ? aiProvidersData.providers : [];
     const chatSessions = useMemo(() =>
         chatSessionsData?.success ? (chatSessionsData.sessions || []) : [],
         [chatSessionsData]
     );
 
     // Handle loading state
-    const isLoading = personalitiesLoading || aiProvidersLoading || chatSessionsLoading;
+    const isLoading = personalitiesLoading || chatSessionsLoading;
 
     // Handle chat session changes using callback approach
     const updateActiveSession = useCallback(() => {
@@ -122,15 +115,6 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     // Handle errors from TanStack Query
     React.useMemo(() => {
-        if (aiProvidersError) {
-            console.error('Failed to load AI providers:', aiProvidersError);
-            addToast({
-                title: "Warning",
-                description: "Failed to load AI providers. Please check your configuration.",
-                variant: "destructive"
-            });
-        }
-
         if (chatSessionsError) {
             console.error('Failed to load chat sessions:', chatSessionsError);
             setError('Failed to load chat sessions');
@@ -139,7 +123,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         if (personalitiesError) {
             console.error('Failed to load personalities:', personalitiesError);
         }
-    }, [aiProvidersError, chatSessionsError, personalitiesError, addToast]);
+    }, [chatSessionsError, personalitiesError, addToast]);
 
     // Update active session when dependencies change
     React.useLayoutEffect(() => {
@@ -332,7 +316,6 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                             <ChatSessionComponent
                                 session={activeSession}
                                 personalities={personalities || []}
-                                aiProviders={aiProviders || []}
                                 onSessionUpdate={handleSessionUpdate}
                                 userId={user?.id || ''}
                                 className="h-full"

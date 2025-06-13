@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Search, Paperclip, X, Upload, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Personality, AIProviderConfig, FileAttachment, apiClient, OpenRouterModel } from '@/lib/api';
+import { Personality, FileAttachment, apiClient } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -14,7 +14,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface ChatInputProps {
     onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, reasoningEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
     personalities: Personality[];
-    aiProviders: AIProviderConfig[];
     isLoading?: boolean;
     placeholder?: string;
     className?: string;
@@ -32,9 +31,7 @@ interface ChatInputProps {
 export function ChatInput({
     onSendMessage,
     personalities,
-    aiProviders,
     isLoading = false,
-    placeholder = "Enter to send, Shift+Enter to add a new line",
     className,
     disabled = false,
     sessionPersonalityId,
@@ -43,8 +40,7 @@ export function ChatInput({
     autoFocus = false,
     onInterruptStreaming,
     sessionId,
-    userId,
-    workspaceId
+    userId
 }: ChatInputProps) {
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
@@ -56,13 +52,11 @@ export function ChatInput({
     const [showProviderDropdown, setShowProviderDropdown] = useState(false);
     const [searchEnabled, setSearchEnabled] = useState(false);
     const [reasoningEnabled, setReasoningEnabled] = useState(false);
-    const [fileAttachEnabled, setFileAttachEnabled] = useState(false);
     const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [uploadedFileIds, setUploadedFileIds] = useState<string[]>([]);
     const [uploadedAttachments, setUploadedAttachments] = useState<FileAttachment[]>([]);
     const [isUploading, setIsUploading] = useState(false);
-    const [showOpenRouterSubmenu, setShowOpenRouterSubmenu] = useState(false);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const personalityDropdownRef = useRef<HTMLDivElement>(null);
@@ -104,15 +98,7 @@ export function ChatInput({
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
-    // Helper function to get capability icon
-    const getCapabilityIcon = (capability: string) => {
-        switch (capability) {
-            case 'search': return Search;
-            case 'reasoning': return Brain;
-            case 'fileUpload': return Paperclip;
-            default: return Search;
-        }
-    };
+    // Remove unused helper function
 
     // Helper function to check if a model has a specific capability
     const hasCapability = (modelConfig: OpenAIModelConfig | undefined, capability: keyof ModelCapabilities): boolean => {
@@ -124,10 +110,7 @@ export function ChatInput({
         return openaiModelConfigs.find(config => config.id === selectedModelConfig);
     }, [openaiModelConfigs, selectedModelConfig]);
 
-    // Combine regular providers with any additional providers (like OpenRouter)
-    const allProviders = useMemo(() => {
-        return [...(aiProviders || [])];
-    }, [aiProviders]);
+    // Remove old provider logic - now using only OpenAI model configs
 
     // Derived state for personality selection
     const derivedPersonality = useMemo(() => {
@@ -137,9 +120,9 @@ export function ChatInput({
         return '';
     }, [sessionPersonalityId]);
 
-    // Derived state for AI provider selection - now prioritizes model configs
+    // Derived state for AI provider selection - now only uses model configs
     const derivedProvider = useMemo(() => {
-        // First, try to find a matching model config if sessionAIProviderId is a model config ID
+        // Try to find a matching model config if sessionAIProviderId is a model config ID
         if (sessionAIProviderId && openaiModelConfigs.length > 0) {
             const sessionModelConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
             if (sessionModelConfig) {
@@ -148,15 +131,7 @@ export function ChatInput({
             }
         }
 
-        // If session has a specific provider ID and it exists in available providers, use it
-        if (sessionAIProviderId && allProviders && allProviders.length > 0) {
-            const sessionProvider = allProviders.find(p => p?.id === sessionAIProviderId);
-            if (sessionProvider) {
-                return sessionAIProviderId;
-            }
-        }
-
-        // Otherwise, fall back to active model config or provider
+        // Fall back to active model config or first available
         if (openaiModelConfigs.length > 0) {
             const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
             if (activeModelConfig) {
@@ -165,13 +140,8 @@ export function ChatInput({
             }
         }
 
-        // Fall back to regular providers
-        if (allProviders && allProviders.length > 0) {
-            const activeProvider = allProviders.find(p => p?.isActive) || allProviders[0];
-            return activeProvider?.id || '';
-        }
         return '';
-    }, [sessionAIProviderId, allProviders, openaiModelConfigs]);
+    }, [sessionAIProviderId, openaiModelConfigs]);
 
     // Update state when derived values change - use useEffect instead of useMemo for side effects
     React.useEffect(() => {
@@ -180,17 +150,16 @@ export function ChatInput({
             currentSelected: selectedPersonality
         });
         setSelectedPersonality(derivedPersonality);
-    }, [derivedPersonality]);
+    }, [derivedPersonality, selectedPersonality]);
 
     React.useEffect(() => {
         console.log('🔄 Updating selectedProvider:', {
             derivedProvider,
             currentSelected: selectedProvider,
-            sessionAIProviderId,
-            aiProvidersCount: aiProviders?.length
+            sessionAIProviderId
         });
         setSelectedProvider(derivedProvider);
-    }, [derivedProvider]);
+    }, [derivedProvider, selectedProvider, sessionAIProviderId]);
 
     // Handle personality selection change
     const handlePersonalityChange = async (personalityId: string) => {
@@ -219,49 +188,11 @@ export function ChatInput({
         }
     };
 
-    // Validate selected provider (derived validation)
-    const validatedProvider = useMemo(() => {
-        if (selectedProvider && allProviders && allProviders.length > 0) {
-            const providerExists = allProviders.find(p => p?.id === selectedProvider);
-            if (!providerExists) {
-                const activeProvider = allProviders.find(p => p?.isActive) || allProviders[0];
-                return activeProvider?.id || '';
-            }
-        }
-        return selectedProvider;
-    }, [allProviders, selectedProvider]);
+    // Remove old provider validation - now only using model configs
 
-    // Validate selected personality (derived validation)
-    const validatedPersonality = useMemo(() => {
-        if (selectedPersonality && personalities && personalities.length > 0) {
-            const personalityExists = personalities.find(p => p?.id === selectedPersonality);
-            if (!personalityExists) {
-                return '';
-            }
-        }
-        return selectedPersonality;
-    }, [personalities, selectedPersonality]);
+    // Remove old personality validation
 
-    // Update state if validation changed the values - use useEffect for side effects
-    React.useEffect(() => {
-        if (validatedProvider !== selectedProvider) {
-            console.log('🔧 Validation correcting provider:', {
-                from: selectedProvider,
-                to: validatedProvider
-            });
-            setSelectedProvider(validatedProvider);
-        }
-    }, [validatedProvider, selectedProvider]);
-
-    React.useEffect(() => {
-        if (validatedPersonality !== selectedPersonality) {
-            console.log('🔧 Validation correcting personality:', {
-                from: selectedPersonality,
-                to: validatedPersonality
-            });
-            setSelectedPersonality(validatedPersonality);
-        }
-    }, [validatedPersonality, selectedPersonality]);
+    // Remove old validation logic
 
     // Close dropdowns when clicking outside (using useLayoutEffect for DOM events)
     React.useLayoutEffect(() => {
@@ -385,24 +316,7 @@ export function ChatInput({
         p?.title?.toLowerCase().includes(personalitySearch.toLowerCase())
     );
 
-    const filteredProviders = allProviders.filter(p =>
-        (p?.name || p?.type || '').toLowerCase().includes(providerSearch.toLowerCase()) ||
-        (p?.model || '').toLowerCase().includes(providerSearch.toLowerCase())
-    );
-
     const selectedPersonalityObj = (personalities || []).find(p => p?.id === selectedPersonality);
-    const selectedProviderObj = allProviders.find(p => p?.id === selectedProvider);
-
-    // Debug logging for provider selection
-    React.useEffect(() => {
-        console.log('🎯 Provider selection debug:', {
-            sessionAIProviderId: sessionAIProviderId,
-            derivedProvider: derivedProvider,
-            selectedProvider: selectedProvider,
-            selectedProviderObj: selectedProviderObj ? { id: selectedProviderObj.id, name: selectedProviderObj.name } : null,
-            allProviders: allProviders?.map(p => ({ id: p.id, name: p.name, isActive: p.isActive, type: p.type }))
-        });
-    }, [selectedProvider, selectedProviderObj, sessionAIProviderId, derivedProvider, allProviders]);
 
     return (
         <div className={cn("w-full max-w-4xl mx-auto", className)}>
@@ -529,11 +443,6 @@ export function ChatInput({
                                         {selectedModelConfigObj.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
                                     </div>
                                 </span>
-                            ) : selectedProviderObj ? (
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                    <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
-                                    <span className="text-xs">{selectedProviderObj.model}</span>
-                                </span>
                             ) : (
                                 <span className="text-muted-foreground">Select AI provider</span>
                             )}
@@ -585,40 +494,12 @@ export function ChatInput({
                                         </div>
                                     )}
 
-                                    {/* Other Providers Section */}
-                                    {filteredProviders.length > 0 && (
-                                        <div>
-                                            {openaiModelConfigs.length > 0 && (
-                                                <div className="border-t my-1"></div>
-                                            )}
-                                            {filteredProviders.map((provider) => (
-                                                <div
-                                                    key={provider.id}
-                                                    className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
-                                                    onClick={() => {
-                                                        const providerId = provider.id || '';
-                                                        handleProviderChange(providerId, false);
-                                                        setShowProviderDropdown(false);
-                                                        setProviderSearch('');
-                                                    }}
-                                                >
-                                                    <div className="font-medium">
-                                                        {provider?.name || provider?.type || 'Unknown Provider'}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {provider?.model || 'Unknown Model'}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
                                     {/* No results message */}
-                                    {filteredProviders.length === 0 && openaiModelConfigs.filter(config =>
+                                    {openaiModelConfigs.filter(config =>
                                         (config.customName || config.modelName).toLowerCase().includes(providerSearch.toLowerCase())
                                     ).length === 0 && providerSearch && (
                                             <div className="px-3 py-2 text-muted-foreground text-center">
-                                                No providers found
+                                                No models found
                                             </div>
                                         )}
                                 </div>
@@ -677,7 +558,7 @@ export function ChatInput({
                                 <TooltipTrigger asChild>
                                     <Button
                                         type="button"
-                                        variant={fileAttachEnabled ? "default" : "outline"}
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => fileInputRef.current?.click()}
                                         className="h-8 w-8 p-0"

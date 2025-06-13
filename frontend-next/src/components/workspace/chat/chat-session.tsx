@@ -16,7 +16,6 @@ import { useToast } from '@/components/ui/toast';
 interface ChatSessionProps {
     session: ChatSession;
     personalities: Personality[];
-    aiProviders: AIProviderConfig[];
     onSessionUpdate?: (session: ChatSession) => void;
     className?: string;
     userId: string;
@@ -27,7 +26,6 @@ interface ChatSessionProps {
 export function ChatSessionComponent({
     session,
     personalities,
-    aiProviders,
     onSessionUpdate,
     className,
     userId,
@@ -1005,7 +1003,6 @@ export function ChatSessionComponent({
                     <ChatInput
                         onSendMessage={handleSendMessage}
                         personalities={personalities}
-                        aiProviders={aiProviders}
                         isLoading={isLoading}
                         placeholder={messages.length === 0 ? "Start your conversation - Enter to send, Shift+Enter for new line" : undefined}
                         sessionPersonalityId={session?.lastUsedPersonalityId}
@@ -1015,7 +1012,6 @@ export function ChatSessionComponent({
                         onInterruptStreaming={handleInterruptStreaming}
                         sessionId={session?.id}
                         userId={userId}
-                        workspaceId={workspaceId}
                     />
                 </div>
             </div>
