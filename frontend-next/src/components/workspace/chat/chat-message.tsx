@@ -14,6 +14,9 @@ import ReactMarkdown, { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -96,7 +99,8 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
             return (
                 <div className="prose prose-sm max-w-none dark:prose-invert">
                     <ReactMarkdown
-                        remarkPlugins={[remarkGfm]} // Enable GitHub Flavored Markdown (tables, strikethrough, etc.)
+                        remarkPlugins={[remarkGfm, remarkMath]} // Enable GitHub Flavored Markdown and math
+                        rehypePlugins={[rehypeKatex]} // Enable KaTeX math rendering
                         components={{
                             // Custom renderer for links to open in new tab
                             a: (props: React.DetailedHTMLProps<React.AnchorHTMLAttributes<HTMLAnchorElement>, HTMLAnchorElement>) => (
@@ -170,8 +174,8 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
 
             {/* Message content */}
             <div className="space-y-2">
-                {/* Status/Header area - show for AI messages with personality or provider info */}
-                {isAssistant && (personality || providerInfo) && (
+                {/* Status/Header area - show for AI messages with personality, provider info, or reasoning */}
+                {isAssistant && (personality || providerInfo || message.apiMetadata?.reasoningEnabled) && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 h-4">
                         {/* Provider badge */}
                         {providerInfo && (
@@ -186,6 +190,14 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                             <Badge variant="secondary" className="text-xs">
                                 <Brain className="h-3 w-3" />
                                 {personality.title}
+                            </Badge>
+                        )}
+
+                        {/* Reasoning badge */}
+                        {message.apiMetadata?.reasoningEnabled && (
+                            <Badge variant="outline" className="text-xs border-blue-500 text-blue-600">
+                                <Brain className="h-3 w-3" />
+                                Reasoning
                             </Badge>
                         )}
 

@@ -41,6 +41,7 @@ export interface ApiMetadata {
     requestId?: string;
     searchResults?: SearchResult[];
     searchQuery?: string;
+    reasoningEnabled?: boolean;
 }
 
 export interface CreateChatSessionRequest {

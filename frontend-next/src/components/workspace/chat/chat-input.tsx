@@ -530,27 +530,32 @@ export function ChatInput({
                         </Tooltip>
                     </TooltipProvider>
 
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant={reasoningEnabled ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setReasoningEnabled(!reasoningEnabled)}
-                                    className="h-8 w-8 p-0"
-                                    disabled={!hasCapability(selectedModelConfigObj, 'reasoning')}
-                                >
-                                    <Brain className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                {hasCapability(selectedModelConfigObj, 'reasoning')
-                                    ? "Toggle model reasoning"
-                                    : "Model does not have reasoning capability"}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <div className="relative">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant={reasoningEnabled ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                                        className="h-8 w-8 p-0"
+                                        disabled={!hasCapability(selectedModelConfigObj, 'reasoning')}
+                                    >
+                                        <Brain className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {hasCapability(selectedModelConfigObj, 'reasoning')
+                                        ? (reasoningEnabled ? "Reasoning mode enabled" : "Enable reasoning mode")
+                                        : "Model does not have reasoning capability"}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        {reasoningEnabled && (
+                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        )}
+                    </div>
 
                     <div className="relative">
                         <TooltipProvider>

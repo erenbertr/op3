@@ -126,6 +126,13 @@ export interface ChatMessage {
     attachmentData?: FileAttachment[]; // Direct attachment data for display (client-side only)
 }
 
+export interface SearchResult {
+    title: string;
+    url: string;
+    snippet: string;
+    displayUrl?: string;
+}
+
 export interface ApiMetadata {
     inputTokens?: number;
     outputTokens?: number;
@@ -135,6 +142,9 @@ export interface ApiMetadata {
     provider?: string;
     cost?: number;
     requestId?: string;
+    searchResults?: SearchResult[];
+    searchQuery?: string;
+    reasoningEnabled?: boolean;
 }
 
 export interface CreateChatSessionRequest {

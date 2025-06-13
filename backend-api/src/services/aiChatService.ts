@@ -490,7 +490,8 @@ export class AIChatService {
                 outputTokens: usage.completion_tokens || 0,
                 totalTokens: usage.total_tokens || 0,
                 model: provider.model,
-                provider: 'openai'
+                provider: 'openai',
+                reasoningEnabled: reasoningEnabled || false
             }
         };
     }

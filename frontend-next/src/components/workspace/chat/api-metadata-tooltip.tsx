@@ -69,6 +69,13 @@ export function ApiMetadataTooltip({ metadata, className }: ApiMetadataTooltipPr
                             </div>
                         )}
 
+                        {metadata.reasoningEnabled && (
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Reasoning:</span>
+                                <span className="font-medium text-blue-600">Enabled</span>
+                            </div>
+                        )}
+
                         {(metadata.inputTokens || metadata.outputTokens || metadata.totalTokens) && (
                             <div className="border-t pt-1">
                                 <div className="font-medium mb-1">Token Usage</div>
