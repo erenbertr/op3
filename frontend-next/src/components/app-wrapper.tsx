@@ -10,7 +10,7 @@ import { WorkspaceApplication } from '@/components/workspace/workspace-applicati
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { apiClient } from '@/lib/api';
-import { authService, AuthUser } from '@/lib/auth';
+import { useSession, signIn, signOut } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 import { Loader2 } from 'lucide-react';
 
@@ -18,15 +18,19 @@ import { Loader2 } from 'lucide-react';
 
 export function AppWrapper() {
 
-    // Initialize user state from auth service
-    const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-        return authService.getCurrentUser();
-    });
+    // Use Better Auth session
+    const { data: session, isPending: isSessionLoading } = useSession();
+    const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-    const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(() => {
-        const user = authService.getCurrentUser();
-        return user ? !user.hasCompletedWorkspaceSetup : false;
-    });
+    // Check if user needs workspace setup when session changes
+    React.useEffect(() => {
+        if (session?.user && !session.user.hasCompletedWorkspaceSetup) {
+            setShowWorkspaceSetup(true);
+        } else {
+            setShowWorkspaceSetup(false);
+        }
+    }, [session]);
 
     // Use delayed spinner for setup loading
     const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);
@@ -68,54 +72,40 @@ export function AppWrapper() {
 
     // Removed loadInitialWorkspace function - WorkspaceApplication handles its own navigation
 
-    // User state is now initialized directly in useState, no need for additional initialization
-
-
-
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-
     const handleLogin = async (credentials: { email: string; password: string }) => {
         setIsLoggingIn(true);
 
         try {
-            const result = await authService.login(credentials);
+            const result = await signIn.email({
+                email: credentials.email,
+                password: credentials.password,
+            });
 
-            if (result.success && result.user) {
-                setCurrentUser(result.user);
-
-                // Check if user needs workspace setup
-                if (!result.user.hasCompletedWorkspaceSetup) {
-                    setShowWorkspaceSetup(true);
-                }
-                // WorkspaceApplication will handle navigation when rendered
+            if (result.error) {
+                throw new Error(result.error.message || 'Login failed');
             }
+
+            // Session will be updated automatically by Better Auth
+            // The useEffect above will handle workspace setup check
         } catch (error) {
             // Login failed - error will be handled by the login form
+            throw error;
         } finally {
             setIsLoggingIn(false);
         }
     };
 
-    const handleLogout = () => {
-        authService.logout();
-        setCurrentUser(null);
+    const handleLogout = async () => {
+        await signOut();
         setShowWorkspaceSetup(false);
     };
 
     const handleWorkspaceSetupComplete = (_workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
         setShowWorkspaceSetup(false);
 
-        // Update user state to reflect completed workspace setup
-        if (currentUser) {
-            const updatedUser = {
-                ...currentUser,
-                hasCompletedWorkspaceSetup: true
-            };
-            setCurrentUser(updatedUser);
-            authService.updateUser({ hasCompletedWorkspaceSetup: true });
-        }
-
-        // WorkspaceApplication will handle navigation when rendered
+        // Note: In Better Auth, user updates should be handled through the backend API
+        // The session will be refreshed automatically when the user data changes
+        // For now, we'll just hide the workspace setup
     };
 
 
@@ -180,7 +170,7 @@ export function AppWrapper() {
     }
 
     // If user is logged in and needs workspace setup
-    if (currentUser && showWorkspaceSetup) {
+    if (session?.user && showWorkspaceSetup) {
         return (
             <div className="h-screen bg-background">
                 {/* Header with theme toggle and language selector */}
@@ -191,7 +181,7 @@ export function AppWrapper() {
                             <span className="text-sm text-muted-foreground">Workspace Setup</span>
                         </div>
                         <div className="flex items-center gap-4">
-                            <UserMenu userEmail={currentUser.email} onLogout={handleLogout} />
+                            <UserMenu userEmail={session.user.email} onLogout={handleLogout} />
                             <ThemeToggle />
                         </div>
                     </div>
@@ -200,7 +190,7 @@ export function AppWrapper() {
                 {/* Workspace setup */}
                 <main>
                     <WorkspaceSetup
-                        userId={currentUser.id}
+                        userId={session.user.id}
                         onComplete={handleWorkspaceSetupComplete}
                     />
                 </main>
@@ -209,17 +199,17 @@ export function AppWrapper() {
     }
 
     // If user is logged in and has completed workspace setup, show workspace application
-    if (currentUser && currentUser.hasCompletedWorkspaceSetup) {
+    if (session?.user && session.user.hasCompletedWorkspaceSetup) {
         return (
             <WorkspaceApplication
-                currentUser={currentUser}
+                currentUser={session.user}
                 onLogout={handleLogout}
             />
         );
     }
 
-    // If we're still loading setup status, show nothing to prevent flash
-    if (isLoadingSetup) {
+    // If we're still loading setup status or session, show nothing to prevent flash
+    if (isLoadingSetup || isSessionLoading) {
         return null;
     }
 

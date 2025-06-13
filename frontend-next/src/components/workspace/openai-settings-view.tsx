@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Save, Search, Trash2, TestTube, Plus, Key, Bot, Edit } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { apiClient } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import { openaiProvidersAPI, type OpenAIProvider } from '@/lib/api/openai-providers';
@@ -63,7 +63,8 @@ export function OpenAISettingsView() {
     const [selectedKeyForModel, setSelectedKeyForModel] = useState<string>('');
     const [isLoadingModelsForKey, setIsLoadingModelsForKey] = useState(false);
 
-    const user = authService.getCurrentUser();
+    const { data: session } = useSession();
+    const user = session?.user;
 
     // Define tabs
     const tabs = [
@@ -467,7 +468,9 @@ export function OpenAISettingsView() {
 
     // Handle Add Model button click
     const handleAddModelClick = () => {
-        if (keys.length === 0) {
+        const activeKeys = keys.filter(key => key.isActive);
+
+        if (activeKeys.length === 0) {
             addToast({
                 title: "No API Keys",
                 description: "Please add an API key first before adding models",
@@ -475,7 +478,17 @@ export function OpenAISettingsView() {
             });
             return;
         }
-        setIsAddModelModalOpen(true);
+
+        // If there's only one active key, automatically select it and open the modal
+        if (activeKeys.length === 1) {
+            const singleKey = activeKeys[0];
+            setSelectedKeyForModel(singleKey.id);
+            handleKeySelectForModel(singleKey.id);
+            setIsAddModelModalOpen(true);
+        } else {
+            // Multiple keys available - this will be handled by the dropdown in the UI
+            setIsAddModelModalOpen(true);
+        }
     };
 
     // Handle key selection in Add Model modal
@@ -581,37 +594,46 @@ export function OpenAISettingsView() {
                     </Button>
                 )}
                 {activeTab === 'models' && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button>
-                                <Plus className="h-4 w-4" />
-                                Add Model
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            {keys.filter(key => key.isActive).length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-muted-foreground">
-                                    No active API keys available.
-                                    <br />
-                                    Please add an API key first.
-                                </div>
-                            ) : (
-                                keys.filter(key => key.isActive).map((key) => (
-                                    <DropdownMenuItem
-                                        key={key.id}
-                                        onClick={() => {
-                                            setSelectedKeyForModel(key.id);
-                                            handleKeySelectForModel(key.id);
-                                            setIsAddModelModalOpen(true);
-                                        }}
-                                    >
-                                        <Key className="h-4 w-4 mr-2" />
-                                        {key.name}
-                                    </DropdownMenuItem>
-                                ))
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    (() => {
+                        const activeKeys = keys.filter(key => key.isActive);
+
+                        // If only one active key, show simple button
+                        if (activeKeys.length <= 1) {
+                            return (
+                                <Button onClick={handleAddModelClick}>
+                                    <Plus className="h-4 w-4" />
+                                    Add Model
+                                </Button>
+                            );
+                        }
+
+                        // Multiple active keys, show dropdown
+                        return (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button>
+                                        <Plus className="h-4 w-4" />
+                                        Add Model
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {activeKeys.map((key) => (
+                                        <DropdownMenuItem
+                                            key={key.id}
+                                            onClick={() => {
+                                                setSelectedKeyForModel(key.id);
+                                                handleKeySelectForModel(key.id);
+                                                setIsAddModelModalOpen(true);
+                                            }}
+                                        >
+                                            <Key className="h-4 w-4 mr-2" />
+                                            {key.name}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        );
+                    })()
                 )}
             </div>
 
@@ -849,40 +871,59 @@ export function OpenAISettingsView() {
                                 <p className="text-muted-foreground mb-4 max-w-sm mx-auto">
                                     You haven't configured any models yet. Add your first model to get started.
                                 </p>
-                                {keys.filter(key => key.isActive).length > 0 ? (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button>
+                                {(() => {
+                                    const activeKeys = keys.filter(key => key.isActive);
+
+                                    if (activeKeys.length === 0) {
+                                        return (
+                                            <div className="text-center">
+                                                <p className="text-sm text-muted-foreground mb-3">
+                                                    No active API keys available. Please add an API key first.
+                                                </p>
+                                                <Button variant="outline" onClick={() => setActiveTab('keys')}>
+                                                    Go to API Keys
+                                                </Button>
+                                            </div>
+                                        );
+                                    }
+
+                                    // If only one active key, show simple button
+                                    if (activeKeys.length === 1) {
+                                        return (
+                                            <Button onClick={handleAddModelClick}>
                                                 <Plus className="h-4 w-4" />
                                                 Add Your First Model
                                             </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="center">
-                                            {keys.filter(key => key.isActive).map((key) => (
-                                                <DropdownMenuItem
-                                                    key={key.id}
-                                                    onClick={() => {
-                                                        setSelectedKeyForModel(key.id);
-                                                        handleKeySelectForModel(key.id);
-                                                        setIsAddModelModalOpen(true);
-                                                    }}
-                                                >
-                                                    <Key className="h-4 w-4 mr-2" />
-                                                    {key.name}
-                                                </DropdownMenuItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                ) : (
-                                    <div className="text-center">
-                                        <p className="text-sm text-muted-foreground mb-3">
-                                            No active API keys available. Please add an API key first.
-                                        </p>
-                                        <Button variant="outline" onClick={() => setActiveTab('keys')}>
-                                            Go to API Keys
-                                        </Button>
-                                    </div>
-                                )}
+                                        );
+                                    }
+
+                                    // Multiple active keys, show dropdown
+                                    return (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button>
+                                                    <Plus className="h-4 w-4" />
+                                                    Add Your First Model
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="center">
+                                                {activeKeys.map((key) => (
+                                                    <DropdownMenuItem
+                                                        key={key.id}
+                                                        onClick={() => {
+                                                            setSelectedKeyForModel(key.id);
+                                                            handleKeySelectForModel(key.id);
+                                                            setIsAddModelModalOpen(true);
+                                                        }}
+                                                    >
+                                                        <Key className="h-4 w-4 mr-2" />
+                                                        {key.name}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    );
+                                })()}
                             </div>
                         ) : (
                             <div className="space-y-4">

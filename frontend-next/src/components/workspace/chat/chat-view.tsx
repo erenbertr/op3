@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 // WorkspaceLayout removed - parent components handle layout wrapping
 import { ChatSidebar } from './chat-sidebar';
 import { ChatSessionComponent, EmptyChatState } from './chat-session';
-import { authService, AuthUser } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { ChatSession } from '@/lib/api';
 import { useChatSessions, usePersonalities } from '@/lib/hooks/use-query-hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -21,19 +21,14 @@ interface ChatViewProps {
 export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [user, setUser] = useState<AuthUser | null>(null);
-    const [isClientReady, setIsClientReady] = useState(false);
     const [showNotFoundError, setShowNotFoundError] = useState(false);
     const [shouldAutoFocus, setShouldAutoFocus] = useState(false);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
 
-    // Initialize user state on client side only to prevent hydration mismatch
-    useEffect(() => {
-        const currentUser = authService.getCurrentUser();
-        setUser(currentUser);
-        setIsClientReady(true);
-    }, []);
+    // Use Better Auth session
+    const { data: session, isPending: isSessionLoading } = useSession();
+    const user = session?.user;
 
     // Navigation helper
     const navigate = useCallback((path: string) => {
@@ -143,13 +138,13 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
 
     // Redirect if no user - use useEffect to prevent SSR issues
     useEffect(() => {
-        if (isClientReady && !user) {
+        if (!isSessionLoading && !user) {
             navigate('/');
         }
-    }, [user, navigate, isClientReady]);
+    }, [user, navigate, isSessionLoading]);
 
-    // Show loading while client is initializing to prevent hydration mismatch
-    if (!isClientReady) {
+    // Show loading while session is loading
+    if (isSessionLoading) {
         return (
             <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4">

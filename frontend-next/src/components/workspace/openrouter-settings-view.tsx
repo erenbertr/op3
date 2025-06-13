@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Save, Search, Filter, X, ArrowRight, ArrowLeft, RotateCcw, Settings, Key } from 'lucide-react';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { apiClient, OpenRouterModel } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -44,7 +44,8 @@ export function OpenRouterSettingsView() {
     const [priceFilter, setPriceFilter] = useState<'all' | 'free' | 'paid'>('all');
     const [contextFilter, setContextFilter] = useState<'all' | 'small' | 'medium' | 'large'>('all');
 
-    const user = authService.getCurrentUser();
+    const { data: session } = useSession();
+    const user = session?.user;
 
     // Define wizard steps
     const steps: OpenRouterStep[] = [
