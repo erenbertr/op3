@@ -61,7 +61,7 @@ function ToastContainer() {
     const { toasts, removeToast } = useToast()
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] flex flex-col gap-2 max-w-sm w-full px-4">
             {toasts.map((toast) => (
                 <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
             ))}
@@ -73,12 +73,12 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
     return (
         <div
             className={cn(
-                "relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-4 pr-8 shadow-lg transition-all",
-                "animate-in slide-in-from-bottom-2 duration-300",
+                "relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md p-4 pr-8 shadow-lg transition-all backdrop-blur-sm",
+                "animate-in slide-in-from-top-2 duration-300",
                 {
-                    "border-border bg-background text-foreground": toast.variant === "default" || !toast.variant,
-                    "border-destructive/50 bg-destructive text-destructive-foreground": toast.variant === "destructive",
-                    "border-green-500/50 bg-green-50 text-green-900 dark:bg-green-900/20 dark:text-green-100": toast.variant === "success",
+                    "bg-background/95 border border-border text-foreground": toast.variant === "default" || !toast.variant,
+                    "bg-destructive border border-destructive text-destructive-foreground": toast.variant === "destructive",
+                    "bg-green-500 border border-green-500 text-white": toast.variant === "success",
                 }
             )}
         >
@@ -92,7 +92,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
             </div>
             <button
                 onClick={() => onRemove(toast.id)}
-                className="absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
+                className="absolute right-2 top-2 rounded-md p-1 text-current/50 opacity-0 transition-opacity hover:text-current focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
             >
                 <X className="h-4 w-4" />
             </button>
