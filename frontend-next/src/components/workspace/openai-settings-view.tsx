@@ -98,11 +98,12 @@ export function OpenAISettingsView() {
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
-    // Fetch OpenAI model configurations
+    // Fetch OpenAI model configurations (only when there are keys)
     const { data: modelsData, isLoading: isLoadingModels } = useQuery({
         queryKey: ['openai-model-configs'],
         queryFn: () => openaiModelConfigsAPI.getModelConfigs(),
         staleTime: 5 * 60 * 1000, // 5 minutes
+        enabled: keys.length > 0, // Only fetch when there are keys
     });
 
     // Update local state when data is loaded
@@ -185,18 +186,23 @@ export function OpenAISettingsView() {
 
     // Fetch models for selected key in models tab
     const fetchModelsForKey = async (keyId: string) => {
-        const key = keys.find(k => k.id === keyId);
-        if (!key) return;
-
         try {
-            const result = await apiClient.fetchOpenAIModels({ apiKey: key.apiKey });
+            // Get the decrypted API key from the backend
+            const decryptedApiKey = await openaiProvidersAPI.getDecryptedApiKey(keyId);
+            const result = await apiClient.fetchOpenAIModels({ apiKey: decryptedApiKey });
             if (result.success && result.models) {
                 setAvailableModels(result.models);
+            } else {
+                addToast({
+                    title: "Error",
+                    description: result.message || "Failed to fetch models for this key",
+                    variant: "destructive"
+                });
             }
         } catch (error) {
             addToast({
                 title: "Error",
-                description: "Failed to fetch models for this key",
+                description: error instanceof Error ? error.message : "Failed to fetch models for this key",
                 variant: "destructive"
             });
         }
@@ -457,18 +463,23 @@ export function OpenAISettingsView() {
         setSelectedKeyForModel(keyId);
         setIsLoadingModelsForKey(true);
 
-        const key = keys.find(k => k.id === keyId);
-        if (!key) return;
-
         try {
-            const result = await apiClient.fetchOpenAIModels({ apiKey: key.apiKey });
+            // Get the decrypted API key from the backend
+            const decryptedApiKey = await openaiProvidersAPI.getDecryptedApiKey(keyId);
+            const result = await apiClient.fetchOpenAIModels({ apiKey: decryptedApiKey });
             if (result.success && result.models) {
                 setAvailableModels(result.models);
+            } else {
+                addToast({
+                    title: "Error",
+                    description: result.message || "Failed to fetch models for this key",
+                    variant: "destructive"
+                });
             }
         } catch (error) {
             addToast({
                 title: "Error",
-                description: "Failed to fetch models for this key",
+                description: error instanceof Error ? error.message : "Failed to fetch models for this key",
                 variant: "destructive"
             });
         } finally {

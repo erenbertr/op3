@@ -150,9 +150,9 @@ export class OpenAIModelConfigService {
                 };
             }
 
-            // Get key name (we'll need to fetch this from the openai_providers table)
-            const keyName = await this.getKeyName(request.keyId);
-            if (!keyName) {
+            // Get key name from the openai_providers table
+            const keyInfo = await this.getKeyInfo(request.keyId);
+            if (!keyInfo) {
                 return {
                     success: false,
                     message: 'Invalid key ID',
@@ -163,7 +163,7 @@ export class OpenAIModelConfigService {
             const modelConfig: OpenAIModelConfig = {
                 id: crypto.randomUUID(),
                 keyId: request.keyId,
-                keyName: keyName,
+                keyName: keyInfo.name,
                 modelId: request.modelId,
                 modelName: request.modelId, // Use model ID as default name
                 customName: request.customName,
@@ -397,7 +397,7 @@ export class OpenAIModelConfigService {
         }
     }
 
-    private async getKeyName(keyId: string): Promise<string | null> {
+    private async getKeyInfo(keyId: string): Promise<{ name: string; apiKey: string } | null> {
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) return null;
@@ -406,36 +406,80 @@ export class OpenAIModelConfigService {
 
             switch (config.type) {
                 case 'localdb':
-                    return new Promise<string | null>((resolve, reject) => {
+                    return new Promise<{ name: string; apiKey: string } | null>((resolve, reject) => {
                         connection.get(
-                            'SELECT name FROM openai_providers WHERE id = ?',
+                            'SELECT name, apiKey FROM openai_providers WHERE id = ? AND isActive = 1',
                             [keyId],
                             (err: any, row: any) => {
                                 if (err) reject(err);
-                                else resolve(row ? row.name : null);
+                                else resolve(row ? { name: row.name, apiKey: this.decryptApiKey(row.apiKey) } : null);
                             }
                         );
                     });
 
                 case 'mongodb':
-                    const db = connection.db();
-                    const provider = await db.collection('openai_providers').findOne({ id: keyId });
-                    return provider ? provider.name : null;
+                    // connection is already the database object for MongoDB
+                    const provider = await connection.collection('openai_providers').findOne({ id: keyId, isActive: true });
+                    return provider ? { name: provider.name, apiKey: this.decryptApiKey(provider.apiKey) } : null;
 
                 case 'mysql':
                 case 'postgresql':
                     const [rows] = await connection.execute(
-                        'SELECT name FROM openai_providers WHERE id = ?',
+                        'SELECT name, apiKey FROM openai_providers WHERE id = ? AND isActive = TRUE',
                         [keyId]
                     );
-                    return Array.isArray(rows) && rows.length > 0 ? (rows[0] as any).name : null;
+                    return Array.isArray(rows) && rows.length > 0 ?
+                        { name: (rows[0] as any).name, apiKey: this.decryptApiKey((rows[0] as any).apiKey) } : null;
 
                 default:
                     return null;
             }
         } catch (error) {
-            console.error('Error getting key name:', error);
+            console.error('Error getting key info:', error);
             return null;
+        }
+    }
+
+    // Encryption/Decryption methods (copied from OpenAIProviderService)
+    private encryptApiKey(apiKey: string): string {
+        const crypto = require('crypto');
+        const algorithm = 'aes-256-cbc';
+        const secretKey = process.env.ENCRYPTION_KEY || 'default-secret-key-change-in-production';
+        const key = crypto.scryptSync(secretKey, 'salt', 32);
+        const iv = crypto.randomBytes(16);
+
+        const cipher = crypto.createCipher(algorithm, key);
+        let encrypted = cipher.update(apiKey, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+
+        return iv.toString('hex') + ':' + encrypted;
+    }
+
+    private decryptApiKey(encryptedApiKey: string): string {
+        try {
+            const crypto = require('crypto');
+            const algorithm = 'aes-256-cbc';
+            const secretKey = process.env.ENCRYPTION_KEY || 'default-secret-key-change-in-production';
+            const key = crypto.scryptSync(secretKey, 'salt', 32);
+
+            const parts = encryptedApiKey.split(':');
+            if (parts.length !== 2) {
+                // If it's not in the expected format, assume it's already decrypted
+                return encryptedApiKey;
+            }
+
+            const iv = Buffer.from(parts[0], 'hex');
+            const encryptedText = parts[1];
+
+            const decipher = crypto.createDecipher(algorithm, key);
+            let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+
+            return decrypted;
+        } catch (error) {
+            console.error('Error decrypting API key:', error);
+            // If decryption fails, return the original value (might already be decrypted)
+            return encryptedApiKey;
         }
     }
 
@@ -460,8 +504,7 @@ export class OpenAIModelConfigService {
                     });
 
                 case 'mongodb':
-                    const db = connection.db();
-                    const modelConfig = await db.collection('openai_model_configs').findOne({ keyId, modelId });
+                    const modelConfig = await connection.collection('openai_model_configs').findOne({ keyId, modelId });
                     return modelConfig ? this.parseModelConfigFromDB(modelConfig, config.type) : null;
 
                 case 'mysql':
@@ -503,8 +546,7 @@ export class OpenAIModelConfigService {
                     });
 
                 case 'mongodb':
-                    const db = connection.db();
-                    const modelConfig = await db.collection('openai_model_configs').findOne({ id });
+                    const modelConfig = await connection.collection('openai_model_configs').findOne({ id });
                     return modelConfig ? this.parseModelConfigFromDB(modelConfig, config.type) : null;
 
                 case 'mysql':
@@ -540,8 +582,7 @@ export class OpenAIModelConfigService {
                 });
 
             case 'mongodb':
-                const db = connection.db();
-                const modelConfigs = await db.collection('openai_model_configs')
+                const modelConfigs = await connection.collection('openai_model_configs')
                     .find({})
                     .sort({ createdAt: -1 })
                     .toArray();
@@ -592,8 +633,7 @@ export class OpenAIModelConfigService {
                 });
 
             case 'mongodb':
-                const db = connection.db();
-                await db.collection('openai_model_configs').insertOne({
+                await connection.collection('openai_model_configs').insertOne({
                     ...modelConfig,
                     capabilities: modelConfig.capabilities || {},
                     pricing: modelConfig.pricing || {}
@@ -652,8 +692,7 @@ export class OpenAIModelConfigService {
                 });
 
             case 'mongodb':
-                const db = connection.db();
-                await db.collection('openai_model_configs').updateOne(
+                await connection.collection('openai_model_configs').updateOne(
                     { id: modelConfig.id },
                     {
                         $set: {
@@ -700,8 +739,7 @@ export class OpenAIModelConfigService {
                 });
 
             case 'mongodb':
-                const db = connection.db();
-                await db.collection('openai_model_configs').deleteOne({ id });
+                await connection.collection('openai_model_configs').deleteOne({ id });
                 break;
 
             case 'mysql':
