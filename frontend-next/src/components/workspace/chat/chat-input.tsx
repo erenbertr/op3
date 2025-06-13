@@ -8,6 +8,8 @@ import { Search, Paperclip, X, Upload, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality, AIProviderConfig, FileAttachment, apiClient, OpenRouterModel } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ChatInputProps {
     onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, reasoningEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
@@ -47,6 +49,7 @@ export function ChatInput({
     const [message, setMessage] = useState('');
     const [selectedPersonality, setSelectedPersonality] = useState<string>('');
     const [selectedProvider, setSelectedProvider] = useState<string>('');
+    const [selectedModelConfig, setSelectedModelConfig] = useState<string>(''); // New state for model config selection
     const [personalitySearch, setPersonalitySearch] = useState('');
     const [providerSearch, setProviderSearch] = useState('');
     const [showPersonalityDropdown, setShowPersonalityDropdown] = useState(false);
@@ -94,6 +97,33 @@ export function ChatInput({
         }
     }, [autoFocus, disabled]);
 
+    // Fetch OpenAI model configurations
+    const { data: openaiModelConfigs = [] } = useQuery({
+        queryKey: ['openai-model-configs'],
+        queryFn: () => openaiModelConfigsAPI.getModelConfigs(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
+    // Helper function to get capability icon
+    const getCapabilityIcon = (capability: string) => {
+        switch (capability) {
+            case 'search': return Search;
+            case 'reasoning': return Brain;
+            case 'fileUpload': return Paperclip;
+            default: return Search;
+        }
+    };
+
+    // Helper function to check if a model has a specific capability
+    const hasCapability = (modelConfig: OpenAIModelConfig | undefined, capability: keyof ModelCapabilities): boolean => {
+        return modelConfig?.capabilities?.[capability] === true;
+    };
+
+    // Get the currently selected model config
+    const selectedModelConfigObj = useMemo(() => {
+        return openaiModelConfigs.find(config => config.id === selectedModelConfig);
+    }, [openaiModelConfigs, selectedModelConfig]);
+
     // Combine regular providers with any additional providers (like OpenRouter)
     const allProviders = useMemo(() => {
         return [...(aiProviders || [])];
@@ -107,8 +137,17 @@ export function ChatInput({
         return '';
     }, [sessionPersonalityId]);
 
-    // Derived state for AI provider selection
+    // Derived state for AI provider selection - now prioritizes model configs
     const derivedProvider = useMemo(() => {
+        // First, try to find a matching model config if sessionAIProviderId is a model config ID
+        if (sessionAIProviderId && openaiModelConfigs.length > 0) {
+            const sessionModelConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
+            if (sessionModelConfig) {
+                setSelectedModelConfig(sessionAIProviderId);
+                return 'openai'; // Return the provider type
+            }
+        }
+
         // If session has a specific provider ID and it exists in available providers, use it
         if (sessionAIProviderId && allProviders && allProviders.length > 0) {
             const sessionProvider = allProviders.find(p => p?.id === sessionAIProviderId);
@@ -117,13 +156,22 @@ export function ChatInput({
             }
         }
 
-        // Otherwise, fall back to active provider or first available
+        // Otherwise, fall back to active model config or provider
+        if (openaiModelConfigs.length > 0) {
+            const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
+            if (activeModelConfig) {
+                setSelectedModelConfig(activeModelConfig.id);
+                return 'openai';
+            }
+        }
+
+        // Fall back to regular providers
         if (allProviders && allProviders.length > 0) {
             const activeProvider = allProviders.find(p => p?.isActive) || allProviders[0];
             return activeProvider?.id || '';
         }
         return '';
-    }, [sessionAIProviderId, allProviders]);
+    }, [sessionAIProviderId, allProviders, openaiModelConfigs]);
 
     // Update state when derived values change - use useEffect instead of useMemo for side effects
     React.useEffect(() => {
@@ -152,11 +200,22 @@ export function ChatInput({
         }
     };
 
-    // Handle AI provider selection change
-    const handleProviderChange = async (providerId: string) => {
-        setSelectedProvider(providerId);
-        if (onSettingsChange) {
-            await onSettingsChange(selectedPersonality || undefined, providerId || undefined);
+    // Handle AI provider selection change - now handles both model configs and regular providers
+    const handleProviderChange = async (providerId: string, isModelConfig = false) => {
+        if (isModelConfig) {
+            // This is a model config ID
+            setSelectedModelConfig(providerId);
+            setSelectedProvider('openai'); // Set provider type to openai
+            if (onSettingsChange) {
+                await onSettingsChange(selectedPersonality || undefined, providerId || undefined);
+            }
+        } else {
+            // This is a regular provider ID
+            setSelectedProvider(providerId);
+            setSelectedModelConfig(''); // Clear model config selection
+            if (onSettingsChange) {
+                await onSettingsChange(selectedPersonality || undefined, providerId || undefined);
+            }
         }
     };
 
@@ -287,10 +346,13 @@ export function ChatInput({
             // Include previously uploaded files
             const allFileIds = [...uploadedFileIds, ...fileAttachmentIds];
 
+            // Use model config ID if selected, otherwise use provider ID
+            const aiProviderId = selectedModelConfig || selectedProvider || undefined;
+
             await onSendMessage(
                 content,
                 selectedPersonality || undefined,
-                selectedProvider || undefined,
+                aiProviderId,
                 searchEnabled,
                 reasoningEnabled,
                 allFileIds.length > 0 ? allFileIds : undefined,
@@ -458,7 +520,16 @@ export function ChatInput({
                             className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 select-none"
                             onClick={() => setShowProviderDropdown(!showProviderDropdown)}
                         >
-                            {selectedProviderObj ? (
+                            {selectedModelConfigObj ? (
+                                <span className="flex items-center gap-2 text-muted-foreground">
+                                    <span>{selectedModelConfigObj.customName || selectedModelConfigObj.modelName}</span>
+                                    <div className="flex items-center gap-1">
+                                        {selectedModelConfigObj.capabilities?.search && <Search className="h-3 w-3" />}
+                                        {selectedModelConfigObj.capabilities?.reasoning && <Brain className="h-3 w-3" />}
+                                        {selectedModelConfigObj.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
+                                    </div>
+                                </span>
+                            ) : selectedProviderObj ? (
                                 <span className="flex items-center gap-2 text-muted-foreground">
                                     <span>{selectedProviderObj.name || selectedProviderObj.type}</span>
                                     <span className="text-xs">{selectedProviderObj.model}</span>
@@ -479,75 +550,155 @@ export function ChatInput({
                                     />
                                 </div>
                                 <div className="max-h-40 overflow-y-auto">
-                                    {filteredProviders.map((provider) => (
-                                        <div
-                                            key={provider.id}
-                                            className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
-                                            onClick={() => {
-                                                const providerId = provider.id || '';
-                                                handleProviderChange(providerId);
-                                                setShowProviderDropdown(false);
-                                                setProviderSearch('');
-                                            }}
-                                        >
-                                            <div className="font-medium">
-                                                {provider?.name || provider?.type || 'Unknown Provider'}
+                                    {/* OpenAI Models Section */}
+                                    {openaiModelConfigs.length > 0 && (
+                                        <div>
+                                            <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
+                                                OpenAI
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {provider?.model || 'Unknown Model'}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {filteredProviders.length === 0 && providerSearch && (
-                                        <div className="px-3 py-2 text-muted-foreground text-center">
-                                            No providers found
+                                            {openaiModelConfigs
+                                                .filter(config =>
+                                                    (config.customName || config.modelName).toLowerCase().includes(providerSearch.toLowerCase())
+                                                )
+                                                .map((config) => (
+                                                    <div
+                                                        key={config.id}
+                                                        className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
+                                                        onClick={() => {
+                                                            handleProviderChange(config.id, true);
+                                                            setShowProviderDropdown(false);
+                                                            setProviderSearch('');
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="font-medium">
+                                                                {config.customName || config.modelName}
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                {config.capabilities?.search && <Search className="h-3 w-3" />}
+                                                                {config.capabilities?.reasoning && <Brain className="h-3 w-3" />}
+                                                                {config.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                         </div>
                                     )}
+
+                                    {/* Other Providers Section */}
+                                    {filteredProviders.length > 0 && (
+                                        <div>
+                                            {openaiModelConfigs.length > 0 && (
+                                                <div className="border-t my-1"></div>
+                                            )}
+                                            {filteredProviders.map((provider) => (
+                                                <div
+                                                    key={provider.id}
+                                                    className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
+                                                    onClick={() => {
+                                                        const providerId = provider.id || '';
+                                                        handleProviderChange(providerId, false);
+                                                        setShowProviderDropdown(false);
+                                                        setProviderSearch('');
+                                                    }}
+                                                >
+                                                    <div className="font-medium">
+                                                        {provider?.name || provider?.type || 'Unknown Provider'}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {provider?.model || 'Unknown Model'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* No results message */}
+                                    {filteredProviders.length === 0 && openaiModelConfigs.filter(config =>
+                                        (config.customName || config.modelName).toLowerCase().includes(providerSearch.toLowerCase())
+                                    ).length === 0 && providerSearch && (
+                                            <div className="px-3 py-2 text-muted-foreground text-center">
+                                                No providers found
+                                            </div>
+                                        )}
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Toggle buttons */}
-                    <Button
-                        type="button"
-                        variant={searchEnabled ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setSearchEnabled(!searchEnabled)}
-                        className="h-8 w-8 p-0"
-                        title="Toggle search functionality"
-                    >
-                        <Search className="h-4 w-4" />
-                    </Button>
+                    {/* Toggle buttons with capability-based enabling */}
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant={searchEnabled ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setSearchEnabled(!searchEnabled)}
+                                    className="h-8 w-8 p-0"
+                                    disabled={!hasCapability(selectedModelConfigObj, 'search')}
+                                >
+                                    <Search className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {hasCapability(selectedModelConfigObj, 'search')
+                                    ? "Toggle search functionality"
+                                    : "Model does not have search capability"}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
 
-                    {/* Reasoning toggle */}
-                    <Button
-                        type="button"
-                        variant={reasoningEnabled ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setReasoningEnabled(!reasoningEnabled)}
-                        className="h-8 w-8 p-0"
-                        title="Toggle model reasoning"
-                    >
-                        <Brain className="h-4 w-4" />
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant={reasoningEnabled ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setReasoningEnabled(!reasoningEnabled)}
+                                    className="h-8 w-8 p-0"
+                                    disabled={!hasCapability(selectedModelConfigObj, 'reasoning')}
+                                >
+                                    <Brain className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {hasCapability(selectedModelConfigObj, 'reasoning')
+                                    ? "Toggle model reasoning"
+                                    : "Model does not have reasoning capability"}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
 
                     <div className="relative">
-                        <Button
-                            type="button"
-                            variant={fileAttachEnabled ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="h-8 w-8 p-0"
-                            title="Attach files"
-                            disabled={isUploading}
-                        >
-                            {isUploading ? (
-                                <Upload className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Paperclip className="h-4 w-4" />
-                            )}
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant={fileAttachEnabled ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="h-8 w-8 p-0"
+                                        disabled={isUploading || !hasCapability(selectedModelConfigObj, 'fileUpload')}
+                                    >
+                                        {isUploading ? (
+                                            <Upload className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Paperclip className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {isUploading
+                                        ? "Uploading files..."
+                                        : hasCapability(selectedModelConfigObj, 'fileUpload')
+                                            ? "Attach files"
+                                            : "Model does not have file upload capability"}
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                         <input
                             ref={fileInputRef}
                             type="file"
