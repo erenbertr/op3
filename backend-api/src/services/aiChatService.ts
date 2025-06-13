@@ -379,18 +379,24 @@ export class AIChatService {
             return await this.streamFromOpenAIO1(provider, conversationHistory, messageId, onChunk, reasoningEnabled);
         }
 
-        // Handle web search using Responses API (for supported models)
+        // Handle web search notification (for supported models)
         if (searchEnabled && this.supportsOpenAIWebSearch(provider) && !isO1Model) {
+            // Notify that search is starting (for UI feedback)
+            onChunk({
+                type: 'search_start',
+                searchQuery: conversationHistory[conversationHistory.length - 1].content
+            });
+
+            // Try Responses API first, but expect it to fail for now
             try {
-                // Use Responses API for web search
                 return await this.streamFromOpenAIResponses(provider, conversationHistory, messageId, onChunk, fileAttachments, sessionId, reasoningEnabled);
             } catch (error) {
-                console.warn('OpenAI Responses API failed:', error);
-                // Fall back to regular chat completion without search
+                console.warn('OpenAI Responses API not available:', error);
+                // Show clear message about web search status
                 onChunk({
                     type: 'chunk',
                     messageId,
-                    content: '[Note: Web search failed. Responding with training data only.]\n\n'
+                    content: '[Note: Web search functionality requires OpenAI\'s Responses API which is currently in limited preview. Responding with training data and general knowledge.]\n\n'
                 });
             }
         } else if (searchEnabled) {
@@ -398,7 +404,7 @@ export class AIChatService {
             onChunk({
                 type: 'chunk',
                 messageId,
-                content: '[Note: This model does not support web search. Responding with training data only.]\n\n'
+                content: '[Note: This model does not support web search. Please use gpt-4o, gpt-4o-mini, or gpt-4-turbo for web search capabilities.]\n\n'
             });
         }
 
@@ -510,10 +516,10 @@ export class AIChatService {
     private supportsOpenAIWebSearch(provider: AIProviderConfig): boolean {
         // Models that support web search via Responses API
         const webSearchModels = [
+            'gpt-4.1',
+            'gpt-4.1-mini',
             'gpt-4o',
-            'gpt-4o-mini',
-            'gpt-4-turbo',
-            'gpt-4'
+            'gpt-4o-mini'
         ];
         return webSearchModels.includes(provider.model);
     }
@@ -534,21 +540,30 @@ export class AIChatService {
         // Check if API key is already decrypted (from OpenAI model config) or needs decryption (from old provider system)
         const apiKey = provider.apiKey.includes(':') ? this.aiProviderService.decryptApiKey(provider.apiKey) : provider.apiKey;
 
-        // Get the last user message as input
+        // Build input string from conversation history for Responses API
+        // According to OpenAI docs, input should be a simple string
         const lastUserMessage = conversationHistory.filter(msg => msg.role === 'user').pop();
         if (!lastUserMessage) {
             throw new Error('No user message found');
         }
 
-        // Build input from conversation history for Responses API
-        const input = conversationHistory.map(msg => ({
-            role: msg.role,
-            content: msg.content
-        }));
+        let input = lastUserMessage.content;
+
+        // Add context from previous messages if available
+        if (conversationHistory.length > 1) {
+            const previousMessages = conversationHistory.slice(0, -1);
+            if (previousMessages.length > 0) {
+                const contextString = previousMessages.map(msg =>
+                    `${msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : 'System'}: ${msg.content}`
+                ).join('\n\n');
+                input = `Previous conversation:\n${contextString}\n\nCurrent question: ${lastUserMessage.content}`;
+            }
+        }
 
         // Build tools array for web search
         const tools: any[] = [{
-            type: "web_search_preview"
+            type: "web_search_preview",
+            search_context_size: "medium"
         }];
 
         const requestBody: any = {
@@ -576,7 +591,12 @@ export class AIChatService {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('OpenAI Responses API error response:', errorText);
+            console.error('OpenAI Responses API error response:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                body: errorText
+            });
             throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
