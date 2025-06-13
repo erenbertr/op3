@@ -3,17 +3,17 @@
 import React, { useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AIProviderManagement } from './ai-provider-management';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 
 export function AIProviderSettingsView() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const aiProviderManagementRef = useRef<{ handleAddProvider: () => void } | null>(null);
 
-    const user = authService.getCurrentUser();
+    const { data: session } = useSession();
 
     React.useLayoutEffect(() => {
-        if (!user) {
+        if (!session?.user) {
             router.push('/');
             return;
         }
@@ -28,9 +28,9 @@ export function AIProviderSettingsView() {
                 router.replace('/ai-providers/openai');
             }, 100);
         }
-    }, [user, router, searchParams]);
+    }, [session?.user, router, searchParams]);
 
-    if (!user) {
+    if (!session?.user) {
         return null;
     }
 

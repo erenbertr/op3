@@ -6,7 +6,7 @@ import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
-import { authService, AuthUser } from '@/lib/auth';
+import { useSession, signOut, User } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface WorkspaceLayoutProps {
@@ -17,9 +17,9 @@ interface WorkspaceLayoutProps {
 export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayoutProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
     const [isClientReady, setIsClientReady] = useState(false);
     const { showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
+    const { data: session, isPending: isSessionLoading } = useSession();
 
     const [, setRefreshWorkspaces] = useState<(() => void) | null>(null);
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
@@ -37,12 +37,12 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
 
     // Initialize user state on client side only to prevent hydration mismatch
     useEffect(() => {
-        startLoading(); // Start the delayed spinner
+        if (isSessionLoading) {
+            startLoading();
+            return;
+        }
 
-        const user = authService.getCurrentUser();
-        if (user) {
-            setCurrentUser(user);
-        } else {
+        if (!session?.user) {
             stopLoading();
             router.push('/');
             return;
@@ -50,17 +50,15 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
 
         setIsClientReady(true);
         stopLoading();
-    }, [router, startLoading, stopLoading]);
+    }, [session, isSessionLoading, router, startLoading, stopLoading]);
 
-
-
-    const handleLogout = () => {
-        authService.logout();
+    const handleLogout = async () => {
+        await signOut();
         router.push('/');
     };
 
     // Show loading while client is initializing to prevent hydration mismatch
-    if (!isClientReady && showSpinner) {
+    if (isSessionLoading || (!isClientReady && showSpinner)) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
@@ -71,7 +69,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         );
     }
 
-    if (!currentUser) {
+    if (!session?.user) {
         return null; // Will redirect to login
     }
 
@@ -84,7 +82,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
                         <h1 className="text-xl font-bold">OP3</h1>
                     </div>
                     <div className="flex items-center gap-4">
-                        <UserMenu userEmail={currentUser.email} onLogout={handleLogout} />
+                        <UserMenu userEmail={session.user.email} onLogout={handleLogout} />
                         <ThemeToggle />
                     </div>
                 </div>
@@ -93,7 +91,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
             {/* Workspace Tab Bar */}
             <div className="flex-shrink-0">
                 <WorkspaceTabBar
-                    userId={currentUser.id}
+                    userId={session.user.id}
                     currentView={currentView}
                     currentWorkspaceId={currentWorkspaceId}
                     onRefresh={setRefreshWorkspaces}
@@ -104,7 +102,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
             {/* Pinned Group Tabs */}
             <div className="flex-shrink-0">
                 <PinnedGroupTabs
-                    userId={currentUser.id}
+                    userId={session.user.id}
                     currentWorkspaceId={currentWorkspaceId}
                     currentView={currentView}
                 />

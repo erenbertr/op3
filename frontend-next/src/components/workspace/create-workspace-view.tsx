@@ -4,18 +4,18 @@ import React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
 import { WorkspaceSetup } from './workspace-setup';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
 
 export function CreateWorkspaceView() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const user = authService.getCurrentUser();
+    const { data: session } = useSession();
 
     // Get groupId from URL parameters
     const groupId = searchParams.get('groupId');
 
-    if (!user) {
+    if (!session?.user) {
         router.push('/');
         return null;
     }
@@ -25,7 +25,7 @@ export function CreateWorkspaceView() {
             <div className="container mx-auto px-4 py-6">
                 <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
                 <WorkspaceSetup
-                    userId={user.id}
+                    userId={session.user.id}
                     groupId={groupId}
                     onComplete={(workspace) => {
                         if (workspace) {

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from '../workspace-layout';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { apiClient } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,17 +23,17 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [workspace, setWorkspace] = useState<{ id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | null>(null);
     const { addToast } = useToast();
+    const { data: session } = useSession();
 
     React.useMemo(() => {
         const loadWorkspace = async () => {
-            const user = authService.getCurrentUser();
-            if (!user) {
+            if (!session?.user) {
                 router.push('/');
                 return;
             }
 
             try {
-                const result = await apiClient.getUserWorkspaces(user.id);
+                const result = await apiClient.getUserWorkspaces(session.user.id);
                 if (result.success) {
                     const foundWorkspace = result.workspaces.find(w => w.id === workspaceId);
                     if (foundWorkspace) {
@@ -59,13 +59,12 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
         };
 
         loadWorkspace();
-    }, [workspaceId, router, addToast]);
+    }, [workspaceId, router, addToast, session?.user]);
 
     const handleCreateChat = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const user = authService.getCurrentUser();
-        if (!user) {
+        if (!session?.user) {
             router.push('/');
             return;
         }
@@ -82,7 +81,7 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
         setIsLoading(true);
         try {
             const result = await apiClient.createChatSession({
-                userId: user.id,
+                userId: session.user.id,
                 workspaceId,
                 title: title.trim()
             });

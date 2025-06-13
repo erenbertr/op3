@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
 import { ChatView } from './chat/chat-view';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { Loader2 } from 'lucide-react';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
@@ -15,17 +15,17 @@ interface WorkspaceViewProps {
 
 export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
     const router = useRouter();
-    const user = authService.getCurrentUser();
+    const { data: session } = useSession();
 
     // Redirect if no user
     React.useLayoutEffect(() => {
-        if (!user) {
+        if (!session?.user) {
             router.push('/');
         }
-    }, [user, router]);
+    }, [session?.user, router]);
 
     // Use existing TanStack Query hook
-    const { data: workspacesResult, isLoading, error } = useWorkspaces(user?.id || '');
+    const { data: workspacesResult, isLoading, error } = useWorkspaces(session?.user?.id || '');
 
     // Derived state
     const workspace = workspacesResult?.workspaces?.find(w => w.id === workspaceId) || null;

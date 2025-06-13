@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/lib/auth';
+import { useSession } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface WorkspaceLayoutProps {
@@ -13,19 +13,22 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     const router = useRouter();
     const [isClientReady, setIsClientReady] = useState(false);
     const { showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
+    const { data: session, isPending: isSessionLoading } = useSession();
 
     // Auth check using useEffect to prevent hydration mismatch
     useEffect(() => {
-        startLoading(); // Start the delayed spinner
+        if (isSessionLoading) {
+            startLoading();
+            return;
+        }
 
-        const user = authService.getCurrentUser();
-        if (!user) {
+        if (!session?.user) {
             stopLoading();
             router.push('/');
             return;
         }
 
-        if (!user.hasCompletedWorkspaceSetup) {
+        if (!session.user.hasCompletedWorkspaceSetup) {
             stopLoading();
             router.push('/');
             return;
@@ -33,10 +36,10 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
 
         setIsClientReady(true);
         stopLoading();
-    }, [router, startLoading, stopLoading]);
+    }, [session, isSessionLoading, router, startLoading, stopLoading]);
 
     // Show loading while client is initializing to prevent hydration mismatch
-    if (!isClientReady && showSpinner) {
+    if (isSessionLoading || (!isClientReady && showSpinner)) {
         return (
             <div className="h-screen bg-background flex items-center justify-center">
                 <div className="text-center space-y-4">
