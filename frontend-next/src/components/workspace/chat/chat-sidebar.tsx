@@ -65,7 +65,7 @@ export function ChatSidebar({
             await apiClient.updateChatSessionPinStatus(chatId, { isPinned: newPinStatus });
 
             // Success - keep the local update, no need to refetch
-        } catch (error) {
+        } catch {
             // Revert local update on error
             setLocalPinUpdates(prev => {
                 const updated = { ...prev };
@@ -184,9 +184,36 @@ export function ChatSidebar({
         }
     };
 
+    // Organize chats into hierarchical structure with parent-child relationships
+    const organizeChatsHierarchically = (chats: ChatSession[]) => {
+        // Separate main chats (no parent) from branched chats (have parent)
+        const mainChats = chats.filter(chat => !chat.parentSessionId);
+        const branchedChats = chats.filter(chat => chat.parentSessionId);
+
+        // Create a map of parent ID to children for quick lookup
+        const childrenMap = new Map<string, ChatSession[]>();
+        branchedChats.forEach(chat => {
+            if (chat.parentSessionId) {
+                if (!childrenMap.has(chat.parentSessionId)) {
+                    childrenMap.set(chat.parentSessionId, []);
+                }
+                childrenMap.get(chat.parentSessionId)!.push(chat);
+            }
+        });
+
+        // Sort children by creation date (oldest first)
+        childrenMap.forEach(children => {
+            children.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        });
+
+        return { mainChats, childrenMap };
+    };
+
     const groupAndPinChats = (chatsToGroup: ChatSession[]) => {
-        const pinnedChats = chatsToGroup.filter(chat => chat.isPinned === true);
-        const unpinnedChats = chatsToGroup.filter(chat => chat.isPinned !== true); // Include undefined as unpinned
+        const { mainChats, childrenMap } = organizeChatsHierarchically(chatsToGroup);
+
+        const pinnedChats = mainChats.filter(chat => chat.isPinned === true);
+        const unpinnedChats = mainChats.filter(chat => chat.isPinned !== true); // Include undefined as unpinned
 
         // Sort pinned chats by their original updatedAt to maintain some order within pinned items
         // Pinned items should generally appear in the order they were pinned or by recency.
@@ -195,12 +222,12 @@ export function ChatSidebar({
 
         const groupedUnpinnedChats = groupChatsByDate(unpinnedChats);
 
-        const result: { [key: string]: ChatSession[] } = {};
+        const result: { [key: string]: { chats: ChatSession[], childrenMap: Map<string, ChatSession[]> } } = {};
         if (sortedPinnedChats.length > 0) {
-            result['Pinned'] = sortedPinnedChats;
+            result['Pinned'] = { chats: sortedPinnedChats, childrenMap };
         }
         for (const groupName in groupedUnpinnedChats) {
-            result[groupName] = groupedUnpinnedChats[groupName];
+            result[groupName] = { chats: groupedUnpinnedChats[groupName], childrenMap };
         }
         return result;
     };
@@ -301,73 +328,134 @@ export function ChatSidebar({
                             ) : null
                         ) : (
                             <div className="space-y-4">
-                                {Object.entries(groupAndPinChats(filteredChats)).map(([groupName, groupChats]) => (
+                                {Object.entries(groupAndPinChats(filteredChats)).map(([groupName, groupData]) => (
                                     <div key={groupName} className="space-y-1">
                                         <h3 className="text-xs font-medium text-muted-foreground px-2 py-1 select-none">
                                             {groupName}
                                         </h3>
                                         <div className="space-y-1">
-                                            {groupChats.map((chat) => (
-                                                <div // Main container for the chat item
-                                                    key={chat.id}
-                                                    className={cn(
-                                                        "group w-full text-left px-3 py-2.5 rounded-md transition-colors select-none relative flex items-center justify-between cursor-pointer",
-                                                        "hover:bg-accent hover:text-accent-foreground",
-                                                        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", // Use focus-within for better accessibility
-                                                        activeChatId === chat.id
-                                                            ? "bg-accent text-accent-foreground"
-                                                            : "text-foreground"
-                                                    )}
-                                                    onClick={() => handleChatClick(chat)} // Main click action to select chat
-                                                >
-                                                    <div // Chat title part
-                                                        className="text-sm font-medium truncate flex-grow mr-2" // flex-grow to take available space, mr-2 for spacing
-                                                        title={chat.title}
+                                            {groupData.chats.map((chat) => (
+                                                <div key={chat.id}>
+                                                    {/* Main chat item */}
+                                                    <div // Main container for the chat item
+                                                        className={cn(
+                                                            "group w-full text-left px-3 py-2.5 rounded-md transition-colors select-none relative flex items-center justify-between cursor-pointer",
+                                                            "hover:bg-accent hover:text-accent-foreground",
+                                                            "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2", // Use focus-within for better accessibility
+                                                            activeChatId === chat.id
+                                                                ? "bg-accent text-accent-foreground"
+                                                                : "text-foreground"
+                                                        )}
+                                                        onClick={() => handleChatClick(chat)} // Main click action to select chat
                                                     >
-                                                        {chat.title}
-                                                    </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" // Adjusted size, padding, added flex-shrink-0
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation(); // Prevent chat click when clicking dots
-                                                                }}
-                                                            >
-                                                                {deletingChatId === chat.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
-                                                                <span className="sr-only">Open chat actions</span>
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent
-                                                            align="end" // Align dropdown to the right
-                                                            onClick={(e) => e.stopPropagation()} // Prevent chat click when dropdown content is interacted with
+                                                        <div // Chat title part
+                                                            className="text-sm font-medium truncate flex-grow mr-2" // flex-grow to take available space, mr-2 for spacing
+                                                            title={chat.title}
                                                         >
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation(); // Prevent chat click
-                                                                    const currentPinStatus = chat.isPinned || false; // Default to false if undefined
-                                                                    handlePinToggle(chat.id, currentPinStatus);
-                                                                }}
-                                                                className="cursor-pointer"
+                                                            {chat.title}
+                                                        </div>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" // Adjusted size, padding, added flex-shrink-0
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation(); // Prevent chat click when clicking dots
+                                                                    }}
+                                                                >
+                                                                    {deletingChatId === chat.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                                                                    <span className="sr-only">Open chat actions</span>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent
+                                                                align="end" // Align dropdown to the right
+                                                                onClick={(e) => e.stopPropagation()} // Prevent chat click when dropdown content is interacted with
                                                             >
-                                                                {(chat.isPinned || false) ? 'Unpin chat' : 'Pin chat'}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation(); // Ensure no other click events fire
-                                                                    if (deletingChatId !== chat.id) { // Prevent action if already deleting this chat
-                                                                        handleDeleteChat(chat.id);
-                                                                    }
-                                                                }}
-                                                                disabled={deletingChatId === chat.id}
-                                                                className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50 dark:text-red-500 dark:hover:!text-red-500 dark:focus:!text-red-500 dark:hover:!bg-red-900/50 dark:focus:!bg-red-900/50 cursor-pointer"
-                                                            >
-                                                                {deletingChatId === chat.id ? 'Deleting...' : 'Delete'}
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation(); // Prevent chat click
+                                                                        const currentPinStatus = chat.isPinned || false; // Default to false if undefined
+                                                                        handlePinToggle(chat.id, currentPinStatus);
+                                                                    }}
+                                                                    className="cursor-pointer"
+                                                                >
+                                                                    {(chat.isPinned || false) ? 'Unpin chat' : 'Pin chat'}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation(); // Ensure no other click events fire
+                                                                        if (deletingChatId !== chat.id) { // Prevent action if already deleting this chat
+                                                                            handleDeleteChat(chat.id);
+                                                                        }
+                                                                    }}
+                                                                    disabled={deletingChatId === chat.id}
+                                                                    className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50 dark:text-red-500 dark:hover:!text-red-500 dark:focus:!text-red-500 dark:hover:!bg-red-900/50 dark:focus:!bg-red-900/50 cursor-pointer"
+                                                                >
+                                                                    {deletingChatId === chat.id ? 'Deleting...' : 'Delete'}
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+
+                                                    {/* Child chats (branches) */}
+                                                    {groupData.childrenMap.has(chat.id) && (
+                                                        <div className="ml-4 mt-1 space-y-1">
+                                                            {groupData.childrenMap.get(chat.id)!.map((childChat) => (
+                                                                <div
+                                                                    key={childChat.id}
+                                                                    className={cn(
+                                                                        "group w-full text-left px-3 py-2 rounded-md transition-colors select-none relative flex items-center justify-between cursor-pointer",
+                                                                        "hover:bg-accent hover:text-accent-foreground",
+                                                                        "border-l-2 border-muted-foreground/20", // Visual indicator for child
+                                                                        activeChatId === childChat.id
+                                                                            ? "bg-accent text-accent-foreground"
+                                                                            : "text-muted-foreground"
+                                                                    )}
+                                                                    onClick={() => handleChatClick(childChat)}
+                                                                >
+                                                                    <div
+                                                                        className="text-xs font-medium truncate flex-grow mr-2"
+                                                                        title={childChat.title}
+                                                                    >
+                                                                        ↳ {childChat.title}
+                                                                    </div>
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
+                                                                                className="h-6 w-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                }}
+                                                                            >
+                                                                                {deletingChatId === childChat.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <MoreHorizontal className="h-3 w-3" />}
+                                                                                <span className="sr-only">Open chat actions</span>
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent
+                                                                            align="end"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <DropdownMenuItem
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (deletingChatId !== childChat.id) {
+                                                                                        handleDeleteChat(childChat.id);
+                                                                                    }
+                                                                                }}
+                                                                                disabled={deletingChatId === childChat.id}
+                                                                                className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50 dark:text-red-500 dark:hover:!text-red-500 dark:focus:!text-red-500 dark:hover:!bg-red-900/50 dark:focus:!bg-red-900/50 cursor-pointer"
+                                                                            >
+                                                                                {deletingChatId === childChat.id ? 'Deleting...' : 'Delete'}
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>

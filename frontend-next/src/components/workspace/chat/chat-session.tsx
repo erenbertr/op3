@@ -8,6 +8,7 @@ import { StreamingMessage } from './streaming-message';
 import { SearchIndicator } from './search-indicator';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
 import { apiClient, ChatMessage, ChatSession, Personality, StreamingState, StreamingCallbacks } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 import { truncateText } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 
@@ -32,6 +33,7 @@ export function ChatSessionComponent({
     autoFocusInput = false,
     workspaceId
 }: ChatSessionProps) {
+    const router = useRouter();
     // Simple message state - always managed manually
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -956,6 +958,73 @@ export function ChatSessionComponent({
         }
     };
 
+    // Branch conversation from a specific message
+    const handleBranchMessage = async (messageId: string, aiProviderId: string) => {
+        console.log('🌿 Branching conversation from message:', messageId, 'with provider:', aiProviderId);
+
+        if (!workspaceId) {
+            console.error('Workspace ID is required for branching');
+            return;
+        }
+
+        try {
+            // Find the message to branch from
+            const branchMessage = messages.find(msg => msg.id === messageId);
+            if (!branchMessage) {
+                console.error('Message not found for branching:', messageId);
+                return;
+            }
+
+            // Create a new branched chat session
+            const branchTitle = `Branch from "${truncateText(branchMessage.content, 30)}"`;
+            const branchResult = await apiClient.createBranchedChatSession({
+                userId,
+                workspaceId,
+                title: branchTitle,
+                parentSessionId: session.id,
+                branchFromMessageId: messageId
+            });
+
+            if (branchResult.success && branchResult.session) {
+                console.log('✅ Branch created successfully:', branchResult.session);
+
+                // For user messages: auto-send to the selected AI provider
+                if (branchMessage.role === 'user') {
+                    // Navigate to the new chat and auto-send the message
+                    router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+
+                    // Wait a bit for navigation, then send the message
+                    setTimeout(async () => {
+                        try {
+                            await apiClient.streamChatMessage(
+                                branchResult.session!.id,
+                                {
+                                    content: branchMessage.content,
+                                    aiProviderId: aiProviderId,
+                                    userId
+                                },
+                                {
+                                    onChunk: () => { }, // Handle in the new chat session
+                                    onComplete: () => { },
+                                    onError: (error) => console.error('Branch auto-send error:', error)
+                                }
+                            );
+                        } catch (error) {
+                            console.error('Error auto-sending branch message:', error);
+                        }
+                    }, 500);
+                } else {
+                    // For AI messages: just navigate to the new chat with copied history
+                    router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+                }
+            } else {
+                console.error('Failed to create branch:', branchResult.message);
+            }
+        } catch (error) {
+            console.error('Error creating branch:', error);
+        }
+    };
+
     // Helper functions to get current streaming personality and AI provider
     const getCurrentStreamingPersonality = () => {
         const personalityId = currentStreamingPersonalityId;
@@ -1001,6 +1070,7 @@ export function ChatSessionComponent({
                                     className={messages.length === 0 ? "" : "py-4"}
                                     onRetry={handleRetryMessage}
                                     onContinue={handleContinueMessage}
+                                    onBranch={handleBranchMessage}
                                     isVisible={isMessagesVisible}
                                     streamingMessage={(isStreaming || streamingState.hasError) ? (
                                         <>

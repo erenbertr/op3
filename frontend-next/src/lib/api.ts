@@ -110,6 +110,7 @@ export interface ChatSession {
     createdAt: string;
     updatedAt: string;
     isPinned?: boolean;
+    parentSessionId?: string; // For branched chats
 }
 
 export interface ChatMessage {
@@ -151,6 +152,8 @@ export interface CreateChatSessionRequest {
     userId: string;
     workspaceId: string;
     title?: string;
+    parentSessionId?: string; // For creating branched chats
+    branchFromMessageId?: string; // Message to branch from
 }
 
 export interface CreateChatSessionResponse {
@@ -773,6 +776,13 @@ class ApiClient {
 
     // Chat-related methods
     async createChatSession(request: CreateChatSessionRequest): Promise<CreateChatSessionResponse> {
+        return this.request<CreateChatSessionResponse>('/chat/sessions', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async createBranchedChatSession(request: CreateChatSessionRequest): Promise<CreateChatSessionResponse> {
         return this.request<CreateChatSessionResponse>('/chat/sessions', {
             method: 'POST',
             body: JSON.stringify(request),

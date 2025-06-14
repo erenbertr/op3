@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Brain, Copy, RotateCcw, Check, Play, Bot } from 'lucide-react';
+import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality } from '@/lib/api';
 import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
 import { FileAttachmentDisplay } from './file-attachment-display';
+import { AIProviderSelector } from './ai-provider-selector';
 
 import ReactMarkdown, { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -24,13 +25,15 @@ interface ChatMessageProps {
     className?: string;
     onRetry?: (messageId: string) => void;
     onContinue?: (messageId: string) => void;
+    onBranch?: (messageId: string, aiProviderId: string) => void;
 }
 
-export function ChatMessage({ message, personality, className, onRetry, onContinue }: ChatMessageProps) {
+export function ChatMessage({ message, personality, className, onRetry, onContinue, onBranch }: ChatMessageProps) {
     const [copyButtonText, setCopyButtonText] = useState('Copy');
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
+    const [showBranchDropdown, setShowBranchDropdown] = useState(false);
 
     // Get OpenAI model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
@@ -90,6 +93,14 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const handleContinue = () => {
         if (onContinue && message.id) {
             onContinue(message.id);
+        }
+    };
+
+    // Branch functionality
+    const handleBranch = (aiProviderId: string) => {
+        if (onBranch && message.id) {
+            onBranch(message.id, aiProviderId);
+            setShowBranchDropdown(false);
         }
     };
 
@@ -246,6 +257,35 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                         )}
                     </Button>
 
+                    {/* Branch button with dropdown */}
+                    {onBranch && (
+                        <div className="relative">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => setShowBranchDropdown(!showBranchDropdown)}
+                                title="Branch conversation"
+                            >
+                                <GitBranch className="h-3 w-3" />
+                            </Button>
+
+                            {showBranchDropdown && (
+                                <div className="absolute top-full right-0 mt-1 z-50">
+                                    <AIProviderSelector
+                                        onProviderChange={(providerId, isModelConfig) => {
+                                            // For branching, we always use the model config ID
+                                            handleBranch(providerId);
+                                        }}
+                                        className="w-64"
+                                        placeholder="Select AI Provider for Branch"
+                                        size="sm"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Show continue button for partial messages */}
                     {message.isPartial ? (
                         <Button
@@ -281,6 +321,7 @@ interface ChatMessageListProps {
     className?: string;
     onRetry?: (messageId: string) => void;
     onContinue?: (messageId: string) => void;
+    onBranch?: (messageId: string, aiProviderId: string) => void;
     streamingMessage?: React.ReactNode;
     isVisible?: boolean;
 }
@@ -292,6 +333,7 @@ export function ChatMessageList({
     className,
     onRetry,
     onContinue,
+    onBranch,
     streamingMessage,
     isVisible = true
 }: ChatMessageListProps) {
@@ -371,6 +413,7 @@ export function ChatMessageList({
                         personality={getPersonality(message.personalityId)}
                         onRetry={onRetry}
                         onContinue={onContinue}
+                        onBranch={onBranch}
                     />
                 </div>
             ))}

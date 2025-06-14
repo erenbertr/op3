@@ -6,6 +6,7 @@ export interface ChatSession {
     lastUsedPersonalityId?: string;
     lastUsedAIProviderId?: string;
     isPinned?: boolean;
+    parentSessionId?: string; // For branched chats
     createdAt: Date;
     updatedAt: Date;
 }
@@ -48,6 +49,8 @@ export interface CreateChatSessionRequest {
     userId: string;
     workspaceId: string;
     title?: string;
+    parentSessionId?: string; // For creating branched chats
+    branchFromMessageId?: string; // Message to branch from
 }
 
 export interface CreateChatSessionResponse {
