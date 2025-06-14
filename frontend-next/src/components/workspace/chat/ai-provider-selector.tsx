@@ -18,6 +18,7 @@ interface AIProviderSelectorProps {
     placeholder?: string;
     showSearch?: boolean;
     size?: 'sm' | 'md' | 'lg';
+    dropdownPosition?: 'above' | 'below' | 'auto';
 }
 
 export function AIProviderSelector({
@@ -28,11 +29,14 @@ export function AIProviderSelector({
     disabled = false,
     placeholder = "Select AI Provider",
     showSearch = true,
-    size = 'md'
+    size = 'md',
+    dropdownPosition = 'above'
 }: AIProviderSelectorProps) {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [actualDropdownPosition, setActualDropdownPosition] = useState<'above' | 'below'>('above');
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
     // Fetch OpenAI model configurations
     const { data: openaiModelConfigs = [] } = useQuery({
@@ -48,6 +52,45 @@ export function AIProviderSelector({
         }
         return null;
     }, [selectedModelConfig, openaiModelConfigs]);
+
+    // Calculate optimal dropdown position
+    const calculateDropdownPosition = (): 'above' | 'below' => {
+        if (dropdownPosition !== 'auto') {
+            return dropdownPosition;
+        }
+
+        if (!buttonRef.current) return 'above';
+
+        const buttonRect = buttonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 240; // max-h-60 = 240px
+        const margin = 16; // Extra margin for safety
+
+        const spaceAbove = buttonRect.top;
+        const spaceBelow = viewportHeight - buttonRect.bottom;
+
+        // If there's not enough space below but enough space above, position above
+        if (spaceBelow < (dropdownHeight + margin) && spaceAbove >= (dropdownHeight + margin)) {
+            return 'above';
+        }
+
+        // If there's not enough space in either direction, choose the side with more space
+        if (spaceBelow < (dropdownHeight + margin) && spaceAbove < (dropdownHeight + margin)) {
+            return spaceAbove > spaceBelow ? 'above' : 'below';
+        }
+
+        // Default to below if there's enough space
+        return 'below';
+    };
+
+    // Handle dropdown toggle with positioning calculation
+    const handleDropdownToggle = () => {
+        if (!showDropdown) {
+            const position = calculateDropdownPosition();
+            setActualDropdownPosition(position);
+        }
+        setShowDropdown(!showDropdown);
+    };
 
     // Handle provider selection
     const handleProviderSelect = (providerId: string, isModelConfig = false) => {
@@ -91,12 +134,13 @@ export function AIProviderSelector({
     return (
         <div className={cn("relative", className)} ref={dropdownRef}>
             <button
+                ref={buttonRef}
                 type="button"
                 className={cn(
                     "flex w-full items-center justify-between rounded-md border border-input bg-background ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 select-none",
                     getSizeClasses()
                 )}
-                onClick={() => !disabled && setShowDropdown(!showDropdown)}
+                onClick={() => !disabled && handleDropdownToggle()}
                 disabled={disabled}
             >
                 {selectedModelConfigObj ? (
@@ -148,7 +192,14 @@ export function AIProviderSelector({
             </button>
 
             {showDropdown && (
-                <div className="absolute bottom-full left-0 right-0 mb-1 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-hidden">
+                <div
+                    className={cn(
+                        "absolute left-0 right-0 bg-popover border rounded-md shadow-lg z-50 max-h-60 overflow-hidden",
+                        actualDropdownPosition === 'above'
+                            ? "bottom-full mb-1"
+                            : "top-full mt-1"
+                    )}
+                >
                     {showSearch && (
                         <div className="p-2 border-b">
                             <Input

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch } from 'lucide-react';
@@ -34,6 +34,8 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const [isHovered, setIsHovered] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
     const [showBranchDropdown, setShowBranchDropdown] = useState(false);
+    const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
+    const branchButtonRef = useRef<HTMLDivElement>(null);
 
     // Get OpenAI model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
@@ -96,6 +98,43 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
         }
     };
 
+    // Calculate optimal dropdown position based on available screen space
+    const calculateDropdownPosition = (): 'above' | 'below' => {
+        if (!branchButtonRef.current) return 'below';
+
+        const buttonRect = branchButtonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 240; // Approximate height of the dropdown (max-h-60 = 240px)
+        const margin = 16; // Extra margin for safety
+
+        // Calculate available space above and below the button
+        const spaceAbove = buttonRect.top;
+        const spaceBelow = viewportHeight - buttonRect.bottom;
+
+        // If there's not enough space below but enough space above, position above
+        if (spaceBelow < (dropdownHeight + margin) && spaceAbove >= (dropdownHeight + margin)) {
+            return 'above';
+        }
+
+        // If there's not enough space in either direction, choose the side with more space
+        if (spaceBelow < (dropdownHeight + margin) && spaceAbove < (dropdownHeight + margin)) {
+            return spaceAbove > spaceBelow ? 'above' : 'below';
+        }
+
+        // Default to below if there's enough space
+        return 'below';
+    };
+
+    // Handle branch button click with dynamic positioning
+    const handleBranchButtonClick = () => {
+        if (!showBranchDropdown) {
+            // Calculate position before showing dropdown
+            const position = calculateDropdownPosition();
+            setDropdownPosition(position);
+        }
+        setShowBranchDropdown(!showBranchDropdown);
+    };
+
     // Branch functionality
     const handleBranch = (aiProviderId: string) => {
         if (onBranch && message.id) {
@@ -103,6 +142,32 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
             setShowBranchDropdown(false);
         }
     };
+
+    // Close dropdown when clicking outside or on window resize
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (branchButtonRef.current && !branchButtonRef.current.contains(event.target as Node)) {
+                setShowBranchDropdown(false);
+            }
+        };
+
+        const handleResize = () => {
+            if (showBranchDropdown) {
+                // Recalculate position on resize
+                const newPosition = calculateDropdownPosition();
+                setDropdownPosition(newPosition);
+            }
+        };
+
+        if (showBranchDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+            window.addEventListener('resize', handleResize);
+            return () => {
+                document.removeEventListener('mousedown', handleClickOutside);
+                window.removeEventListener('resize', handleResize);
+            };
+        }
+    }, [showBranchDropdown]);
 
     // Convert markdown to HTML for AI messages, with syntax highlighting for code blocks
     const renderContent = () => {
@@ -259,27 +324,35 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
 
                     {/* Branch button with dropdown */}
                     {onBranch && (
-                        <div className="relative">
+                        <div className="relative" ref={branchButtonRef}>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-6 w-6 p-0"
-                                onClick={() => setShowBranchDropdown(!showBranchDropdown)}
+                                onClick={handleBranchButtonClick}
                                 title="Branch conversation"
                             >
                                 <GitBranch className="h-3 w-3" />
                             </Button>
 
                             {showBranchDropdown && (
-                                <div className="absolute top-full right-0 mt-1 z-50">
+                                <div
+                                    className={cn(
+                                        "absolute right-0 z-50 w-64",
+                                        dropdownPosition === 'above'
+                                            ? "bottom-full mb-1"
+                                            : "top-full mt-1"
+                                    )}
+                                >
                                     <AIProviderSelector
                                         onProviderChange={(providerId, isModelConfig) => {
                                             // For branching, we always use the model config ID
                                             handleBranch(providerId);
                                         }}
-                                        className="w-64"
+                                        className="w-full"
                                         placeholder="Select AI Provider for Branch"
                                         size="sm"
+                                        dropdownPosition={dropdownPosition}
                                     />
                                 </div>
                             )}
