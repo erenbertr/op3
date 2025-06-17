@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { truncateText } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 import { useCreateBranchedChatSession } from '@/lib/hooks/use-query-hooks';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 
 
@@ -44,13 +45,15 @@ export function ChatSessionComponent({
     // Use mutation hook for creating branched chats
     const createBranchedChatMutation = useCreateBranchedChatSession();
 
-
+    // Use delayed spinner for messages loading
+    const { showSpinner: showMessagesSpinner, startLoading: startMessagesLoading, stopLoading: stopMessagesLoading } = useDelayedSpinner(3000);
 
     // Load messages from server when session changes
     React.useEffect(() => {
         if (session?.id) {
             console.log('🔄 Loading messages for session:', session.id);
             setIsLoadingMessages(true);
+            startMessagesLoading();
 
             apiClient.getChatMessages(session.id)
                 .then(result => {
@@ -74,9 +77,10 @@ export function ChatSessionComponent({
                 })
                 .finally(() => {
                     setIsLoadingMessages(false);
+                    stopMessagesLoading();
                 });
         }
-    }, [session?.id]);
+    }, [session?.id, startMessagesLoading, stopMessagesLoading]);
 
     const [isLoading, setIsLoading] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState<string>('');
@@ -1124,7 +1128,7 @@ export function ChatSessionComponent({
         <div className={`flex flex-col h-full ${className || ''}`}>
             {/* Messages area */}
             <div className="flex-1 overflow-hidden">
-                {isLoadingMessages && messages.length === 0 ? (
+                {showMessagesSpinner && messages.length === 0 ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40"></div>
                     </div>

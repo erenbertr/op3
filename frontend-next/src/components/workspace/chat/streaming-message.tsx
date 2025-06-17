@@ -14,6 +14,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface StreamingMessageProps {
     content: string;
@@ -62,6 +63,9 @@ export function StreamingMessage({
     const [showReasoningSteps, setShowReasoningSteps] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
 
+    // Use delayed spinner for provider badge loading animation
+    const { showSpinner: showProviderBadgeLoading, startLoading: startProviderBadgeLoading, stopLoading: stopProviderBadgeLoading } = useDelayedSpinner(500); // Shorter delay for provider badge
+
     // Get OpenAI model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
     const modelConfigs = openaiModelConfigs || [];
@@ -95,6 +99,17 @@ export function StreamingMessage({
 
         return () => clearInterval(interval);
     }, [isStreaming, hasError]);
+
+    // Manage provider badge loading animation
+    useEffect(() => {
+        if (isStreaming && !content) {
+            // Start loading animation when streaming begins but no content yet
+            startProviderBadgeLoading();
+        } else {
+            // Stop loading animation when content starts appearing or streaming stops
+            stopProviderBadgeLoading();
+        }
+    }, [isStreaming, content, startProviderBadgeLoading, stopProviderBadgeLoading]);
 
     // Note: Auto-scroll is now handled centrally in chat-session.tsx
     // This prevents conflicting scroll behaviors and ensures consistent UX
@@ -229,7 +244,13 @@ export function StreamingMessage({
                         <>
                             {/* Provider badge */}
                             {providerInfo && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge
+                                    variant="outline"
+                                    className={cn(
+                                        "text-xs transition-all duration-300",
+                                        showProviderBadgeLoading && "provider-badge-loading"
+                                    )}
+                                >
                                     <Bot className="h-3 w-3" />
                                     {providerInfo.name}
                                 </Badge>

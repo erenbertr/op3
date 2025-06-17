@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ChatView } from '@/components/workspace/chat/chat-view';
+import { CreateChatView } from '@/components/workspace/chat/create-chat-view';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
@@ -408,6 +409,15 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                             <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
                             <PersonalitiesManagement userId={currentUser.id} />
                         </div>
+                    </div>
+                )}
+
+                {currentView === 'create-chat' && routeParams.workspaceId && (
+                    <div className="h-full overflow-y-auto">
+                        <CreateChatView
+                            workspaceId={routeParams.workspaceId}
+                            groupId={queryParams.groupId || null}
+                        />
                     </div>
                 )}
 

@@ -14,9 +14,10 @@ import { Loader2 } from 'lucide-react';
 
 interface CreateChatViewProps {
     workspaceId: string;
+    groupId?: string | null;
 }
 
-export function CreateChatView({ workspaceId }: CreateChatViewProps) {
+export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
     const router = useRouter();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
@@ -131,7 +132,14 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                 <div className="max-w-2xl mx-auto">
                     <div className="mb-6">
                         <h1 className="text-2xl font-bold">Create New Chat</h1>
-                        <p className="text-muted-foreground">in {workspace.name}</p>
+                        <p className="text-muted-foreground">
+                            in {workspace.name}
+                            {groupId && (
+                                <span className="text-xs ml-2 px-2 py-1 bg-muted rounded-md">
+                                    Group context
+                                </span>
+                            )}
+                        </p>
                     </div>
 
                     <form onSubmit={handleCreateChat} className="space-y-6">
@@ -165,7 +173,13 @@ export function CreateChatView({ workspaceId }: CreateChatViewProps) {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => router.push(`/ws/${workspaceId}`)}
+                                onClick={() => {
+                                    // Navigate back to workspace, preserving group context if available
+                                    const backUrl = groupId
+                                        ? `/ws/${workspaceId}?groupId=${groupId}`
+                                        : `/ws/${workspaceId}`;
+                                    router.push(backUrl);
+                                }}
                             >
                                 Cancel
                             </Button>

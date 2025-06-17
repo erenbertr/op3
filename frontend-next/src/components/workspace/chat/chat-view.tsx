@@ -12,6 +12,7 @@ import { queryKeys } from '@/lib/query-client';
 
 import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface ChatViewProps {
     workspaceId: string;
@@ -25,6 +26,10 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     const [shouldAutoFocus, setShouldAutoFocus] = useState(false);
     const { addToast } = useToast();
     const queryClient = useQueryClient();
+
+    // Use delayed spinners for loading states
+    const { showSpinner: showSessionSpinner, startLoading: startSessionLoading, stopLoading: stopSessionLoading } = useDelayedSpinner(3000);
+    const { showSpinner: showChatSpinner, startLoading: startChatLoading, stopLoading: stopChatLoading } = useDelayedSpinner(3000);
 
     // Use Better Auth session
     const { data: session, isPending: isSessionLoading } = useSession();
@@ -149,6 +154,23 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
         }
     }, [shouldAutoFocus, activeSession]);
 
+    // Manage delayed spinners based on loading states
+    useEffect(() => {
+        if (isSessionLoading) {
+            startSessionLoading();
+        } else {
+            stopSessionLoading();
+        }
+    }, [isSessionLoading, startSessionLoading, stopSessionLoading]);
+
+    useEffect(() => {
+        if (isWaitingForSpecificChat) {
+            startChatLoading();
+        } else {
+            stopChatLoading();
+        }
+    }, [isWaitingForSpecificChat, startChatLoading, stopChatLoading]);
+
     // Redirect if no user - use useEffect to prevent SSR issues
     useEffect(() => {
         if (!isSessionLoading && !user) {
@@ -157,7 +179,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     }, [user, navigate, isSessionLoading]);
 
     // Show loading while session is loading
-    if (isSessionLoading) {
+    if (showSessionSpinner) {
         return (
             <div className="h-full flex items-center justify-center">
                 <div className="text-center space-y-4">
@@ -331,7 +353,7 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 workspaceId={workspaceId}
                                 navigate={navigate}
                             />
-                        ) : isWaitingForSpecificChat ? (
+                        ) : showChatSpinner ? (
                             // Show loading state when waiting for a specific chat to load
                             // This prevents the EmptyChatState flash when navigating to a chat
                             <div className="h-full flex items-center justify-center">

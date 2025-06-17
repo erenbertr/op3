@@ -8,6 +8,7 @@ import { useSession } from '@/lib/temp-auth';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { Loader2 } from 'lucide-react';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
+import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
 interface WorkspaceViewProps {
     workspaceId: string;
@@ -16,6 +17,9 @@ interface WorkspaceViewProps {
 export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
     const router = useRouter();
     const { data: session } = useSession();
+
+    // Use delayed spinner for workspace loading
+    const { showSpinner: showWorkspaceSpinner, startLoading: startWorkspaceLoading, stopLoading: stopWorkspaceLoading } = useDelayedSpinner(3000);
 
     // Redirect if no user
     React.useLayoutEffect(() => {
@@ -30,7 +34,16 @@ export function WorkspaceView({ workspaceId }: WorkspaceViewProps) {
     // Derived state
     const workspace = workspacesResult?.workspaces?.find(w => w.id === workspaceId) || null;
 
-    if (isLoading && !workspace) {
+    // Manage delayed spinner based on loading state
+    React.useEffect(() => {
+        if (isLoading && !workspace) {
+            startWorkspaceLoading();
+        } else {
+            stopWorkspaceLoading();
+        }
+    }, [isLoading, workspace, startWorkspaceLoading, stopWorkspaceLoading]);
+
+    if (showWorkspaceSpinner) {
         return (
             <WorkspaceLayout currentWorkspaceId={workspaceId}>
                 <div className="h-full flex items-center justify-center">
