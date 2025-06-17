@@ -259,37 +259,27 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                             </div>
                         ) : currentWorkspace ? (
                             <>
-                                {/* If we have a chatId, show the specific chat */}
-                                {routeParams.chatId ? (
-                                    <ChatViewInternal
+                                {/* Always render the same ChatView component to prevent remounting */}
+                                {currentWorkspace.templateType === 'standard-chat' ? (
+                                    <ChatView
                                         workspaceId={routeParams.workspaceId}
-                                        chatId={routeParams.chatId}
+                                        chatId={routeParams.chatId} // Pass chatId if available, undefined if not
                                     />
                                 ) : (
-                                    /* Otherwise show workspace overview */
-                                    <>
-                                        {currentWorkspace.templateType === 'standard-chat' ? (
-                                            <ChatView
-                                                workspaceId={routeParams.workspaceId}
-                                            // No chatId provided - will show workspace overview with empty state
-                                            />
-                                        ) : (
-                                            <div className="container mx-auto px-4 py-8">
-                                                <div className="text-center space-y-4">
-                                                    <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
-                                                    <p className="text-muted-foreground">
-                                                        {currentWorkspace.templateType
-                                                            ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
-                                                            : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
-                                                        }
-                                                    </p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Current workspace ID: {routeParams.workspaceId}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
+                                    <div className="container mx-auto px-4 py-8">
+                                        <div className="text-center space-y-4">
+                                            <h2 className="text-2xl font-bold">Welcome to your workspace!</h2>
+                                            <p className="text-muted-foreground">
+                                                {currentWorkspace.templateType
+                                                    ? `Template: ${currentWorkspace.templateType}. This template will be implemented in the next phase.`
+                                                    : 'Your workspace has been set up successfully. The actual workspace templates will be implemented in the next phase.'
+                                                }
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Current workspace ID: {routeParams.workspaceId}
+                                            </p>
+                                        </div>
+                                    </div>
                                 )}
                             </>
                         ) : workspacesError ? (
@@ -431,21 +421,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     );
 }
 
-// Internal ChatView component for client-side routing
-interface ChatViewInternalProps {
-    workspaceId: string;
-    chatId: string;
-}
 
-function ChatViewInternal({ workspaceId, chatId }: ChatViewInternalProps) {
-    // Simplified - just pass through to ChatView which handles all loading and error states
-    return (
-        <ChatView
-            workspaceId={workspaceId}
-            chatId={chatId}
-        />
-    );
-}
 
 // Internal AIProvidersLayout component for client-side routing
 interface AIProvidersLayoutProps {
