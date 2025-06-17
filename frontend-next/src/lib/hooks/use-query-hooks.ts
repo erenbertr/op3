@@ -146,12 +146,59 @@ export function useCreateChatSession() {
     });
 }
 
+export function useCreateBranchedChatSession() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (data: {
+            userId: string;
+            workspaceId: string;
+            title: string;
+            parentSessionId: string;
+            branchFromMessageId: string;
+        }) => apiClient.createBranchedChatSession(data),
+        onSuccess: (result, variables) => {
+            if (result.success && result.session) {
+                // Optimistically update the chat sessions cache
+                queryClient.setQueryData(
+                    queryKeys.chats.byWorkspace(variables.userId, variables.workspaceId),
+                    (oldData: any) => {
+                        if (!oldData || !oldData.success) {
+                            return {
+                                success: true,
+                                message: 'Chat sessions retrieved successfully',
+                                sessions: [result.session]
+                            };
+                        }
+
+                        // Add the new session to the existing list
+                        const existingSessions = oldData.sessions || [];
+                        const updatedSessions = [result.session, ...existingSessions];
+
+                        return {
+                            ...oldData,
+                            sessions: updatedSessions
+                        };
+                    }
+                );
+
+                // Also invalidate to ensure we get fresh data from server
+                setTimeout(() => {
+                    queryClient.invalidateQueries({
+                        queryKey: queryKeys.chats.byWorkspace(variables.userId, variables.workspaceId)
+                    });
+                }, 100);
+            }
+        },
+    });
+}
+
 export function useDeleteChatSession() {
     const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: (data: { sessionId: string; userId: string; workspaceId: string }) =>
-            apiClient.deleteChatSession(data.sessionId),
+            apiClient.deleteChatSession(data.sessionId, data.userId),
         onSuccess: (_data, variables) => {
             // Invalidate chat sessions and remove specific session from cache
             queryClient.invalidateQueries({

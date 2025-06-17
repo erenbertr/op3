@@ -22,7 +22,16 @@ router.use(authenticateToken);
 
 // Create a new chat session
 router.post('/sessions', asyncHandler(async (req: Request, res: Response) => {
-    const { userId, workspaceId, title }: CreateChatSessionRequest = req.body;
+    const { userId, workspaceId, title, parentSessionId, branchFromMessageId }: CreateChatSessionRequest = req.body;
+
+    console.log('🌿🌿🌿 BRANCH DEBUG: Chat session creation request:', {
+        userId,
+        workspaceId,
+        title,
+        parentSessionId,
+        branchFromMessageId,
+        fullBody: req.body
+    });
 
     if (!userId) {
         throw createError('User ID is required', 400);
@@ -35,7 +44,9 @@ router.post('/sessions', asyncHandler(async (req: Request, res: Response) => {
     const result = await chatService.createChatSession({
         userId,
         workspaceId,
-        title
+        title,
+        parentSessionId,
+        branchFromMessageId
     });
 
     res.json(result);

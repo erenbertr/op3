@@ -89,15 +89,17 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                 // Only set error if we're not currently loading chat sessions
                 if (!chatSessionsLoading) {
                     // Delay showing the error to give time for new chats to be created
+                    // Increased delay for branched chats which may take longer to appear
                     setTimeout(() => {
                         // Double-check that the chat still doesn't exist
                         const stillNotFound = !chatSessions.find(s => s.id === chatId);
                         if (stillNotFound) {
+                            console.warn(`Chat session ${chatId} not found after delay. Available sessions:`, chatSessions.map(s => s.id));
                             setError('Chat session not found');
                             setActiveSession(null);
                             setShowNotFoundError(true);
                         }
-                    }, 1000); // 1 second delay
+                    }, 2000); // Increased delay to 2 seconds for branched chats
                 }
             }
         } else if (!chatId) {
@@ -105,8 +107,15 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
             setActiveSession(null);
             setError(null);
             setShowNotFoundError(false);
+        } else if (chatId && chatSessions.length === 0 && !chatSessionsLoading) {
+            // We have a chatId but no sessions loaded yet - this might be a new session
+            // Wait a bit longer before showing error
+            setTimeout(() => {
+                // Refetch sessions to check for new ones
+                refetchChatSessions();
+            }, 500);
         }
-    }, [chatId, chatSessions, chatSessionsLoading]);
+    }, [chatId, chatSessions, chatSessionsLoading, refetchChatSessions]);
 
     // Handle errors from TanStack Query
     React.useMemo(() => {

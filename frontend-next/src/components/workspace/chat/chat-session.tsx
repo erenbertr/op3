@@ -11,6 +11,7 @@ import { apiClient, ChatMessage, ChatSession, Personality, StreamingState, Strea
 import { useRouter } from 'next/navigation';
 import { truncateText } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
+import { useCreateBranchedChatSession } from '@/lib/hooks/use-query-hooks';
 
 
 
@@ -37,6 +38,9 @@ export function ChatSessionComponent({
     // Simple message state - always managed manually
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+    // Use mutation hook for creating branched chats
+    const createBranchedChatMutation = useCreateBranchedChatSession();
 
 
 
@@ -964,6 +968,11 @@ export function ChatSessionComponent({
 
         if (!workspaceId) {
             console.error('Workspace ID is required for branching');
+            addToast({
+                title: "Error",
+                description: "Workspace ID is required for branching",
+                variant: "destructive"
+            });
             return;
         }
 
@@ -972,12 +981,32 @@ export function ChatSessionComponent({
             const branchMessage = messages.find(msg => msg.id === messageId);
             if (!branchMessage) {
                 console.error('Message not found for branching:', messageId);
+                addToast({
+                    title: "Error",
+                    description: "Message not found for branching",
+                    variant: "destructive"
+                });
                 return;
             }
 
             // Create a new branched chat session
             const branchTitle = `Branch from "${truncateText(branchMessage.content, 30)}"`;
-            const branchResult = await apiClient.createBranchedChatSession({
+            console.log('🌿 Creating branch with parameters:', {
+                userId,
+                workspaceId,
+                title: branchTitle,
+                parentSessionId: session.id,
+                branchFromMessageId: messageId
+            });
+
+            // Show loading state
+            addToast({
+                title: "Creating Branch",
+                description: "Creating new chat branch...",
+                variant: "default"
+            });
+
+            const branchResult = await createBranchedChatMutation.mutateAsync({
                 userId,
                 workspaceId,
                 title: branchTitle,
@@ -988,14 +1017,22 @@ export function ChatSessionComponent({
             if (branchResult.success && branchResult.session) {
                 console.log('✅ Branch created successfully:', branchResult.session);
 
-                // For user messages: auto-send to the selected AI provider
-                if (branchMessage.role === 'user') {
-                    // Navigate to the new chat and auto-send the message
-                    router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+                // Show success toast
+                addToast({
+                    title: "Branch Created",
+                    description: `Created new chat branch: ${branchTitle}`,
+                    variant: "default"
+                });
 
-                    // Wait a bit for navigation, then send the message
+                // Navigate to the new chat immediately
+                router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+
+                // For user messages: auto-send to the selected AI provider after navigation
+                if (branchMessage.role === 'user') {
+                    // Wait for navigation to complete, then trigger auto-send
                     setTimeout(async () => {
                         try {
+                            console.log('🌿 Auto-sending user message to new branch...');
                             await apiClient.streamChatMessage(
                                 branchResult.session!.id,
                                 {
@@ -1005,23 +1042,44 @@ export function ChatSessionComponent({
                                 },
                                 {
                                     onChunk: () => { }, // Handle in the new chat session
-                                    onComplete: () => { },
-                                    onError: (error) => console.error('Branch auto-send error:', error)
+                                    onComplete: () => {
+                                        console.log('✅ Auto-send completed successfully');
+                                    },
+                                    onError: (error) => {
+                                        console.error('Branch auto-send error:', error);
+                                        // Note: Don't show toast here as user might have navigated away
+                                    }
                                 }
                             );
                         } catch (error) {
                             console.error('Error auto-sending branch message:', error);
                         }
-                    }, 500);
-                } else {
-                    // For AI messages: just navigate to the new chat with copied history
-                    router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+                    }, 1000); // Increased delay to ensure navigation completes
                 }
             } else {
                 console.error('Failed to create branch:', branchResult.message);
+                addToast({
+                    title: "Error",
+                    description: branchResult.message || "Failed to create branch",
+                    variant: "destructive"
+                });
             }
         } catch (error) {
             console.error('Error creating branch:', error);
+
+            // Handle different types of errors
+            let errorMessage = "Failed to create branch. Please try again.";
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+
+            addToast({
+                title: "Error",
+                description: errorMessage,
+                variant: "destructive"
+            });
         }
     };
 

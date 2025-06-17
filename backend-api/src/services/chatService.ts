@@ -36,6 +36,14 @@ export class ChatService {
      */
     public async createChatSession(request: CreateChatSessionRequest): Promise<CreateChatSessionResponse> {
         try {
+            console.log('[DEBUG] Creating chat session with request:', {
+                userId: request.userId,
+                workspaceId: request.workspaceId,
+                title: request.title,
+                parentSessionId: request.parentSessionId,
+                branchFromMessageId: request.branchFromMessageId
+            });
+
             const session: ChatSession = {
                 id: uuidv4(),
                 userId: request.userId,
@@ -47,10 +55,15 @@ export class ChatService {
             };
 
             await this.saveChatSession(session);
+            console.log('[DEBUG] Chat session saved:', session.id);
 
             // If this is a branched chat, copy messages up to the branch point
             if (request.parentSessionId && request.branchFromMessageId) {
+                console.log('[DEBUG] This is a branched chat, copying messages...');
                 await this.copyMessagesForBranch(request.parentSessionId, session.id, request.branchFromMessageId);
+                console.log('[DEBUG] Messages copied successfully');
+            } else {
+                console.log('[DEBUG] Not a branched chat - parentSessionId:', request.parentSessionId, 'branchFromMessageId:', request.branchFromMessageId);
             }
 
             return {
@@ -72,18 +85,28 @@ export class ChatService {
      */
     private async copyMessagesForBranch(parentSessionId: string, newSessionId: string, branchFromMessageId: string): Promise<void> {
         try {
+            console.log('[DEBUG] copyMessagesForBranch called with:', {
+                parentSessionId,
+                newSessionId,
+                branchFromMessageId
+            });
+
             // Get all messages from parent session
             const parentMessages = await this.getSessionMessages(parentSessionId);
+            console.log('[DEBUG] Found', parentMessages.length, 'messages in parent session');
 
             // Find the index of the branch message
             const branchMessageIndex = parentMessages.findIndex(msg => msg.id === branchFromMessageId);
+            console.log('[DEBUG] Branch message index:', branchMessageIndex);
 
             if (branchMessageIndex === -1) {
+                console.error('[DEBUG] Branch message not found! Available message IDs:', parentMessages.map(m => m.id));
                 throw new Error('Branch message not found in parent session');
             }
 
             // Copy messages up to and including the branch message
             const messagesToCopy = parentMessages.slice(0, branchMessageIndex + 1);
+            console.log('[DEBUG] Will copy', messagesToCopy.length, 'messages');
 
             for (const message of messagesToCopy) {
                 const newMessage: ChatMessage = {
@@ -93,8 +116,20 @@ export class ChatService {
                     createdAt: new Date() // Update timestamp
                 };
 
-                await this.saveChatMessage(newMessage);
+                console.log('[DEBUG] Copying message:', {
+                    originalId: message.id,
+                    newId: newMessage.id,
+                    content: message.content.substring(0, 50) + '...'
+                });
+
+                const saveResult = await this.saveChatMessage(newMessage);
+                if (!saveResult.success) {
+                    throw new Error(`Failed to save copied message: ${saveResult.message}`);
+                }
+                console.log('[DEBUG] Message saved successfully:', newMessage.id);
             }
+
+            console.log('[DEBUG] Successfully copied all messages');
         } catch (error) {
             console.error('Error copying messages for branch:', error);
             throw error;
