@@ -23,6 +23,7 @@ interface ChatSessionProps {
     userId: string;
     autoFocusInput?: boolean;
     workspaceId?: string;
+    navigate?: (path: string) => void;
 }
 
 export function ChatSessionComponent({
@@ -32,7 +33,8 @@ export function ChatSessionComponent({
     className,
     userId,
     autoFocusInput = false,
-    workspaceId
+    workspaceId,
+    navigate
 }: ChatSessionProps) {
     const router = useRouter();
     // Simple message state - always managed manually
@@ -54,6 +56,7 @@ export function ChatSessionComponent({
                 .then(result => {
                     if (result.success) {
                         console.log('📥 Loaded messages from server:', result.messages.length);
+                        console.log('📥 Message IDs from server:', result.messages.map(m => ({ id: m.id, content: m.content.substring(0, 20) + '...', role: m.role })));
                         setMessages(result.messages);
                         // Reset scroll tracking for new session
                         setLastMessageCount(result.messages.length);
@@ -965,6 +968,7 @@ export function ChatSessionComponent({
     // Branch conversation from a specific message
     const handleBranchMessage = async (messageId: string, aiProviderId: string) => {
         console.log('🌿 Branching conversation from message:', messageId, 'with provider:', aiProviderId);
+        console.log('🌿 Available messages:', messages.map(m => ({ id: m.id, content: m.content.substring(0, 20) + '...', role: m.role })));
 
         if (!workspaceId) {
             console.error('Workspace ID is required for branching');
@@ -981,6 +985,7 @@ export function ChatSessionComponent({
             const branchMessage = messages.find(msg => msg.id === messageId);
             if (!branchMessage) {
                 console.error('Message not found for branching:', messageId);
+                console.error('Available message IDs:', messages.map(m => m.id));
                 addToast({
                     title: "Error",
                     description: "Message not found for branching",
@@ -1006,6 +1011,7 @@ export function ChatSessionComponent({
                 variant: "default"
             });
 
+            console.log('🌿 About to call mutation...');
             const branchResult = await createBranchedChatMutation.mutateAsync({
                 userId,
                 workspaceId,
@@ -1013,6 +1019,7 @@ export function ChatSessionComponent({
                 parentSessionId: session.id,
                 branchFromMessageId: messageId
             });
+            console.log('🌿 Mutation completed with result:', branchResult);
 
             if (branchResult.success && branchResult.session) {
                 console.log('✅ Branch created successfully:', branchResult.session);
@@ -1025,7 +1032,11 @@ export function ChatSessionComponent({
                 });
 
                 // Navigate to the new chat immediately
-                router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+                if (navigate) {
+                    navigate(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+                } else {
+                    router.push(`/ws/${workspaceId}/chat/${branchResult.session.id}`);
+                }
 
                 // For user messages: auto-send to the selected AI provider after navigation
                 if (branchMessage.role === 'user') {

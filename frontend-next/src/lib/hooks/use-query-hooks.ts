@@ -150,46 +150,63 @@ export function useCreateBranchedChatSession() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: {
+        mutationFn: async (data: {
             userId: string;
             workspaceId: string;
             title: string;
             parentSessionId: string;
             branchFromMessageId: string;
-        }) => apiClient.createBranchedChatSession(data),
+        }) => {
+            console.log('🌿 Mutation: Starting branch creation API call...', data);
+            const result = await apiClient.createBranchedChatSession(data);
+            console.log('🌿 Mutation: API response received:', result);
+            return result;
+        },
         onSuccess: (result, variables) => {
+            console.log('🌿 Mutation: onSuccess called with result:', result);
             if (result.success && result.session) {
+                console.log('🌿 Mutation: Updating cache with new session:', result.session);
                 // Optimistically update the chat sessions cache
                 queryClient.setQueryData(
                     queryKeys.chats.byWorkspace(variables.userId, variables.workspaceId),
                     (oldData: any) => {
+                        console.log('🌿 Mutation: Current cache data:', oldData);
                         if (!oldData || !oldData.success) {
-                            return {
+                            const newData = {
                                 success: true,
                                 message: 'Chat sessions retrieved successfully',
                                 sessions: [result.session]
                             };
+                            console.log('🌿 Mutation: Creating new cache data:', newData);
+                            return newData;
                         }
 
                         // Add the new session to the existing list
                         const existingSessions = oldData.sessions || [];
                         const updatedSessions = [result.session, ...existingSessions];
-
-                        return {
+                        const updatedData = {
                             ...oldData,
                             sessions: updatedSessions
                         };
+                        console.log('🌿 Mutation: Updated cache data:', updatedData);
+                        return updatedData;
                     }
                 );
 
                 // Also invalidate to ensure we get fresh data from server
                 setTimeout(() => {
+                    console.log('🌿 Mutation: Invalidating queries...');
                     queryClient.invalidateQueries({
                         queryKey: queryKeys.chats.byWorkspace(variables.userId, variables.workspaceId)
                     });
                 }, 100);
+            } else {
+                console.error('🌿 Mutation: Branch creation failed:', result);
             }
         },
+        onError: (error, variables) => {
+            console.error('🌿 Mutation: onError called:', error, variables);
+        }
     });
 }
 

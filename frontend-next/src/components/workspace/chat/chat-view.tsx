@@ -62,6 +62,10 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
     // Handle loading state
     const isLoading = personalitiesLoading || chatSessionsLoading;
 
+    // Determine if we're waiting for a specific chat to load
+    // This prevents the EmptyChatState flash when navigating to a specific chat
+    const isWaitingForSpecificChat = chatId && !activeSession && !showNotFoundError && !error && (chatSessionsLoading || chatSessions.length === 0);
+
     // Handle chat session changes using callback approach
     const updateActiveSession = useCallback(() => {
         if (chatId && chatSessions.length > 0) {
@@ -325,8 +329,19 @@ export function ChatView({ workspaceId, chatId }: ChatViewProps) {
                                 className="h-full"
                                 autoFocusInput={shouldAutoFocus}
                                 workspaceId={workspaceId}
+                                navigate={navigate}
                             />
+                        ) : isWaitingForSpecificChat ? (
+                            // Show loading state when waiting for a specific chat to load
+                            // This prevents the EmptyChatState flash when navigating to a chat
+                            <div className="h-full flex items-center justify-center">
+                                <div className="text-center space-y-4">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted-foreground/20 border-t-muted-foreground/40 mx-auto"></div>
+                                    <p className="text-muted-foreground">Loading chat...</p>
+                                </div>
+                            </div>
                         ) : (
+                            // Only show empty state when we're truly in workspace overview mode
                             <EmptyChatState />
                         )}
                     </div>
