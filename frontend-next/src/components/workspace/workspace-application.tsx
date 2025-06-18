@@ -11,6 +11,7 @@ import { PersonalityFavoritesModal } from '@/components/workspace/personality-fa
 
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
+import { StatisticsView } from '@/components/statistics/statistics-view';
 
 import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
@@ -96,6 +97,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             // Handle other routes
             if (pathname === '/workspaces') return { view: 'selection', params: {}, queryParams };
             if (pathname === '/personalities') return { view: 'personalities', params: {}, queryParams };
+            if (pathname === '/statistics') return { view: 'statistics', params: {}, queryParams };
             if (pathname === '/add/workspace') return { view: 'create', params: {}, queryParams };
             if (pathname === '/account') return { view: 'account', params: {}, queryParams };
 
@@ -417,6 +419,14 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                         <div className="container mx-auto px-4 py-6">
                             <h1 className="text-2xl font-bold mb-6">AI Personalities</h1>
                             <PersonalitiesManagement userId={currentUser.id} />
+                        </div>
+                    </div>
+                )}
+
+                {currentView === 'statistics' && (
+                    <div className="h-full overflow-y-auto">
+                        <div className="container mx-auto px-4 py-6">
+                            <StatisticsView userId={currentUser.id} />
                         </div>
                     </div>
                 )}
