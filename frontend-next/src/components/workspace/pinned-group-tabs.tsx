@@ -217,7 +217,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                         return (
                             <div
                                 key={group.id}
-                                className={`flex items-center h-12 gap-1 overflow-x-auto transition-all select-none ${groupIndex > 0 ? 'border-t border-border' : ''
+                                className={`flex items-center overflow-x-auto transition-all select-none ${groupIndex > 0 ? 'border-t border-border' : ''
                                     }`}
                             >
                                 {/* Group Name Label */}

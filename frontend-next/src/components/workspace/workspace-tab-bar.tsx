@@ -286,12 +286,15 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
     return (
         <div className="border-b bg-background">
             <div className="container mx-auto px-4">
-                <div className="flex items-center h-12 gap-1">
+                <div className="flex items-center">
                     {/* AI Providers Tab */}
                     <Button
-                        variant={currentView === 'ai-providers' ? 'secondary' : 'ghost'}
-                        size="icon"
-                        className="h-8 w-8"
+                        variant="ghost"
+                        size="sm"
+                        className={`h-10 px-3 rounded-none transition-all ${currentView === 'ai-providers'
+                            ? 'bg-primary/10 text-primary'
+                            : 'hover:bg-muted'
+                            }`}
                         onClick={() => navigationUtils.pushState('/ai-providers/openai')}
                     >
                         <Bot className="h-4 w-4" />
@@ -302,9 +305,9 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         variant="ghost"
                         size="sm"
                         onClick={() => navigationUtils.pushState('/statistics')}
-                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'statistics'
-                            ? 'bg-primary/10 border-primary text-primary'
-                            : 'border-transparent hover:border-primary/50'
+                        className={`h-10 px-3 rounded-none transition-all ${currentView === 'statistics'
+                            ? 'bg-primary/10 text-primary'
+                            : 'hover:bg-muted'
                             }`}
                         title="Usage Statistics"
                     >
@@ -316,9 +319,9 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         variant="ghost"
                         size="sm"
                         onClick={() => navigationUtils.pushState('/workspaces')}
-                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'selection'
-                            ? 'bg-primary/10 border-primary text-primary'
-                            : 'border-transparent hover:border-primary/50'
+                        className={`h-10 px-3 rounded-none transition-all ${currentView === 'selection'
+                            ? 'bg-primary/10 text-primary'
+                            : 'hover:bg-muted'
                             }`}
                         title="Workspaces"
                     >
@@ -330,9 +333,9 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         variant="ghost"
                         size="sm"
                         onClick={() => navigationUtils.pushState('/personalities')}
-                        className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all ${currentView === 'personalities'
-                            ? 'bg-primary/10 border-primary text-primary'
-                            : 'border-transparent hover:border-primary/50'
+                        className={`h-10 px-3 rounded-none transition-all ${currentView === 'personalities'
+                            ? 'bg-primary/10 text-primary'
+                            : 'hover:bg-muted'
                             }`}
                         title="AI Personalities"
                     >
@@ -352,9 +355,9 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                                 onDragOver={(e) => handleDragOver(e, workspace.id)}
                                 onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, workspace.id)}
-                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-t-md border-b-2 transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
-                                    ? 'bg-primary/10 border-primary text-primary'
-                                    : 'hover:bg-muted border-transparent hover:border-primary/50'
+                                className={`relative flex items-center h-10 px-3 cursor-pointer rounded-none transition-all select-none ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'hover:bg-muted'
                                     } ${draggedTabId === workspace.id ? 'opacity-50' : ''
                                     } ${dragOverTabId === workspace.id && draggedTabId !== workspace.id
                                         ? 'border-l-4 border-l-primary bg-primary/5'
@@ -390,7 +393,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                         variant="ghost"
                         size="sm"
                         onClick={() => navigationUtils.pushState('/add/workspace')}
-                        className="h-10 px-3 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
+                        className="h-10 px-3 rounded-none transition-all hover:bg-muted"
                         title="Create New Workspace"
                     >
                         <Plus className="h-4 w-4" />

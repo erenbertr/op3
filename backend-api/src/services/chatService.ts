@@ -69,6 +69,23 @@ export class ChatService {
                 updatedAt: new Date()
             };
 
+            // If this is a branched chat, inherit settings from parent session
+            if (request.parentSessionId && request.branchFromMessageId) {
+                console.log('[DEBUG] This is a branched chat, inheriting parent session settings...');
+                const parentSession = await this.getChatSessionById(request.parentSessionId);
+                if (parentSession) {
+                    // Inherit AI provider and personality settings from parent
+                    session.lastUsedAIProviderId = parentSession.lastUsedAIProviderId;
+                    session.lastUsedPersonalityId = parentSession.lastUsedPersonalityId;
+                    console.log('[DEBUG] Inherited settings from parent:', {
+                        lastUsedAIProviderId: session.lastUsedAIProviderId,
+                        lastUsedPersonalityId: session.lastUsedPersonalityId
+                    });
+                } else {
+                    console.warn('[DEBUG] Parent session not found for branching:', request.parentSessionId);
+                }
+            }
+
             await this.saveChatSession(session);
             console.log('[DEBUG] Chat session saved:', session.id);
 

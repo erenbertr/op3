@@ -77,7 +77,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
         <div className="h-screen bg-background flex flex-col">
             {/* Header */}
             <header className="border-b flex-shrink-0">
-                <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div className="container mx-auto px-4 py-2 flex justify-between items-center">
                     <div className="flex items-center gap-2">
                         <h1 className="text-xl font-bold">OP3</h1>
                     </div>

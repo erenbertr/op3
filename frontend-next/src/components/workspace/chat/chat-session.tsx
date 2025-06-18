@@ -193,11 +193,17 @@ export function ChatSessionComponent({
 
     // Function to calculate and update spacer height with proper timing
     const updateSpacerHeight = React.useCallback((isNewMessage = false, skipScroll = false) => {
-        if (!scrollAreaRef.current || isUserScrolling) return;
+        if (!scrollAreaRef.current) return;
 
         // If user has scrolled up manually, only allow scrolling for new messages they initiated
         if (userHasScrolledUp && !isNewMessage) {
             console.log('📍 Skipping scroll - user has scrolled up and this is not a new message');
+            return;
+        }
+
+        // Don't interfere if user is actively scrolling (but allow for new messages)
+        if (isUserScrolling && !isNewMessage) {
+            console.log('📍 Skipping scroll - user is actively scrolling');
             return;
         }
 
@@ -283,6 +289,12 @@ export function ChatSessionComponent({
                 setTimeout(() => {
                     // Ensure we have the latest scroll height after spacer is applied
                     requestAnimationFrame(() => {
+                        // Set auto-scrolling flag to prevent interference with manual scroll detection
+                        const setAutoScrolling = (scrollContainer as any).__setAutoScrolling;
+                        if (setAutoScrolling) {
+                            setAutoScrolling(true);
+                        }
+
                         if (isNewMessage) {
                             // For new messages: use smooth scrolling
                             scrollContainer.scrollTo({
@@ -293,6 +305,13 @@ export function ChatSessionComponent({
 
                             // Show messages immediately for new messages (already visible)
                             setIsMessagesVisible(true);
+
+                            // Clear auto-scrolling flag after smooth scroll completes
+                            setTimeout(() => {
+                                if (setAutoScrolling) {
+                                    setAutoScrolling(false);
+                                }
+                            }, 1000); // Smooth scroll duration
                         } else {
                             // For initial chat loads: completely disable any scroll behavior
                             // Force instant positioning without any animation
@@ -315,6 +334,11 @@ export function ChatSessionComponent({
                                 setIsMessagesVisible(true);
                                 console.log('✨ Messages now visible with fade-in animation');
                             }, 10); // Very small delay for instant positioning
+
+                            // Clear auto-scrolling flag immediately for instant scroll
+                            if (setAutoScrolling) {
+                                setAutoScrolling(false);
+                            }
                         }
 
                         console.log('📍 Scroll completed:', {
@@ -389,20 +413,26 @@ export function ChatSessionComponent({
         if (!scrollContainer) return;
 
         let scrollTimeout: NodeJS.Timeout;
+        let isAutoScrolling = false;
 
         const handleScroll = () => {
-            setIsUserScrolling(true);
+            // Don't interfere if this is an auto-scroll
+            if (isAutoScrolling) {
+                return;
+            }
 
             // Check if user is scrolled away from bottom
             const isScrolledToBottom = scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight - 50;
 
-            // Track if user has scrolled up from bottom
+            // Only set user scrolling flag if they're actually scrolling manually
             if (!isScrolledToBottom) {
+                setIsUserScrolling(true);
                 setUserHasScrolledUp(true);
                 console.log('📍 User scrolled up - disabling auto-scroll');
             } else if (userHasScrolledUp && isScrolledToBottom) {
                 // User scrolled back to bottom manually - re-enable auto-scroll for new messages
                 setUserHasScrolledUp(false);
+                setIsUserScrolling(false);
                 console.log('📍 User scrolled back to bottom - re-enabling auto-scroll');
             }
 
@@ -418,10 +448,17 @@ export function ChatSessionComponent({
                 clearTimeout(scrollTimeout);
             }
 
-            // Reset user scrolling flag after scroll ends
-            scrollTimeout = setTimeout(() => {
-                setIsUserScrolling(false);
-            }, 300);
+            // Reset user scrolling flag after scroll ends (only if not at bottom)
+            if (!isScrolledToBottom) {
+                scrollTimeout = setTimeout(() => {
+                    setIsUserScrolling(false);
+                }, 500); // Increased timeout to give user more time to scroll
+            }
+        };
+
+        // Store reference to auto-scroll flag for this scroll container
+        (scrollContainer as any).__setAutoScrolling = (value: boolean) => {
+            isAutoScrolling = value;
         };
 
         scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
