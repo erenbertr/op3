@@ -235,7 +235,7 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                     {/* Loading Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                         {[...Array(4)].map((_, i) => (
-                            <Card key={i} className="border-l-4 border-l-gray-200">
+                            <Card key={i}>
                                 <CardHeader className="pb-3">
                                     <div className="flex items-center justify-between">
                                         <Skeleton className="h-4 w-24" />
@@ -251,7 +251,7 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                     </div>
 
                     {/* Loading Provider Usage */}
-                    <Card className="border-l-4 border-l-gray-200">
+                    <Card>
                         <CardHeader className="pb-4">
                             <div className="flex items-center gap-3">
                                 <Skeleton className="h-10 w-10 rounded-lg" />
@@ -286,11 +286,11 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
 
             {/* Error State */}
             {statsError && (
-                <Card className="border-l-4 border-l-red-500">
+                <Card>
                     <CardContent className="pt-6">
                         <div className="text-center space-y-4">
-                            <div className="p-4 bg-red-50 dark:bg-red-950 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-                                <TrendingUp className="h-8 w-8 text-red-600 dark:text-red-400" />
+                            <div className="p-4 bg-muted rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+                                <TrendingUp className="h-8 w-8 text-muted-foreground" />
                             </div>
                             <div>
                                 <p className="text-lg font-medium text-destructive mb-2">Failed to load statistics</p>
@@ -313,11 +313,11 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                 <>
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                        <Card className="border-l-4 border-l-blue-500">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Messages</CardTitle>
-                                <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                                    <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                <div className="p-2 bg-muted rounded-lg">
+                                    <MessageSquare className="h-5 w-5 text-muted-foreground" />
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-0">
@@ -328,11 +328,11 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-l-4 border-l-yellow-500">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Tokens</CardTitle>
-                                <div className="p-2 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-                                    <Zap className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                                <div className="p-2 bg-muted rounded-lg">
+                                    <Zap className="h-5 w-5 text-muted-foreground" />
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-0">
@@ -343,11 +343,11 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-l-4 border-l-green-500">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost</CardTitle>
-                                <div className="p-2 bg-green-50 dark:bg-green-950 rounded-lg">
-                                    <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                <div className="p-2 bg-muted rounded-lg">
+                                    <DollarSign className="h-5 w-5 text-muted-foreground" />
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-0">
@@ -358,11 +358,11 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                             </CardContent>
                         </Card>
 
-                        <Card className="border-l-4 border-l-purple-500">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">Avg Response Time</CardTitle>
-                                <div className="p-2 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                                    <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                                <div className="p-2 bg-muted rounded-lg">
+                                    <Clock className="h-5 w-5 text-muted-foreground" />
                                 </div>
                             </CardHeader>
                             <CardContent className="pt-0">
@@ -375,11 +375,11 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                     </div>
 
                     {/* Provider Usage */}
-                    <Card className="border-l-4 border-l-indigo-500">
+                    <Card>
                         <CardHeader className="pb-4">
                             <CardTitle className="flex items-center gap-3 text-xl">
-                                <div className="p-2 bg-indigo-50 dark:bg-indigo-950 rounded-lg">
-                                    <Bot className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                                <div className="p-2 bg-muted rounded-lg">
+                                    <Bot className="h-6 w-6 text-muted-foreground" />
                                 </div>
                                 Provider Usage
                             </CardTitle>
@@ -447,7 +447,7 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
 
             {/* No Data State */}
             {!shouldShowSpinner && !statsError && !stats && (
-                <Card className="border-l-4 border-l-gray-300">
+                <Card>
                     <CardContent className="pt-6">
                         <div className="text-center space-y-6 py-12">
                             <div className="p-6 bg-muted/50 rounded-full w-24 h-24 mx-auto flex items-center justify-center">
