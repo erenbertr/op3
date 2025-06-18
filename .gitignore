@@ -92,3 +92,6 @@ Thumbs.db
 # Uploaded files
 backend-api/uploads/
 test-file.txt
+
+# Data directory
+backend-api/data/
