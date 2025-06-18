@@ -239,6 +239,28 @@
   font-size: inherit;
 }
 
+/* Remove borders from syntax highlighter lines */
+.prose pre .token-line,
+.prose pre span[style*="border"],
+.prose pre .linenumber,
+.prose pre code span,
+.prose pre code div,
+.prose pre * {
+  border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* Ensure syntax highlighter container has no borders */
+.prose .react-syntax-highlighter,
+.prose .react-syntax-highlighter *,
+.not-prose .react-syntax-highlighter,
+.not-prose .react-syntax-highlighter * {
+  border: none !important;
+}
+
 .prose a {
   color: hsl(var(--primary));
   text-decoration: underline;

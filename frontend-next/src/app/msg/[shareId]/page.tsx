@@ -44,7 +44,10 @@ function MessageContent({ content, isAssistant }: { content: string; isAssistant
                                                 padding: '1em',
                                                 background: 'transparent',
                                                 fontSize: '0.875rem',
-                                                lineHeight: '1.5'
+                                                lineHeight: '1.5',
+                                                border: 'none',
+                                                borderTop: 'none',
+                                                borderBottom: 'none'
                                             }}
                                             language={match[1]}
                                             PreTag="pre"
