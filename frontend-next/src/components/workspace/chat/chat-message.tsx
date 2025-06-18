@@ -44,7 +44,9 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const [showBranchDropdown, setShowBranchDropdown] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
     const [showShareModal, setShowShareModal] = useState(false);
-    const branchButtonRef = useRef<HTMLDivElement>(null);
+    const [activeBranchPosition, setActiveBranchPosition] = useState<'top' | 'bottom' | null>(null);
+    const topBranchButtonRef = useRef<HTMLDivElement>(null);
+    const bottomBranchButtonRef = useRef<HTMLDivElement>(null);
     const { theme } = useTheme();
 
     // Calculate word count to determine if we need duplicate actions
@@ -113,15 +115,21 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     };
 
     // Calculate optimal dropdown position based on available screen space
-    const calculateDropdownPosition = (): 'above' | 'below' => {
-        if (!branchButtonRef.current) return 'below';
+    const calculateDropdownPosition = (position: 'top' | 'bottom'): 'above' | 'below' => {
+        const currentRef = position === 'top' ? topBranchButtonRef.current : bottomBranchButtonRef.current;
+        if (!currentRef) return position === 'top' ? 'below' : 'above';
 
-        const buttonRect = branchButtonRef.current.getBoundingClientRect();
+        const buttonRect = currentRef.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const dropdownHeight = 240; // Approximate height of the dropdown (max-h-60 = 240px)
         const margin = 16; // Extra margin for safety
 
-        // Calculate available space above and below the button
+        // For bottom position, always prefer above
+        if (position === 'bottom') {
+            return 'above';
+        }
+
+        // For top position, calculate available space above and below the button
         const spaceAbove = buttonRect.top;
         const spaceBelow = viewportHeight - buttonRect.bottom;
 
@@ -140,13 +148,17 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     };
 
     // Handle branch button click with dynamic positioning
-    const handleBranchButtonClick = () => {
-        if (!showBranchDropdown) {
+    const handleBranchButtonClick = (position: 'top' | 'bottom') => {
+        if (showBranchDropdown && activeBranchPosition === position) {
+            setShowBranchDropdown(false);
+            setActiveBranchPosition(null);
+        } else {
+            setActiveBranchPosition(position);
             // Calculate position before showing dropdown
-            const position = calculateDropdownPosition();
-            setDropdownPosition(position);
+            const dropdownPos = calculateDropdownPosition(position);
+            setDropdownPosition(dropdownPos);
+            setShowBranchDropdown(true);
         }
-        setShowBranchDropdown(!showBranchDropdown);
     };
 
     // Branch functionality
@@ -154,21 +166,27 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
         if (onBranch && message.id) {
             onBranch(message.id, aiProviderId);
             setShowBranchDropdown(false);
+            setActiveBranchPosition(null);
         }
     };
 
     // Close dropdown when clicking outside or on window resize
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (branchButtonRef.current && !branchButtonRef.current.contains(event.target as Node)) {
+            const topRef = topBranchButtonRef.current;
+            const bottomRef = bottomBranchButtonRef.current;
+
+            if (topRef && !topRef.contains(event.target as Node) &&
+                bottomRef && !bottomRef.contains(event.target as Node)) {
                 setShowBranchDropdown(false);
+                setActiveBranchPosition(null);
             }
         };
 
         const handleResize = () => {
-            if (showBranchDropdown) {
+            if (showBranchDropdown && activeBranchPosition) {
                 // Recalculate position on resize
-                const newPosition = calculateDropdownPosition();
+                const newPosition = calculateDropdownPosition(activeBranchPosition);
                 setDropdownPosition(newPosition);
             }
         };
@@ -181,7 +199,7 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                 window.removeEventListener('resize', handleResize);
             };
         }
-    }, [showBranchDropdown]);
+    }, [showBranchDropdown, activeBranchPosition]);
 
     // Message Actions Component - extracted for reuse
     const MessageActions = ({ position }: { position: 'top' | 'bottom' }) => (
@@ -222,18 +240,18 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
 
             {/* Branch button with dropdown */}
             {onBranch && (
-                <div className="relative" ref={position === 'top' ? branchButtonRef : undefined}>
+                <div className="relative" ref={position === 'top' ? topBranchButtonRef : bottomBranchButtonRef}>
                     <Button
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
-                        onClick={handleBranchButtonClick}
+                        onClick={() => handleBranchButtonClick(position)}
                         title="Branch conversation"
                     >
                         <GitBranch className="h-3 w-3" />
                     </Button>
 
-                    {showBranchDropdown && (
+                    {showBranchDropdown && activeBranchPosition === position && (
                         <div
                             className={cn(
                                 "absolute right-0 z-50 w-64",
