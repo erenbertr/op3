@@ -400,10 +400,10 @@ export function ChatSessionComponent({
             // Reset user scrolling flag after scroll ends
             scrollTimeout = setTimeout(() => {
                 setIsUserScrolling(false);
-                // Re-apply spacer if user is back at bottom
-                if (isScrolledToBottom) {
-                    setTimeout(() => updateSpacerHeight(), 100);
-                }
+                // DO NOT re-apply spacer automatically when user scrolls back to bottom
+                // This was causing inappropriate auto-scroll behavior when users manually
+                // scrolled up to read previous messages and then scrolled back down
+                // The spacer will be properly managed by message updates and new message events
             }, 300);
         };
 
