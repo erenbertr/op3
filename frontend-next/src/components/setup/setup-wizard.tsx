@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatabaseConfigForm } from './database-config';
 import { AdminConfigForm } from './admin-config';
-import { AIProviderConfigForm } from './ai-provider-config';
 import { useI18n } from '@/lib/i18n';
-import { DatabaseConfig, AdminConfig, AIProviderConfig, apiClient } from '@/lib/api';
-import { CheckCircle, Database, Shield, Brain, ArrowRight } from 'lucide-react';
+import { DatabaseConfig, AdminConfig, apiClient } from '@/lib/api';
+import { CheckCircle, Database, Shield, ArrowRight } from 'lucide-react';
 
 interface SetupStep {
     id: string;
@@ -24,7 +23,6 @@ export function SetupWizard() {
     const [currentStep, setCurrentStep] = useState(0);
     const [databaseConfig, setDatabaseConfig] = useState<DatabaseConfig | null>(null);
     const [adminConfig, setAdminConfig] = useState<AdminConfig | null>(null);
-    const [aiProviderConfig, setAiProviderConfig] = useState<AIProviderConfig[] | null>(null);
 
     const steps: SetupStep[] = [
         {
@@ -40,13 +38,6 @@ export function SetupWizard() {
             description: t('setup.admin.description'),
             icon: <Shield className="h-5 w-5" />,
             completed: !!adminConfig,
-        },
-        {
-            id: 'aiProvider',
-            title: t('setup.aiProvider.title'),
-            description: t('setup.aiProvider.description'),
-            icon: <Brain className="h-5 w-5" />,
-            completed: !!aiProviderConfig && aiProviderConfig.length > 0,
         },
         {
             id: 'complete',
@@ -76,15 +67,9 @@ export function SetupWizard() {
     const handleAdminConfig = (config: AdminConfig) => {
         // The AdminConfigForm component already handles the API call and shows toast
         // We just need to handle the navigation here
-        console.log('Setup wizard: Admin config received, moving to next step');
+        console.log('Setup wizard: Admin config received, moving to complete step');
         setAdminConfig(config);
-        setCurrentStep(2); // Move to AI provider step
-    };
-
-    const handleAIProviderConfig = (config: AIProviderConfig[]) => {
-        console.log('Setup wizard: AI provider config received, moving to next step');
-        setAiProviderConfig(config);
-        setCurrentStep(3); // Move to complete step
+        setCurrentStep(2); // Move to complete step
     };
 
     const handleBack = () => {
@@ -131,14 +116,6 @@ export function SetupWizard() {
                 );
             case 2:
                 return (
-                    <AIProviderConfigForm
-                        onNext={handleAIProviderConfig}
-                        onBack={handleBack}
-                        defaultValues={aiProviderConfig}
-                    />
-                );
-            case 3:
-                return (
                     <Card className="w-full max-w-2xl mx-auto">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -170,17 +147,6 @@ export function SetupWizard() {
                                         Admin account created for: {adminConfig?.email}
                                     </p>
                                 </div>
-
-                                {aiProviderConfig && aiProviderConfig.length > 0 && (
-                                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                                        <h3 className="font-medium text-purple-900 dark:text-purple-100">
-                                            AI Providers Configured
-                                        </h3>
-                                        <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
-                                            {aiProviderConfig.length} AI provider(s) configured successfully
-                                        </p>
-                                    </div>
-                                )}
 
                                 <div className="text-center space-y-4">
                                     <p className="text-muted-foreground">

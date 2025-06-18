@@ -21,7 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/toast';
 import { Loader2 } from 'lucide-react';
 
 interface User {
@@ -80,6 +80,7 @@ export function UserDialogs({
     });
 
     const queryClient = useQueryClient();
+    const { addToast } = useToast();
 
     // Reset forms when dialogs open/close
     useEffect(() => {
@@ -131,13 +132,13 @@ export function UserDialogs({
             queryClient.invalidateQueries({ queryKey: ['admin-users'] });
             queryClient.invalidateQueries({ queryKey: ['user-stats'] });
             setShowCreateDialog(false);
-            toast({
+            addToast({
                 title: "User Created",
                 description: "New user has been created successfully.",
             });
         },
         onError: (error) => {
-            toast({
+            addToast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to create user",
                 variant: "destructive",
@@ -168,13 +169,13 @@ export function UserDialogs({
             queryClient.invalidateQueries({ queryKey: ['admin-users'] });
             queryClient.invalidateQueries({ queryKey: ['user-stats'] });
             setShowEditDialog(false);
-            toast({
+            addToast({
                 title: "User Updated",
                 description: "User has been updated successfully.",
             });
         },
         onError: (error) => {
-            toast({
+            addToast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to update user",
                 variant: "destructive",
@@ -204,13 +205,13 @@ export function UserDialogs({
             queryClient.invalidateQueries({ queryKey: ['admin-users'] });
             queryClient.invalidateQueries({ queryKey: ['user-stats'] });
             setShowDeleteDialog(false);
-            toast({
+            addToast({
                 title: "User Deleted",
                 description: "User has been deleted successfully.",
             });
         },
         onError: (error) => {
-            toast({
+            addToast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to delete user",
                 variant: "destructive",
@@ -221,7 +222,7 @@ export function UserDialogs({
     const handleCreateSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!createForm.email || !createForm.password) {
-            toast({
+            addToast({
                 title: "Validation Error",
                 description: "Email and password are required",
                 variant: "destructive",
@@ -234,7 +235,7 @@ export function UserDialogs({
     const handleEditSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!editForm.email) {
-            toast({
+            addToast({
                 title: "Validation Error",
                 description: "Email is required",
                 variant: "destructive",

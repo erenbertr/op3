@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/toast';
 import { UserDialogs } from './user-dialogs';
 import {
     Users,
@@ -87,6 +87,7 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     const [showSystemSettings, setShowSystemSettings] = useState(false);
 
     const queryClient = useQueryClient();
+    const { addToast } = useToast();
 
     // Fetch users
     const { data: usersData, isLoading: usersLoading } = useQuery({
@@ -175,13 +176,13 @@ export function UserManagement({ currentUser }: UserManagementProps) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['system-settings'] });
-            toast({
+            addToast({
                 title: "Settings Updated",
                 description: "System settings have been updated successfully.",
             });
         },
         onError: (error) => {
-            toast({
+            addToast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to update settings",
                 variant: "destructive",

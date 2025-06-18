@@ -178,11 +178,6 @@ router.post('/complete', asyncHandler(async (req: Request, res: Response) => {
         throw createError('Admin user must be created', 400);
     }
 
-    const aiProvidersConfigured = aiProviderService.hasProviders();
-    if (!aiProvidersConfigured) {
-        throw createError('At least one AI provider must be configured', 400);
-    }
-
     // Mark setup as complete
     const result = await dbManager.markSetupComplete();
     if (!result.success) {
@@ -220,7 +215,7 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     const setupComplete = await dbManager.isSetupComplete();
 
     // Determine if all steps are completed
-    const allStepsCompleted = !!currentConfig && adminExists && aiProvidersConfigured;
+    const allStepsCompleted = !!currentConfig && adminExists;
 
     res.json({
         success: true,

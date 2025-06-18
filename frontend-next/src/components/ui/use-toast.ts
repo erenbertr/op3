@@ -1,20 +1,7 @@
-import { useToast as useToastOriginal } from './toast';
+// Re-export the existing toast functionality
+export { useToast } from './toast';
 
-export function useToast() {
-    const { addToast } = useToastOriginal();
-
-    const toast = (options: {
-        title?: string;
-        description?: string;
-        variant?: "default" | "destructive" | "success";
-        duration?: number;
-    }) => {
-        addToast(options);
-    };
-
-    return { toast };
-}
-
+// Create a toast function that can be used directly
 export const toast = (options: {
     title?: string;
     description?: string;
