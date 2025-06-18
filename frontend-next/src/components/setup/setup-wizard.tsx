@@ -84,9 +84,9 @@ export function SetupWizard() {
             const response = await apiClient.completeSetup();
 
             if (response.success) {
-                console.log('Setup completed successfully, redirecting to main app...');
-                // Redirect to main application
-                window.location.href = '/';
+                console.log('Setup completed successfully, redirecting to AI providers...');
+                // Redirect to AI providers page to set up AI providers
+                window.location.href = '/ai-providers/openai';
             } else {
                 console.error('Failed to complete setup:', response.message);
                 alert('Failed to complete setup. Please try again.');

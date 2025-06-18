@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ChatView } from '@/components/workspace/chat/chat-view';
@@ -25,6 +25,7 @@ import { UserMenu } from '@/components/user-menu';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { apiClient } from '@/lib/api';
 import { Loader2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -62,9 +63,19 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     // Use TanStack Query for data fetching
     const { data: workspacesResult, isLoading: workspacesLoading, error: workspacesError } = useWorkspaces(currentUser.id, 'WorkspaceApplication');
 
+    // Check setup status to determine if AI providers are configured
+    const { data: setupStatus } = useQuery({
+        queryKey: ['setup-status'],
+        queryFn: () => apiClient.getSetupStatus(),
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchInterval: false,
+        retry: 1,
+    });
+
     // Parse route parameters from pathname (memoized to prevent re-renders)
     const { currentView, routeParams, queryParams } = useMemo(() => {
-        const parseRoute = (path: string): { view: string; params: RouteParams; queryParams: Record<string, string> } => {
+        const parseRoute = (path: string, setupData?: { setup?: { aiProviders?: { configured: boolean } } }): { view: string; params: RouteParams; queryParams: Record<string, string> } => {
             // Extract query parameters
             const [pathname, search] = path.split('?');
             const urlParams = new URLSearchParams(search || '');
@@ -124,18 +135,21 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 };
             }
 
-            // Default to workspace selection if no match
+            // Default to AI providers if no AI providers are configured, otherwise workspace selection
+            if (setupData?.setup?.aiProviders?.configured === false) {
+                return { view: 'ai-providers-openai', params: {}, queryParams };
+            }
             return { view: 'selection', params: {}, queryParams };
         };
 
-        const { view, params, queryParams } = parseRoute(currentPathname);
+        const { view, params, queryParams } = parseRoute(currentPathname, setupStatus);
 
         return {
             currentView: view,
             routeParams: params,
             queryParams
         };
-    }, [currentPathname]);
+    }, [currentPathname, setupStatus]);
 
     // Find current workspace separately to avoid workspacesResult dependency in main useMemo
     const currentWorkspace = useMemo(() => {
@@ -179,6 +193,15 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             setShowNotFoundAfterDelay(false);
         }
     }, [currentView, routeParams.workspaceId, workspacesLoading, currentWorkspace, workspacesError]);
+
+    // Redirect to AI providers page if no providers are configured and user is on root path
+    useEffect(() => {
+        if (setupStatus?.setup?.aiProviders?.configured === false &&
+            currentPathname === '/' &&
+            currentView === 'selection') {
+            navigationUtils.pushState('/ai-providers/openai');
+        }
+    }, [setupStatus, currentPathname, currentView]);
 
     const handleWorkspaceUpdated = () => {
         queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
