@@ -141,6 +141,47 @@ export interface WorkspaceOpenRouterSettings {
     updatedAt?: Date;
 }
 
+// Workspace AI Favorites types
+export interface WorkspaceAIFavorite {
+    id: string;
+    workspaceId: string;
+    aiProviderId: string; // Can be model config ID or regular provider ID
+    isModelConfig: boolean; // Indicates if this is a model config or regular provider
+    displayName: string; // Custom display name for the favorite
+    sortOrder: number; // For ordering favorites
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface CreateAIFavoriteRequest {
+    workspaceId: string;
+    aiProviderId: string;
+    isModelConfig: boolean;
+    displayName: string;
+}
+
+export interface UpdateAIFavoriteRequest {
+    displayName?: string;
+    sortOrder?: number;
+}
+
+export interface WorkspaceAIFavoritesResponse {
+    success: boolean;
+    favorites: WorkspaceAIFavorite[];
+    message?: string;
+}
+
+export interface CreateAIFavoriteResponse {
+    success: boolean;
+    favorite?: WorkspaceAIFavorite;
+    message: string;
+}
+
+export interface DeleteAIFavoriteResponse {
+    success: boolean;
+    message: string;
+}
+
 // OpenAI Model Configuration types
 export interface OpenAIModelConfig {
     id: string;

@@ -67,6 +67,13 @@ export const queryKeys = {
         config: () => ['ai-providers', 'config'] as const,
     },
 
+    // Workspace AI Favorites operations
+    workspaceAIFavorites: {
+        all: () => ['workspace-ai-favorites'] as const,
+        byWorkspace: (workspaceId: string) => ['workspace-ai-favorites', 'workspace', workspaceId] as const,
+        check: (workspaceId: string, aiProviderId: string) => ['workspace-ai-favorites', 'check', workspaceId, aiProviderId] as const,
+    },
+
     // Statistics operations
     statistics: {
         all: () => ['statistics'] as const,

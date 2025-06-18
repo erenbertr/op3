@@ -3,11 +3,12 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Paperclip, Brain, ChevronDown } from 'lucide-react';
+import { Search, Paperclip, Brain, ChevronDown, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsAIProviderFavorited, useAddAIFavorite, useRemoveAIFavorite } from '@/lib/hooks/use-workspace-ai-favorites';
 
 interface AIProviderSelectorProps {
     selectedProvider?: string;
@@ -19,6 +20,8 @@ interface AIProviderSelectorProps {
     showSearch?: boolean;
     size?: 'sm' | 'md' | 'lg';
     dropdownPosition?: 'above' | 'below' | 'auto';
+    workspaceId?: string; // For favorites functionality
+    showFavoriteButtons?: boolean; // Whether to show star buttons
 }
 
 export function AIProviderSelector({
@@ -30,13 +33,19 @@ export function AIProviderSelector({
     placeholder = "Select AI Provider",
     showSearch = true,
     size = 'md',
-    dropdownPosition = 'above'
+    dropdownPosition = 'above',
+    workspaceId,
+    showFavoriteButtons = false
 }: AIProviderSelectorProps) {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [actualDropdownPosition, setActualDropdownPosition] = useState<'above' | 'below'>('above');
     const dropdownRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
+
+    // Favorite management hooks
+    const addAIFavoriteMutation = useAddAIFavorite();
+    const removeAIFavoriteMutation = useRemoveAIFavorite();
 
     // Fetch OpenAI model configurations
     const { data: openaiModelConfigs = [] } = useQuery({
@@ -97,6 +106,57 @@ export function AIProviderSelector({
         onProviderChange(providerId, isModelConfig);
         setShowDropdown(false);
         setSearchQuery('');
+    };
+
+    // Helper component for favorite star button
+    const FavoriteStarButton = ({ aiProviderId, isModelConfig, displayName }: { aiProviderId: string; isModelConfig: boolean; displayName: string }) => {
+        const { isFavorited, favorite } = useIsAIProviderFavorited(workspaceId || '', aiProviderId);
+
+        if (!showFavoriteButtons || !workspaceId) return null;
+
+        const handleToggleFavorite = (e: React.MouseEvent) => {
+            e.stopPropagation(); // Prevent triggering provider selection
+
+            if (isFavorited && favorite) {
+                // Remove from favorites using the favorite ID
+                removeAIFavoriteMutation.mutate(favorite.id);
+            } else {
+                // Add to favorites
+                addAIFavoriteMutation.mutate({
+                    workspaceId,
+                    aiProviderId,
+                    isModelConfig,
+                    displayName
+                });
+            }
+        };
+
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                                "h-6 w-6 p-0 opacity-60 hover:opacity-100 transition-opacity",
+                                isFavorited && "opacity-100"
+                            )}
+                            onClick={handleToggleFavorite}
+                            disabled={addAIFavoriteMutation.isPending || removeAIFavoriteMutation.isPending}
+                        >
+                            <Star className={cn(
+                                "h-3 w-3",
+                                isFavorited ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                            )} />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {isFavorited ? "Remove from favorites" : "Add to favorites"}
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
     };
 
     // Filter model configs based on search
@@ -224,10 +284,17 @@ export function AIProviderSelector({
                                         onClick={() => handleProviderSelect(config.id, true)}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <div className="font-medium">
-                                                {config.customName || config.modelName}
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <div className="font-medium truncate">
+                                                    {config.customName || config.modelName}
+                                                </div>
+                                                <FavoriteStarButton
+                                                    aiProviderId={config.id}
+                                                    isModelConfig={true}
+                                                    displayName={config.customName || config.modelName}
+                                                />
                                             </div>
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1 flex-shrink-0">
                                                 {config.capabilities?.search && <Search className="h-3 w-3" />}
                                                 {config.capabilities?.reasoning && <Brain className="h-3 w-3" />}
                                                 {config.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}

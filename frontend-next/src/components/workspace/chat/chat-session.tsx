@@ -1165,6 +1165,7 @@ export function ChatSessionComponent({
                                     onContinue={handleContinueMessage}
                                     onBranch={handleBranchMessage}
                                     isVisible={isMessagesVisible}
+                                    workspaceId={workspaceId || session.workspaceId}
                                     streamingMessage={(isStreaming || streamingState.hasError) ? (
                                         <>
                                             {/* Search indicator */}
@@ -1225,6 +1226,7 @@ export function ChatSessionComponent({
                         onInterruptStreaming={handleInterruptStreaming}
                         sessionId={session?.id}
                         userId={userId}
+                        workspaceId={workspaceId || session.workspaceId}
                     />
                 </div>
             </div>

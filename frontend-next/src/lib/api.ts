@@ -407,6 +407,53 @@ export interface StatisticsResponse {
     statistics?: WorkspaceStatistics;
 }
 
+// Workspace AI Favorites types
+export interface WorkspaceAIFavorite {
+    id: string;
+    workspaceId: string;
+    aiProviderId: string;
+    isModelConfig: boolean;
+    displayName: string;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateAIFavoriteRequest {
+    workspaceId: string;
+    aiProviderId: string;
+    isModelConfig: boolean;
+    displayName: string;
+}
+
+export interface UpdateAIFavoriteRequest {
+    displayName?: string;
+    sortOrder?: number;
+}
+
+export interface WorkspaceAIFavoritesResponse {
+    success: boolean;
+    favorites: WorkspaceAIFavorite[];
+    message?: string;
+}
+
+export interface CreateAIFavoriteResponse {
+    success: boolean;
+    favorite?: WorkspaceAIFavorite;
+    message: string;
+}
+
+export interface DeleteAIFavoriteResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface CheckAIFavoriteResponse {
+    success: boolean;
+    isFavorited: boolean;
+    favorite: WorkspaceAIFavorite | null;
+}
+
 export interface StreamChunk {
     type: 'chunk' | 'error' | 'complete' | 'search_start' | 'search_results' | 'reasoning_step';
     content?: string;
@@ -1258,6 +1305,42 @@ class ApiClient {
         return this.request<StatisticsResponse>(
             `/statistics/workspace/${workspaceId}?${params.toString()}`
         );
+    }
+
+    // Workspace AI Favorites API methods
+    async getWorkspaceAIFavorites(workspaceId: string): Promise<WorkspaceAIFavoritesResponse> {
+        return this.request<WorkspaceAIFavoritesResponse>(`/workspace-ai-favorites/${workspaceId}`);
+    }
+
+    async addAIFavorite(request: CreateAIFavoriteRequest): Promise<CreateAIFavoriteResponse> {
+        return this.request<CreateAIFavoriteResponse>('/workspace-ai-favorites', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async updateAIFavorite(favoriteId: string, request: UpdateAIFavoriteRequest): Promise<CreateAIFavoriteResponse> {
+        return this.request<CreateAIFavoriteResponse>(`/workspace-ai-favorites/${favoriteId}`, {
+            method: 'PUT',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async removeAIFavorite(favoriteId: string): Promise<DeleteAIFavoriteResponse> {
+        return this.request<DeleteAIFavoriteResponse>(`/workspace-ai-favorites/${favoriteId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async reorderAIFavorites(workspaceId: string, favoriteIds: string[]): Promise<DeleteAIFavoriteResponse> {
+        return this.request<DeleteAIFavoriteResponse>(`/workspace-ai-favorites/${workspaceId}/reorder`, {
+            method: 'POST',
+            body: JSON.stringify({ favoriteIds }),
+        });
+    }
+
+    async checkAIFavoriteStatus(workspaceId: string, aiProviderId: string): Promise<CheckAIFavoriteResponse> {
+        return this.request<CheckAIFavoriteResponse>(`/workspace-ai-favorites/${workspaceId}/check/${aiProviderId}`);
     }
 
     async getProviderStatistics(

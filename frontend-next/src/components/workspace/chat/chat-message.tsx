@@ -27,6 +27,7 @@ interface ChatMessageProps {
     onRetry?: (messageId: string) => void;
     onContinue?: (messageId: string) => void;
     onBranch?: (messageId: string, aiProviderId: string) => void;
+    workspaceId?: string; // For favorites functionality
 }
 
 // Helper function to count words in a message
@@ -34,7 +35,7 @@ const countWords = (text: string): number => {
     return text.trim().split(/\s+/).filter(word => word.length > 0).length;
 };
 
-export function ChatMessage({ message, personality, className, onRetry, onContinue, onBranch }: ChatMessageProps) {
+export function ChatMessage({ message, personality, className, onRetry, onContinue, onBranch, workspaceId }: ChatMessageProps) {
     const [copyButtonText, setCopyButtonText] = useState('Copy');
     const isAssistant = message.role === 'assistant';
     const [isHovered, setIsHovered] = useState(false);
@@ -248,6 +249,8 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                                 placeholder="Select AI Provider for Branch"
                                 size="sm"
                                 dropdownPosition={dropdownPosition}
+                                workspaceId={workspaceId}
+                                showFavoriteButtons={true}
                             />
                         </div>
                     )}
@@ -454,6 +457,7 @@ interface ChatMessageListProps {
     onBranch?: (messageId: string, aiProviderId: string) => void;
     streamingMessage?: React.ReactNode;
     isVisible?: boolean;
+    workspaceId?: string; // For favorites functionality
 }
 
 export function ChatMessageList({
@@ -465,7 +469,8 @@ export function ChatMessageList({
     onContinue,
     onBranch,
     streamingMessage,
-    isVisible = true
+    isVisible = true,
+    workspaceId
 }: ChatMessageListProps) {
     const getPersonality = (personalityId?: string) => {
         return personalityId && personalities ? personalities.find(p => p?.id === personalityId) : undefined;
@@ -544,6 +549,7 @@ export function ChatMessageList({
                         onRetry={onRetry}
                         onContinue={onContinue}
                         onBranch={onBranch}
+                        workspaceId={workspaceId}
                     />
                 </div>
             ))}
