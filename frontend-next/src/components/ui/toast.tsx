@@ -77,7 +77,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
                 "animate-in slide-in-from-top-2 duration-300",
                 {
                     "bg-background/95 border border-border text-foreground": toast.variant === "default" || !toast.variant,
-                    "bg-destructive border border-destructive text-destructive-foreground": toast.variant === "destructive",
+                    "bg-destructive border border-destructive text-white": toast.variant === "destructive",
                     "bg-green-500 border border-green-500 text-white": toast.variant === "success",
                 }
             )}
@@ -92,7 +92,10 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
             </div>
             <button
                 onClick={() => onRemove(toast.id)}
-                className="absolute right-2 top-2 rounded-md p-1 text-current/50 opacity-0 transition-opacity hover:text-current focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
+                className={cn(
+                    "absolute right-2 top-2 rounded-md p-1 opacity-0 transition-opacity focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100",
+                    toast.variant === "destructive" ? "text-white/70 hover:text-white" : "text-current/50 hover:text-current"
+                )}
             >
                 <X className="h-4 w-4" />
             </button>

@@ -114,7 +114,7 @@ export function FavoritedPersonalities({
                                         size="sm"
                                         className={cn(
                                             "absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full",
-                                            "bg-destructive text-destructive-foreground",
+                                            "bg-destructive text-white",
                                             "opacity-0 group-hover:opacity-100 transition-opacity",
                                             "hover:bg-destructive/90",
                                             disabled && "hidden"
@@ -130,11 +130,11 @@ export function FavoritedPersonalities({
                                 <div className="space-y-1">
                                     <div className="font-medium">{personality.title}</div>
                                     <div className="text-xs text-muted-foreground">
-                                        {personality.prompt ? 
-                                            (personality.prompt.length > 150 ? 
-                                                personality.prompt.substring(0, 150) + '...' : 
+                                        {personality.prompt ?
+                                            (personality.prompt.length > 150 ?
+                                                personality.prompt.substring(0, 150) + '...' :
                                                 personality.prompt
-                                            ) : 
+                                            ) :
                                             'No description'
                                         }
                                     </div>

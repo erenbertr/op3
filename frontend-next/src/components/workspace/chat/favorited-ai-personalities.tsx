@@ -132,7 +132,7 @@ export function FavoritedAIPersonalities({
                                         size="sm"
                                         className={cn(
                                             "absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full",
-                                            "bg-destructive text-destructive-foreground",
+                                            "bg-destructive text-white",
                                             "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
                                             "hover:bg-destructive/90",
                                             disabled && "hidden"
