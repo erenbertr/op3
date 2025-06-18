@@ -47,14 +47,6 @@ router.post('/create', asyncHandler(async (req: Request, res: Response) => {
         throw createError(result.message, 400);
     }
 
-    // Mark user as having completed workspace setup
-    try {
-        await userService.markWorkspaceSetupComplete(userId);
-    } catch (error) {
-        console.error('Error marking workspace setup as complete:', error);
-        // Don't fail the request if this fails, just log it
-    }
-
     res.json(result);
 }));
 

@@ -1,7 +1,7 @@
 "use client"
 
-import { AppWrapper } from '@/components/app-wrapper';
+import { GoogleSettingsView } from '@/components/workspace/google-settings-view';
 
 export default function GooglePage() {
-    return <AppWrapper />;
+    return <GoogleSettingsView />;
 }

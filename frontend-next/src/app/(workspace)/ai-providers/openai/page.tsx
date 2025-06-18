@@ -1,7 +1,7 @@
 "use client"
 
-import { AppWrapper } from '@/components/app-wrapper';
+import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
 
 export default function AIProvidersOpenAIPage() {
-    return <AppWrapper />;
+    return <OpenAISettingsView />;
 }

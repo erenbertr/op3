@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
-import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { WorkspaceApplication } from '@/components/workspace/workspace-application';
 
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -12,6 +11,7 @@ import { UserMenu } from '@/components/user-menu';
 import { apiClient } from '@/lib/api';
 import { useSession, signIn, signOut } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 
@@ -20,8 +20,9 @@ export function AppWrapper() {
 
     // Use Better Auth session
     const { data: session, isPending: isSessionLoading } = useSession();
-    const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const pathname = usePathname();
+    const router = useRouter();
 
     // Use delayed spinner for setup loading
     const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);
@@ -43,20 +44,7 @@ export function AppWrapper() {
         }
     });
 
-    // Check if user needs workspace setup when session changes
-    React.useEffect(() => {
-        if (session?.user && !session.user.hasCompletedWorkspaceSetup) {
-            // Check if AI providers are configured (only if setupResponse is available)
-            if (setupResponse?.setup?.aiProviders?.configured === false) {
-                // Redirect to AI providers page instead of showing workspace setup
-                window.location.href = '/ai-providers/openai';
-                return;
-            }
-            setShowWorkspaceSetup(true);
-        } else {
-            setShowWorkspaceSetup(false);
-        }
-    }, [session, setupResponse]);
+
 
     // Start loading when setup query starts
     useEffect(() => {
@@ -103,15 +91,6 @@ export function AppWrapper() {
 
     const handleLogout = async () => {
         await signOut();
-        setShowWorkspaceSetup(false);
-    };
-
-    const handleWorkspaceSetupComplete = (_workspace: { id: string; name: string; templateType: string; workspaceRules: string; isActive: boolean; createdAt: string } | undefined) => {
-        setShowWorkspaceSetup(false);
-
-        // Note: In Better Auth, user updates should be handled through the backend API
-        // The session will be refreshed automatically when the user data changes
-        // For now, we'll just hide the workspace setup
     };
 
 
@@ -175,37 +154,8 @@ export function AppWrapper() {
         );
     }
 
-    // If user is logged in and needs workspace setup
-    if (session?.user && showWorkspaceSetup) {
-        return (
-            <div className="h-screen bg-background">
-                {/* Header with theme toggle and language selector */}
-                <header className="border-b">
-                    <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-xl font-bold">OP3</h1>
-                            <span className="text-sm text-muted-foreground">Workspace Setup</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <UserMenu userEmail={session.user.email} onLogout={handleLogout} />
-                            <ThemeToggle />
-                        </div>
-                    </div>
-                </header>
-
-                {/* Workspace setup */}
-                <main>
-                    <WorkspaceSetup
-                        userId={session.user.id}
-                        onComplete={handleWorkspaceSetupComplete}
-                    />
-                </main>
-            </div>
-        );
-    }
-
-    // If user is logged in and has completed workspace setup, show workspace application
-    if (session?.user && session.user.hasCompletedWorkspaceSetup) {
+    // If user is logged in, show workspace application
+    if (session?.user) {
         return (
             <WorkspaceApplication
                 currentUser={session.user}

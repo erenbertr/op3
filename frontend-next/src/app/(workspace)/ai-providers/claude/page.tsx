@@ -1,7 +1,7 @@
 "use client"
 
-import { AppWrapper } from '@/components/app-wrapper';
+import { AnthropicSettingsView } from '@/components/workspace/anthropic-settings-view';
 
 export default function ClaudePage() {
-    return <AppWrapper />;
+    return <AnthropicSettingsView />;
 }

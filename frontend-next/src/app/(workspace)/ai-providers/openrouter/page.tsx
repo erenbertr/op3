@@ -1,7 +1,7 @@
 "use client"
 
-import { AppWrapper } from '@/components/app-wrapper';
+import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 
 export default function AIProvidersOpenRouterPage() {
-    return <AppWrapper />;
+    return <OpenRouterSettingsView />;
 }

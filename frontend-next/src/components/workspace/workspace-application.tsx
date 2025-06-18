@@ -194,14 +194,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
         }
     }, [currentView, routeParams.workspaceId, workspacesLoading, currentWorkspace, workspacesError]);
 
-    // Redirect to AI providers page if no providers are configured and user is on root path
-    useEffect(() => {
-        if (setupStatus?.setup?.aiProviders?.configured === false &&
-            currentPathname === '/' &&
-            currentView === 'selection') {
-            navigationUtils.pushState('/ai-providers/openai');
-        }
-    }, [setupStatus, currentPathname, currentView]);
+
 
     const handleWorkspaceUpdated = () => {
         queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });

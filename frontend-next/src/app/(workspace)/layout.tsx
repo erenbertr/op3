@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
@@ -11,6 +11,7 @@ interface WorkspaceLayoutProps {
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const [isClientReady, setIsClientReady] = useState(false);
     const { showSpinner, startLoading, stopLoading } = useDelayedSpinner(3000);
     const { data: session, isPending: isSessionLoading } = useSession();
@@ -28,15 +29,9 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
             return;
         }
 
-        if (!session.user.hasCompletedWorkspaceSetup) {
-            stopLoading();
-            router.push('/');
-            return;
-        }
-
         setIsClientReady(true);
         stopLoading();
-    }, [session, isSessionLoading, router, startLoading, stopLoading]);
+    }, [session, isSessionLoading, router, pathname, startLoading, stopLoading]);
 
     // Show loading while client is initializing to prevent hydration mismatch
     if (isSessionLoading || (!isClientReady && showSpinner)) {

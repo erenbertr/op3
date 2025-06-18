@@ -191,7 +191,8 @@ export class UserService {
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 firstName: request.firstName,
-                lastName: request.lastName
+                lastName: request.lastName,
+                hasCompletedWorkspaceSetup: true // Set to true by default to skip workspace setup
             };
 
             // Save user to database
@@ -564,6 +565,7 @@ export class UserService {
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
             lastLoginAt: user.lastLoginAt,
+            hasCompletedWorkspaceSetup: user.hasCompletedWorkspaceSetup || false,
             permissions: user.permissions,
             subscriptionId: user.subscriptionId,
             subscriptionExpiry: user.subscriptionExpiry,
