@@ -23,21 +23,6 @@ export function AppWrapper() {
     const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
     const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-    // Check if user needs workspace setup when session changes
-    React.useEffect(() => {
-        if (session?.user && !session.user.hasCompletedWorkspaceSetup) {
-            // Check if AI providers are configured
-            if (setupStatus?.aiProviders?.configured === false) {
-                // Redirect to AI providers page instead of showing workspace setup
-                window.location.href = '/ai-providers/openai';
-                return;
-            }
-            setShowWorkspaceSetup(true);
-        } else {
-            setShowWorkspaceSetup(false);
-        }
-    }, [session, setupStatus]);
-
     // Use delayed spinner for setup loading
     const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);
 
@@ -57,6 +42,21 @@ export function AppWrapper() {
             stopSetupLoading();
         }
     });
+
+    // Check if user needs workspace setup when session changes
+    React.useEffect(() => {
+        if (session?.user && !session.user.hasCompletedWorkspaceSetup) {
+            // Check if AI providers are configured (only if setupResponse is available)
+            if (setupResponse?.setup?.aiProviders?.configured === false) {
+                // Redirect to AI providers page instead of showing workspace setup
+                window.location.href = '/ai-providers/openai';
+                return;
+            }
+            setShowWorkspaceSetup(true);
+        } else {
+            setShowWorkspaceSetup(false);
+        }
+    }, [session, setupResponse]);
 
     // Start loading when setup query starts
     useEffect(() => {
