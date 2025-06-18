@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Plus, MessageSquare, Loader2, Share } from 'lucide-react';
+import { Search, Plus, MessageSquare, Loader2, Share, Share2, Pin, PinOff, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
@@ -16,6 +16,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ShareManagementModal } from './share-management-modal';
 
 interface ChatSidebarProps {
     className?: string;
@@ -46,9 +47,12 @@ export function ChatSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
-    const [sharingChatId, setSharingChatId] = useState<string | null>(null);
     // Local state for optimistic pin updates to avoid flashing
     const [localPinUpdates, setLocalPinUpdates] = useState<Record<string, boolean>>({});
+    // Share management modal state
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [shareModalSessionId, setShareModalSessionId] = useState<string | null>(null);
+    const [shareModalSessionTitle, setShareModalSessionTitle] = useState<string>('');
     const { addToast } = useToast();
 
     // Simple pin/unpin handler without TanStack Query optimistic updates
@@ -185,37 +189,21 @@ export function ChatSidebar({
         }
     };
 
-    const handleShareChat = async (chatId: string) => {
-        if (sharingChatId === chatId) return; // Prevent multiple clicks
-        setSharingChatId(chatId);
+    const handleShareManagement = (chatId: string, chatTitle: string) => {
+        setShareModalSessionId(chatId);
+        setShareModalSessionTitle(chatTitle);
+        setShareModalOpen(true);
+    };
 
-        try {
-            const result = await apiClient.shareChat(chatId);
-            if (result.success && result.shareUrl) {
-                // Copy the share URL to clipboard
-                const fullUrl = `${window.location.origin}${result.shareUrl}`;
-                await navigator.clipboard.writeText(fullUrl);
-
-                addToast({
-                    title: "Chat Shared",
-                    description: "Share link copied to clipboard!",
-                });
-            } else {
-                addToast({
-                    title: "Error Sharing Chat",
-                    description: result.message || "Failed to create share link.",
-                    variant: "destructive"
-                });
-            }
-        } catch (error) {
-            console.error('Error sharing chat:', error);
-            addToast({
-                title: "Error",
-                description: "Failed to create share link. Please try again.",
-                variant: "destructive"
-            });
-        } finally {
-            setSharingChatId(null);
+    const handleShareStatusChange = (isShared: boolean) => {
+        // Update the local chat sessions to reflect the share status change
+        if (shareModalSessionId) {
+            const updatedSessions = chatSessions.map(session =>
+                session.id === shareModalSessionId
+                    ? { ...session, isShared }
+                    : session
+            );
+            onSessionsUpdate?.(updatedSessions);
         }
     };
 
@@ -383,11 +371,18 @@ export function ChatSidebar({
                                                         )}
                                                         onClick={() => handleChatClick(chat)} // Main click action to select chat
                                                     >
-                                                        <div // Chat title part
-                                                            className="text-sm font-medium truncate flex-grow mr-2" // flex-grow to take available space, mr-2 for spacing
-                                                            title={chat.title}
-                                                        >
-                                                            {chat.title}
+                                                        <div className="flex items-center flex-grow min-w-0">
+                                                            <div // Chat title part
+                                                                className="text-sm font-medium truncate flex-grow mr-2" // flex-grow to take available space, mr-2 for spacing
+                                                                title={chat.title}
+                                                            >
+                                                                {chat.title}
+                                                            </div>
+                                                            {chat.isShared && (
+                                                                <div title="This chat is shared" className="flex-shrink-0 mr-1">
+                                                                    <Share2 className="h-3 w-3 text-muted-foreground" />
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -415,20 +410,27 @@ export function ChatSidebar({
                                                                     }}
                                                                     className="cursor-pointer"
                                                                 >
-                                                                    {(chat.isPinned || false) ? 'Unpin chat' : 'Pin chat'}
+                                                                    {(chat.isPinned || false) ? (
+                                                                        <>
+                                                                            <PinOff className="h-4 w-4 mr-2" />
+                                                                            Unpin chat
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Pin className="h-4 w-4 mr-2" />
+                                                                            Pin chat
+                                                                        </>
+                                                                    )}
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     onClick={(e) => {
                                                                         e.stopPropagation(); // Prevent chat click
-                                                                        if (sharingChatId !== chat.id) { // Prevent action if already sharing this chat
-                                                                            handleShareChat(chat.id);
-                                                                        }
+                                                                        handleShareManagement(chat.id, chat.title);
                                                                     }}
-                                                                    disabled={sharingChatId === chat.id}
                                                                     className="cursor-pointer"
                                                                 >
                                                                     <Share className="h-4 w-4 mr-2" />
-                                                                    {sharingChatId === chat.id ? 'Sharing...' : 'Share'}
+                                                                    Manage Share
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     onClick={(e) => {
@@ -440,6 +442,7 @@ export function ChatSidebar({
                                                                     disabled={deletingChatId === chat.id}
                                                                     className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50 dark:text-red-500 dark:hover:!text-red-500 dark:focus:!text-red-500 dark:hover:!bg-red-900/50 dark:focus:!bg-red-900/50 cursor-pointer"
                                                                 >
+                                                                    <Trash2 className="h-4 w-4 mr-2" />
                                                                     {deletingChatId === chat.id ? 'Deleting...' : 'Delete'}
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
@@ -462,11 +465,18 @@ export function ChatSidebar({
                                                                     )}
                                                                     onClick={() => handleChatClick(childChat)}
                                                                 >
-                                                                    <div
-                                                                        className="text-xs font-medium truncate flex-grow mr-2"
-                                                                        title={childChat.title}
-                                                                    >
-                                                                        ↳ {childChat.title}
+                                                                    <div className="flex items-center flex-grow min-w-0">
+                                                                        <div
+                                                                            className="text-xs font-medium truncate flex-grow mr-2"
+                                                                            title={childChat.title}
+                                                                        >
+                                                                            ↳ {childChat.title}
+                                                                        </div>
+                                                                        {childChat.isShared && (
+                                                                            <div title="This chat is shared" className="flex-shrink-0 mr-1">
+                                                                                <Share2 className="h-3 w-3 text-muted-foreground" />
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                     <DropdownMenu>
                                                                         <DropdownMenuTrigger asChild>
@@ -489,15 +499,12 @@ export function ChatSidebar({
                                                                             <DropdownMenuItem
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
-                                                                                    if (sharingChatId !== childChat.id) {
-                                                                                        handleShareChat(childChat.id);
-                                                                                    }
+                                                                                    handleShareManagement(childChat.id, childChat.title);
                                                                                 }}
-                                                                                disabled={sharingChatId === childChat.id}
                                                                                 className="cursor-pointer"
                                                                             >
                                                                                 <Share className="h-3 w-3 mr-2" />
-                                                                                {sharingChatId === childChat.id ? 'Sharing...' : 'Share'}
+                                                                                Manage Share
                                                                             </DropdownMenuItem>
                                                                             <DropdownMenuItem
                                                                                 onClick={(e) => {
@@ -509,6 +516,7 @@ export function ChatSidebar({
                                                                                 disabled={deletingChatId === childChat.id}
                                                                                 className="text-red-600 hover:!text-red-600 focus:!text-red-600 hover:!bg-red-50 focus:!bg-red-50 dark:text-red-500 dark:hover:!text-red-500 dark:focus:!text-red-500 dark:hover:!bg-red-900/50 dark:focus:!bg-red-900/50 cursor-pointer"
                                                                             >
+                                                                                <Trash2 className="h-3 w-3 mr-2" />
                                                                                 {deletingChatId === childChat.id ? 'Deleting...' : 'Delete'}
                                                                             </DropdownMenuItem>
                                                                         </DropdownMenuContent>
@@ -527,6 +535,17 @@ export function ChatSidebar({
                     </div>
                 </ScrollArea>
             </div>
+
+            {/* Share Management Modal */}
+            {shareModalSessionId && (
+                <ShareManagementModal
+                    isOpen={shareModalOpen}
+                    onClose={() => setShareModalOpen(false)}
+                    sessionId={shareModalSessionId}
+                    sessionTitle={shareModalSessionTitle}
+                    onShareStatusChange={handleShareStatusChange}
+                />
+            )}
         </div>
     );
 }

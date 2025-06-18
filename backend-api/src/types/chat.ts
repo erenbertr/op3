@@ -6,6 +6,7 @@ export interface ChatSession {
     lastUsedPersonalityId?: string;
     lastUsedAIProviderId?: string;
     isPinned?: boolean;
+    isShared?: boolean; // Indicates if this chat is currently shared
     parentSessionId?: string; // For branched chats
     createdAt: Date;
     updatedAt: Date;
@@ -104,6 +105,7 @@ export interface SharedChat {
     originalChatId: string; // Reference to the original chat session
     title: string; // Chat title for display
     messages: SharedChatMessage[]; // Simplified messages without metadata
+    messageCount: number; // Number of messages included in the share
     createdAt: Date;
     isActive: boolean; // For future management/deletion
 }
@@ -124,6 +126,39 @@ export interface CreateShareResponse {
     message: string;
     shareId?: string;
     shareUrl?: string;
+}
+
+export interface UpdateShareRequest {
+    sessionId: string;
+}
+
+export interface UpdateShareResponse {
+    success: boolean;
+    message: string;
+    messageCount?: number;
+}
+
+export interface RemoveShareRequest {
+    sessionId: string;
+}
+
+export interface RemoveShareResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface GetShareStatusRequest {
+    sessionId: string;
+}
+
+export interface GetShareStatusResponse {
+    success: boolean;
+    message: string;
+    isShared: boolean;
+    shareId?: string;
+    shareUrl?: string;
+    messageCount?: number;
+    createdAt?: string;
 }
 
 export interface GetSharedChatResponse {

@@ -110,6 +110,7 @@ export interface ChatSession {
     createdAt: string;
     updatedAt: string;
     isPinned?: boolean;
+    isShared?: boolean; // Indicates if this chat is currently shared
     parentSessionId?: string; // For branched chats
 }
 
@@ -210,6 +211,7 @@ export interface SharedChat {
     originalChatId: string; // Reference to the original chat session
     title: string; // Chat title for display
     messages: SharedChatMessage[]; // Simplified messages without metadata
+    messageCount: number; // Number of messages included in the share
     createdAt: string;
     isActive: boolean; // For future management/deletion
 }
@@ -236,6 +238,39 @@ export interface GetSharedChatResponse {
     success: boolean;
     message: string;
     sharedChat?: SharedChat;
+}
+
+export interface UpdateShareRequest {
+    sessionId: string;
+}
+
+export interface UpdateShareResponse {
+    success: boolean;
+    message: string;
+    messageCount?: number;
+}
+
+export interface RemoveShareRequest {
+    sessionId: string;
+}
+
+export interface RemoveShareResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface GetShareStatusRequest {
+    sessionId: string;
+}
+
+export interface GetShareStatusResponse {
+    success: boolean;
+    message: string;
+    isShared: boolean;
+    shareId?: string;
+    shareUrl?: string;
+    messageCount?: number;
+    createdAt?: string;
 }
 
 // File attachment types
@@ -875,6 +910,22 @@ class ApiClient {
 
     async getSharedChat(shareId: string): Promise<GetSharedChatResponse> {
         return this.request<GetSharedChatResponse>(`/share/${shareId}`);
+    }
+
+    async getShareStatus(sessionId: string): Promise<GetShareStatusResponse> {
+        return this.request<GetShareStatusResponse>(`/chat/sessions/${sessionId}/share`);
+    }
+
+    async updateShare(sessionId: string): Promise<UpdateShareResponse> {
+        return this.request<UpdateShareResponse>(`/chat/sessions/${sessionId}/share`, {
+            method: 'PUT',
+        });
+    }
+
+    async removeShare(sessionId: string): Promise<RemoveShareResponse> {
+        return this.request<RemoveShareResponse>(`/chat/sessions/${sessionId}/share`, {
+            method: 'DELETE',
+        });
     }
 
 

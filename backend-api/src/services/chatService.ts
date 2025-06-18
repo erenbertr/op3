@@ -18,7 +18,10 @@ import {
     SharedChatMessage,
     CreateShareRequest,
     CreateShareResponse,
-    GetSharedChatResponse
+    GetSharedChatResponse,
+    GetShareStatusResponse,
+    UpdateShareResponse,
+    RemoveShareResponse
 } from '../types/chat';
 
 export class ChatService {
@@ -377,12 +380,17 @@ export class ChatService {
                 originalChatId: sessionId,
                 title: session.title,
                 messages: simplifiedMessages,
+                messageCount: simplifiedMessages.length,
                 createdAt: new Date(),
                 isActive: true
             };
 
             // Save to database
             await this.saveSharedChat(sharedChat);
+
+            // Update the original chat session to mark it as shared
+            session.isShared = true;
+            await this.updateChatSessionInDb(session);
 
             return {
                 success: true,
@@ -429,6 +437,165 @@ export class ChatService {
             return {
                 success: false,
                 message: `Failed to get shared chat: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
+     * Get share status for a chat session
+     */
+    public async getShareStatus(sessionId: string): Promise<GetShareStatusResponse> {
+        try {
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    message: 'Chat session not found',
+                    isShared: false
+                };
+            }
+
+            if (!session.isShared) {
+                return {
+                    success: true,
+                    message: 'Chat is not shared',
+                    isShared: false
+                };
+            }
+
+            // Find the shared chat entry
+            const sharedChat = await this.getSharedChatByOriginalId(sessionId);
+            if (!sharedChat) {
+                // Inconsistent state - session marked as shared but no share found
+                session.isShared = false;
+                await this.updateChatSessionInDb(session);
+                return {
+                    success: true,
+                    message: 'Chat is not shared',
+                    isShared: false
+                };
+            }
+
+            return {
+                success: true,
+                message: 'Share status retrieved successfully',
+                isShared: true,
+                shareId: sharedChat.id,
+                shareUrl: `/share/${sharedChat.id}`,
+                messageCount: sharedChat.messageCount,
+                createdAt: sharedChat.createdAt.toISOString()
+            };
+        } catch (error) {
+            console.error('Error getting share status:', error);
+            return {
+                success: false,
+                message: `Failed to get share status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                isShared: false
+            };
+        }
+    }
+
+    /**
+     * Update an existing share with current chat messages
+     */
+    public async updateShare(sessionId: string): Promise<UpdateShareResponse> {
+        try {
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    message: 'Chat session not found'
+                };
+            }
+
+            if (!session.isShared) {
+                return {
+                    success: false,
+                    message: 'Chat is not currently shared'
+                };
+            }
+
+            // Get existing shared chat
+            const existingShare = await this.getSharedChatByOriginalId(sessionId);
+            if (!existingShare) {
+                return {
+                    success: false,
+                    message: 'Shared chat not found'
+                };
+            }
+
+            // Get current messages
+            const messages = await this.getSessionMessages(sessionId);
+            const simplifiedMessages = messages.map(msg => ({
+                id: msg.id,
+                content: msg.content,
+                role: msg.role,
+                createdAt: msg.createdAt
+            }));
+
+            // Update the shared chat
+            const updatedShare: SharedChat = {
+                ...existingShare,
+                title: session.title,
+                messages: simplifiedMessages,
+                messageCount: simplifiedMessages.length
+            };
+
+            await this.updateSharedChat(updatedShare);
+
+            return {
+                success: true,
+                message: 'Share updated successfully',
+                messageCount: simplifiedMessages.length
+            };
+        } catch (error) {
+            console.error('Error updating share:', error);
+            return {
+                success: false,
+                message: `Failed to update share: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
+     * Remove a share for a chat session
+     */
+    public async removeShare(sessionId: string): Promise<RemoveShareResponse> {
+        try {
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    message: 'Chat session not found'
+                };
+            }
+
+            if (!session.isShared) {
+                return {
+                    success: true,
+                    message: 'Chat is not currently shared'
+                };
+            }
+
+            // Get existing shared chat
+            const existingShare = await this.getSharedChatByOriginalId(sessionId);
+            if (existingShare) {
+                await this.deleteSharedChat(existingShare.id);
+            }
+
+            // Update session to mark as not shared
+            session.isShared = false;
+            await this.updateChatSessionInDb(session);
+
+            return {
+                success: true,
+                message: 'Share removed successfully'
+            };
+        } catch (error) {
+            console.error('Error removing share:', error);
+            return {
+                success: false,
+                message: `Failed to remove share: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
         }
     }
@@ -730,6 +897,83 @@ export class ChatService {
         }
     }
 
+    private async getSharedChatByOriginalId(originalChatId: string): Promise<SharedChat | null> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                return this.getSharedChatByOriginalIdSQLite(connection, originalChatId);
+            case 'mongodb':
+                return this.getSharedChatByOriginalIdMongo(connection, originalChatId);
+            case 'mysql':
+            case 'postgresql':
+                return this.getSharedChatByOriginalIdSQL(connection, originalChatId);
+            case 'supabase':
+                return this.getSharedChatByOriginalIdSupabase(connection, originalChatId);
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared chat operations yet`);
+        }
+    }
+
+    private async updateSharedChat(sharedChat: SharedChat): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.updateSharedChatSQLite(connection, sharedChat);
+                break;
+            case 'mongodb':
+                await this.updateSharedChatMongo(connection, sharedChat);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.updateSharedChatSQL(connection, sharedChat);
+                break;
+            case 'supabase':
+                await this.updateSharedChatSupabase(connection, sharedChat);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared chat operations yet`);
+        }
+    }
+
+    private async deleteSharedChat(shareId: string): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.deleteSharedChatSQLite(connection, shareId);
+                break;
+            case 'mongodb':
+                await this.deleteSharedChatMongo(connection, shareId);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.deleteSharedChatSQL(connection, shareId);
+                break;
+            case 'supabase':
+                await this.deleteSharedChatSupabase(connection, shareId);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared chat operations yet`);
+        }
+    }
+
     /**
      * SQLite-specific implementations
      */
@@ -745,6 +989,7 @@ export class ChatService {
                     lastUsedPersonalityId TEXT,
                     lastUsedAIProviderId TEXT,
                     isPinned BOOLEAN DEFAULT 0,
+                    isShared BOOLEAN DEFAULT 0,
                     parentSessionId TEXT,
                     createdAt TEXT NOT NULL,
                     updatedAt TEXT NOT NULL,
@@ -759,8 +1004,8 @@ export class ChatService {
 
                 // Insert session
                 db.run(`
-                    INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, isPinned, parentSessionId, createdAt, updatedAt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, isPinned, isShared, parentSessionId, createdAt, updatedAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     session.id,
                     session.userId,
@@ -769,6 +1014,7 @@ export class ChatService {
                     session.lastUsedPersonalityId || null,
                     session.lastUsedAIProviderId || null,
                     session.isPinned ? 1 : 0,
+                    session.isShared ? 1 : 0,
                     session.parentSessionId || null,
                     session.createdAt.toISOString(),
                     session.updatedAt.toISOString()
@@ -910,8 +1156,8 @@ export class ChatService {
     private async updateChatSessionSQLite(db: any, session: ChatSession): Promise<void> {
         return new Promise((resolve, reject) => {
             db.run(
-                'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, isPinned = ?, parentSessionId = ?, updatedAt = ? WHERE id = ?',
-                [session.title, session.lastUsedPersonalityId || null, session.lastUsedAIProviderId || null, session.isPinned ? 1 : 0, session.parentSessionId || null, session.updatedAt.toISOString(), session.id],
+                'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, isPinned = ?, isShared = ?, parentSessionId = ?, updatedAt = ? WHERE id = ?',
+                [session.title, session.lastUsedPersonalityId || null, session.lastUsedAIProviderId || null, session.isPinned ? 1 : 0, session.isShared ? 1 : 0, session.parentSessionId || null, session.updatedAt.toISOString(), session.id],
                 (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -955,6 +1201,7 @@ export class ChatService {
                     originalChatId TEXT NOT NULL,
                     title TEXT NOT NULL,
                     messages TEXT NOT NULL,
+                    messageCount INTEGER NOT NULL,
                     createdAt TEXT NOT NULL,
                     isActive BOOLEAN DEFAULT 1,
                     FOREIGN KEY (originalChatId) REFERENCES chat_sessions(id)
@@ -967,13 +1214,14 @@ export class ChatService {
 
                 // Insert shared chat
                 db.run(`
-                    INSERT INTO shared_chats (id, originalChatId, title, messages, createdAt, isActive)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO shared_chats (id, originalChatId, title, messages, messageCount, createdAt, isActive)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 `, [
                     sharedChat.id,
                     sharedChat.originalChatId,
                     sharedChat.title,
                     JSON.stringify(sharedChat.messages),
+                    sharedChat.messageCount,
                     sharedChat.createdAt.toISOString(),
                     sharedChat.isActive ? 1 : 0
                 ], (err: any) => {
@@ -1004,6 +1252,52 @@ export class ChatService {
         });
     }
 
+    private async getSharedChatByOriginalIdSQLite(db: any, originalChatId: string): Promise<SharedChat | null> {
+        return new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM shared_chats WHERE originalChatId = ? AND isActive = 1',
+                [originalChatId],
+                (err: any, row: any) => {
+                    if (err) {
+                        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                            resolve(null);
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(row ? this.mapSQLSharedChat(row) : null);
+                    }
+                }
+            );
+        });
+    }
+
+    private async updateSharedChatSQLite(db: any, sharedChat: SharedChat): Promise<void> {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE shared_chats SET title = ?, messages = ?, messageCount = ? WHERE id = ?',
+                [sharedChat.title, JSON.stringify(sharedChat.messages), sharedChat.messageCount, sharedChat.id],
+                (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    }
+
+    private async deleteSharedChatSQLite(db: any, shareId: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'DELETE FROM shared_chats WHERE id = ?',
+                [shareId],
+                (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    }
+
     /**
      * MongoDB-specific implementations
      */
@@ -1021,6 +1315,7 @@ export class ChatService {
             lastUsedPersonalityId: session.lastUsedPersonalityId,
             lastUsedAIProviderId: session.lastUsedAIProviderId,
             isPinned: session.isPinned || false,
+            isShared: session.isShared || false,
             parentSessionId: session.parentSessionId,
             createdAt: session.createdAt,
             updatedAt: session.updatedAt
@@ -1092,6 +1387,7 @@ export class ChatService {
                     lastUsedPersonalityId: session.lastUsedPersonalityId,
                     lastUsedAIProviderId: session.lastUsedAIProviderId,
                     isPinned: session.isPinned || false,
+                    isShared: session.isShared || false,
                     parentSessionId: session.parentSessionId,
                     updatedAt: session.updatedAt
                 }
@@ -1119,6 +1415,7 @@ export class ChatService {
             originalChatId: sharedChat.originalChatId,
             title: sharedChat.title,
             messages: sharedChat.messages,
+            messageCount: sharedChat.messageCount,
             createdAt: sharedChat.createdAt,
             isActive: sharedChat.isActive
         });
@@ -1128,6 +1425,31 @@ export class ChatService {
         const collection = db.collection('shared_chats');
         const sharedChat = await collection.findOne({ _id: shareId });
         return sharedChat ? this.mapMongoSharedChat(sharedChat) : null;
+    }
+
+    private async getSharedChatByOriginalIdMongo(db: any, originalChatId: string): Promise<SharedChat | null> {
+        const collection = db.collection('shared_chats');
+        const sharedChat = await collection.findOne({ originalChatId, isActive: true });
+        return sharedChat ? this.mapMongoSharedChat(sharedChat) : null;
+    }
+
+    private async updateSharedChatMongo(db: any, sharedChat: SharedChat): Promise<void> {
+        const collection = db.collection('shared_chats');
+        await collection.updateOne(
+            { _id: sharedChat.id },
+            {
+                $set: {
+                    title: sharedChat.title,
+                    messages: sharedChat.messages,
+                    messageCount: sharedChat.messageCount
+                }
+            }
+        );
+    }
+
+    private async deleteSharedChatMongo(db: any, shareId: string): Promise<void> {
+        const collection = db.collection('shared_chats');
+        await collection.deleteOne({ _id: shareId });
     }
 
     /**
@@ -1144,6 +1466,7 @@ export class ChatService {
                 lastUsedPersonalityId VARCHAR(36),
                 lastUsedAIProviderId VARCHAR(36),
                 isPinned BOOLEAN DEFAULT FALSE,
+                isShared BOOLEAN DEFAULT FALSE,
                 parentSessionId VARCHAR(36),
                 createdAt DATETIME NOT NULL,
                 updatedAt DATETIME NOT NULL,
@@ -1156,9 +1479,9 @@ export class ChatService {
         `);
 
         await connection.execute(`
-            INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, isPinned, parentSessionId, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [session.id, session.userId, session.workspaceId, session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.isPinned || false, session.parentSessionId, session.createdAt, session.updatedAt]);
+            INSERT INTO chat_sessions (id, userId, workspaceId, title, lastUsedPersonalityId, lastUsedAIProviderId, isPinned, isShared, parentSessionId, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [session.id, session.userId, session.workspaceId, session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.isPinned || false, session.isShared || false, session.parentSessionId, session.createdAt, session.updatedAt]);
     }
 
     private async saveChatMessageSQL(connection: any, message: ChatMessage): Promise<void> {
@@ -1226,8 +1549,8 @@ export class ChatService {
 
     private async updateChatSessionSQL(connection: any, session: ChatSession): Promise<void> {
         await connection.execute(
-            'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, isPinned = ?, parentSessionId = ?, updatedAt = ? WHERE id = ?',
-            [session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.isPinned || false, session.parentSessionId, session.updatedAt, session.id]
+            'UPDATE chat_sessions SET title = ?, lastUsedPersonalityId = ?, lastUsedAIProviderId = ?, isPinned = ?, isShared = ?, parentSessionId = ?, updatedAt = ? WHERE id = ?',
+            [session.title, session.lastUsedPersonalityId, session.lastUsedAIProviderId, session.isPinned || false, session.isShared || false, session.parentSessionId, session.updatedAt, session.id]
         );
     }
 
@@ -1247,6 +1570,7 @@ export class ChatService {
                 originalChatId VARCHAR(36) NOT NULL,
                 title VARCHAR(255) NOT NULL,
                 messages JSON NOT NULL,
+                messageCount INT NOT NULL,
                 createdAt DATETIME NOT NULL,
                 isActive BOOLEAN DEFAULT TRUE,
                 INDEX idx_originalChatId (originalChatId),
@@ -1256,9 +1580,9 @@ export class ChatService {
         `);
 
         await connection.execute(`
-            INSERT INTO shared_chats (id, originalChatId, title, messages, createdAt, isActive)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `, [sharedChat.id, sharedChat.originalChatId, sharedChat.title, JSON.stringify(sharedChat.messages), sharedChat.createdAt, sharedChat.isActive]);
+            INSERT INTO shared_chats (id, originalChatId, title, messages, messageCount, createdAt, isActive)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [sharedChat.id, sharedChat.originalChatId, sharedChat.title, JSON.stringify(sharedChat.messages), sharedChat.messageCount, sharedChat.createdAt, sharedChat.isActive]);
     }
 
     private async getSharedChatByIdSQL(connection: any, shareId: string): Promise<SharedChat | null> {
@@ -1267,6 +1591,25 @@ export class ChatService {
             [shareId]
         );
         return rows.length > 0 ? this.mapSQLSharedChat(rows[0]) : null;
+    }
+
+    private async getSharedChatByOriginalIdSQL(connection: any, originalChatId: string): Promise<SharedChat | null> {
+        const [rows] = await connection.execute(
+            'SELECT * FROM shared_chats WHERE originalChatId = ? AND isActive = TRUE',
+            [originalChatId]
+        );
+        return rows.length > 0 ? this.mapSQLSharedChat(rows[0]) : null;
+    }
+
+    private async updateSharedChatSQL(connection: any, sharedChat: SharedChat): Promise<void> {
+        await connection.execute(
+            'UPDATE shared_chats SET title = ?, messages = ?, messageCount = ? WHERE id = ?',
+            [sharedChat.title, JSON.stringify(sharedChat.messages), sharedChat.messageCount, sharedChat.id]
+        );
+    }
+
+    private async deleteSharedChatSQL(connection: any, shareId: string): Promise<void> {
+        await connection.execute('DELETE FROM shared_chats WHERE id = ?', [shareId]);
     }
 
     /**
@@ -1399,6 +1742,7 @@ export class ChatService {
                 originalChatId: sharedChat.originalChatId,
                 title: sharedChat.title,
                 messages: sharedChat.messages,
+                messageCount: sharedChat.messageCount,
                 createdAt: sharedChat.createdAt.toISOString(),
                 isActive: sharedChat.isActive
             }]);
@@ -1417,6 +1761,40 @@ export class ChatService {
         return data ? this.mapSupabaseSharedChat(data) : null;
     }
 
+    private async getSharedChatByOriginalIdSupabase(supabase: any, originalChatId: string): Promise<SharedChat | null> {
+        const { data, error } = await supabase
+            .from('shared_chats')
+            .select('*')
+            .eq('originalChatId', originalChatId)
+            .eq('isActive', true)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? this.mapSupabaseSharedChat(data) : null;
+    }
+
+    private async updateSharedChatSupabase(supabase: any, sharedChat: SharedChat): Promise<void> {
+        const { error } = await supabase
+            .from('shared_chats')
+            .update({
+                title: sharedChat.title,
+                messages: sharedChat.messages,
+                messageCount: sharedChat.messageCount
+            })
+            .eq('id', sharedChat.id);
+
+        if (error) throw error;
+    }
+
+    private async deleteSharedChatSupabase(supabase: any, shareId: string): Promise<void> {
+        const { error } = await supabase
+            .from('shared_chats')
+            .delete()
+            .eq('id', shareId);
+
+        if (error) throw error;
+    }
+
     /**
      * Mapping functions to convert database records to objects
      */
@@ -1429,6 +1807,7 @@ export class ChatService {
             lastUsedPersonalityId: row.lastUsedPersonalityId,
             lastUsedAIProviderId: row.lastUsedAIProviderId,
             isPinned: Boolean(row.isPinned),
+            isShared: Boolean(row.isShared),
             parentSessionId: row.parentSessionId,
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
@@ -1477,6 +1856,7 @@ export class ChatService {
             lastUsedPersonalityId: doc.lastUsedPersonalityId,
             lastUsedAIProviderId: doc.lastUsedAIProviderId,
             isPinned: Boolean(doc.isPinned),
+            isShared: Boolean(doc.isShared),
             parentSessionId: doc.parentSessionId,
             createdAt: doc.createdAt,
             updatedAt: doc.updatedAt
@@ -1507,6 +1887,7 @@ export class ChatService {
             lastUsedPersonalityId: row.lastUsedPersonalityId,
             lastUsedAIProviderId: row.lastUsedAIProviderId,
             isPinned: Boolean(row.isPinned),
+            isShared: Boolean(row.isShared),
             parentSessionId: row.parentSessionId,
             createdAt: new Date(row.createdAt),
             updatedAt: new Date(row.updatedAt)
@@ -1546,6 +1927,7 @@ export class ChatService {
             originalChatId: row.originalChatId,
             title: row.title,
             messages,
+            messageCount: row.messageCount || messages.length,
             createdAt: new Date(row.createdAt),
             isActive: Boolean(row.isActive)
         };
@@ -1557,6 +1939,7 @@ export class ChatService {
             originalChatId: doc.originalChatId,
             title: doc.title,
             messages: doc.messages || [],
+            messageCount: doc.messageCount || (doc.messages || []).length,
             createdAt: doc.createdAt,
             isActive: Boolean(doc.isActive)
         };
@@ -1568,6 +1951,7 @@ export class ChatService {
             originalChatId: row.originalChatId,
             title: row.title,
             messages: row.messages || [],
+            messageCount: row.messageCount || (row.messages || []).length,
             createdAt: new Date(row.createdAt),
             isActive: Boolean(row.isActive)
         };
