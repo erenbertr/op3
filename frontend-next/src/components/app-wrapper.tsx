@@ -26,11 +26,17 @@ export function AppWrapper() {
     // Check if user needs workspace setup when session changes
     React.useEffect(() => {
         if (session?.user && !session.user.hasCompletedWorkspaceSetup) {
+            // Check if AI providers are configured
+            if (setupStatus?.aiProviders?.configured === false) {
+                // Redirect to AI providers page instead of showing workspace setup
+                window.location.href = '/ai-providers/openai';
+                return;
+            }
             setShowWorkspaceSetup(true);
         } else {
             setShowWorkspaceSetup(false);
         }
-    }, [session]);
+    }, [session, setupStatus]);
 
     // Use delayed spinner for setup loading
     const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);
