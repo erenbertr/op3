@@ -637,7 +637,7 @@ export class ChatService {
                     success: true,
                     message: 'Message is already shared',
                     shareId: existingSharedMessage.id,
-                    shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/msg/${existingSharedMessage.id}`
+                    shareUrl: `/msg/${existingSharedMessage.id}`
                 };
             }
 
@@ -662,7 +662,7 @@ export class ChatService {
                 success: true,
                 message: 'Message shared successfully',
                 shareId: sharedMessage.id,
-                shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/msg/${sharedMessage.id}`
+                shareUrl: `/msg/${sharedMessage.id}`
             };
         } catch (error) {
             console.error('Error creating message share:', error);
@@ -736,7 +736,7 @@ export class ChatService {
                 message: 'Message share status retrieved successfully',
                 isShared: true,
                 shareId: sharedMessage.id,
-                shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/msg/${sharedMessage.id}`
+                shareUrl: `/msg/${sharedMessage.id}`
             };
         } catch (error) {
             console.error('Error getting message share status:', error);

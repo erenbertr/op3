@@ -207,8 +207,8 @@ export function MessageShareModal({
                         <h3 className="text-lg font-medium">Message Content</h3>
                         <div className="p-3 bg-muted/30 rounded-lg border">
                             <p className="text-sm whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-                                {messageContent.length > 200 
-                                    ? `${messageContent.substring(0, 200)}...` 
+                                {messageContent.length > 200
+                                    ? `${messageContent.substring(0, 200)}...`
                                     : messageContent
                                 }
                             </p>
