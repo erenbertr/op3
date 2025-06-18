@@ -176,7 +176,7 @@ export function ShareManagementModal({
     if (isLoading) {
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="w-[80vw] h-[80vh] max-w-4xl">
+                <DialogContent className="w-[80vw] max-w-2xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Share Management</DialogTitle>
                     </DialogHeader>
@@ -193,7 +193,7 @@ export function ShareManagementModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-[80vw] h-[80vh] max-w-4xl">
+            <DialogContent className="w-[80vw] max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="flex items-center space-x-2">
                         <Share2 className="h-5 w-5" />
@@ -201,7 +201,7 @@ export function ShareManagementModal({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="flex-1 space-y-6">
+                <div className="space-y-6">
                     {/* Chat Info */}
                     <div className="space-y-2">
                         <h3 className="text-lg font-medium">Chat Details</h3>
