@@ -4,6 +4,7 @@ import workspaceRouter from './workspace';
 import workspaceGroupRouter from './workspace-group';
 import workspaceOpenRouterRouter from './workspace-openrouter';
 import workspaceAIFavoritesRouter from './workspace-ai-favorites';
+import workspacePersonalityFavoritesRouter from './workspace-personality-favorites';
 import globalOpenRouterRouter from './global-openrouter';
 import personalitiesRouter from './personalities';
 import chatRouter from './chat';
@@ -37,6 +38,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Workspace AI Favorites routes
     app.use(`${API_PREFIX}/workspace-ai-favorites`, workspaceAIFavoritesRouter);
+
+    // Workspace Personality Favorites routes
+    app.use(`${API_PREFIX}/workspace-personality-favorites`, workspacePersonalityFavoritesRouter);
 
     // Global OpenRouter routes
     app.use(`${API_PREFIX}/openrouter`, globalOpenRouterRouter);
@@ -81,6 +85,7 @@ export const setupRoutes = (app: Express): void => {
                 workspaceGroups: `${API_PREFIX}/workspace-groups`,
                 workspaceOpenRouter: `${API_PREFIX}/workspace-openrouter`,
                 workspaceAIFavorites: `${API_PREFIX}/workspace-ai-favorites`,
+                workspacePersonalityFavorites: `${API_PREFIX}/workspace-personality-favorites`,
                 openrouter: `${API_PREFIX}/openrouter`,
                 personalities: `${API_PREFIX}/personalities`,
                 chat: `${API_PREFIX}/chat`,

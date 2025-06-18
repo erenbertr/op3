@@ -9,6 +9,7 @@ import { Star, Search, Plus, GripVertical, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient, type Personality } from '@/lib/api';
+import { queryKeys } from '@/lib/query-client';
 import { useWorkspacePersonalityFavorites, useAddPersonalityFavorite, useRemovePersonalityFavorite, useReorderPersonalityFavorites } from '@/lib/hooks/use-workspace-personality-favorites';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -101,7 +102,7 @@ export function PersonalityFavoritesModal({
     // Fetch data
     const { data: favoritesData } = useWorkspacePersonalityFavorites(workspaceId);
     const { data: personalitiesData } = useQuery({
-        queryKey: ['personalities', userId],
+        queryKey: queryKeys.personalities.byUser(userId),
         queryFn: () => apiClient.getPersonalities(userId),
         enabled: !!userId,
         staleTime: 1000 * 60 * 5, // 5 minutes

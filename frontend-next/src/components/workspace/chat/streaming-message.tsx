@@ -9,10 +9,11 @@ import { Personality } from '@/lib/api';
 import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
 import ReactMarkdown, { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { useTheme } from 'next-themes';
 import 'katex/dist/katex.min.css';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 
@@ -62,9 +63,10 @@ export function StreamingMessage({
     const [showCursor, setShowCursor] = useState(true);
     const [showReasoningSteps, setShowReasoningSteps] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
 
     // Use delayed spinner for provider badge loading animation
-    const { showSpinner: showProviderBadgeLoading, startLoading: startProviderBadgeLoading, stopLoading: stopProviderBadgeLoading } = useDelayedSpinner(500); // Shorter delay for provider badge
+    const { showSpinner: showProviderBadgeLoading, startLoading: startProviderBadgeLoading, stopLoading: stopProviderBadgeLoading } = useDelayedSpinner(300); // Shorter delay for provider badge
 
     // Get OpenAI model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
@@ -141,17 +143,25 @@ export function StreamingMessage({
                                         if (!inline && match) {
                                             const codeString = String(children).replace(/\n$/, '');
                                             return (
-                                                <SyntaxHighlighter
-                                                    style={vscDarkPlus}
-                                                    customStyle={{ margin: '0', padding: '1em', background: 'transparent' }}
-                                                    language={match[1]}
-                                                    PreTag="pre"
-                                                    className="not-prose w-full"
-                                                    codeTagProps={{ style: { background: 'transparent', padding: '0', color: 'inherit' } }}
-                                                    {...props}
-                                                >
-                                                    {codeString}
-                                                </SyntaxHighlighter>
+                                                <div className="relative bg-background/50 rounded-md overflow-hidden">
+                                                    <SyntaxHighlighter
+                                                        style={theme === 'dark' ? vscDarkPlus : vs}
+                                                        customStyle={{
+                                                            margin: '0',
+                                                            padding: '1em',
+                                                            background: 'transparent',
+                                                            fontSize: '0.875rem',
+                                                            lineHeight: '1.5'
+                                                        }}
+                                                        language={match[1]}
+                                                        PreTag="pre"
+                                                        className="not-prose w-full"
+                                                        codeTagProps={{ style: { background: 'transparent', padding: '0' } }}
+                                                        {...props}
+                                                    >
+                                                        {codeString}
+                                                    </SyntaxHighlighter>
+                                                </div>
                                             );
                                         }
                                         return (
@@ -201,17 +211,25 @@ export function StreamingMessage({
                                 if (!inline && match) {
                                     const codeString = String(children).replace(/\n$/, '');
                                     return (
-                                        <SyntaxHighlighter
-                                            style={vscDarkPlus}
-                                            customStyle={{ margin: '0', padding: '1em', background: 'transparent' }}
-                                            language={match[1]}
-                                            PreTag="pre"
-                                            className="not-prose w-full"
-                                            codeTagProps={{ style: { background: 'transparent', padding: '0', color: 'inherit' } }}
-                                            {...props}
-                                        >
-                                            {codeString}
-                                        </SyntaxHighlighter>
+                                        <div className="relative bg-background/50 rounded-md overflow-hidden">
+                                            <SyntaxHighlighter
+                                                style={theme === 'dark' ? vscDarkPlus : vs}
+                                                customStyle={{
+                                                    margin: '0',
+                                                    padding: '1em',
+                                                    background: 'transparent',
+                                                    fontSize: '0.875rem',
+                                                    lineHeight: '1.5'
+                                                }}
+                                                language={match[1]}
+                                                PreTag="pre"
+                                                className="not-prose w-full"
+                                                codeTagProps={{ style: { background: 'transparent', padding: '0' } }}
+                                                {...props}
+                                            >
+                                                {codeString}
+                                            </SyntaxHighlighter>
+                                        </div>
                                     );
                                 }
                                 return (
@@ -247,12 +265,19 @@ export function StreamingMessage({
                                 <Badge
                                     variant="outline"
                                     className={cn(
-                                        "text-xs transition-all duration-300",
+                                        "text-xs transition-all duration-300 relative",
                                         showProviderBadgeLoading && "provider-badge-loading"
                                     )}
                                 >
-                                    <Bot className="h-3 w-3" />
+                                    {showProviderBadgeLoading ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <Bot className="h-3 w-3" />
+                                    )}
                                     {providerInfo.name}
+                                    {showProviderBadgeLoading && (
+                                        <span className="text-[10px] opacity-70 ml-1">•••</span>
+                                    )}
                                 </Badge>
                             )}
 

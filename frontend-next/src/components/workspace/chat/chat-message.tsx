@@ -14,11 +14,12 @@ import { MessageShareModal } from './message-share-modal';
 
 import ReactMarkdown, { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
+import { useTheme } from 'next-themes';
 
 interface ChatMessageProps {
     message: ChatMessageType;
@@ -44,6 +45,7 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
     const [showShareModal, setShowShareModal] = useState(false);
     const branchButtonRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
 
     // Calculate word count to determine if we need duplicate actions
     const wordCount = countWords(message.content);
@@ -303,12 +305,18 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                                     return (
                                         <div className="relative group bg-background/50 rounded-md overflow-hidden">
                                             <SyntaxHighlighter
-                                                style={vscDarkPlus}
-                                                customStyle={{ margin: '0', padding: '1em', background: 'transparent' }} // Ensure highlighter background is transparent
+                                                style={theme === 'dark' ? vscDarkPlus : vs}
+                                                customStyle={{
+                                                    margin: '0',
+                                                    padding: '1em',
+                                                    background: 'transparent',
+                                                    fontSize: '0.875rem',
+                                                    lineHeight: '1.5'
+                                                }}
                                                 language={match[1]}
                                                 PreTag="pre"
                                                 className="not-prose w-full"
-                                                codeTagProps={{ style: { background: 'transparent', padding: '0', color: 'inherit' } }}
+                                                codeTagProps={{ style: { background: 'transparent', padding: '0' } }}
                                                 {...props} // Pass through other props from react-markdown
                                             >
                                                 {codeString}
@@ -316,7 +324,12 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-md"
+                                                className={cn(
+                                                    "absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-md",
+                                                    theme === 'dark'
+                                                        ? "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white"
+                                                        : "bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900"
+                                                )}
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(codeString);
                                                     setCopyButtonText('Copied!');
