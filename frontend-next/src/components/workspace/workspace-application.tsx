@@ -16,6 +16,7 @@ import { StatisticsView } from '@/components/statistics/statistics-view';
 import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
 import { AccountSettings } from '@/components/account/account-settings';
+import { AdminView } from '@/components/admin/admin-view';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
@@ -100,6 +101,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             if (pathname === '/statistics') return { view: 'statistics', params: {}, queryParams };
             if (pathname === '/add/workspace') return { view: 'create', params: {}, queryParams };
             if (pathname === '/account') return { view: 'account', params: {}, queryParams };
+            if (pathname === '/admin') return { view: 'admin', params: {}, queryParams };
 
             const addChatMatch = pathname.match(/^\/add\/chat\/([^\/]+)$/);
             if (addChatMatch) {
@@ -230,6 +232,16 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                         <h1 className="text-xl font-bold">OP3</h1>
                     </div>
                     <div className="flex items-center gap-4">
+                        {/* Admin menu - only show for admin users */}
+                        {currentUser.role === 'admin' && (
+                            <Button
+                                variant="ghost"
+                                className="text-sm text-muted-foreground hover:text-foreground"
+                                onClick={() => navigationUtils.pushState('/admin')}
+                            >
+                                Admin
+                            </Button>
+                        )}
                         <UserMenu userEmail={currentUser.email} onLogout={onLogout} />
                         <ThemeToggle />
                     </div>
@@ -443,6 +455,12 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 {currentView === 'account' && (
                     <div className="h-full overflow-y-auto">
                         <AccountSettings currentUser={currentUser} />
+                    </div>
+                )}
+
+                {currentView === 'admin' && (
+                    <div className="h-full overflow-y-auto">
+                        <AdminView currentUser={currentUser} />
                     </div>
                 )}
             </main>
