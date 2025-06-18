@@ -156,10 +156,7 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                         <SelectContent>
                             {DATE_RANGE_OPTIONS.map((option) => (
                                 <SelectItem key={option.value} value={option.value}>
-                                    <div>
-                                        <div className="font-medium">{option.label}</div>
-                                        <div className="text-xs text-muted-foreground">{option.description}</div>
-                                    </div>
+                                    {option.label}
                                 </SelectItem>
                             ))}
                         </SelectContent>
