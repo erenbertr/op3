@@ -110,148 +110,202 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
     }, [stats]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-border pb-6">
                 <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <BarChart3 className="h-6 w-6" />
+                    <h1 className="text-3xl font-bold flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                            <BarChart3 className="h-8 w-8 text-primary" />
+                        </div>
                         Usage Statistics
                     </h1>
-                    <p className="text-muted-foreground">
+                    <p className="text-muted-foreground text-lg mt-2">
                         Monitor your AI provider usage and costs
                     </p>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Filters</CardTitle>
-                    <CardDescription>
-                        Select date range and workspace to view statistics
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {/* Workspace Selector */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Workspace</label>
-                            <Select value={selectedWorkspaceId} onValueChange={setSelectedWorkspaceId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select workspace" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Workspaces</SelectItem>
-                                    {workspaces.map((workspace) => (
-                                        <SelectItem key={workspace.id} value={workspace.id}>
-                                            {workspace.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+                {/* Workspace Selector */}
+                <div className="flex-1 min-w-0">
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Workspace</label>
+                    <Select value={selectedWorkspaceId} onValueChange={setSelectedWorkspaceId}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select workspace" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Workspaces</SelectItem>
+                            {workspaces.map((workspace) => (
+                                <SelectItem key={workspace.id} value={workspace.id}>
+                                    {workspace.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                        {/* Date Range Selector */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Date Range</label>
-                            <Select value={selectedRange} onValueChange={(value: DateRange) => setSelectedRange(value)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select date range" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {DATE_RANGE_OPTIONS.map((option) => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                            <div>
-                                                <div className="font-medium">{option.label}</div>
-                                                <div className="text-xs text-muted-foreground">{option.description}</div>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                {/* Date Range Selector */}
+                <div className="flex-1 min-w-0">
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Date Range</label>
+                    <Select value={selectedRange} onValueChange={(value: DateRange) => setSelectedRange(value)}>
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select date range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {DATE_RANGE_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    <div>
+                                        <div className="font-medium">{option.label}</div>
+                                        <div className="text-xs text-muted-foreground">{option.description}</div>
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                        {/* Custom Date Range */}
-                        {selectedRange === 'custom' && (
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Custom Dates</label>
-                                <div className="flex gap-2">
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "justify-start text-left font-normal",
-                                                    !customStartDate && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {customStartDate ? format(customStartDate, "MMM dd") : "Start"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                mode="single"
-                                                selected={customStartDate}
-                                                onSelect={setCustomStartDate}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "justify-start text-left font-normal",
-                                                    !customEndDate && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {customEndDate ? format(customEndDate, "MMM dd") : "End"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                mode="single"
-                                                selected={customEndDate}
-                                                onSelect={setCustomEndDate}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-                        )}
+                {/* Custom Date Range */}
+                {selectedRange === 'custom' && (
+                    <div className="flex-1 min-w-0">
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Custom Dates</label>
+                        <div className="flex gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={cn(
+                                            "flex-1 justify-start text-left font-normal",
+                                            !customStartDate && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {customStartDate ? format(customStartDate, "MMM dd") : "Start"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={customStartDate}
+                                        onSelect={setCustomStartDate}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className={cn(
+                                            "flex-1 justify-start text-left font-normal",
+                                            !customEndDate && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {customEndDate ? format(customEndDate, "MMM dd") : "End"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={customEndDate}
+                                        onSelect={setCustomEndDate}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                )}
+            </div>
 
             {/* Loading State */}
             {shouldShowSpinner && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[...Array(4)].map((_, i) => (
-                        <Card key={i}>
-                            <CardHeader className="pb-2">
-                                <Skeleton className="h-4 w-24" />
-                            </CardHeader>
-                            <CardContent>
-                                <Skeleton className="h-8 w-16 mb-2" />
-                                <Skeleton className="h-3 w-32" />
-                            </CardContent>
-                        </Card>
-                    ))}
+                <div className="space-y-6">
+                    {/* Loading Filters */}
+                    <div className="flex flex-col lg:flex-row gap-4">
+                        <div className="flex-1">
+                            <Skeleton className="h-4 w-20 mb-2" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                        <div className="flex-1">
+                            <Skeleton className="h-4 w-24 mb-2" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    </div>
+
+                    {/* Loading Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                        {[...Array(4)].map((_, i) => (
+                            <Card key={i} className="border-l-4 border-l-gray-200">
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-center justify-between">
+                                        <Skeleton className="h-4 w-24" />
+                                        <Skeleton className="h-9 w-9 rounded-lg" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                    <Skeleton className="h-8 w-20 mb-2" />
+                                    <Skeleton className="h-4 w-32" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* Loading Provider Usage */}
+                    <Card className="border-l-4 border-l-gray-200">
+                        <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-lg" />
+                                <Skeleton className="h-6 w-32" />
+                            </div>
+                            <Skeleton className="h-4 w-48 mt-2" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-6">
+                                {[...Array(3)].map((_, i) => (
+                                    <div key={i} className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-3 w-3 rounded-full" />
+                                                <Skeleton className="h-6 w-16" />
+                                                <Skeleton className="h-4 w-24" />
+                                            </div>
+                                            <Skeleton className="h-5 w-12" />
+                                        </div>
+                                        <Skeleton className="h-3 w-full" />
+                                        <div className="flex justify-between">
+                                            <Skeleton className="h-4 w-20" />
+                                            <Skeleton className="h-4 w-16" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
 
             {/* Error State */}
             {statsError && (
-                <Card>
+                <Card className="border-l-4 border-l-red-500">
                     <CardContent className="pt-6">
-                        <div className="text-center space-y-2">
-                            <p className="text-destructive">Failed to load statistics</p>
-                            <p className="text-sm text-muted-foreground">{statsError.message}</p>
+                        <div className="text-center space-y-4">
+                            <div className="p-4 bg-red-50 dark:bg-red-950 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+                                <TrendingUp className="h-8 w-8 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div>
+                                <p className="text-lg font-medium text-destructive mb-2">Failed to load statistics</p>
+                                <p className="text-sm text-muted-foreground">{statsError.message}</p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                onClick={() => window.location.reload()}
+                                className="mt-4"
+                            >
+                                Try Again
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -261,54 +315,62 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
             {!shouldShowSpinner && !statsError && stats && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
-                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                        <Card className="border-l-4 border-l-blue-500">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Messages</CardTitle>
+                                <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                                    <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{formatNumber(stats.totalMessages)}</div>
-                                <p className="text-xs text-muted-foreground">
+                            <CardContent className="pt-0">
+                                <div className="text-3xl font-bold text-foreground">{formatNumber(stats.totalMessages)}</div>
+                                <p className="text-sm text-muted-foreground mt-1">
                                     AI conversations
                                 </p>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Tokens</CardTitle>
-                                <Zap className="h-4 w-4 text-muted-foreground" />
+                        <Card className="border-l-4 border-l-yellow-500">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Tokens</CardTitle>
+                                <div className="p-2 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                                    <Zap className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{formatNumber(stats.totalTokens)}</div>
-                                <p className="text-xs text-muted-foreground">
+                            <CardContent className="pt-0">
+                                <div className="text-3xl font-bold text-foreground">{formatNumber(stats.totalTokens)}</div>
+                                <p className="text-sm text-muted-foreground mt-1">
                                     Input + output tokens
                                 </p>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <Card className="border-l-4 border-l-green-500">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost</CardTitle>
+                                <div className="p-2 bg-green-50 dark:bg-green-950 rounded-lg">
+                                    <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{formatCurrency(stats.totalCost)}</div>
-                                <p className="text-xs text-muted-foreground">
+                            <CardContent className="pt-0">
+                                <div className="text-3xl font-bold text-foreground">{formatCurrency(stats.totalCost)}</div>
+                                <p className="text-sm text-muted-foreground mt-1">
                                     API usage costs
                                 </p>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-                                <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Card className="border-l-4 border-l-purple-500">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Response Time</CardTitle>
+                                <div className="p-2 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                                    <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                                </div>
                             </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stats.averageResponseTime}ms</div>
-                                <p className="text-xs text-muted-foreground">
+                            <CardContent className="pt-0">
+                                <div className="text-3xl font-bold text-foreground">{stats.averageResponseTime}ms</div>
+                                <p className="text-sm text-muted-foreground mt-1">
                                     Average latency
                                 </p>
                             </CardContent>
@@ -316,43 +378,69 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
                     </div>
 
                     {/* Provider Usage */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Bot className="h-5 w-5" />
+                    <Card className="border-l-4 border-l-indigo-500">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center gap-3 text-xl">
+                                <div className="p-2 bg-indigo-50 dark:bg-indigo-950 rounded-lg">
+                                    <Bot className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                                </div>
                                 Provider Usage
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription className="text-base">
                                 Usage breakdown by AI provider
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             {providerStats.length > 0 ? (
-                                <div className="space-y-4">
-                                    {providerStats.map((provider) => (
-                                        <div key={provider.provider} className="space-y-2">
+                                <div className="space-y-6">
+                                    {providerStats.map((provider, index) => (
+                                        <div key={provider.provider} className="space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="outline">{provider.provider}</Badge>
-                                                    <span className="text-sm font-medium">
-                                                        {provider.messages} messages
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn(
+                                                        "w-3 h-3 rounded-full",
+                                                        index === 0 && "bg-blue-500",
+                                                        index === 1 && "bg-green-500",
+                                                        index === 2 && "bg-yellow-500",
+                                                        index === 3 && "bg-purple-500",
+                                                        index >= 4 && "bg-gray-500"
+                                                    )} />
+                                                    <Badge variant="secondary" className="font-medium">
+                                                        {provider.provider}
+                                                    </Badge>
+                                                    <span className="text-sm font-medium text-foreground">
+                                                        {formatNumber(provider.messages)} messages
                                                     </span>
                                                 </div>
-                                                <div className="text-sm text-muted-foreground">
+                                                <div className="text-lg font-semibold text-foreground">
                                                     {provider.percentage.toFixed(1)}%
                                                 </div>
                                             </div>
-                                            <Progress value={provider.percentage} className="h-2" />
-                                            <div className="flex justify-between text-xs text-muted-foreground">
-                                                <span>{formatNumber(provider.tokens)} tokens</span>
-                                                <span>{formatCurrency(provider.cost)}</span>
+                                            <Progress
+                                                value={provider.percentage}
+                                                className="h-3 bg-muted"
+                                            />
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-muted-foreground">
+                                                    <Zap className="inline h-3 w-3 mr-1" />
+                                                    {formatNumber(provider.tokens)} tokens
+                                                </span>
+                                                <span className="font-medium text-foreground">
+                                                    {formatCurrency(provider.cost)}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    No provider usage data available for the selected period
+                                <div className="text-center py-12">
+                                    <div className="p-4 bg-muted/50 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                        <Bot className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                    <p className="text-lg font-medium text-muted-foreground mb-2">No provider usage data</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        No data available for the selected period
+                                    </p>
                                 </div>
                             )}
                         </CardContent>
@@ -362,14 +450,26 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
 
             {/* No Data State */}
             {!shouldShowSpinner && !statsError && !stats && (
-                <Card>
+                <Card className="border-l-4 border-l-gray-300">
                     <CardContent className="pt-6">
-                        <div className="text-center space-y-2">
-                            <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground" />
-                            <p className="text-lg font-medium">No statistics available</p>
-                            <p className="text-sm text-muted-foreground">
-                                Start using AI providers to see usage statistics
-                            </p>
+                        <div className="text-center space-y-6 py-12">
+                            <div className="p-6 bg-muted/50 rounded-full w-24 h-24 mx-auto flex items-center justify-center">
+                                <BarChart3 className="h-12 w-12 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-xl font-semibold text-foreground mb-2">No statistics available</p>
+                                <p className="text-muted-foreground max-w-md mx-auto">
+                                    Start using AI providers in your chats to see detailed usage statistics and analytics
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                <Button variant="default" onClick={() => window.location.href = '/ws'}>
+                                    Start Chatting
+                                </Button>
+                                <Button variant="outline" onClick={() => window.location.href = '/ai-providers'}>
+                                    Configure Providers
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
