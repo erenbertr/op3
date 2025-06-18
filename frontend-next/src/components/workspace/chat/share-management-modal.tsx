@@ -29,7 +29,7 @@ export function ShareManagementModal({
     const [isUpdating, setIsUpdating] = useState(false);
     const [isRemoving, setIsRemoving] = useState(false);
     const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-    const { toast } = useToast();
+    const { addToast } = useToast();
 
     // Load share status when modal opens
     useEffect(() => {
@@ -45,7 +45,7 @@ export function ShareManagementModal({
             setShareStatus(response);
         } catch (error) {
             console.error('Error loading share status:', error);
-            toast({
+            addToast({
                 title: "Error",
                 description: "Failed to load share status",
                 variant: "destructive",
@@ -61,13 +61,13 @@ export function ShareManagementModal({
         const fullUrl = `${window.location.origin}${shareStatus.shareUrl}`;
         try {
             await navigator.clipboard.writeText(fullUrl);
-            toast({
+            addToast({
                 title: "Copied!",
                 description: "Share URL copied to clipboard",
             });
         } catch (error) {
             console.error('Error copying to clipboard:', error);
-            toast({
+            addToast({
                 title: "Error",
                 description: "Failed to copy URL to clipboard",
                 variant: "destructive",
@@ -86,14 +86,14 @@ export function ShareManagementModal({
         try {
             const response = await apiClient.updateShare(sessionId);
             if (response.success) {
-                toast({
+                addToast({
                     title: "Share Updated",
                     description: `Share updated with ${response.messageCount} messages`,
                 });
                 // Reload share status to get updated info
                 await loadShareStatus();
             } else {
-                toast({
+                addToast({
                     title: "Error",
                     description: response.message || "Failed to update share",
                     variant: "destructive",
@@ -101,7 +101,7 @@ export function ShareManagementModal({
             }
         } catch (error) {
             console.error('Error updating share:', error);
-            toast({
+            addToast({
                 title: "Error",
                 description: "Failed to update share",
                 variant: "destructive",
@@ -116,14 +116,14 @@ export function ShareManagementModal({
         try {
             const response = await apiClient.removeShare(sessionId);
             if (response.success) {
-                toast({
+                addToast({
                     title: "Share Removed",
                     description: "Chat share has been removed successfully",
                 });
                 onShareStatusChange?.(false);
                 onClose();
             } else {
-                toast({
+                addToast({
                     title: "Error",
                     description: response.message || "Failed to remove share",
                     variant: "destructive",
@@ -131,7 +131,7 @@ export function ShareManagementModal({
             }
         } catch (error) {
             console.error('Error removing share:', error);
-            toast({
+            addToast({
                 title: "Error",
                 description: "Failed to remove share",
                 variant: "destructive",
@@ -147,7 +147,7 @@ export function ShareManagementModal({
         try {
             const response = await apiClient.shareChat(sessionId);
             if (response.success) {
-                toast({
+                addToast({
                     title: "Share Created",
                     description: "Chat has been shared successfully",
                 });
@@ -155,7 +155,7 @@ export function ShareManagementModal({
                 // Reload share status to get the new share info
                 await loadShareStatus();
             } else {
-                toast({
+                addToast({
                     title: "Error",
                     description: response.message || "Failed to create share",
                     variant: "destructive",
@@ -163,7 +163,7 @@ export function ShareManagementModal({
             }
         } catch (error) {
             console.error('Error creating share:', error);
-            toast({
+            addToast({
                 title: "Error",
                 description: "Failed to create share",
                 variant: "destructive",
