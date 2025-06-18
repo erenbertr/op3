@@ -110,21 +110,9 @@ export function StatisticsView({ userId }: StatisticsViewProps) {
     }, [stats]);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border pb-6">
-                <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-3">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                            <BarChart3 className="h-8 w-8 text-primary" />
-                        </div>
-                        Usage Statistics
-                    </h1>
-                    <p className="text-muted-foreground text-lg mt-2">
-                        Monitor your AI provider usage and costs
-                    </p>
-                </div>
-            </div>
+            <h1 className="text-2xl font-bold mb-6">Usage Statistics</h1>
 
             {/* Filters */}
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
