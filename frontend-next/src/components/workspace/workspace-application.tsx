@@ -9,7 +9,7 @@ import { CreateChatView } from '@/components/workspace/chat/create-chat-view';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 import { PersonalityFavoritesModal } from '@/components/workspace/personality-favorites-modal';
 
-import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
+
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 import { StatisticsView } from '@/components/statistics/statistics-view';
 
@@ -36,7 +36,6 @@ interface WorkspaceApplicationProps {
         username?: string;
         firstName?: string;
         lastName?: string;
-        hasCompletedWorkspaceSetup?: boolean;
         role?: string;
     };
     onLogout: () => void;
@@ -436,37 +435,18 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     <div className="h-full overflow-y-auto">
                         <div className="container mx-auto px-4 py-6">
                             <div className="max-w-4xl mx-auto">
-                                <h1 className="text-2xl font-bold mb-6">Create New Workspace</h1>
-                                <WorkspaceSetup
-                                    userId={currentUser.id}
-                                    groupId={queryParams.groupId || null}
-                                    onComplete={async (workspace) => {
-                                        if (workspace) {
-                                            // Invalidate workspace cache immediately
-                                            queryClient.invalidateQueries({ queryKey: ['workspaces', 'user', currentUser.id] });
-
-                                            // Wait for the workspace data to be refetched
-                                            try {
-                                                await queryClient.refetchQueries({
-                                                    queryKey: ['workspaces', 'user', currentUser.id],
-                                                    type: 'active'
-                                                });
-                                            } catch (error) {
-                                                console.error('Error refetching workspace data:', error);
-                                            }
-
-                                            // Now navigate with the workspace data available
-                                            if (openWorkspaceRef.current) {
-                                                openWorkspaceRef.current(workspace.id);
-                                            } else {
-                                                // Fallback to regular navigation if openWorkspace is not available
-                                                navigateToWorkspace(workspace.id);
-                                            }
-                                        } else {
-                                            navigateToWorkspaceSelection();
-                                        }
-                                    }}
-                                />
+                                <div className="text-center py-12">
+                                    <h1 className="text-2xl font-bold mb-4">Workspace Creation</h1>
+                                    <p className="text-muted-foreground mb-6">
+                                        Workspace creation is now handled through the workspace groups interface.
+                                    </p>
+                                    <button
+                                        onClick={() => navigateToWorkspaceSelection()}
+                                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                                    >
+                                        Go to Workspaces
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
