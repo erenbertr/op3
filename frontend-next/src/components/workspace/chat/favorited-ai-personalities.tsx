@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Star, Search, Brain, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWorkspaceAIFavorites, useRemoveAIFavorite } from '@/lib/hooks/use-workspace-ai-favorites';
@@ -45,7 +45,7 @@ export function FavoritedAIPersonalities({
     };
 
     // Helper function to check if a favorite is currently selected
-    const isFavoriteSelected = (favorite: any) => {
+    const isFavoriteSelected = (favorite: { isModelConfig: boolean; aiProviderId: string }) => {
         if (favorite.isModelConfig) {
             return selectedModelConfig === favorite.aiProviderId;
         } else {
@@ -56,17 +56,17 @@ export function FavoritedAIPersonalities({
     // Helper function to get capability icons
     const getCapabilityIcons = (modelConfig: OpenAIModelConfig | null) => {
         if (!modelConfig?.capabilities) return [];
-        
+
         const icons = [];
         if (modelConfig.capabilities.search) icons.push(<Search key="search" className="h-3 w-3" />);
         if (modelConfig.capabilities.reasoning) icons.push(<Brain key="reasoning" className="h-3 w-3" />);
         if (modelConfig.capabilities.fileUpload) icons.push(<Paperclip key="file" className="h-3 w-3" />);
-        
+
         return icons;
     };
 
     // Handle favorite selection
-    const handleFavoriteClick = (favorite: any) => {
+    const handleFavoriteClick = (favorite: { isModelConfig: boolean; aiProviderId: string }) => {
         if (disabled) return;
         onProviderChange(favorite.aiProviderId, favorite.isModelConfig);
     };
@@ -89,7 +89,7 @@ export function FavoritedAIPersonalities({
                     const isSelected = isFavoriteSelected(favorite);
                     const modelConfig = favorite.isModelConfig ? getModelConfigDetails(favorite.aiProviderId) : null;
                     const capabilityIcons = getCapabilityIcons(modelConfig);
-                    
+
                     return (
                         <Tooltip key={favorite.id}>
                             <TooltipTrigger asChild>
@@ -112,12 +112,12 @@ export function FavoritedAIPersonalities({
                                             "h-3 w-3 flex-shrink-0",
                                             isSelected ? "fill-current" : "fill-yellow-400 text-yellow-400"
                                         )} />
-                                        
+
                                         {/* Display name */}
                                         <span className="truncate">
                                             {favorite.displayName}
                                         </span>
-                                        
+
                                         {/* Capability icons */}
                                         {capabilityIcons.length > 0 && (
                                             <div className="flex items-center gap-0.5 ml-1">
@@ -125,7 +125,7 @@ export function FavoritedAIPersonalities({
                                             </div>
                                         )}
                                     </Button>
-                                    
+
                                     {/* Remove button - only visible on hover */}
                                     <Button
                                         variant="ghost"

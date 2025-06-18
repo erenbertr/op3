@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Bot, Plus, X, FolderOpen, User, BarChart3 } from 'lucide-react';
+import { Bot, Plus, X, FolderOpen, BarChart3, SquareUserRound } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
 
@@ -336,7 +336,7 @@ export function WorkspaceTabBar({ userId, currentView = 'workspace', currentWork
                             }`}
                         title="AI Personalities"
                     >
-                        <User className="h-4 w-4" />
+                        <SquareUserRound className="h-4 w-4" />
                     </Button>
 
                     {/* Workspace Tabs - Only show workspaces that are in openWorkspaceTabs when not loading */}

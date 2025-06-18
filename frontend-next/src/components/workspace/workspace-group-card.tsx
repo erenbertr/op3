@@ -39,6 +39,7 @@ interface WorkspaceGroupCardProps {
     onWorkspaceSelect: (workspace: Workspace) => void;
     onWorkspaceEdit: (workspace: Workspace) => void;
     onWorkspaceDelete: (workspace: Workspace) => void;
+    onWorkspaceManageFavorites: (workspaceId: string) => void;
     onWorkspaceMove: (workspaceId: string, newIndex: number, targetGroupId?: string | null) => void;
     onAddWorkspace?: (groupId: string | null) => void;
     currentWorkspaceId?: string | null;
@@ -51,6 +52,7 @@ export function WorkspaceGroupCard({
     onWorkspaceSelect,
     onWorkspaceEdit,
     onWorkspaceDelete,
+    onWorkspaceManageFavorites,
     onWorkspaceMove,
     onAddWorkspace,
     currentWorkspaceId,
@@ -216,6 +218,7 @@ export function WorkspaceGroupCard({
                     onWorkspaceSelect={(workspace) => onWorkspaceSelect(workspace)}
                     onWorkspaceEdit={onWorkspaceEdit}
                     onWorkspaceDelete={onWorkspaceDelete}
+                    onWorkspaceManageFavorites={onWorkspaceManageFavorites}
                     onWorkspaceMove={onWorkspaceMove}
                     onAddWorkspace={onAddWorkspace}
                     groupId={group.id}

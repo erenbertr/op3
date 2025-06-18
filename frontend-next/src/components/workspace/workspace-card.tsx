@@ -2,8 +2,14 @@
 
 import React from 'react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquare, Kanban, Network, Edit2, Trash2 } from 'lucide-react';
+import { MessageSquare, Kanban, Network, Edit2, Trash2, MoreHorizontal, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface WorkspaceCardProps {
     workspace: {
@@ -19,10 +25,11 @@ interface WorkspaceCardProps {
     onSelect: (workspaceId: string) => void;
     onEdit: (workspace: WorkspaceCardProps['workspace']) => void;
     onDelete: (workspaceId: string) => void;
+    onManageFavorites: (workspaceId: string) => void;
     isActive?: boolean;
 }
 
-export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive }: WorkspaceCardProps) {
+export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, onManageFavorites, isActive }: WorkspaceCardProps) {
 
     const handleEditClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -32,6 +39,11 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
     const handleDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         onDelete(workspace.id);
+    };
+
+    const handleManageFavoritesClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onManageFavorites(workspace.id);
     };
 
     const handleClick = (e: React.MouseEvent) => {
@@ -96,23 +108,33 @@ export function WorkspaceCard({ workspace, onSelect, onEdit, onDelete, isActive 
                     </div>
                 </div>
 
-                <div className="absolute top-2 right-2 flex items-center space-x-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={handleEditClick}
-                    >
-                        <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={handleDeleteClick}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                <div className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={handleManageFavoritesClick} className="gap-2">
+                                <Star className="h-4 w-4" />
+                                Personality Favorites
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleEditClick} className="gap-2">
+                                <Edit2 className="h-4 w-4" />
+                                Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive gap-2">
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </CardHeader>
         </Card>

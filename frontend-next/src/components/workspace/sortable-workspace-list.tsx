@@ -28,6 +28,7 @@ interface SortableWorkspaceListProps {
     onWorkspaceSelect: (workspace: Workspace) => void;
     onWorkspaceEdit: (workspace: Workspace) => void;
     onWorkspaceDelete: (workspace: Workspace) => void;
+    onWorkspaceManageFavorites: (workspaceId: string) => void;
     onWorkspaceMove: (workspaceId: string, newIndex: number, targetGroupId?: string | null) => void;
     onAddWorkspace?: (groupId: string | null) => void;
     groupId?: string | null;
@@ -41,6 +42,7 @@ function SortableWorkspaceItem({
     onSelect,
     onEdit,
     onDelete,
+    onManageFavorites,
     isDragging,
 }: {
     workspace: Workspace;
@@ -48,6 +50,7 @@ function SortableWorkspaceItem({
     onSelect: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    onManageFavorites: () => void;
     isDragging: boolean;
 }) {
     const {
@@ -79,6 +82,7 @@ function SortableWorkspaceItem({
                 onSelect={onSelect}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onManageFavorites={onManageFavorites}
             />
         </div>
     );
@@ -105,6 +109,7 @@ export function SortableWorkspaceList({
     onWorkspaceSelect,
     onWorkspaceEdit,
     onWorkspaceDelete,
+    onWorkspaceManageFavorites,
     onWorkspaceMove: _onWorkspaceMove, // Handled by parent DndContext
     onAddWorkspace,
     groupId = null,
@@ -142,6 +147,7 @@ export function SortableWorkspaceList({
                         onSelect={() => onWorkspaceSelect(workspace)}
                         onEdit={() => onWorkspaceEdit(workspace)}
                         onDelete={() => onWorkspaceDelete(workspace)}
+                        onManageFavorites={() => onWorkspaceManageFavorites(workspace.id)}
                         isDragging={false}
                     />
                 ))}

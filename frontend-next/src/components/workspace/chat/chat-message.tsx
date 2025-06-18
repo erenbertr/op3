@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch, Share2 } from 'lucide-react';
+import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch, Share2, SquareUserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality } from '@/lib/api';
 import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
@@ -377,7 +377,7 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                         {/* Personality badge */}
                         {personality && (
                             <Badge variant="secondary" className="text-xs">
-                                <Brain className="h-3 w-3" />
+                                <SquareUserRound className="h-3 w-3" />
                                 {personality.title}
                             </Badge>
                         )}

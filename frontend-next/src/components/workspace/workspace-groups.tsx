@@ -51,6 +51,7 @@ interface WorkspaceGroupsProps {
     openWorkspace?: ((workspaceId: string) => void) | null;
     onWorkspaceUpdated: () => void;
     onWorkspaceDeleted: () => void;
+    onWorkspaceManageFavorites?: (workspaceId: string) => void;
 }
 
 export function WorkspaceGroups({
@@ -59,7 +60,8 @@ export function WorkspaceGroups({
     currentWorkspaceId,
     openWorkspace,
     onWorkspaceUpdated,
-    onWorkspaceDeleted
+    onWorkspaceDeleted,
+    onWorkspaceManageFavorites
 }: WorkspaceGroupsProps) {
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [showOrganizeGroups, setShowOrganizeGroups] = useState(false);
@@ -442,6 +444,10 @@ export function WorkspaceGroups({
         setDeletingWorkspaceId(workspace.id);
     };
 
+    const handleManageFavorites = (workspaceId: string) => {
+        onWorkspaceManageFavorites?.(workspaceId);
+    };
+
     const handleSaveEdit = async () => {
         if (!editingWorkspace) return;
 
@@ -553,48 +559,50 @@ export function WorkspaceGroups({
                 </div>
             </div>
 
-        <DndContext
-            sensors={sensors}
-            collisionDetection={rectIntersection}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-        >
-            <div className="space-y-8 relative"> {/* Wrapper for DND content */}
-                {/* Ungrouped workspaces */}
-                <div className="space-y-4">
-                    <SortableWorkspaceList
-                        workspaces={ungroupedWorkspaces}
-                        currentWorkspaceId={currentWorkspaceId}
-                        onWorkspaceSelect={handleWorkspaceSelect}
-                        onWorkspaceEdit={handleEditWorkspace}
-                        onWorkspaceDelete={handleDeleteWorkspace}
-                        onWorkspaceMove={handleWorkspaceMove}
-                        onAddWorkspace={handleAddWorkspace}
-                        groupId={null} 
-                        className="border-transparent hover:border-border"
-                    />
-                </div>
-
-                {/* Groups */}
-                <div className="space-y-6"> {/* This div wraps the mapped groups */}
-                    {groups.map((group) => (
-                        <WorkspaceGroupCard
-                            key={group.id}
-                            group={group} 
-                            workspaces={groupedWorkspaces[group.id] || []}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+            >
+                <div className="space-y-8 relative"> {/* Wrapper for DND content */}
+                    {/* Ungrouped workspaces */}
+                    <div className="space-y-4">
+                        <SortableWorkspaceList
+                            workspaces={ungroupedWorkspaces}
+                            currentWorkspaceId={currentWorkspaceId}
                             onWorkspaceSelect={handleWorkspaceSelect}
                             onWorkspaceEdit={handleEditWorkspace}
                             onWorkspaceDelete={handleDeleteWorkspace}
+                            onWorkspaceManageFavorites={handleManageFavorites}
                             onWorkspaceMove={handleWorkspaceMove}
                             onAddWorkspace={handleAddWorkspace}
-                            currentWorkspaceId={currentWorkspaceId} 
-                            userId={userId} 
+                            groupId={null}
+                            className="border-transparent hover:border-border"
                         />
-                    ))}
-                </div> {/* Closes the "space-y-6" div for groups */}
-            </div> {/* Closes "space-y-8 relative" DND content wrapper */}
-        </DndContext>
+                    </div>
+
+                    {/* Groups */}
+                    <div className="space-y-6"> {/* This div wraps the mapped groups */}
+                        {groups.map((group) => (
+                            <WorkspaceGroupCard
+                                key={group.id}
+                                group={group}
+                                workspaces={groupedWorkspaces[group.id] || []}
+                                onWorkspaceSelect={handleWorkspaceSelect}
+                                onWorkspaceEdit={handleEditWorkspace}
+                                onWorkspaceDelete={handleDeleteWorkspace}
+                                onWorkspaceManageFavorites={handleManageFavorites}
+                                onWorkspaceMove={handleWorkspaceMove}
+                                onAddWorkspace={handleAddWorkspace}
+                                currentWorkspaceId={currentWorkspaceId}
+                                userId={userId}
+                            />
+                        ))}
+                    </div> {/* Closes the "space-y-6" div for groups */}
+                </div> {/* Closes "space-y-8 relative" DND content wrapper */}
+            </DndContext>
 
 
 
@@ -611,7 +619,7 @@ export function WorkspaceGroups({
                                 <Input
                                     id="workspace-name"
                                     value={editingWorkspace.name}
-                                    onChange={(e) => setEditingWorkspace(prevWorkspace => 
+                                    onChange={(e) => setEditingWorkspace(prevWorkspace =>
                                         prevWorkspace ? { ...prevWorkspace, name: e.target.value } : null
                                     )}
                                 />
@@ -621,7 +629,7 @@ export function WorkspaceGroups({
                                 <Textarea
                                     id="workspace-rules"
                                     value={editingWorkspace.workspaceRules}
-                                    onChange={(e) => setEditingWorkspace(prevWorkspace => 
+                                    onChange={(e) => setEditingWorkspace(prevWorkspace =>
                                         prevWorkspace ? { ...prevWorkspace, workspaceRules: e.target.value } : null
                                     )}
                                     className="min-h-[150px]"

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Square, RotateCcw, AlertCircle, Brain, Loader2, Bot, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Square, RotateCcw, AlertCircle, Brain, Loader2, Bot, ChevronDown, ChevronUp, Search, SquareUserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality } from '@/lib/api';
 import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
@@ -259,7 +259,7 @@ export function StreamingMessage({
                             {/* Personality badge */}
                             {personality && (
                                 <Badge variant="secondary" className="text-xs">
-                                    <Brain className="h-3 w-3" />
+                                    <SquareUserRound className="h-3 w-3" />
                                     {personality.title}
                                 </Badge>
                             )}

@@ -6,12 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Search, Paperclip, Brain, ChevronDown, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
+import { openaiModelConfigsAPI } from '@/lib/api/openai-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsAIProviderFavorited, useAddAIFavorite, useRemoveAIFavorite } from '@/lib/hooks/use-workspace-ai-favorites';
 
 interface AIProviderSelectorProps {
-    selectedProvider?: string;
     selectedModelConfig?: string;
     onProviderChange: (providerId: string, isModelConfig?: boolean) => void;
     className?: string;
@@ -25,7 +24,6 @@ interface AIProviderSelectorProps {
 }
 
 export function AIProviderSelector({
-    selectedProvider,
     selectedModelConfig,
     onProviderChange,
     className,

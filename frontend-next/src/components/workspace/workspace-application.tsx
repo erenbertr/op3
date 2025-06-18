@@ -7,6 +7,7 @@ import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ChatView } from '@/components/workspace/chat/chat-view';
 import { CreateChatView } from '@/components/workspace/chat/create-chat-view';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
+import { AIPersonalityFavoritesModal } from '@/components/workspace/ai-personality-favorites-modal';
 
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
@@ -46,6 +47,8 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     const openWorkspaceRef = useRef<((workspaceId: string) => void) | null>(null);
     const queryClient = useQueryClient();
     const [showNotFoundAfterDelay, setShowNotFoundAfterDelay] = useState(false);
+    const [favoritesModalOpen, setFavoritesModalOpen] = useState(false);
+    const [favoritesModalWorkspaceId, setFavoritesModalWorkspaceId] = useState<string | null>(null);
 
     // Use delayed spinners for loading states
     const { showSpinner: showWorkspacesSpinner, startLoading: startWorkspacesLoading, stopLoading: stopWorkspacesLoading } = useDelayedSpinner(3000);
@@ -182,6 +185,11 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
     const navigateToWorkspaceSelection = useCallback(() => {
         navigationUtils.pushState('/workspaces');
+    }, []);
+
+    const handleWorkspaceManageFavorites = useCallback((workspaceId: string) => {
+        setFavoritesModalWorkspaceId(workspaceId);
+        setFavoritesModalOpen(true);
     }, []);
 
     // Show loading state only after delay
@@ -358,6 +366,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                                 onWorkspaceSelect={navigateToWorkspace}
                                 onWorkspaceUpdated={handleWorkspaceUpdated}
                                 onWorkspaceDeleted={handleWorkspaceDeleted}
+                                onWorkspaceManageFavorites={handleWorkspaceManageFavorites}
                             />
                         </div>
                     </div>
@@ -427,6 +436,15 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     </div>
                 )}
             </main>
+
+            {/* AI Personality Favorites Modal */}
+            {favoritesModalWorkspaceId && (
+                <AIPersonalityFavoritesModal
+                    open={favoritesModalOpen}
+                    onOpenChange={setFavoritesModalOpen}
+                    workspaceId={favoritesModalWorkspaceId}
+                />
+            )}
         </div>
     );
 }

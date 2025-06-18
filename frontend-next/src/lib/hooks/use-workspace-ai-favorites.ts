@@ -4,13 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import type {
-    WorkspaceAIFavorite,
     CreateAIFavoriteRequest,
     UpdateAIFavoriteRequest,
-    WorkspaceAIFavoritesResponse,
-    CreateAIFavoriteResponse,
-    DeleteAIFavoriteResponse,
-    CheckAIFavoriteResponse
+    WorkspaceAIFavoritesResponse
 } from '@/lib/api';
 
 // Query hooks
