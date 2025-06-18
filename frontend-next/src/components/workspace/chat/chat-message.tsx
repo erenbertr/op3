@@ -29,6 +29,11 @@ interface ChatMessageProps {
     onBranch?: (messageId: string, aiProviderId: string) => void;
 }
 
+// Helper function to count words in a message
+const countWords = (text: string): number => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+};
+
 export function ChatMessage({ message, personality, className, onRetry, onContinue, onBranch }: ChatMessageProps) {
     const [copyButtonText, setCopyButtonText] = useState('Copy');
     const isAssistant = message.role === 'assistant';
@@ -38,6 +43,10 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
     const [showShareModal, setShowShareModal] = useState(false);
     const branchButtonRef = useRef<HTMLDivElement>(null);
+
+    // Calculate word count to determine if we need duplicate actions
+    const wordCount = countWords(message.content);
+    const isLongMessage = wordCount >= 500;
 
     // Get OpenAI model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
@@ -170,6 +179,105 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
             };
         }
     }, [showBranchDropdown]);
+
+    // Message Actions Component - extracted for reuse
+    const MessageActions = ({ position }: { position: 'top' | 'bottom' }) => (
+        <div className={cn(
+            "flex gap-1 bg-background border rounded-md shadow-sm p-1",
+            position === 'top' ? "absolute top-2 right-2" : "mt-2 ml-auto w-fit"
+        )}>
+            {/* API metadata tooltip - only for AI messages */}
+            {isAssistant && message.apiMetadata && (
+                <ApiMetadataTooltip metadata={message.apiMetadata} />
+            )}
+            <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={handleCopy}
+            >
+                {justCopied ? (
+                    <Check className="h-3 w-3 text-green-600" />
+                ) : (
+                    <Copy className="h-3 w-3" />
+                )}
+            </Button>
+
+            {/* Share button */}
+            <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                    "h-6 w-6 p-0",
+                    message.isShared && "text-blue-600 hover:text-blue-700"
+                )}
+                onClick={() => setShowShareModal(true)}
+                title={message.isShared ? "Manage message share" : "Share message"}
+            >
+                <Share2 className="h-3 w-3" />
+            </Button>
+
+            {/* Branch button with dropdown */}
+            {onBranch && (
+                <div className="relative" ref={position === 'top' ? branchButtonRef : undefined}>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={handleBranchButtonClick}
+                        title="Branch conversation"
+                    >
+                        <GitBranch className="h-3 w-3" />
+                    </Button>
+
+                    {showBranchDropdown && position === 'top' && (
+                        <div
+                            className={cn(
+                                "absolute right-0 z-50 w-64",
+                                dropdownPosition === 'above'
+                                    ? "bottom-full mb-1"
+                                    : "top-full mt-1"
+                            )}
+                        >
+                            <AIProviderSelector
+                                onProviderChange={(providerId, isModelConfig) => {
+                                    // For branching, we always use the model config ID
+                                    handleBranch(providerId);
+                                }}
+                                className="w-full"
+                                placeholder="Select AI Provider for Branch"
+                                size="sm"
+                                dropdownPosition={dropdownPosition}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Show continue button for partial messages */}
+            {message.isPartial ? (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-950"
+                    onClick={handleContinue}
+                    title="Continue message"
+                >
+                    <Play className="h-3 w-3" />
+                </Button>
+            ) : (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={handleRetry}
+                    title="Retry message"
+                >
+                    <RotateCcw className="h-3 w-3" />
+                </Button>
+            )}
+        </div>
+    );
 
     // Convert markdown to HTML for AI messages, with syntax highlighting for code blocks
     const renderContent = () => {
@@ -309,102 +417,16 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                     </div>
                 )}
 
+                {/* Bottom actions for long messages (500+ words) */}
+                {isLongMessage && (
+                    <MessageActions position="bottom" />
+                )}
+
             </div>
 
             {/* Hover actions - positioned at top-right of container */}
             {isHovered && (
-                <div className="absolute top-2 right-2 flex gap-1 bg-background border rounded-md shadow-sm p-1">
-                    {/* API metadata tooltip - only for AI messages */}
-                    {isAssistant && message.apiMetadata && (
-                        <ApiMetadataTooltip metadata={message.apiMetadata} />
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={handleCopy}
-                    >
-                        {justCopied ? (
-                            <Check className="h-3 w-3 text-green-600" />
-                        ) : (
-                            <Copy className="h-3 w-3" />
-                        )}
-                    </Button>
-
-                    {/* Share button */}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                            "h-6 w-6 p-0",
-                            message.isShared && "text-blue-600 hover:text-blue-700"
-                        )}
-                        onClick={() => setShowShareModal(true)}
-                        title={message.isShared ? "Manage message share" : "Share message"}
-                    >
-                        <Share2 className="h-3 w-3" />
-                    </Button>
-
-                    {/* Branch button with dropdown */}
-                    {onBranch && (
-                        <div className="relative" ref={branchButtonRef}>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={handleBranchButtonClick}
-                                title="Branch conversation"
-                            >
-                                <GitBranch className="h-3 w-3" />
-                            </Button>
-
-                            {showBranchDropdown && (
-                                <div
-                                    className={cn(
-                                        "absolute right-0 z-50 w-64",
-                                        dropdownPosition === 'above'
-                                            ? "bottom-full mb-1"
-                                            : "top-full mt-1"
-                                    )}
-                                >
-                                    <AIProviderSelector
-                                        onProviderChange={(providerId, isModelConfig) => {
-                                            // For branching, we always use the model config ID
-                                            handleBranch(providerId);
-                                        }}
-                                        className="w-full"
-                                        placeholder="Select AI Provider for Branch"
-                                        size="sm"
-                                        dropdownPosition={dropdownPosition}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Show continue button for partial messages */}
-                    {message.isPartial ? (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-950"
-                            onClick={handleContinue}
-                            title="Continue message"
-                        >
-                            <Play className="h-3 w-3" />
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={handleRetry}
-                            title="Retry message"
-                        >
-                            <RotateCcw className="h-3 w-3" />
-                        </Button>
-                    )}
-                </div>
+                <MessageActions position="top" />
             )}
 
             {/* Message Share Modal */}
