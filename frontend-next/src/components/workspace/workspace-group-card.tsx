@@ -177,6 +177,7 @@ export function WorkspaceGroupCard({
                                 <DropdownMenuItem
                                     onClick={handleTogglePin}
                                     disabled={pinGroupMutation.isPending}
+                                    className="gap-2"
                                 >
                                     {group.isPinned ? (
                                         <>
@@ -190,13 +191,13 @@ export function WorkspaceGroupCard({
                                         </>
                                     )}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                                <DropdownMenuItem onClick={() => setIsEditing(true)} className="gap-2">
                                     <Edit2 className="h-4 w-4" />
                                     Rename
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                     onClick={() => setShowDeleteDialog(true)}
-                                    className="text-destructive"
+                                    className="text-destructive gap-2"
                                     disabled={deleteGroupMutation.isPending || deleteGroupWithWorkspacesMutation.isPending}
                                 >
                                     <Trash2 className="h-4 w-4" />

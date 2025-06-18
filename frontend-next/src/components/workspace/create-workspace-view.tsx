@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WorkspaceLayout } from './workspace-layout';
 import { WorkspaceSetup } from './workspace-setup';
@@ -11,9 +11,22 @@ export function CreateWorkspaceView() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: session } = useSession();
+    const [groupIdFromUrl, setGroupIdFromUrl] = useState<string | null>(null);
 
-    // Get groupId from URL parameters
-    const groupId = searchParams.get('groupId');
+    // Get groupId from URL parameters using window.location as fallback
+    const groupIdFromSearchParams = searchParams.get('groupId');
+
+    // Alternative method using window.location as fallback
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const groupIdFromWindow = urlParams.get('groupId');
+            setGroupIdFromUrl(groupIdFromWindow);
+        }
+    }, []);
+
+    // Use the first available groupId
+    const groupId = groupIdFromSearchParams || groupIdFromUrl;
 
     if (!session?.user) {
         router.push('/');

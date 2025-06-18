@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Plus, MessageSquare, Loader2 } from 'lucide-react';
+import { Search, Plus, MessageSquare, Loader2, Share } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
@@ -46,6 +46,7 @@ export function ChatSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+    const [sharingChatId, setSharingChatId] = useState<string | null>(null);
     // Local state for optimistic pin updates to avoid flashing
     const [localPinUpdates, setLocalPinUpdates] = useState<Record<string, boolean>>({});
     const { addToast } = useToast();
@@ -181,6 +182,40 @@ export function ChatSidebar({
             });
         } finally {
             setDeletingChatId(null);
+        }
+    };
+
+    const handleShareChat = async (chatId: string) => {
+        if (sharingChatId === chatId) return; // Prevent multiple clicks
+        setSharingChatId(chatId);
+
+        try {
+            const result = await apiClient.shareChat(chatId);
+            if (result.success && result.shareUrl) {
+                // Copy the share URL to clipboard
+                const fullUrl = `${window.location.origin}${result.shareUrl}`;
+                await navigator.clipboard.writeText(fullUrl);
+
+                addToast({
+                    title: "Chat Shared",
+                    description: "Share link copied to clipboard!",
+                });
+            } else {
+                addToast({
+                    title: "Error Sharing Chat",
+                    description: result.message || "Failed to create share link.",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            console.error('Error sharing chat:', error);
+            addToast({
+                title: "Error",
+                description: "Failed to create share link. Please try again.",
+                variant: "destructive"
+            });
+        } finally {
+            setSharingChatId(null);
         }
     };
 
@@ -384,6 +419,19 @@ export function ChatSidebar({
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     onClick={(e) => {
+                                                                        e.stopPropagation(); // Prevent chat click
+                                                                        if (sharingChatId !== chat.id) { // Prevent action if already sharing this chat
+                                                                            handleShareChat(chat.id);
+                                                                        }
+                                                                    }}
+                                                                    disabled={sharingChatId === chat.id}
+                                                                    className="cursor-pointer"
+                                                                >
+                                                                    <Share className="h-4 w-4 mr-2" />
+                                                                    {sharingChatId === chat.id ? 'Sharing...' : 'Share'}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
                                                                         e.stopPropagation(); // Ensure no other click events fire
                                                                         if (deletingChatId !== chat.id) { // Prevent action if already deleting this chat
                                                                             handleDeleteChat(chat.id);
@@ -438,6 +486,19 @@ export function ChatSidebar({
                                                                             align="end"
                                                                             onClick={(e) => e.stopPropagation()}
                                                                         >
+                                                                            <DropdownMenuItem
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (sharingChatId !== childChat.id) {
+                                                                                        handleShareChat(childChat.id);
+                                                                                    }
+                                                                                }}
+                                                                                disabled={sharingChatId === childChat.id}
+                                                                                className="cursor-pointer"
+                                                                            >
+                                                                                <Share className="h-3 w-3 mr-2" />
+                                                                                {sharingChatId === childChat.id ? 'Sharing...' : 'Share'}
+                                                                            </DropdownMenuItem>
                                                                             <DropdownMenuItem
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();

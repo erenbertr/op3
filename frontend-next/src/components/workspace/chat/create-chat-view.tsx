@@ -35,11 +35,20 @@ export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
 
             try {
                 const result = await apiClient.getUserWorkspaces(session.user.id);
+                console.log('🔍 Workspace loading debug:', {
+                    workspaceId,
+                    result: result.success,
+                    workspaceCount: result.workspaces?.length,
+                    workspaceIds: result.workspaces?.map(w => w.id)
+                });
+
                 if (result.success) {
                     const foundWorkspace = result.workspaces.find(w => w.id === workspaceId);
                     if (foundWorkspace) {
+                        console.log('✅ Workspace found:', foundWorkspace.name);
                         setWorkspace(foundWorkspace);
                     } else {
+                        console.log('❌ Workspace not found in user workspaces');
                         addToast({
                             title: "Error",
                             description: "Workspace not found",
@@ -47,6 +56,14 @@ export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
                         });
                         router.push('/workspaces');
                     }
+                } else {
+                    console.log('❌ Failed to load workspaces:', result.message);
+                    addToast({
+                        title: "Error",
+                        description: result.message || "Failed to load workspaces",
+                        variant: "destructive"
+                    });
+                    router.push('/workspaces');
                 }
             } catch (error) {
                 console.error('Error loading workspace:', error);
@@ -119,7 +136,12 @@ export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
                 <div className="h-full flex items-center justify-center">
                     <div className="text-center space-y-4">
                         <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                        <p className="text-muted-foreground">Loading...</p>
+                        <p className="text-muted-foreground">Loading workspace...</p>
+                        <div className="text-xs text-muted-foreground">
+                            <p>Workspace ID: {workspaceId}</p>
+                            <p>Group ID: {groupId || 'None'}</p>
+                            <p>🔍 CreateChatView component is rendering</p>
+                        </div>
                     </div>
                 </div>
             </WorkspaceLayout>

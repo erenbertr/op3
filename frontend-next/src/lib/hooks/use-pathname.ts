@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-// Global state for pathname tracking
+// Global state for pathname tracking (includes search params)
 let currentPathname = '/';
 const listeners = new Set<() => void>();
 let isInitialized = false;
@@ -8,7 +8,7 @@ let isInitialized = false;
 // Initialize pathname safely
 function initializePathname() {
     if (typeof window !== 'undefined' && !isInitialized) {
-        currentPathname = window.location.pathname;
+        currentPathname = window.location.pathname + window.location.search;
         isInitialized = true;
     }
 }
@@ -17,7 +17,7 @@ function initializePathname() {
 function notifyListeners() {
     if (typeof window === 'undefined') return;
 
-    const newPathname = window.location.pathname;
+    const newPathname = window.location.pathname + window.location.search;
     if (newPathname !== currentPathname) {
         currentPathname = newPathname;
         listeners.forEach(listener => {
@@ -60,13 +60,13 @@ function subscribeToPathname(callback: () => void) {
 }
 
 /**
- * Get current pathname snapshot with guaranteed accuracy
+ * Get current pathname snapshot with guaranteed accuracy (includes search params)
  */
 function getPathnameSnapshot(): string {
     if (typeof window === 'undefined') return '/';
 
-    // Always sync with actual browser state
-    const browserPathname = window.location.pathname;
+    // Always sync with actual browser state (including search params)
+    const browserPathname = window.location.pathname + window.location.search;
     if (browserPathname !== currentPathname) {
         currentPathname = browserPathname;
     }
@@ -104,8 +104,9 @@ export const navigationUtils = {
             // Normalize URL
             const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
 
-            // Only navigate if URL is different
-            if (window.location.pathname !== normalizedUrl) {
+            // Only navigate if URL is different (compare full URL including search)
+            const currentFullUrl = window.location.pathname + window.location.search;
+            if (currentFullUrl !== normalizedUrl) {
                 window.history.pushState(null, '', normalizedUrl);
                 // Force immediate notification
                 setTimeout(() => notifyListeners(), 0);
@@ -130,8 +131,8 @@ export const navigationUtils = {
         }
     },
 
-    // Get current pathname (useful for debugging)
+    // Get current pathname with search params (useful for debugging)
     getCurrentPathname: () => {
-        return typeof window !== 'undefined' ? window.location.pathname : '/';
+        return typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/';
     }
 };

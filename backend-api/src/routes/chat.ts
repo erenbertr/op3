@@ -292,4 +292,16 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
     res.end();
 }));
 
+// Create a public share for a chat session
+router.post('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.createChatShare(sessionId);
+    res.json(result);
+}));
+
 export default router;

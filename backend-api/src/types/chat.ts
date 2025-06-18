@@ -98,6 +98,40 @@ export interface UpdateChatSessionSettingsRequest {
     lastUsedAIProviderId?: string;
 }
 
+// Shared chat types
+export interface SharedChat {
+    id: string; // UUID for the share
+    originalChatId: string; // Reference to the original chat session
+    title: string; // Chat title for display
+    messages: SharedChatMessage[]; // Simplified messages without metadata
+    createdAt: Date;
+    isActive: boolean; // For future management/deletion
+}
+
+export interface SharedChatMessage {
+    id: string;
+    content: string;
+    role: 'user' | 'assistant';
+    createdAt: Date;
+}
+
+export interface CreateShareRequest {
+    sessionId: string;
+}
+
+export interface CreateShareResponse {
+    success: boolean;
+    message: string;
+    shareId?: string;
+    shareUrl?: string;
+}
+
+export interface GetSharedChatResponse {
+    success: boolean;
+    message: string;
+    sharedChat?: SharedChat;
+}
+
 export interface UpdateChatSessionSettingsResponse {
     success: boolean;
     message: string;

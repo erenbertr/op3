@@ -12,6 +12,7 @@ import authRouter from './auth';
 import filesRouter from './files';
 import openaiProvidersRouter from './openai-providers';
 import openaiModelConfigsRouter from './openai-model-configs';
+import shareRouter from './share';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -55,6 +56,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Statistics routes
     app.use(`${API_PREFIX}/statistics`, statisticsRouter);
+
+    // Share routes (public access - no authentication required)
+    app.use(`${API_PREFIX}/share`, shareRouter);
 
     // API info endpoint
     app.get(`${API_PREFIX}`, (req, res) => {

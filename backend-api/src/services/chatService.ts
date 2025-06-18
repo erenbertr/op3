@@ -13,7 +13,12 @@ import {
     UpdateChatSessionResponse,
     UpdateChatSessionSettingsRequest,
     UpdateChatSessionSettingsResponse,
-    DeleteChatSessionResponse
+    DeleteChatSessionResponse,
+    SharedChat,
+    SharedChatMessage,
+    CreateShareRequest,
+    CreateShareResponse,
+    GetSharedChatResponse
 } from '../types/chat';
 
 export class ChatService {
@@ -340,6 +345,95 @@ export class ChatService {
     }
 
     /**
+     * Create a public share for a chat session
+     */
+    public async createChatShare(sessionId: string): Promise<CreateShareResponse> {
+        try {
+            // Get the chat session to verify it exists and get the title
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    message: 'Chat session not found'
+                };
+            }
+
+            // Get all messages for the session
+            const messages = await this.getSessionMessages(sessionId);
+
+            // Filter and simplify messages (remove metadata, keep only user and assistant messages)
+            const simplifiedMessages: SharedChatMessage[] = messages
+                .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+                .map(msg => ({
+                    id: msg.id,
+                    content: msg.content,
+                    role: msg.role,
+                    createdAt: msg.createdAt
+                }));
+
+            // Create shared chat object
+            const sharedChat: SharedChat = {
+                id: uuidv4(),
+                originalChatId: sessionId,
+                title: session.title,
+                messages: simplifiedMessages,
+                createdAt: new Date(),
+                isActive: true
+            };
+
+            // Save to database
+            await this.saveSharedChat(sharedChat);
+
+            return {
+                success: true,
+                message: 'Chat shared successfully',
+                shareId: sharedChat.id,
+                shareUrl: `/share/${sharedChat.id}`
+            };
+        } catch (error) {
+            console.error('Error creating chat share:', error);
+            return {
+                success: false,
+                message: `Failed to create chat share: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
+     * Get a shared chat by its share ID (public access)
+     */
+    public async getSharedChat(shareId: string): Promise<GetSharedChatResponse> {
+        try {
+            const sharedChat = await this.getSharedChatById(shareId);
+            if (!sharedChat) {
+                return {
+                    success: false,
+                    message: 'Shared chat not found'
+                };
+            }
+
+            if (!sharedChat.isActive) {
+                return {
+                    success: false,
+                    message: 'This shared chat is no longer available'
+                };
+            }
+
+            return {
+                success: true,
+                message: 'Shared chat retrieved successfully',
+                sharedChat
+            };
+        } catch (error) {
+            console.error('Error getting shared chat:', error);
+            return {
+                success: false,
+                message: `Failed to get shared chat: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
      * Private helper methods for database operations
      */
     private async saveChatSession(session: ChatSession): Promise<void> {
@@ -586,6 +680,56 @@ export class ChatService {
         }
     }
 
+    private async saveSharedChat(sharedChat: SharedChat): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.saveSharedChatSQLite(connection, sharedChat);
+                break;
+            case 'mongodb':
+                await this.saveSharedChatMongo(connection, sharedChat);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.saveSharedChatSQL(connection, sharedChat);
+                break;
+            case 'supabase':
+                await this.saveSharedChatSupabase(connection, sharedChat);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared chat operations yet`);
+        }
+    }
+
+    private async getSharedChatById(shareId: string): Promise<SharedChat | null> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                return this.getSharedChatByIdSQLite(connection, shareId);
+            case 'mongodb':
+                return this.getSharedChatByIdMongo(connection, shareId);
+            case 'mysql':
+            case 'postgresql':
+                return this.getSharedChatByIdSQL(connection, shareId);
+            case 'supabase':
+                return this.getSharedChatByIdSupabase(connection, shareId);
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared chat operations yet`);
+        }
+    }
+
     /**
      * SQLite-specific implementations
      */
@@ -802,6 +946,64 @@ export class ChatService {
         });
     }
 
+    private async saveSharedChatSQLite(db: any, sharedChat: SharedChat): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Create shared_chats table if it doesn't exist
+            db.run(`
+                CREATE TABLE IF NOT EXISTS shared_chats (
+                    id TEXT PRIMARY KEY,
+                    originalChatId TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    messages TEXT NOT NULL,
+                    createdAt TEXT NOT NULL,
+                    isActive BOOLEAN DEFAULT 1,
+                    FOREIGN KEY (originalChatId) REFERENCES chat_sessions(id)
+                )
+            `, (err: any) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                // Insert shared chat
+                db.run(`
+                    INSERT INTO shared_chats (id, originalChatId, title, messages, createdAt, isActive)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `, [
+                    sharedChat.id,
+                    sharedChat.originalChatId,
+                    sharedChat.title,
+                    JSON.stringify(sharedChat.messages),
+                    sharedChat.createdAt.toISOString(),
+                    sharedChat.isActive ? 1 : 0
+                ], (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        });
+    }
+
+    private async getSharedChatByIdSQLite(db: any, shareId: string): Promise<SharedChat | null> {
+        return new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM shared_chats WHERE id = ?',
+                [shareId],
+                (err: any, row: any) => {
+                    if (err) {
+                        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                            resolve(null);
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(row ? this.mapSQLSharedChat(row) : null);
+                    }
+                }
+            );
+        });
+    }
+
     /**
      * MongoDB-specific implementations
      */
@@ -905,6 +1107,27 @@ export class ChatService {
     private async deleteSessionMessagesMongo(db: any, sessionId: string): Promise<void> {
         const collection = db.collection('chat_messages');
         await collection.deleteMany({ sessionId });
+    }
+
+    private async saveSharedChatMongo(db: any, sharedChat: SharedChat): Promise<void> {
+        const collection = db.collection('shared_chats');
+        await collection.createIndex({ originalChatId: 1 });
+        await collection.createIndex({ createdAt: -1 });
+
+        await collection.insertOne({
+            _id: sharedChat.id,
+            originalChatId: sharedChat.originalChatId,
+            title: sharedChat.title,
+            messages: sharedChat.messages,
+            createdAt: sharedChat.createdAt,
+            isActive: sharedChat.isActive
+        });
+    }
+
+    private async getSharedChatByIdMongo(db: any, shareId: string): Promise<SharedChat | null> {
+        const collection = db.collection('shared_chats');
+        const sharedChat = await collection.findOne({ _id: shareId });
+        return sharedChat ? this.mapMongoSharedChat(sharedChat) : null;
     }
 
     /**
@@ -1014,6 +1237,36 @@ export class ChatService {
 
     private async deleteSessionMessagesSQL(connection: any, sessionId: string): Promise<void> {
         await connection.execute('DELETE FROM chat_messages WHERE sessionId = ?', [sessionId]);
+    }
+
+    private async saveSharedChatSQL(connection: any, sharedChat: SharedChat): Promise<void> {
+        // Create table if not exists
+        await connection.execute(`
+            CREATE TABLE IF NOT EXISTS shared_chats (
+                id VARCHAR(36) PRIMARY KEY,
+                originalChatId VARCHAR(36) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                messages JSON NOT NULL,
+                createdAt DATETIME NOT NULL,
+                isActive BOOLEAN DEFAULT TRUE,
+                INDEX idx_originalChatId (originalChatId),
+                INDEX idx_createdAt (createdAt),
+                FOREIGN KEY (originalChatId) REFERENCES chat_sessions(id) ON DELETE CASCADE
+            )
+        `);
+
+        await connection.execute(`
+            INSERT INTO shared_chats (id, originalChatId, title, messages, createdAt, isActive)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [sharedChat.id, sharedChat.originalChatId, sharedChat.title, JSON.stringify(sharedChat.messages), sharedChat.createdAt, sharedChat.isActive]);
+    }
+
+    private async getSharedChatByIdSQL(connection: any, shareId: string): Promise<SharedChat | null> {
+        const [rows] = await connection.execute(
+            'SELECT * FROM shared_chats WHERE id = ?',
+            [shareId]
+        );
+        return rows.length > 0 ? this.mapSQLSharedChat(rows[0]) : null;
     }
 
     /**
@@ -1138,6 +1391,32 @@ export class ChatService {
         if (error) throw error;
     }
 
+    private async saveSharedChatSupabase(supabase: any, sharedChat: SharedChat): Promise<void> {
+        const { error } = await supabase
+            .from('shared_chats')
+            .insert([{
+                id: sharedChat.id,
+                originalChatId: sharedChat.originalChatId,
+                title: sharedChat.title,
+                messages: sharedChat.messages,
+                createdAt: sharedChat.createdAt.toISOString(),
+                isActive: sharedChat.isActive
+            }]);
+
+        if (error) throw error;
+    }
+
+    private async getSharedChatByIdSupabase(supabase: any, shareId: string): Promise<SharedChat | null> {
+        const { data, error } = await supabase
+            .from('shared_chats')
+            .select('*')
+            .eq('id', shareId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? this.mapSupabaseSharedChat(data) : null;
+    }
+
     /**
      * Mapping functions to convert database records to objects
      */
@@ -1246,6 +1525,51 @@ export class ChatService {
             apiMetadata: row.apiMetadata,
             isPartial: Boolean(row.isPartial),
             fileAttachments: row.fileAttachments
+        };
+    }
+
+    /**
+     * Shared chat mapping functions
+     */
+    private mapSQLSharedChat(row: any): SharedChat {
+        let messages: SharedChatMessage[] = [];
+        if (row.messages) {
+            try {
+                messages = JSON.parse(row.messages);
+            } catch (error) {
+                console.warn('Failed to parse shared chat messages:', error);
+            }
+        }
+
+        return {
+            id: row.id,
+            originalChatId: row.originalChatId,
+            title: row.title,
+            messages,
+            createdAt: new Date(row.createdAt),
+            isActive: Boolean(row.isActive)
+        };
+    }
+
+    private mapMongoSharedChat(doc: any): SharedChat {
+        return {
+            id: doc._id,
+            originalChatId: doc.originalChatId,
+            title: doc.title,
+            messages: doc.messages || [],
+            createdAt: doc.createdAt,
+            isActive: Boolean(doc.isActive)
+        };
+    }
+
+    private mapSupabaseSharedChat(row: any): SharedChat {
+        return {
+            id: row.id,
+            originalChatId: row.originalChatId,
+            title: row.title,
+            messages: row.messages || [],
+            createdAt: new Date(row.createdAt),
+            isActive: Boolean(row.isActive)
         };
     }
 }

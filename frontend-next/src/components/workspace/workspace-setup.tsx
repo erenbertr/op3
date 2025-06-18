@@ -90,6 +90,7 @@ export function WorkspaceSetup({ onComplete, userId, groupId }: WorkspaceSetupPr
                     } catch (moveError) {
                         console.error('Error moving workspace to group:', moveError);
                         // Don't fail the creation if group assignment fails
+                        setError(`Workspace created but failed to assign to group: ${moveError instanceof Error ? moveError.message : 'Unknown error'}`);
                     }
                 }
 
@@ -104,7 +105,6 @@ export function WorkspaceSetup({ onComplete, userId, groupId }: WorkspaceSetupPr
 
     return (
         <div className="w-full max-w-4xl space-y-8">
-
             <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Workspace Name */}
                 <div className="space-y-4">

@@ -204,6 +204,40 @@ export interface UpdateChatSessionPinStatusRequest {
     isPinned: boolean;
 }
 
+// Shared chat types
+export interface SharedChat {
+    id: string; // UUID for the share
+    originalChatId: string; // Reference to the original chat session
+    title: string; // Chat title for display
+    messages: SharedChatMessage[]; // Simplified messages without metadata
+    createdAt: string;
+    isActive: boolean; // For future management/deletion
+}
+
+export interface SharedChatMessage {
+    id: string;
+    content: string;
+    role: 'user' | 'assistant';
+    createdAt: string;
+}
+
+export interface CreateShareRequest {
+    sessionId: string;
+}
+
+export interface CreateShareResponse {
+    success: boolean;
+    message: string;
+    shareId?: string;
+    shareUrl?: string;
+}
+
+export interface GetSharedChatResponse {
+    success: boolean;
+    message: string;
+    sharedChat?: SharedChat;
+}
+
 // File attachment types
 export interface FileAttachment {
     id: string;
@@ -830,6 +864,17 @@ class ApiClient {
             method: 'DELETE',
             body: JSON.stringify({ userId }),
         });
+    }
+
+    // Share chat methods
+    async shareChat(sessionId: string): Promise<CreateShareResponse> {
+        return this.request<CreateShareResponse>(`/chat/sessions/${sessionId}/share`, {
+            method: 'POST',
+        });
+    }
+
+    async getSharedChat(shareId: string): Promise<GetSharedChatResponse> {
+        return this.request<GetSharedChatResponse>(`/share/${shareId}`);
     }
 
 
