@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Users, Settings, Database, Shield, BarChart3 } from 'lucide-react';
 import { navigationUtils } from '@/lib/hooks/use-pathname';
+import { UserManagement } from './user-management';
 
 interface AdminViewProps {
     currentUser: {
@@ -92,14 +93,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
     const renderMainContent = () => {
         switch (currentView) {
             case 'users':
-                return (
-                    <div className="space-y-6">
-                        <h3 className="text-xl font-semibold">User Management</h3>
-                        <p className="text-muted-foreground">
-                            User management functionality will be implemented here.
-                        </p>
-                    </div>
-                );
+                return <UserManagement currentUser={currentUser} />;
             case 'system':
                 return (
                     <div className="space-y-6">
@@ -173,15 +167,14 @@ export function AdminView({ currentUser }: AdminViewProps) {
                             <h2 className="text-lg font-semibold">Admin Panel</h2>
                             <p className="text-sm text-muted-foreground">System administration</p>
                         </div>
-                        
+
                         {/* Overview/Dashboard option */}
                         <Button
                             variant={currentView === 'overview' ? "default" : "ghost"}
-                            className={`w-full justify-start h-auto p-3 select-none ${
-                                currentView === 'overview'
-                                    ? "bg-primary text-primary-foreground"
-                                    : "hover:bg-muted"
-                            }`}
+                            className={`w-full justify-start h-auto p-3 select-none ${currentView === 'overview'
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-muted"
+                                }`}
                             onClick={() => setCurrentView('overview')}
                         >
                             <div className="flex items-center gap-3">
@@ -198,11 +191,10 @@ export function AdminView({ currentUser }: AdminViewProps) {
                             <Button
                                 key={item.id}
                                 variant={currentView === item.id ? "default" : "ghost"}
-                                className={`w-full justify-start h-auto p-3 select-none ${
-                                    currentView === item.id
-                                        ? "bg-primary text-primary-foreground"
-                                        : "hover:bg-muted"
-                                }`}
+                                className={`w-full justify-start h-auto p-3 select-none ${currentView === item.id
+                                    ? "bg-primary text-primary-foreground"
+                                    : "hover:bg-muted"
+                                    }`}
                                 onClick={() => handleMenuClick(item.path, item.id)}
                             >
                                 <div className="flex items-center gap-3">

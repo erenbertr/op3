@@ -1027,7 +1027,7 @@ export class UserService {
     /**
      * Get user by ID
      */
-    private async getUserById(userId: string): Promise<User | null> {
+    public async getUserById(userId: string): Promise<User | null> {
         try {
             console.log('🔍 getUserById called with userId:', userId);
             const config = this.dbManager.getCurrentConfig();
@@ -1085,5 +1085,465 @@ export class UserService {
             console.error('Error getting user by ID:', error);
             return null;
         }
+    }
+
+    /**
+     * Admin: Get all users with pagination and filtering
+     */
+    public async getAllUsers(options: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        role?: string;
+        isActive?: boolean;
+        sortBy?: 'email' | 'username' | 'createdAt' | 'lastLoginAt';
+        sortOrder?: 'asc' | 'desc';
+    } = {}): Promise<{
+        users: User[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }> {
+        try {
+            const {
+                page = 1,
+                limit = 20,
+                search = '',
+                role,
+                isActive,
+                sortBy = 'createdAt',
+                sortOrder = 'desc'
+            } = options;
+
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+            const offset = (page - 1) * limit;
+
+            switch (config.type) {
+                case 'mongodb':
+                    return await this.getAllUsersMongoDB(connection, { page, limit, search, role, isActive, sortBy, sortOrder, offset });
+
+                case 'mysql':
+                case 'postgresql':
+                    return await this.getAllUsersSQL(connection, config.type, { page, limit, search, role, isActive, sortBy, sortOrder, offset });
+
+                case 'localdb':
+                    return await this.getAllUsersSQLite(connection, { page, limit, search, role, isActive, sortBy, sortOrder, offset });
+
+                case 'supabase':
+                    return await this.getAllUsersSupabase(connection, { page, limit, search, role, isActive, sortBy, sortOrder, offset });
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+        } catch (error) {
+            console.error('Error getting all users:', error);
+            return {
+                users: [],
+                total: 0,
+                page: 1,
+                limit: 20,
+                totalPages: 0
+            };
+        }
+    }
+
+    /**
+     * Admin: Update user (role, status, profile)
+     */
+    public async updateUser(userId: string, updates: {
+        email?: string;
+        username?: string;
+        role?: 'admin' | 'subscribed' | 'normal';
+        isActive?: boolean;
+        firstName?: string;
+        lastName?: string;
+    }, updatedBy: string): Promise<{ success: boolean; message: string; user?: User }> {
+        try {
+            // Prevent admin from changing their own role
+            if (userId === updatedBy && updates.role && updates.role !== 'admin') {
+                return {
+                    success: false,
+                    message: 'You cannot change your own admin role'
+                };
+            }
+
+            const existingUser = await this.getUserById(userId);
+            if (!existingUser) {
+                return {
+                    success: false,
+                    message: 'User not found'
+                };
+            }
+
+            // Check if email is being changed and if it already exists
+            if (updates.email && updates.email !== existingUser.email) {
+                const emailExists = await this.getUserByEmailForAuth(updates.email);
+                if (emailExists) {
+                    return {
+                        success: false,
+                        message: 'Email already exists'
+                    };
+                }
+            }
+
+            const updatedUser: User = {
+                ...existingUser,
+                ...updates,
+                updatedAt: new Date()
+            };
+
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await this.updateUserMongoDB(connection, updatedUser);
+                    break;
+
+                case 'mysql':
+                    await this.updateUserMySQL(connection, updatedUser);
+                    break;
+
+                case 'postgresql':
+                    await this.updateUserPostgreSQL(connection, updatedUser);
+                    break;
+
+                case 'localdb':
+                    await this.updateUserSQLite(connection, updatedUser);
+                    break;
+
+                case 'supabase':
+                    await this.updateUserSupabase(connection, updatedUser);
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            return {
+                success: true,
+                message: 'User updated successfully',
+                user: updatedUser
+            };
+        } catch (error) {
+            console.error('Error updating user:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            return {
+                success: false,
+                message: `Failed to update user: ${errorMessage}`
+            };
+        }
+    }
+
+    /**
+     * Admin: Delete user
+     */
+    public async deleteUser(userId: string, deletedBy: string): Promise<{ success: boolean; message: string }> {
+        try {
+            // Prevent admin from deleting themselves
+            if (userId === deletedBy) {
+                return {
+                    success: false,
+                    message: 'You cannot delete your own account'
+                };
+            }
+
+            const existingUser = await this.getUserById(userId);
+            if (!existingUser) {
+                return {
+                    success: false,
+                    message: 'User not found'
+                };
+            }
+
+            const config = this.dbManager.getCurrentConfig();
+            if (!config) {
+                throw new Error('No database configuration found');
+            }
+
+            const connection = await this.dbManager.getConnection();
+
+            switch (config.type) {
+                case 'mongodb':
+                    await connection.collection('users').deleteOne({ id: userId });
+                    break;
+
+                case 'mysql':
+                case 'postgresql':
+                    await connection.execute('DELETE FROM users WHERE id = ?', [userId]);
+                    break;
+
+                case 'localdb':
+                    await new Promise((resolve, reject) => {
+                        connection.run('DELETE FROM users WHERE id = ?', [userId], (err: any) => {
+                            if (err) reject(err);
+                            else resolve(undefined);
+                        });
+                    });
+                    break;
+
+                case 'supabase':
+                    const { error } = await connection
+                        .from('users')
+                        .delete()
+                        .eq('id', userId);
+                    if (error) throw error;
+                    break;
+
+                default:
+                    throw new Error(`Database type ${config.type} not supported for user operations yet`);
+            }
+
+            return {
+                success: true,
+                message: 'User deleted successfully'
+            };
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            return {
+                success: false,
+                message: `Failed to delete user: ${errorMessage}`
+            };
+        }
+    }
+
+    // Database-specific methods for getAllUsers
+    private async getAllUsersMongoDB(connection: any, options: any): Promise<any> {
+        const { page, limit, search, role, isActive, sortBy, sortOrder, offset } = options;
+
+        const filter: any = {};
+        if (search) {
+            filter.$or = [
+                { email: { $regex: search, $options: 'i' } },
+                { username: { $regex: search, $options: 'i' } },
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } }
+            ];
+        }
+        if (role) filter.role = role;
+        if (isActive !== undefined) filter.isActive = isActive;
+
+        const sort: any = {};
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+        const [users, total] = await Promise.all([
+            connection.collection('users')
+                .find(filter)
+                .sort(sort)
+                .skip(offset)
+                .limit(limit)
+                .toArray(),
+            connection.collection('users').countDocuments(filter)
+        ]);
+
+        return {
+            users: users.map((user: any) => this.mapMongoUser(user)),
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
+    }
+
+    private async getAllUsersSQL(connection: any, dbType: string, options: any): Promise<any> {
+        const { page, limit, search, role, isActive, sortBy, sortOrder, offset } = options;
+
+        let whereClause = 'WHERE 1=1';
+        const params: any[] = [];
+
+        if (search) {
+            whereClause += ' AND (email LIKE ? OR username LIKE ? OR firstName LIKE ? OR lastName LIKE ?)';
+            const searchPattern = `%${search}%`;
+            params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+        }
+        if (role) {
+            whereClause += ' AND role = ?';
+            params.push(role);
+        }
+        if (isActive !== undefined) {
+            whereClause += ' AND isActive = ?';
+            params.push(isActive);
+        }
+
+        const orderClause = `ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+        const limitClause = `LIMIT ? OFFSET ?`;
+
+        const [usersResult, countResult] = await Promise.all([
+            connection.execute(`SELECT * FROM users ${whereClause} ${orderClause} ${limitClause}`, [...params, limit, offset]),
+            connection.execute(`SELECT COUNT(*) as total FROM users ${whereClause}`, params)
+        ]);
+
+        const users = usersResult[0].map((user: any) => this.mapSQLUser(user));
+        const total = countResult[0][0].total;
+
+        return {
+            users,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        };
+    }
+
+    private async getAllUsersSQLite(connection: any, options: any): Promise<any> {
+        const { page, limit, search, role, isActive, sortBy, sortOrder, offset } = options;
+
+        return new Promise((resolve, reject) => {
+            let whereClause = 'WHERE 1=1';
+            const params: any[] = [];
+
+            if (search) {
+                whereClause += ' AND (email LIKE ? OR username LIKE ? OR firstName LIKE ? OR lastName LIKE ?)';
+                const searchPattern = `%${search}%`;
+                params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+            }
+            if (role) {
+                whereClause += ' AND role = ?';
+                params.push(role);
+            }
+            if (isActive !== undefined) {
+                whereClause += ' AND isActive = ?';
+                params.push(isActive ? 1 : 0);
+            }
+
+            const orderClause = `ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+            const limitClause = `LIMIT ? OFFSET ?`;
+
+            // Get total count first
+            connection.get(`SELECT COUNT(*) as total FROM users ${whereClause}`, params, (err: any, countRow: any) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                const total = countRow.total;
+
+                // Get users
+                connection.all(`SELECT * FROM users ${whereClause} ${orderClause} ${limitClause}`, [...params, limit, offset], (err: any, rows: any[]) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+
+                    const users = rows.map((user: any) => this.mapSQLUser(user));
+                    resolve({
+                        users,
+                        total,
+                        page,
+                        limit,
+                        totalPages: Math.ceil(total / limit)
+                    });
+                });
+            });
+        });
+    }
+
+    private async getAllUsersSupabase(connection: any, options: any): Promise<any> {
+        const { page, limit, search, role, isActive, sortBy, sortOrder, offset } = options;
+
+        let query = connection.from('users').select('*', { count: 'exact' });
+
+        if (search) {
+            query = query.or(`email.ilike.%${search}%,username.ilike.%${search}%,firstName.ilike.%${search}%,lastName.ilike.%${search}%`);
+        }
+        if (role) {
+            query = query.eq('role', role);
+        }
+        if (isActive !== undefined) {
+            query = query.eq('isActive', isActive);
+        }
+
+        query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+        query = query.range(offset, offset + limit - 1);
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+
+        return {
+            users: data ? data.map((user: any) => this.mapSupabaseUser(user)) : [],
+            total: count || 0,
+            page,
+            limit,
+            totalPages: Math.ceil((count || 0) / limit)
+        };
+    }
+
+    // Database-specific methods for updateUser
+    private async updateUserMongoDB(connection: any, user: User): Promise<void> {
+        await connection.collection('users').updateOne(
+            { id: user.id },
+            { $set: user }
+        );
+    }
+
+    private async updateUserMySQL(connection: any, user: User): Promise<void> {
+        await connection.execute(`
+            UPDATE users SET
+                email = ?, username = ?, role = ?, isActive = ?, updatedAt = ?,
+                firstName = ?, lastName = ?, hasCompletedWorkspaceSetup = ?
+            WHERE id = ?
+        `, [
+            user.email, user.username, user.role, user.isActive, user.updatedAt,
+            user.firstName, user.lastName, user.hasCompletedWorkspaceSetup, user.id
+        ]);
+    }
+
+    private async updateUserPostgreSQL(connection: any, user: User): Promise<void> {
+        await connection.query(`
+            UPDATE users SET
+                email = $1, username = $2, role = $3, "isActive" = $4, "updatedAt" = $5,
+                "firstName" = $6, "lastName" = $7, "hasCompletedWorkspaceSetup" = $8
+            WHERE id = $9
+        `, [
+            user.email, user.username, user.role, user.isActive, user.updatedAt,
+            user.firstName, user.lastName, user.hasCompletedWorkspaceSetup, user.id
+        ]);
+    }
+
+    private async updateUserSQLite(connection: any, user: User): Promise<void> {
+        return new Promise((resolve, reject) => {
+            connection.run(`
+                UPDATE users SET
+                    email = ?, username = ?, role = ?, isActive = ?, updatedAt = ?,
+                    firstName = ?, lastName = ?, hasCompletedWorkspaceSetup = ?
+                WHERE id = ?
+            `, [
+                user.email, user.username, user.role, user.isActive ? 1 : 0, user.updatedAt.toISOString(),
+                user.firstName, user.lastName, user.hasCompletedWorkspaceSetup ? 1 : 0, user.id
+            ], (err: any) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+    }
+
+    private async updateUserSupabase(connection: any, user: User): Promise<void> {
+        const { error } = await connection
+            .from('users')
+            .update({
+                email: user.email,
+                username: user.username,
+                role: user.role,
+                isActive: user.isActive,
+                updatedAt: user.updatedAt.toISOString(),
+                firstName: user.firstName,
+                lastName: user.lastName,
+                hasCompletedWorkspaceSetup: user.hasCompletedWorkspaceSetup
+            })
+            .eq('id', user.id);
+
+        if (error) throw error;
     }
 }

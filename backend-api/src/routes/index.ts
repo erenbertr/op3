@@ -16,6 +16,7 @@ import openaiProvidersRouter from './openai-providers';
 import openaiModelConfigsRouter from './openai-model-configs';
 import shareRouter from './share';
 import msgRouter from './msg';
+import adminRouter from './admin';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -26,6 +27,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Auth routes
     app.use(`${API_PREFIX}/auth`, authRouter);
+
+    // Admin routes (requires authentication and admin role)
+    app.use(`${API_PREFIX}/admin`, adminRouter);
 
     // Workspace routes
     app.use(`${API_PREFIX}/workspace`, workspaceRouter);

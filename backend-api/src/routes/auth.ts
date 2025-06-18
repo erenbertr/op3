@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { UserService } from '../services/userService';
+import { SystemSettingsService } from '../services/systemSettingsService';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import bcrypt from 'bcrypt';
@@ -7,6 +8,7 @@ import jwt from 'jsonwebtoken';
 
 const router = Router();
 const userService = UserService.getInstance();
+const systemSettingsService = SystemSettingsService.getInstance();
 
 // JWT secret - in production, this should be in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -38,6 +40,16 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     }
 
     try {
+        // Check if login is enabled (except for admin users)
+        const systemSettings = await systemSettingsService.getSystemSettings();
+        if (!systemSettings.loginEnabled) {
+            // Allow admin login even when login is disabled
+            const user = await userService.getUserByEmailForAuth(email);
+            if (!user || user.role !== 'admin') {
+                throw createError('Login is currently disabled', 403);
+            }
+        }
+
         // Get user by email
         const user = await userService.getUserByEmailForAuth(email);
 
@@ -124,6 +136,79 @@ router.get('/verify', asyncHandler(async (req: Request, res: Response) => {
             throw createError('Invalid token', 401);
         }
         throw createError('Token verification failed', 500);
+    }
+}));
+
+// User registration endpoint
+router.post('/register', asyncHandler(async (req: Request, res: Response) => {
+    const { email, password, username, firstName, lastName } = req.body;
+
+    if (!email || !password) {
+        throw createError('Email and password are required', 400);
+    }
+
+    try {
+        // Check if registration is enabled
+        const systemSettings = await systemSettingsService.getSystemSettings();
+        if (!systemSettings.registrationEnabled) {
+            throw createError('User registration is currently disabled', 403);
+        }
+
+        // Check if user already exists
+        const existingUser = await userService.getUserByEmailForAuth(email);
+        if (existingUser) {
+            throw createError('User with this email already exists', 409);
+        }
+
+        // Create user with default role from system settings
+        const result = await userService.createUser({
+            email,
+            username,
+            password,
+            role: systemSettings.defaultUserRole,
+            firstName,
+            lastName
+        });
+
+        if (!result.success) {
+            throw createError(result.message, 400);
+        }
+
+        // Generate JWT token for the new user
+        const token = jwt.sign(
+            {
+                userId: result.user!.id,
+                email: result.user!.email,
+                role: result.user!.role
+            },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            user: {
+                id: result.user!.id,
+                email: result.user!.email,
+                username: result.user!.username || result.user!.email.split('@')[0],
+                role: result.user!.role,
+                hasCompletedWorkspaceSetup: false
+            },
+            token
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        if (error instanceof Error) {
+            // Pass through specific error messages
+            if (error.message.includes('registration is currently disabled') ||
+                error.message.includes('already exists') ||
+                error.message.includes('Password must be') ||
+                error.message.includes('Invalid email format')) {
+                throw error;
+            }
+        }
+        throw createError('Registration failed', 500);
     }
 }));
 
