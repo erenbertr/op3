@@ -775,7 +775,7 @@ export function OpenRouterSettingsView() {
                                     <option value="all">All</option>
                                     <option value="small">≤8K tokens</option>
                                     <option value="medium">8K-32K tokens</option>
-                                    <option value="large">>32K tokens</option>
+                                    <option value="large">&gt;32K tokens</option>
                                 </select>
                             </div>
                             {(searchQuery || selectedProviders.length > 0 || priceFilter !== 'all' || contextFilter !== 'all') && (

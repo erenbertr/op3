@@ -15,6 +15,9 @@ import { StatisticsView } from '@/components/statistics/statistics-view';
 
 import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
+import { AnthropicSettingsView } from '@/components/workspace/anthropic-settings-view';
+import { GoogleSettingsView } from '@/components/workspace/google-settings-view';
+import { GrokSettingsView } from '@/components/workspace/grok-settings-view';
 import { AccountSettings } from '@/components/account/account-settings';
 import { AdminView } from '@/components/admin/admin-view';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -90,6 +93,15 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 }
                 if (pathname === '/ai-providers/openai') {
                     return { view: 'ai-providers-openai', params: {}, queryParams };
+                }
+                if (pathname === '/ai-providers/claude') {
+                    return { view: 'ai-providers-claude', params: {}, queryParams };
+                }
+                if (pathname === '/ai-providers/google') {
+                    return { view: 'ai-providers-google', params: {}, queryParams };
+                }
+                if (pathname === '/ai-providers/grok') {
+                    return { view: 'ai-providers-grok', params: {}, queryParams };
                 }
                 // Default to OpenAI (first menu)
                 return { view: 'ai-providers-openai', params: {}, queryParams };
@@ -368,6 +380,24 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     </AIProvidersLayout>
                 )}
 
+                {currentView === 'ai-providers-claude' && (
+                    <AIProvidersLayout currentView="claude">
+                        <AnthropicSettingsView />
+                    </AIProvidersLayout>
+                )}
+
+                {currentView === 'ai-providers-google' && (
+                    <AIProvidersLayout currentView="google">
+                        <GoogleSettingsView />
+                    </AIProvidersLayout>
+                )}
+
+                {currentView === 'ai-providers-grok' && (
+                    <AIProvidersLayout currentView="grok">
+                        <GrokSettingsView />
+                    </AIProvidersLayout>
+                )}
+
 
 
                 {currentView === 'selection' && (
@@ -483,7 +513,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 // Internal AIProvidersLayout component for client-side routing
 interface AIProvidersLayoutProps {
     children: React.ReactNode;
-    currentView: 'openai' | 'openrouter';
+    currentView: 'openai' | 'openrouter' | 'claude' | 'google' | 'grok';
 }
 
 function AIProvidersLayout({ children, currentView }: AIProvidersLayoutProps) {
@@ -502,6 +532,27 @@ function AIProvidersLayout({ children, currentView }: AIProvidersLayoutProps) {
             icon: <Bot className="h-4 w-4" />,
             description: 'Configure OpenRouter API and models',
             path: '/ai-providers/openrouter'
+        },
+        {
+            id: 'claude',
+            label: 'Anthropic (Claude)',
+            icon: <Bot className="h-4 w-4" />,
+            description: 'Configure Anthropic API and Claude models',
+            path: '/ai-providers/claude'
+        },
+        {
+            id: 'google',
+            label: 'Google (Gemini)',
+            icon: <Bot className="h-4 w-4" />,
+            description: 'Configure Google API and Gemini models',
+            path: '/ai-providers/google'
+        },
+        {
+            id: 'grok',
+            label: 'xAI (Grok)',
+            icon: <Bot className="h-4 w-4" />,
+            description: 'Configure xAI API and Grok models',
+            path: '/ai-providers/grok'
         }
     ];
 

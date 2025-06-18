@@ -1,0 +1,110 @@
+import { DatabaseManager } from '../config/database';
+
+export async function initializeAnthropicProvidersTable(): Promise<void> {
+    const dbManager = DatabaseManager.getInstance();
+    const config = dbManager.getCurrentConfig();
+    
+    if (!config) {
+        console.log('No database configuration found, skipping Anthropic providers table initialization');
+        return;
+    }
+
+    try {
+        const connection = await dbManager.getConnection();
+        
+        switch (config.type) {
+            case 'localdb':
+                await initLocalDBTable(connection);
+                break;
+                
+            case 'mongodb':
+                // MongoDB doesn't need explicit table creation
+                console.log('MongoDB: Anthropic providers collection will be created automatically');
+                break;
+                
+            case 'mysql':
+                await initMySQLTable(connection);
+                break;
+                
+            case 'postgresql':
+                await initPostgreSQLTable(connection);
+                break;
+                
+            default:
+                console.log(`Database type ${config.type} not supported for Anthropic providers table initialization`);
+        }
+        
+        console.log('Anthropic providers table initialized successfully');
+    } catch (error) {
+        console.error('Error initializing Anthropic providers table:', error);
+        throw error;
+    }
+}
+
+async function initLocalDBTable(connection: any): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        connection.run(`
+            CREATE TABLE IF NOT EXISTS anthropic_providers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                api_key TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        `, (err: any) => {
+            if (err) {
+                reject(err);
+            } else {
+                console.log('LocalDB: Anthropic providers table created/verified');
+                resolve();
+            }
+        });
+    });
+}
+
+async function initMySQLTable(connection: any): Promise<void> {
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS anthropic_providers (
+            id VARCHAR(36) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            api_key TEXT NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            INDEX idx_name (name),
+            INDEX idx_active (is_active),
+            INDEX idx_created (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `;
+    
+    await connection.execute(createTableQuery);
+    console.log('MySQL: Anthropic providers table created/verified');
+}
+
+async function initPostgreSQLTable(connection: any): Promise<void> {
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS anthropic_providers (
+            id UUID PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            api_key TEXT NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+        )
+    `;
+    
+    const createIndexQueries = [
+        'CREATE INDEX IF NOT EXISTS idx_anthropic_providers_name ON anthropic_providers(name)',
+        'CREATE INDEX IF NOT EXISTS idx_anthropic_providers_active ON anthropic_providers(is_active)',
+        'CREATE INDEX IF NOT EXISTS idx_anthropic_providers_created ON anthropic_providers(created_at)'
+    ];
+    
+    await connection.query(createTableQuery);
+    
+    for (const indexQuery of createIndexQueries) {
+        await connection.query(indexQuery);
+    }
+    
+    console.log('PostgreSQL: Anthropic providers table created/verified');
+}
