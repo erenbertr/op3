@@ -154,21 +154,12 @@ export function ChatInput({
 
     // Update state when derived values change - use useEffect instead of useMemo for side effects
     React.useEffect(() => {
-        console.log('🔄 Updating selectedPersonality:', {
-            derivedPersonality,
-            currentSelected: selectedPersonality
-        });
         setSelectedPersonality(derivedPersonality);
-    }, [derivedPersonality, selectedPersonality]);
+    }, [derivedPersonality]); // Removed selectedPersonality from deps to avoid overriding manual selections
 
     React.useEffect(() => {
-        console.log('🔄 Updating selectedProvider:', {
-            derivedProvider,
-            currentSelected: selectedProvider,
-            sessionAIProviderId
-        });
         setSelectedProvider(derivedProvider);
-    }, [derivedProvider, selectedProvider, sessionAIProviderId]);
+    }, [derivedProvider]); // Removed selectedProvider from deps to avoid overriding manual selections
 
     // Handle personality selection change
     const handlePersonalityChange = async (personalityId: string) => {
