@@ -10,7 +10,7 @@ import { Personality, FileAttachment, apiClient } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { FavoritedAIPersonalities } from './favorited-ai-personalities';
+import { FavoritedPersonalities } from './favorited-personalities';
 
 interface ChatInputProps {
     onSendMessage: (content: string, personalityId?: string, aiProviderId?: string, searchEnabled?: boolean, reasoningEnabled?: boolean, fileAttachments?: string[], attachmentData?: FileAttachment[]) => Promise<void>;
@@ -353,14 +353,16 @@ export function ChatInput({
                     </div>
                 )}
 
-                {/* Favorited AI Personalities */}
-                <FavoritedAIPersonalities
-                    workspaceId={workspaceId}
-                    selectedProvider={selectedProvider}
-                    selectedModelConfig={selectedModelConfig}
-                    onProviderChange={handleProviderChange}
-                    disabled={disabled}
-                />
+                {/* Favorited Personalities */}
+                {userId && (
+                    <FavoritedPersonalities
+                        workspaceId={workspaceId}
+                        userId={userId}
+                        selectedPersonalityId={selectedPersonality}
+                        onPersonalitySelect={handlePersonalityChange}
+                        disabled={disabled}
+                    />
+                )}
 
                 {/* Main input area */}
                 <div className="relative border rounded-lg bg-background focus-within:ring-2 focus-within:ring-ring">

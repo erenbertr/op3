@@ -454,6 +454,49 @@ export interface CheckAIFavoriteResponse {
     favorite: WorkspaceAIFavorite | null;
 }
 
+// Workspace Personality Favorites types
+export interface WorkspacePersonalityFavorite {
+    id: string;
+    workspaceId: string;
+    personalityId: string;
+    sortOrder: number;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface CreatePersonalityFavoriteRequest {
+    workspaceId: string;
+    personalityId: string;
+    sortOrder?: number;
+}
+
+export interface UpdatePersonalityFavoriteRequest {
+    sortOrder?: number;
+}
+
+export interface WorkspacePersonalityFavoritesResponse {
+    success: boolean;
+    favorites: WorkspacePersonalityFavorite[];
+    message?: string;
+}
+
+export interface CreatePersonalityFavoriteResponse {
+    success: boolean;
+    favorite?: WorkspacePersonalityFavorite;
+    message: string;
+}
+
+export interface DeletePersonalityFavoriteResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface CheckPersonalityFavoriteResponse {
+    success: boolean;
+    isFavorited: boolean;
+    favorite: WorkspacePersonalityFavorite | null;
+}
+
 export interface StreamChunk {
     type: 'chunk' | 'error' | 'complete' | 'search_start' | 'search_results' | 'reasoning_step';
     content?: string;
@@ -1341,6 +1384,35 @@ class ApiClient {
 
     async checkAIFavoriteStatus(workspaceId: string, aiProviderId: string): Promise<CheckAIFavoriteResponse> {
         return this.request<CheckAIFavoriteResponse>(`/workspace-ai-favorites/${workspaceId}/check/${aiProviderId}`);
+    }
+
+    // Workspace Personality Favorites API methods
+    async getWorkspacePersonalityFavorites(workspaceId: string): Promise<WorkspacePersonalityFavoritesResponse> {
+        return this.request<WorkspacePersonalityFavoritesResponse>(`/workspace-personality-favorites/${workspaceId}`);
+    }
+
+    async addPersonalityFavorite(request: CreatePersonalityFavoriteRequest): Promise<CreatePersonalityFavoriteResponse> {
+        return this.request<CreatePersonalityFavoriteResponse>('/workspace-personality-favorites', {
+            method: 'POST',
+            body: JSON.stringify(request),
+        });
+    }
+
+    async removePersonalityFavorite(favoriteId: string): Promise<DeletePersonalityFavoriteResponse> {
+        return this.request<DeletePersonalityFavoriteResponse>(`/workspace-personality-favorites/${favoriteId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    async reorderPersonalityFavorites(workspaceId: string, favoriteIds: string[]): Promise<DeletePersonalityFavoriteResponse> {
+        return this.request<DeletePersonalityFavoriteResponse>(`/workspace-personality-favorites/${workspaceId}/reorder`, {
+            method: 'PUT',
+            body: JSON.stringify({ favoriteIds }),
+        });
+    }
+
+    async checkPersonalityFavoriteStatus(workspaceId: string, personalityId: string): Promise<CheckPersonalityFavoriteResponse> {
+        return this.request<CheckPersonalityFavoriteResponse>(`/workspace-personality-favorites/${workspaceId}/check/${personalityId}`);
     }
 
     async getProviderStatistics(

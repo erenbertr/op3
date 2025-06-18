@@ -74,6 +74,13 @@ export const queryKeys = {
         check: (workspaceId: string, aiProviderId: string) => ['workspace-ai-favorites', 'check', workspaceId, aiProviderId] as const,
     },
 
+    // Workspace Personality Favorites operations
+    workspacePersonalityFavorites: {
+        all: () => ['workspace-personality-favorites'] as const,
+        byWorkspace: (workspaceId: string) => ['workspace-personality-favorites', 'workspace', workspaceId] as const,
+        check: (workspaceId: string, personalityId: string) => ['workspace-personality-favorites', 'check', workspaceId, personalityId] as const,
+    },
+
     // Statistics operations
     statistics: {
         all: () => ['statistics'] as const,

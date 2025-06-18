@@ -7,7 +7,7 @@ import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ChatView } from '@/components/workspace/chat/chat-view';
 import { CreateChatView } from '@/components/workspace/chat/create-chat-view';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
-import { AIPersonalityFavoritesModal } from '@/components/workspace/ai-personality-favorites-modal';
+import { PersonalityFavoritesModal } from '@/components/workspace/personality-favorites-modal';
 
 import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
@@ -437,12 +437,13 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                 )}
             </main>
 
-            {/* AI Personality Favorites Modal */}
+            {/* Personality Favorites Modal */}
             {favoritesModalWorkspaceId && (
-                <AIPersonalityFavoritesModal
+                <PersonalityFavoritesModal
                     open={favoritesModalOpen}
                     onOpenChange={setFavoritesModalOpen}
                     workspaceId={favoritesModalWorkspaceId}
+                    userId={currentUser.id}
                 />
             )}
         </div>
