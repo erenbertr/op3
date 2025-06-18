@@ -349,85 +349,90 @@ export function GrokSettingsView() {
 
     const renderKeysTab = () => (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h3 className="text-lg font-medium">API Keys</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Manage your xAI API keys for Grok models
-                    </p>
-                </div>
-                <Button onClick={handleAddKey} className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add API Key
-                </Button>
-            </div>
-
-            {isLoadingKeys ? (
-                <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-            ) : keys.length === 0 ? (
-                <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-8">
-                        <Key className="h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No API Keys</h3>
-                        <p className="text-sm text-muted-foreground text-center mb-4">
-                            Add your first xAI API key to get started with Grok models
-                        </p>
-                        <Button onClick={handleAddKey} className="flex items-center gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add API Key
-                        </Button>
-                    </CardContent>
-                </Card>
-            ) : (
-                <div className="grid gap-4">
-                    {keys.map((key) => (
-                        <Card key={key.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <div className="flex items-center gap-3">
-                                    <Key className="h-5 w-5 text-muted-foreground" />
-                                    <div>
-                                        <CardTitle className="text-base">{key.name}</CardTitle>
-                                        <p className="text-sm text-muted-foreground">
-                                            {key.apiKey} • Created {new Date(key.createdAt).toLocaleDateString()}
+            {/* Existing Keys or Empty State */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>API Keys</CardTitle>
+                    <CardDescription>
+                        Manage your xAI API keys
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {keys.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
+                                <Key className="h-12 w-12 text-muted-foreground" />
+                            </div>
+                            <h3 className="text-lg font-semibold mb-2">No API Keys</h3>
+                            <p className="text-muted-foreground mb-4 max-w-sm mx-auto">
+                                You haven't added any xAI API keys yet. Add your first key to get started with Grok models.
+                            </p>
+                            <Button onClick={handleAddKey}>
+                                <Plus className="h-4 w-4" />
+                                Add Your First API Key
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {keys.map((key) => (
+                                <div key={key.id} className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3">
+                                            <h3 className="font-medium">{key.name}</h3>
+                                            <Badge variant={key.isActive ? "default" : "secondary"}>
+                                                {key.isActive ? "Active" : "Inactive"}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            Key: {key.apiKey.substring(0, 8)}...
                                         </p>
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            checked={key.isActive}
+                                            onCheckedChange={() => updateKeyMutation.mutate({
+                                                id: key.id,
+                                                keyData: { isActive: !key.isActive }
+                                            })}
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleTestKey(key.id)}
+                                            disabled={testKeyMutation.isPending}
+                                        >
+                                            {testKeyMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <TestTube className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditKey(key)}
+                                        >
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleDeleteKey(key.id)}
+                                            disabled={deleteKeyMutation.isPending}
+                                        >
+                                            {deleteKeyMutation.isPending ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Badge variant={key.isActive ? "default" : "secondary"}>
-                                        {key.isActive ? "Active" : "Inactive"}
-                                    </Badge>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm">
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => handleEditKey(key)}>
-                                                <Edit className="h-4 w-4 mr-2" />
-                                                Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleTestKey(key.id)}>
-                                                <TestTube className="h-4 w-4 mr-2" />
-                                                Test
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => handleDeleteKey(key.id)}
-                                                className="text-destructive"
-                                            >
-                                                <Trash2 className="h-4 w-4 mr-2" />
-                                                Delete
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </CardHeader>
-                        </Card>
-                    ))}
-                </div>
-            )}
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 
@@ -527,7 +532,7 @@ export function GrokSettingsView() {
                 </div>
 
                 {/* Right: Add New Button */}
-                {activeTab === 'keys' && keys.length === 0 && (
+                {activeTab === 'keys' && (
                     <Button onClick={handleAddNewKey}>
                         <Plus className="h-4 w-4" />
                         Add New API Key
