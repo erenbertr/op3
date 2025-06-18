@@ -13,6 +13,7 @@ import filesRouter from './files';
 import openaiProvidersRouter from './openai-providers';
 import openaiModelConfigsRouter from './openai-model-configs';
 import shareRouter from './share';
+import msgRouter from './msg';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -59,6 +60,9 @@ export const setupRoutes = (app: Express): void => {
 
     // Share routes (public access - no authentication required)
     app.use(`${API_PREFIX}/share`, shareRouter);
+
+    // Message share routes (public access - no authentication required)
+    app.use(`${API_PREFIX}/msg`, msgRouter);
 
     // API info endpoint
     app.get(`${API_PREFIX}`, (req, res) => {

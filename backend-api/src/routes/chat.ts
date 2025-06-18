@@ -64,6 +64,104 @@ router.get('/sessions/:sessionId/messages', asyncHandler(async (req: Request, re
     res.json(result);
 }));
 
+// Share-related routes (MUST come before the more general :userId/:workspaceId route)
+// Create a public share for a chat session
+router.post('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.createChatShare(sessionId);
+    res.json(result);
+}));
+
+// Get share status for a chat session
+router.get('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.getShareStatus(sessionId);
+    res.json(result);
+}));
+
+// Update an existing share for a chat session
+router.put('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.updateShare(sessionId);
+    res.json(result);
+}));
+
+// Remove a share for a chat session
+router.delete('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+
+    if (!sessionId) {
+        throw createError('Session ID is required', 400);
+    }
+
+    const result = await chatService.removeShare(sessionId);
+    res.json(result);
+}));
+
+// Message sharing routes
+// Create a public share for a message
+router.post('/messages/:messageId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { messageId } = req.params;
+
+    if (!messageId) {
+        throw createError('Message ID is required', 400);
+    }
+
+    const result = await chatService.createMessageShare(messageId);
+    res.json(result);
+}));
+
+// Get share status for a message
+router.get('/messages/:messageId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { messageId } = req.params;
+
+    if (!messageId) {
+        throw createError('Message ID is required', 400);
+    }
+
+    const result = await chatService.getMessageShareStatus(messageId);
+    res.json(result);
+}));
+
+// Update an existing share for a message
+router.put('/messages/:messageId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { messageId } = req.params;
+
+    if (!messageId) {
+        throw createError('Message ID is required', 400);
+    }
+
+    const result = await chatService.updateMessageShare(messageId);
+    res.json(result);
+}));
+
+// Remove a share for a message
+router.delete('/messages/:messageId/share', asyncHandler(async (req: Request, res: Response) => {
+    const { messageId } = req.params;
+
+    if (!messageId) {
+        throw createError('Message ID is required', 400);
+    }
+
+    const result = await chatService.removeMessageShare(messageId);
+    res.json(result);
+}));
+
 // Get all chat sessions for a user in a specific workspace
 router.get('/sessions/:userId/:workspaceId', asyncHandler(async (req: Request, res: Response) => {
     const { userId, workspaceId } = req.params;
@@ -290,54 +388,6 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
     }
 
     res.end();
-}));
-
-// Create a public share for a chat session
-router.post('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-
-    if (!sessionId) {
-        throw createError('Session ID is required', 400);
-    }
-
-    const result = await chatService.createChatShare(sessionId);
-    res.json(result);
-}));
-
-// Get share status for a chat session
-router.get('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-
-    if (!sessionId) {
-        throw createError('Session ID is required', 400);
-    }
-
-    const result = await chatService.getShareStatus(sessionId);
-    res.json(result);
-}));
-
-// Update an existing share for a chat session
-router.put('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-
-    if (!sessionId) {
-        throw createError('Session ID is required', 400);
-    }
-
-    const result = await chatService.updateShare(sessionId);
-    res.json(result);
-}));
-
-// Remove a share for a chat session
-router.delete('/sessions/:sessionId/share', asyncHandler(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-
-    if (!sessionId) {
-        throw createError('Session ID is required', 400);
-    }
-
-    const result = await chatService.removeShare(sessionId);
-    res.json(result);
 }));
 
 export default router;

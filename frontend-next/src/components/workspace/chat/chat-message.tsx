@@ -3,13 +3,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch } from 'lucide-react';
+import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality } from '@/lib/api';
 import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
 import { FileAttachmentDisplay } from './file-attachment-display';
 import { AIProviderSelector } from './ai-provider-selector';
+import { MessageShareModal } from './message-share-modal';
 
 import ReactMarkdown, { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -35,6 +36,7 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const [justCopied, setJustCopied] = useState(false);
     const [showBranchDropdown, setShowBranchDropdown] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
+    const [showShareModal, setShowShareModal] = useState(false);
     const branchButtonRef = useRef<HTMLDivElement>(null);
 
     // Get OpenAI model configurations to resolve provider info
@@ -277,6 +279,13 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                             </Badge>
                         )}
 
+                        {/* Shared message indicator */}
+                        {message.isShared && (
+                            <div title="This message is shared" className="flex-shrink-0">
+                                <Share2 className="h-3 w-3 text-blue-600" />
+                            </div>
+                        )}
+
                         {/* Orange dot for partial messages */}
                         {message.isPartial && (
                             <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
@@ -320,6 +329,20 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                         ) : (
                             <Copy className="h-3 w-3" />
                         )}
+                    </Button>
+
+                    {/* Share button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                            "h-6 w-6 p-0",
+                            message.isShared && "text-blue-600 hover:text-blue-700"
+                        )}
+                        onClick={() => setShowShareModal(true)}
+                        title={message.isShared ? "Manage message share" : "Share message"}
+                    >
+                        <Share2 className="h-3 w-3" />
                     </Button>
 
                     {/* Branch button with dropdown */}
@@ -383,6 +406,18 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                     )}
                 </div>
             )}
+
+            {/* Message Share Modal */}
+            <MessageShareModal
+                isOpen={showShareModal}
+                onClose={() => setShowShareModal(false)}
+                messageId={message.id}
+                messageContent={message.content}
+                onShareStatusChange={(isShared) => {
+                    // Update the message's shared status
+                    message.isShared = isShared;
+                }}
+            />
         </div>
     );
 }

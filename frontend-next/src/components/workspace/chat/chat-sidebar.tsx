@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Plus, MessageSquare, Loader2, Share, Share2, Pin, PinOff, Trash2 } from 'lucide-react';
+import { Search, Plus, MessageSquare, Loader2, Share, Share2, Pin, PinOff, Trash2, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient, ChatSession } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
@@ -17,6 +17,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ShareManagementModal } from './share-management-modal';
+import { RenameChatModal } from './rename-chat-modal';
 
 interface ChatSidebarProps {
     className?: string;
@@ -53,6 +54,12 @@ export function ChatSidebar({
     const [shareModalOpen, setShareModalOpen] = useState(false);
     const [shareModalSessionId, setShareModalSessionId] = useState<string | null>(null);
     const [shareModalSessionTitle, setShareModalSessionTitle] = useState<string>('');
+
+    // Rename modal state
+    const [renameModalOpen, setRenameModalOpen] = useState(false);
+    const [renameSessionId, setRenameSessionId] = useState<string | null>(null);
+    const [renameSessionTitle, setRenameSessionTitle] = useState<string>('');
+    const [isRenaming, setIsRenaming] = useState(false);
     const { addToast } = useToast();
 
     // Simple pin/unpin handler without TanStack Query optimistic updates
@@ -193,6 +200,57 @@ export function ChatSidebar({
         setShareModalSessionId(chatId);
         setShareModalSessionTitle(chatTitle);
         setShareModalOpen(true);
+    };
+
+    const handleRename = (chatId: string, chatTitle: string) => {
+        setRenameSessionId(chatId);
+        setRenameSessionTitle(chatTitle);
+        setRenameModalOpen(true);
+    };
+
+    const handleRenameSubmit = async (newTitle: string) => {
+        if (!renameSessionId || !newTitle.trim()) return;
+
+        setIsRenaming(true);
+        try {
+            const result = await apiClient.updateChatSession(renameSessionId, {
+                title: newTitle.trim()
+            });
+
+            if (result.success && result.session) {
+                // Update the local sessions list
+                if (onSessionsUpdate) {
+                    const updatedSessions = chatSessions.map(session =>
+                        session.id === renameSessionId ? result.session! : session
+                    );
+                    onSessionsUpdate(updatedSessions);
+                }
+
+                addToast({
+                    title: "Chat Renamed",
+                    description: "Chat title updated successfully",
+                });
+
+                setRenameModalOpen(false);
+                setRenameSessionId(null);
+                setRenameSessionTitle('');
+            } else {
+                addToast({
+                    title: "Error",
+                    description: result.message || "Failed to rename chat",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            console.error('Error renaming chat:', error);
+            addToast({
+                title: "Error",
+                description: "An unexpected error occurred while renaming the chat",
+                variant: "destructive"
+            });
+        } finally {
+            setIsRenaming(false);
+        }
     };
 
     const handleShareStatusChange = (isShared: boolean) => {
@@ -425,6 +483,16 @@ export function ChatSidebar({
                                                                 <DropdownMenuItem
                                                                     onClick={(e) => {
                                                                         e.stopPropagation(); // Prevent chat click
+                                                                        handleRename(chat.id, chat.title);
+                                                                    }}
+                                                                    className="cursor-pointer"
+                                                                >
+                                                                    <Edit className="h-4 w-4 mr-2" />
+                                                                    Rename
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation(); // Prevent chat click
                                                                         handleShareManagement(chat.id, chat.title);
                                                                     }}
                                                                     className="cursor-pointer"
@@ -499,6 +567,16 @@ export function ChatSidebar({
                                                                             <DropdownMenuItem
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
+                                                                                    handleRename(childChat.id, childChat.title);
+                                                                                }}
+                                                                                className="cursor-pointer"
+                                                                            >
+                                                                                <Edit className="h-3 w-3 mr-2" />
+                                                                                Rename
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
                                                                                     handleShareManagement(childChat.id, childChat.title);
                                                                                 }}
                                                                                 className="cursor-pointer"
@@ -546,6 +624,19 @@ export function ChatSidebar({
                     onShareStatusChange={handleShareStatusChange}
                 />
             )}
+
+            {/* Rename Chat Modal */}
+            <RenameChatModal
+                isOpen={renameModalOpen}
+                onClose={() => {
+                    setRenameModalOpen(false);
+                    setRenameSessionId(null);
+                    setRenameSessionTitle('');
+                }}
+                currentTitle={renameSessionTitle}
+                onRename={handleRenameSubmit}
+                isLoading={isRenaming}
+            />
         </div>
     );
 }

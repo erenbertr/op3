@@ -23,6 +23,7 @@ export interface ChatMessage {
     apiMetadata?: ApiMetadata;
     isPartial?: boolean; // For messages that were stopped mid-stream
     fileAttachments?: string[]; // Array of file attachment IDs
+    isShared?: boolean; // Indicates if this message is currently shared
 }
 
 export interface SearchResult {
@@ -145,6 +146,63 @@ export interface RemoveShareRequest {
 export interface RemoveShareResponse {
     success: boolean;
     message: string;
+}
+
+// Message sharing types
+export interface SharedMessage {
+    id: string; // UUID for the share
+    originalMessageId: string; // Reference to the original message
+    content: string; // Message content for display
+    role: 'user' | 'assistant';
+    createdAt: Date;
+    isActive: boolean; // For future management/deletion
+}
+
+export interface CreateMessageShareRequest {
+    messageId: string;
+}
+
+export interface CreateMessageShareResponse {
+    success: boolean;
+    message: string;
+    shareId?: string;
+    shareUrl?: string;
+}
+
+export interface GetSharedMessageResponse {
+    success: boolean;
+    message: string;
+    sharedMessage?: SharedMessage;
+}
+
+export interface UpdateMessageShareRequest {
+    messageId: string;
+}
+
+export interface UpdateMessageShareResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface RemoveMessageShareRequest {
+    messageId: string;
+}
+
+export interface RemoveMessageShareResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface GetMessageShareStatusRequest {
+    messageId: string;
+}
+
+export interface GetMessageShareStatusResponse {
+    success: boolean;
+    message: string;
+    isShared: boolean;
+    shareId?: string;
+    shareUrl?: string;
 }
 
 export interface GetShareStatusRequest {

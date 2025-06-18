@@ -21,7 +21,14 @@ import {
     GetSharedChatResponse,
     GetShareStatusResponse,
     UpdateShareResponse,
-    RemoveShareResponse
+    RemoveShareResponse,
+    SharedMessage,
+    CreateMessageShareRequest,
+    CreateMessageShareResponse,
+    GetSharedMessageResponse,
+    GetMessageShareStatusResponse,
+    UpdateMessageShareResponse,
+    RemoveMessageShareResponse
 } from '../types/chat';
 
 export class ChatService {
@@ -386,11 +393,14 @@ export class ChatService {
             };
 
             // Save to database
+            console.log(`[SHARE DEBUG] Saving shared chat: ${sharedChat.id} for originalChatId: ${sharedChat.originalChatId}`);
             await this.saveSharedChat(sharedChat);
 
             // Update the original chat session to mark it as shared
+            console.log(`[SHARE DEBUG] Marking session ${sessionId} as shared`);
             session.isShared = true;
             await this.updateChatSessionInDb(session);
+            console.log(`[SHARE DEBUG] Share creation completed for session: ${sessionId}`);
 
             return {
                 success: true,
@@ -444,10 +454,12 @@ export class ChatService {
     /**
      * Get share status for a chat session
      */
-    public async getShareStatus(sessionId: string): Promise<GetShareStatusResponse> {
+    public async getShareStatus(sessionId: string): Promise<any> {
         try {
+            console.log(`[SHARE DEBUG] ${new Date().toISOString()} - Getting share status for session: ${sessionId}`);
             const session = await this.getChatSessionById(sessionId);
             if (!session) {
+                console.log(`[SHARE DEBUG] Session not found: ${sessionId}`);
                 return {
                     success: false,
                     message: 'Chat session not found',
@@ -455,6 +467,7 @@ export class ChatService {
                 };
             }
 
+            console.log(`[SHARE DEBUG] Session found. isShared: ${session.isShared}`);
             if (!session.isShared) {
                 return {
                     success: true,
@@ -464,8 +477,10 @@ export class ChatService {
             }
 
             // Find the shared chat entry
+            console.log(`[SHARE DEBUG] Looking for shared chat with originalChatId: ${sessionId}`);
             const sharedChat = await this.getSharedChatByOriginalId(sessionId);
             if (!sharedChat) {
+                console.log(`[SHARE DEBUG] No shared chat found for originalChatId: ${sessionId}. Marking session as not shared.`);
                 // Inconsistent state - session marked as shared but no share found
                 session.isShared = false;
                 await this.updateChatSessionInDb(session);
@@ -476,6 +491,7 @@ export class ChatService {
                 };
             }
 
+            console.log(`[SHARE DEBUG] Shared chat found: ${sharedChat.id}, messageCount: ${sharedChat.messageCount}`);
             return {
                 success: true,
                 message: 'Share status retrieved successfully',
@@ -498,7 +514,7 @@ export class ChatService {
     /**
      * Update an existing share with current chat messages
      */
-    public async updateShare(sessionId: string): Promise<UpdateShareResponse> {
+    public async updateShare(sessionId: string): Promise<any> {
         try {
             const session = await this.getChatSessionById(sessionId);
             if (!session) {
@@ -560,7 +576,7 @@ export class ChatService {
     /**
      * Remove a share for a chat session
      */
-    public async removeShare(sessionId: string): Promise<RemoveShareResponse> {
+    public async removeShare(sessionId: string): Promise<any> {
         try {
             const session = await this.getChatSessionById(sessionId);
             if (!session) {
@@ -596,6 +612,219 @@ export class ChatService {
             return {
                 success: false,
                 message: `Failed to remove share: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
+     * Create a public share for a message
+     */
+    public async createMessageShare(messageId: string): Promise<CreateMessageShareResponse> {
+        try {
+            // Get the original message
+            const message = await this.getMessageById(messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found'
+                };
+            }
+
+            // Check if message is already shared
+            const existingSharedMessage = await this.getSharedMessageByOriginalId(messageId);
+            if (existingSharedMessage) {
+                return {
+                    success: true,
+                    message: 'Message is already shared',
+                    shareId: existingSharedMessage.id,
+                    shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/msg/${existingSharedMessage.id}`
+                };
+            }
+
+            // Create shared message
+            const sharedMessage: SharedMessage = {
+                id: uuidv4(),
+                originalMessageId: messageId,
+                content: message.content,
+                role: message.role,
+                createdAt: new Date(),
+                isActive: true
+            };
+
+            // Save shared message
+            await this.saveSharedMessage(sharedMessage);
+
+            // Update the original message to mark it as shared
+            message.isShared = true;
+            await this.updateMessage(message);
+
+            return {
+                success: true,
+                message: 'Message shared successfully',
+                shareId: sharedMessage.id,
+                shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/msg/${sharedMessage.id}`
+            };
+        } catch (error) {
+            console.error('Error creating message share:', error);
+            return {
+                success: false,
+                message: 'Failed to create message share'
+            };
+        }
+    }
+
+    /**
+     * Get a shared message by its share ID (public access)
+     */
+    public async getSharedMessage(shareId: string): Promise<GetSharedMessageResponse> {
+        try {
+            const sharedMessage = await this.getSharedMessageById(shareId);
+            if (!sharedMessage || !sharedMessage.isActive) {
+                return {
+                    success: false,
+                    message: 'Shared message not found or no longer available'
+                };
+            }
+
+            return {
+                success: true,
+                message: 'Shared message retrieved successfully',
+                sharedMessage
+            };
+        } catch (error) {
+            console.error('Error getting shared message:', error);
+            return {
+                success: false,
+                message: 'Failed to retrieve shared message'
+            };
+        }
+    }
+
+    /**
+     * Get share status for a message
+     */
+    public async getMessageShareStatus(messageId: string): Promise<GetMessageShareStatusResponse> {
+        try {
+            const message = await this.getMessageById(messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found',
+                    isShared: false
+                };
+            }
+
+            if (!message.isShared) {
+                return {
+                    success: true,
+                    message: 'Message is not shared',
+                    isShared: false
+                };
+            }
+
+            const sharedMessage = await this.getSharedMessageByOriginalId(messageId);
+            if (!sharedMessage || !sharedMessage.isActive) {
+                return {
+                    success: true,
+                    message: 'Message is not shared',
+                    isShared: false
+                };
+            }
+
+            return {
+                success: true,
+                message: 'Message share status retrieved successfully',
+                isShared: true,
+                shareId: sharedMessage.id,
+                shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/msg/${sharedMessage.id}`
+            };
+        } catch (error) {
+            console.error('Error getting message share status:', error);
+            return {
+                success: false,
+                message: 'Failed to get message share status',
+                isShared: false
+            };
+        }
+    }
+
+    /**
+     * Update a message share (refresh content)
+     */
+    public async updateMessageShare(messageId: string): Promise<UpdateMessageShareResponse> {
+        try {
+            const message = await this.getMessageById(messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found'
+                };
+            }
+
+            const sharedMessage = await this.getSharedMessageByOriginalId(messageId);
+            if (!sharedMessage) {
+                return {
+                    success: false,
+                    message: 'No active share found for this message'
+                };
+            }
+
+            // Update shared message content
+            sharedMessage.content = message.content;
+            await this.updateSharedMessage(sharedMessage);
+
+            return {
+                success: true,
+                message: 'Message share updated successfully'
+            };
+        } catch (error) {
+            console.error('Error updating message share:', error);
+            return {
+                success: false,
+                message: 'Failed to update message share'
+            };
+        }
+    }
+
+    /**
+     * Remove a share for a message
+     */
+    public async removeMessageShare(messageId: string): Promise<RemoveMessageShareResponse> {
+        try {
+            const message = await this.getMessageById(messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found'
+                };
+            }
+
+            if (!message.isShared) {
+                return {
+                    success: true,
+                    message: 'Message is not currently shared'
+                };
+            }
+
+            // Get existing shared message
+            const existingSharedMessage = await this.getSharedMessageByOriginalId(messageId);
+            if (existingSharedMessage) {
+                await this.deleteSharedMessage(existingSharedMessage.id);
+            }
+
+            // Update message to mark as not shared
+            message.isShared = false;
+            await this.updateMessage(message);
+
+            return {
+                success: true,
+                message: 'Message share removed successfully'
+            };
+        } catch (error) {
+            console.error('Error removing message share:', error);
+            return {
+                success: false,
+                message: 'Failed to remove message share'
             };
         }
     }
@@ -974,6 +1203,185 @@ export class ChatService {
         }
     }
 
+    // Message helper methods
+    private async getMessageById(messageId: string): Promise<ChatMessage | null> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                return this.getMessageByIdSQLite(connection, messageId);
+            case 'mongodb':
+                return this.getMessageByIdMongo(connection, messageId);
+            case 'mysql':
+            case 'postgresql':
+                return this.getMessageByIdSQL(connection, messageId);
+            case 'supabase':
+                return this.getMessageByIdSupabase(connection, messageId);
+            default:
+                throw new Error(`Database type ${config.type} not supported for message operations yet`);
+        }
+    }
+
+    private async updateMessage(message: ChatMessage): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.updateMessageSQLite(connection, message);
+                break;
+            case 'mongodb':
+                await this.updateMessageMongo(connection, message);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.updateMessageSQL(connection, message);
+                break;
+            case 'supabase':
+                await this.updateMessageSupabase(connection, message);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for message operations yet`);
+        }
+    }
+
+    // Shared message helper methods
+    private async saveSharedMessage(sharedMessage: SharedMessage): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.saveSharedMessageSQLite(connection, sharedMessage);
+                break;
+            case 'mongodb':
+                await this.saveSharedMessageMongo(connection, sharedMessage);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.saveSharedMessageSQL(connection, sharedMessage);
+                break;
+            case 'supabase':
+                await this.saveSharedMessageSupabase(connection, sharedMessage);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared message operations yet`);
+        }
+    }
+
+    private async getSharedMessageById(shareId: string): Promise<SharedMessage | null> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                return this.getSharedMessageByIdSQLite(connection, shareId);
+            case 'mongodb':
+                return this.getSharedMessageByIdMongo(connection, shareId);
+            case 'mysql':
+            case 'postgresql':
+                return this.getSharedMessageByIdSQL(connection, shareId);
+            case 'supabase':
+                return this.getSharedMessageByIdSupabase(connection, shareId);
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared message operations yet`);
+        }
+    }
+
+    private async getSharedMessageByOriginalId(originalMessageId: string): Promise<SharedMessage | null> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                return this.getSharedMessageByOriginalIdSQLite(connection, originalMessageId);
+            case 'mongodb':
+                return this.getSharedMessageByOriginalIdMongo(connection, originalMessageId);
+            case 'mysql':
+            case 'postgresql':
+                return this.getSharedMessageByOriginalIdSQL(connection, originalMessageId);
+            case 'supabase':
+                return this.getSharedMessageByOriginalIdSupabase(connection, originalMessageId);
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared message operations yet`);
+        }
+    }
+
+    private async updateSharedMessage(sharedMessage: SharedMessage): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.updateSharedMessageSQLite(connection, sharedMessage);
+                break;
+            case 'mongodb':
+                await this.updateSharedMessageMongo(connection, sharedMessage);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.updateSharedMessageSQL(connection, sharedMessage);
+                break;
+            case 'supabase':
+                await this.updateSharedMessageSupabase(connection, sharedMessage);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared message operations yet`);
+        }
+    }
+
+    private async deleteSharedMessage(shareId: string): Promise<void> {
+        const config = this.dbManager.getCurrentConfig();
+        if (!config) {
+            throw new Error('No database configuration found');
+        }
+
+        const connection = await this.dbManager.getConnection();
+
+        switch (config.type) {
+            case 'localdb':
+                await this.deleteSharedMessageSQLite(connection, shareId);
+                break;
+            case 'mongodb':
+                await this.deleteSharedMessageMongo(connection, shareId);
+                break;
+            case 'mysql':
+            case 'postgresql':
+                await this.deleteSharedMessageSQL(connection, shareId);
+                break;
+            case 'supabase':
+                await this.deleteSharedMessageSupabase(connection, shareId);
+                break;
+            default:
+                throw new Error(`Database type ${config.type} not supported for shared message operations yet`);
+        }
+    }
+
     /**
      * SQLite-specific implementations
      */
@@ -1041,6 +1449,7 @@ export class ChatService {
                     apiMetadata TEXT,
                     isPartial BOOLEAN DEFAULT 0,
                     fileAttachments TEXT,
+                    isShared BOOLEAN DEFAULT 0,
                     FOREIGN KEY (sessionId) REFERENCES chat_sessions(id)
                 )
             `, (err: any) => {
@@ -1051,8 +1460,8 @@ export class ChatService {
 
                 // Insert message
                 db.run(`
-                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial, fileAttachments)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial, fileAttachments, isShared)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     message.id,
                     message.sessionId,
@@ -1063,7 +1472,8 @@ export class ChatService {
                     message.createdAt.toISOString(),
                     message.apiMetadata ? JSON.stringify(message.apiMetadata) : null,
                     message.isPartial ? 1 : 0,
-                    message.fileAttachments ? JSON.stringify(message.fileAttachments) : null
+                    message.fileAttachments ? JSON.stringify(message.fileAttachments) : null,
+                    message.isShared ? 1 : 0
                 ], (err: any) => {
                     if (err) reject(err);
                     else resolve();
@@ -1232,6 +1642,360 @@ export class ChatService {
         });
     }
 
+    private async saveSharedMessageSQLite(db: any, sharedMessage: SharedMessage): Promise<void> {
+        return new Promise((resolve, reject) => {
+            // Create shared_messages table if it doesn't exist
+            db.run(`
+                CREATE TABLE IF NOT EXISTS shared_messages (
+                    id TEXT PRIMARY KEY,
+                    originalMessageId TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+                    createdAt TEXT NOT NULL,
+                    isActive BOOLEAN DEFAULT 1,
+                    FOREIGN KEY (originalMessageId) REFERENCES chat_messages(id)
+                )
+            `, (err: any) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                // Insert shared message
+                db.run(`
+                    INSERT INTO shared_messages (id, originalMessageId, content, role, createdAt, isActive)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `, [
+                    sharedMessage.id,
+                    sharedMessage.originalMessageId,
+                    sharedMessage.content,
+                    sharedMessage.role,
+                    sharedMessage.createdAt.toISOString(),
+                    sharedMessage.isActive ? 1 : 0
+                ], (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        });
+    }
+
+    private async getMessageByIdSQLite(db: any, messageId: string): Promise<ChatMessage | null> {
+        return new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM chat_messages WHERE id = ?',
+                [messageId],
+                (err: any, row: any) => {
+                    if (err) {
+                        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                            resolve(null);
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(row ? this.mapSQLChatMessage(row) : null);
+                    }
+                }
+            );
+        });
+    }
+
+    private async updateMessageSQLite(db: any, message: ChatMessage): Promise<void> {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE chat_messages SET content = ?, isShared = ? WHERE id = ?',
+                [message.content, message.isShared ? 1 : 0, message.id],
+                (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    }
+
+    private async getSharedMessageByIdSQLite(db: any, shareId: string): Promise<SharedMessage | null> {
+        return new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM shared_messages WHERE id = ?',
+                [shareId],
+                (err: any, row: any) => {
+                    if (err) {
+                        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                            resolve(null);
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(row ? this.mapSQLSharedMessage(row) : null);
+                    }
+                }
+            );
+        });
+    }
+
+    private async getSharedMessageByOriginalIdSQLite(db: any, originalMessageId: string): Promise<SharedMessage | null> {
+        return new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM shared_messages WHERE originalMessageId = ? AND isActive = 1',
+                [originalMessageId],
+                (err: any, row: any) => {
+                    if (err) {
+                        if (err.code === 'SQLITE_ERROR' && err.message.includes('no such table')) {
+                            resolve(null);
+                        } else {
+                            reject(err);
+                        }
+                    } else {
+                        resolve(row ? this.mapSQLSharedMessage(row) : null);
+                    }
+                }
+            );
+        });
+    }
+
+    private async updateSharedMessageSQLite(db: any, sharedMessage: SharedMessage): Promise<void> {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'UPDATE shared_messages SET content = ? WHERE id = ?',
+                [sharedMessage.content, sharedMessage.id],
+                (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    }
+
+    private async deleteSharedMessageSQLite(db: any, shareId: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            db.run(
+                'DELETE FROM shared_messages WHERE id = ?',
+                [shareId],
+                (err: any) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    }
+
+    /**
+     * MongoDB implementations for message operations
+     */
+    private async getMessageByIdMongo(db: any, messageId: string): Promise<ChatMessage | null> {
+        const collection = db.collection('chat_messages');
+        const message = await collection.findOne({ _id: messageId });
+        return message ? this.mapMongoChatMessage(message) : null;
+    }
+
+    private async updateMessageMongo(db: any, message: ChatMessage): Promise<void> {
+        const collection = db.collection('chat_messages');
+        await collection.updateOne(
+            { _id: message.id },
+            {
+                $set: {
+                    content: message.content,
+                    isShared: message.isShared || false
+                }
+            }
+        );
+    }
+
+    private async saveSharedMessageMongo(db: any, sharedMessage: SharedMessage): Promise<void> {
+        const collection = db.collection('shared_messages');
+        await collection.createIndex({ originalMessageId: 1 });
+        await collection.createIndex({ createdAt: -1 });
+
+        await collection.insertOne({
+            _id: sharedMessage.id,
+            originalMessageId: sharedMessage.originalMessageId,
+            content: sharedMessage.content,
+            role: sharedMessage.role,
+            createdAt: sharedMessage.createdAt,
+            isActive: sharedMessage.isActive
+        });
+    }
+
+    private async getSharedMessageByIdMongo(db: any, shareId: string): Promise<SharedMessage | null> {
+        const collection = db.collection('shared_messages');
+        const sharedMessage = await collection.findOne({ _id: shareId });
+        return sharedMessage ? this.mapMongoSharedMessage(sharedMessage) : null;
+    }
+
+    private async getSharedMessageByOriginalIdMongo(db: any, originalMessageId: string): Promise<SharedMessage | null> {
+        const collection = db.collection('shared_messages');
+        const sharedMessage = await collection.findOne({ originalMessageId, isActive: true });
+        return sharedMessage ? this.mapMongoSharedMessage(sharedMessage) : null;
+    }
+
+    private async updateSharedMessageMongo(db: any, sharedMessage: SharedMessage): Promise<void> {
+        const collection = db.collection('shared_messages');
+        await collection.updateOne(
+            { _id: sharedMessage.id },
+            {
+                $set: {
+                    content: sharedMessage.content
+                }
+            }
+        );
+    }
+
+    private async deleteSharedMessageMongo(db: any, shareId: string): Promise<void> {
+        const collection = db.collection('shared_messages');
+        await collection.deleteOne({ _id: shareId });
+    }
+
+    /**
+     * SQL (MySQL/PostgreSQL) implementations for message operations
+     */
+    private async getMessageByIdSQL(connection: any, messageId: string): Promise<ChatMessage | null> {
+        const [rows] = await connection.execute(
+            'SELECT * FROM chat_messages WHERE id = ?',
+            [messageId]
+        );
+        return rows.length > 0 ? this.mapSQLChatMessage(rows[0]) : null;
+    }
+
+    private async updateMessageSQL(connection: any, message: ChatMessage): Promise<void> {
+        await connection.execute(
+            'UPDATE chat_messages SET content = ?, isShared = ? WHERE id = ?',
+            [message.content, message.isShared || false, message.id]
+        );
+    }
+
+    private async saveSharedMessageSQL(connection: any, sharedMessage: SharedMessage): Promise<void> {
+        // Create table if not exists
+        await connection.execute(`
+            CREATE TABLE IF NOT EXISTS shared_messages (
+                id VARCHAR(36) PRIMARY KEY,
+                originalMessageId VARCHAR(36) NOT NULL,
+                content TEXT NOT NULL,
+                role ENUM('user', 'assistant') NOT NULL,
+                createdAt DATETIME NOT NULL,
+                isActive BOOLEAN DEFAULT TRUE,
+                INDEX idx_originalMessageId (originalMessageId),
+                INDEX idx_createdAt (createdAt),
+                FOREIGN KEY (originalMessageId) REFERENCES chat_messages(id) ON DELETE CASCADE
+            )
+        `);
+
+        await connection.execute(`
+            INSERT INTO shared_messages (id, originalMessageId, content, role, createdAt, isActive)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [sharedMessage.id, sharedMessage.originalMessageId, sharedMessage.content, sharedMessage.role, sharedMessage.createdAt, sharedMessage.isActive]);
+    }
+
+    private async getSharedMessageByIdSQL(connection: any, shareId: string): Promise<SharedMessage | null> {
+        const [rows] = await connection.execute(
+            'SELECT * FROM shared_messages WHERE id = ?',
+            [shareId]
+        );
+        return rows.length > 0 ? this.mapSQLSharedMessage(rows[0]) : null;
+    }
+
+    private async getSharedMessageByOriginalIdSQL(connection: any, originalMessageId: string): Promise<SharedMessage | null> {
+        const [rows] = await connection.execute(
+            'SELECT * FROM shared_messages WHERE originalMessageId = ? AND isActive = TRUE',
+            [originalMessageId]
+        );
+        return rows.length > 0 ? this.mapSQLSharedMessage(rows[0]) : null;
+    }
+
+    private async updateSharedMessageSQL(connection: any, sharedMessage: SharedMessage): Promise<void> {
+        await connection.execute(
+            'UPDATE shared_messages SET content = ? WHERE id = ?',
+            [sharedMessage.content, sharedMessage.id]
+        );
+    }
+
+    private async deleteSharedMessageSQL(connection: any, shareId: string): Promise<void> {
+        await connection.execute('DELETE FROM shared_messages WHERE id = ?', [shareId]);
+    }
+
+    /**
+     * Supabase implementations for message operations
+     */
+    private async getMessageByIdSupabase(supabase: any, messageId: string): Promise<ChatMessage | null> {
+        const { data, error } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('id', messageId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? this.mapSupabaseChatMessage(data) : null;
+    }
+
+    private async updateMessageSupabase(supabase: any, message: ChatMessage): Promise<void> {
+        const { error } = await supabase
+            .from('chat_messages')
+            .update({
+                content: message.content,
+                isShared: message.isShared || false
+            })
+            .eq('id', message.id);
+
+        if (error) throw error;
+    }
+
+    private async saveSharedMessageSupabase(supabase: any, sharedMessage: SharedMessage): Promise<void> {
+        const { error } = await supabase
+            .from('shared_messages')
+            .insert([{
+                id: sharedMessage.id,
+                originalMessageId: sharedMessage.originalMessageId,
+                content: sharedMessage.content,
+                role: sharedMessage.role,
+                createdAt: sharedMessage.createdAt.toISOString(),
+                isActive: sharedMessage.isActive
+            }]);
+
+        if (error) throw error;
+    }
+
+    private async getSharedMessageByIdSupabase(supabase: any, shareId: string): Promise<SharedMessage | null> {
+        const { data, error } = await supabase
+            .from('shared_messages')
+            .select('*')
+            .eq('id', shareId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? this.mapSupabaseSharedMessage(data) : null;
+    }
+
+    private async getSharedMessageByOriginalIdSupabase(supabase: any, originalMessageId: string): Promise<SharedMessage | null> {
+        const { data, error } = await supabase
+            .from('shared_messages')
+            .select('*')
+            .eq('originalMessageId', originalMessageId)
+            .eq('isActive', true)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? this.mapSupabaseSharedMessage(data) : null;
+    }
+
+    private async updateSharedMessageSupabase(supabase: any, sharedMessage: SharedMessage): Promise<void> {
+        const { error } = await supabase
+            .from('shared_messages')
+            .update({
+                content: sharedMessage.content
+            })
+            .eq('id', sharedMessage.id);
+
+        if (error) throw error;
+    }
+
+    private async deleteSharedMessageSupabase(supabase: any, shareId: string): Promise<void> {
+        const { error } = await supabase
+            .from('shared_messages')
+            .delete()
+            .eq('id', shareId);
+
+        if (error) throw error;
+    }
+
     private async getSharedChatByIdSQLite(db: any, shareId: string): Promise<SharedChat | null> {
         return new Promise((resolve, reject) => {
             db.get(
@@ -1337,7 +2101,8 @@ export class ChatService {
             createdAt: message.createdAt,
             apiMetadata: message.apiMetadata,
             isPartial: message.isPartial || false,
-            fileAttachments: message.fileAttachments
+            fileAttachments: message.fileAttachments,
+            isShared: message.isShared || false
         });
     }
 
@@ -1378,8 +2143,9 @@ export class ChatService {
     }
 
     private async updateChatSessionMongo(db: any, session: ChatSession): Promise<void> {
+        console.log(`[SHARE DEBUG] MongoDB: Updating session ${session.id} with isShared: ${session.isShared}`);
         const collection = db.collection('chat_sessions');
-        await collection.updateOne(
+        const result = await collection.updateOne(
             { _id: session.id },
             {
                 $set: {
@@ -1393,6 +2159,7 @@ export class ChatService {
                 }
             }
         );
+        console.log(`[SHARE DEBUG] MongoDB: Session update result - matched: ${result.matchedCount}, modified: ${result.modifiedCount}`);
     }
 
     private async deleteChatSessionMongo(db: any, sessionId: string): Promise<void> {
@@ -1406,11 +2173,12 @@ export class ChatService {
     }
 
     private async saveSharedChatMongo(db: any, sharedChat: SharedChat): Promise<void> {
+        console.log(`[SHARE DEBUG] MongoDB: Saving shared chat with id: ${sharedChat.id}, originalChatId: ${sharedChat.originalChatId}, isActive: ${sharedChat.isActive}`);
         const collection = db.collection('shared_chats');
         await collection.createIndex({ originalChatId: 1 });
         await collection.createIndex({ createdAt: -1 });
 
-        await collection.insertOne({
+        const result = await collection.insertOne({
             _id: sharedChat.id,
             originalChatId: sharedChat.originalChatId,
             title: sharedChat.title,
@@ -1419,6 +2187,7 @@ export class ChatService {
             createdAt: sharedChat.createdAt,
             isActive: sharedChat.isActive
         });
+        console.log(`[SHARE DEBUG] MongoDB: Shared chat saved successfully. Inserted ID: ${result.insertedId}`);
     }
 
     private async getSharedChatByIdMongo(db: any, shareId: string): Promise<SharedChat | null> {
@@ -1428,8 +2197,10 @@ export class ChatService {
     }
 
     private async getSharedChatByOriginalIdMongo(db: any, originalChatId: string): Promise<SharedChat | null> {
+        console.log(`[SHARE DEBUG] MongoDB: Looking for shared chat with originalChatId: ${originalChatId}`);
         const collection = db.collection('shared_chats');
         const sharedChat = await collection.findOne({ originalChatId, isActive: true });
+        console.log(`[SHARE DEBUG] MongoDB: Found shared chat:`, sharedChat ? { id: sharedChat._id, originalChatId: sharedChat.originalChatId, isActive: sharedChat.isActive } : null);
         return sharedChat ? this.mapMongoSharedChat(sharedChat) : null;
     }
 
@@ -1498,15 +2269,16 @@ export class ChatService {
                 apiMetadata JSON,
                 isPartial BOOLEAN DEFAULT FALSE,
                 fileAttachments JSON,
+                isShared BOOLEAN DEFAULT FALSE,
                 INDEX idx_sessionId (sessionId),
                 INDEX idx_createdAt (createdAt)
             )
         `);
 
         await connection.execute(`
-            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial, fileAttachments)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null, message.isPartial || false, message.fileAttachments ? JSON.stringify(message.fileAttachments) : null]);
+            INSERT INTO chat_messages (id, sessionId, content, role, personalityId, aiProviderId, createdAt, apiMetadata, isPartial, fileAttachments, isShared)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [message.id, message.sessionId, message.content, message.role, message.personalityId, message.aiProviderId, message.createdAt, message.apiMetadata ? JSON.stringify(message.apiMetadata) : null, message.isPartial || false, message.fileAttachments ? JSON.stringify(message.fileAttachments) : null, message.isShared || false]);
     }
 
     private async getUserChatSessionsSQL(connection: any, userId: string, workspaceId?: string): Promise<ChatSession[]> {
@@ -1647,7 +2419,8 @@ export class ChatService {
                 createdAt: message.createdAt.toISOString(),
                 apiMetadata: message.apiMetadata,
                 isPartial: message.isPartial || false,
-                fileAttachments: message.fileAttachments
+                fileAttachments: message.fileAttachments,
+                isShared: message.isShared || false
             }]);
 
         if (error) throw error;
@@ -1843,7 +2616,8 @@ export class ChatService {
             createdAt: new Date(row.createdAt),
             apiMetadata,
             isPartial: Boolean(row.isPartial),
-            fileAttachments
+            fileAttachments,
+            isShared: Boolean(row.isShared)
         };
     }
 
@@ -1874,7 +2648,8 @@ export class ChatService {
             createdAt: doc.createdAt,
             apiMetadata: doc.apiMetadata,
             isPartial: Boolean(doc.isPartial),
-            fileAttachments: doc.fileAttachments
+            fileAttachments: doc.fileAttachments,
+            isShared: Boolean(doc.isShared)
         };
     }
 
@@ -1905,7 +2680,8 @@ export class ChatService {
             createdAt: new Date(row.createdAt),
             apiMetadata: row.apiMetadata,
             isPartial: Boolean(row.isPartial),
-            fileAttachments: row.fileAttachments
+            fileAttachments: row.fileAttachments,
+            isShared: Boolean(row.isShared)
         };
     }
 
@@ -1952,6 +2728,42 @@ export class ChatService {
             title: row.title,
             messages: row.messages || [],
             messageCount: row.messageCount || (row.messages || []).length,
+            createdAt: new Date(row.createdAt),
+            isActive: Boolean(row.isActive)
+        };
+    }
+
+    /**
+     * Shared message mapping functions
+     */
+    private mapSQLSharedMessage(row: any): SharedMessage {
+        return {
+            id: row.id,
+            originalMessageId: row.originalMessageId,
+            content: row.content,
+            role: row.role,
+            createdAt: new Date(row.createdAt),
+            isActive: Boolean(row.isActive)
+        };
+    }
+
+    private mapMongoSharedMessage(doc: any): SharedMessage {
+        return {
+            id: doc._id,
+            originalMessageId: doc.originalMessageId,
+            content: doc.content,
+            role: doc.role,
+            createdAt: doc.createdAt,
+            isActive: Boolean(doc.isActive)
+        };
+    }
+
+    private mapSupabaseSharedMessage(row: any): SharedMessage {
+        return {
+            id: row.id,
+            originalMessageId: row.originalMessageId,
+            content: row.content,
+            role: row.role,
             createdAt: new Date(row.createdAt),
             isActive: Boolean(row.isActive)
         };

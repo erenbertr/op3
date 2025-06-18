@@ -6,25 +6,25 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { Copy, Share2, RefreshCw, Trash2, ExternalLink } from 'lucide-react';
-import { apiClient, GetShareStatusResponse, UpdateShareResponse, RemoveShareResponse } from '@/lib/api';
+import { apiClient, GetMessageShareStatusResponse, UpdateMessageShareResponse, RemoveMessageShareResponse } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-interface ShareManagementModalProps {
+interface MessageShareModalProps {
     isOpen: boolean;
     onClose: () => void;
-    sessionId: string;
-    sessionTitle: string;
+    messageId: string;
+    messageContent: string;
     onShareStatusChange?: (isShared: boolean) => void;
 }
 
-export function ShareManagementModal({
+export function MessageShareModal({
     isOpen,
     onClose,
-    sessionId,
-    sessionTitle,
+    messageId,
+    messageContent,
     onShareStatusChange
-}: ShareManagementModalProps) {
-    const [shareStatus, setShareStatus] = useState<GetShareStatusResponse | null>(null);
+}: MessageShareModalProps) {
+    const [shareStatus, setShareStatus] = useState<GetMessageShareStatusResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isRemoving, setIsRemoving] = useState(false);
@@ -33,18 +33,18 @@ export function ShareManagementModal({
 
     // Load share status when modal opens
     useEffect(() => {
-        if (isOpen && sessionId) {
+        if (isOpen && messageId) {
             loadShareStatus();
         }
-    }, [isOpen, sessionId]);
+    }, [isOpen, messageId]);
 
     const loadShareStatus = async () => {
         setIsLoading(true);
         try {
-            const response = await apiClient.getShareStatus(sessionId);
+            const response = await apiClient.getMessageShareStatus(messageId);
             setShareStatus(response);
         } catch (error) {
-            console.error('Error loading share status:', error);
+            console.error('Error loading message share status:', error);
             addToast({
                 title: "Error",
                 description: "Failed to load share status",
@@ -84,11 +84,11 @@ export function ShareManagementModal({
     const handleUpdateShare = async () => {
         setIsUpdating(true);
         try {
-            const response = await apiClient.updateShare(sessionId);
+            const response = await apiClient.updateMessageShare(messageId);
             if (response.success) {
                 addToast({
                     title: "Share Updated",
-                    description: `Share updated with ${response.messageCount} messages`,
+                    description: "Message share updated successfully",
                 });
                 // Reload share status to get updated info
                 await loadShareStatus();
@@ -100,7 +100,7 @@ export function ShareManagementModal({
                 });
             }
         } catch (error) {
-            console.error('Error updating share:', error);
+            console.error('Error updating message share:', error);
             addToast({
                 title: "Error",
                 description: "Failed to update share",
@@ -114,11 +114,11 @@ export function ShareManagementModal({
     const handleRemoveShare = async () => {
         setIsRemoving(true);
         try {
-            const response = await apiClient.removeShare(sessionId);
+            const response = await apiClient.removeMessageShare(messageId);
             if (response.success) {
                 addToast({
                     title: "Share Removed",
-                    description: "Chat share has been removed successfully",
+                    description: "Message share has been removed successfully",
                 });
                 onShareStatusChange?.(false);
                 onClose();
@@ -130,7 +130,7 @@ export function ShareManagementModal({
                 });
             }
         } catch (error) {
-            console.error('Error removing share:', error);
+            console.error('Error removing message share:', error);
             addToast({
                 title: "Error",
                 description: "Failed to remove share",
@@ -145,11 +145,11 @@ export function ShareManagementModal({
     const handleCreateShare = async () => {
         setIsUpdating(true);
         try {
-            const response = await apiClient.shareChat(sessionId);
+            const response = await apiClient.shareMessage(messageId);
             if (response.success) {
                 addToast({
                     title: "Share Created",
-                    description: "Chat has been shared successfully",
+                    description: "Message has been shared successfully",
                 });
                 onShareStatusChange?.(true);
                 // Reload share status to get the new share info
@@ -162,7 +162,7 @@ export function ShareManagementModal({
                 });
             }
         } catch (error) {
-            console.error('Error creating share:', error);
+            console.error('Error creating message share:', error);
             addToast({
                 title: "Error",
                 description: "Failed to create share",
@@ -178,7 +178,7 @@ export function ShareManagementModal({
             <Dialog open={isOpen} onOpenChange={onClose}>
                 <DialogContent className="w-[80vw] max-w-2xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Share Management</DialogTitle>
+                        <DialogTitle>Message Share Management</DialogTitle>
                     </DialogHeader>
                     <div className="flex items-center justify-center h-64">
                         <div className="text-center space-y-4">
@@ -197,21 +197,26 @@ export function ShareManagementModal({
                 <DialogHeader>
                     <DialogTitle className="flex items-center space-x-2">
                         <Share2 className="h-5 w-5" />
-                        <span>Share Management</span>
+                        <span>Message Share Management</span>
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-6">
-                    {/* Chat Info */}
+                    {/* Message Info */}
                     <div className="space-y-2">
-                        <h3 className="text-lg font-medium">Chat Details</h3>
-                        <p className="text-sm text-muted-foreground truncate" title={sessionTitle}>
-                            {sessionTitle}
-                        </p>
+                        <h3 className="text-lg font-medium">Message Content</h3>
+                        <div className="p-3 bg-muted/30 rounded-lg border">
+                            <p className="text-sm whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                                {messageContent.length > 200 
+                                    ? `${messageContent.substring(0, 200)}...` 
+                                    : messageContent
+                                }
+                            </p>
+                        </div>
                     </div>
 
                     {shareStatus?.isShared ? (
-                        /* Shared Chat Management */
+                        /* Shared Message Management */
                         <div className="space-y-6">
                             {/* Share URL Section */}
                             <div className="space-y-3">
@@ -240,23 +245,6 @@ export function ShareManagementModal({
                                         <ExternalLink className="h-4 w-4" />
                                         <span>Open</span>
                                     </Button>
-                                </div>
-                            </div>
-
-                            {/* Share Info */}
-                            <div className="space-y-3">
-                                <h3 className="text-lg font-medium">Share Information</h3>
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <span className="text-muted-foreground">Messages included:</span>
-                                        <span className="ml-2 font-medium">{shareStatus.messageCount}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-muted-foreground">Created:</span>
-                                        <span className="ml-2 font-medium">
-                                            {shareStatus.createdAt ? new Date(shareStatus.createdAt).toLocaleDateString() : 'Unknown'}
-                                        </span>
-                                    </div>
                                 </div>
                             </div>
 
@@ -314,7 +302,7 @@ export function ShareManagementModal({
                         <div className="space-y-4">
                             <h3 className="text-lg font-medium">Create Share</h3>
                             <p className="text-sm text-muted-foreground">
-                                This chat is not currently shared. Create a public share link to allow others to view this conversation.
+                                This message is not currently shared. Create a public share link to allow others to view this message.
                             </p>
                             <Button
                                 onClick={handleCreateShare}

@@ -126,6 +126,7 @@ export interface ChatMessage {
     isPartial?: boolean; // For messages that were stopped mid-stream
     fileAttachments?: string[]; // Array of file attachment IDs
     attachmentData?: FileAttachment[]; // Direct attachment data for display (client-side only)
+    isShared?: boolean; // Indicates if this message is currently shared
 }
 
 export interface SearchResult {
@@ -271,6 +272,63 @@ export interface GetShareStatusResponse {
     shareUrl?: string;
     messageCount?: number;
     createdAt?: string;
+}
+
+// Message sharing types
+export interface SharedMessage {
+    id: string; // UUID for the share
+    originalMessageId: string; // Reference to the original message
+    content: string; // Message content for display
+    role: 'user' | 'assistant';
+    createdAt: string;
+    isActive: boolean; // For future management/deletion
+}
+
+export interface CreateMessageShareRequest {
+    messageId: string;
+}
+
+export interface CreateMessageShareResponse {
+    success: boolean;
+    message: string;
+    shareId?: string;
+    shareUrl?: string;
+}
+
+export interface GetSharedMessageResponse {
+    success: boolean;
+    message: string;
+    sharedMessage?: SharedMessage;
+}
+
+export interface UpdateMessageShareRequest {
+    messageId: string;
+}
+
+export interface UpdateMessageShareResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface RemoveMessageShareRequest {
+    messageId: string;
+}
+
+export interface RemoveMessageShareResponse {
+    success: boolean;
+    message: string;
+}
+
+export interface GetMessageShareStatusRequest {
+    messageId: string;
+}
+
+export interface GetMessageShareStatusResponse {
+    success: boolean;
+    message: string;
+    isShared: boolean;
+    shareId?: string;
+    shareUrl?: string;
 }
 
 // File attachment types
@@ -924,6 +982,33 @@ class ApiClient {
 
     async removeShare(sessionId: string): Promise<RemoveShareResponse> {
         return this.request<RemoveShareResponse>(`/chat/sessions/${sessionId}/share`, {
+            method: 'DELETE',
+        });
+    }
+
+    // Message sharing methods
+    async shareMessage(messageId: string): Promise<CreateMessageShareResponse> {
+        return this.request<CreateMessageShareResponse>(`/chat/messages/${messageId}/share`, {
+            method: 'POST',
+        });
+    }
+
+    async getSharedMessage(shareId: string): Promise<GetSharedMessageResponse> {
+        return this.request<GetSharedMessageResponse>(`/msg/${shareId}`);
+    }
+
+    async getMessageShareStatus(messageId: string): Promise<GetMessageShareStatusResponse> {
+        return this.request<GetMessageShareStatusResponse>(`/chat/messages/${messageId}/share`);
+    }
+
+    async updateMessageShare(messageId: string): Promise<UpdateMessageShareResponse> {
+        return this.request<UpdateMessageShareResponse>(`/chat/messages/${messageId}/share`, {
+            method: 'PUT',
+        });
+    }
+
+    async removeMessageShare(messageId: string): Promise<RemoveMessageShareResponse> {
+        return this.request<RemoveMessageShareResponse>(`/chat/messages/${messageId}/share`, {
             method: 'DELETE',
         });
     }
