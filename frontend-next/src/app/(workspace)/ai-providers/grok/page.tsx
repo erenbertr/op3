@@ -1,7 +1,7 @@
 "use client"
 
-import { GrokSettingsView } from '@/components/workspace/grok-settings-view';
+import { AppWrapper } from '@/components/app-wrapper';
 
 export default function GrokPage() {
-    return <GrokSettingsView />;
+    return <AppWrapper />;
 }

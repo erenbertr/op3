@@ -323,6 +323,30 @@ export function AnthropicSettingsView() {
         setIsAddModelModalOpen(false);
     };
 
+    const handleAddNewKey = () => {
+        handleAddKey();
+    };
+
+    const handleAddModelClick = () => {
+        if (keys.length === 1) {
+            fetchModelsForKey(keys[0].id);
+            setIsAddModelModalOpen(true);
+        } else if (keys.length > 1) {
+            // Show key selection first
+            addToast({
+                title: "Select API Key",
+                description: "Please select an API key first by clicking on it",
+                variant: "default"
+            });
+        } else {
+            addToast({
+                title: "No API Keys",
+                description: "Please add an API key first",
+                variant: "destructive"
+            });
+        }
+    };
+
     const renderKeysTab = () => (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -480,29 +504,41 @@ export function AnthropicSettingsView() {
     );
 
     return (
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold mb-2">Anthropic (Claude) Settings</h1>
-                <p className="text-muted-foreground">
-                    Configure your Anthropic API keys and Claude models
-                </p>
-            </div>
+        <div className="space-y-6">
+            {/* Tabs and Add Button Row */}
+            <div className="flex items-center justify-between">
+                {/* Left: Tabs */}
+                <div className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+                    {tabs.map((tab) => (
+                        <Button
+                            key={tab.id}
+                            variant="ghost"
+                            size="sm"
+                            className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${activeTab === tab.id
+                                ? "bg-background text-foreground shadow-sm"
+                                : "hover:bg-background/50"
+                                }`}
+                            onClick={() => setActiveTab(tab.id)}
+                        >
+                            {tab.icon}
+                            <span className="ml-2">{tab.label}</span>
+                        </Button>
+                    ))}
+                </div>
 
-            {/* Horizontal Tabs */}
-            <div className="flex space-x-1 mb-6 bg-muted p-1 rounded-lg">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.id
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
+                {/* Right: Add New Button */}
+                {activeTab === 'keys' && keys.length === 0 && (
+                    <Button onClick={handleAddNewKey}>
+                        <Plus className="h-4 w-4" />
+                        Add New API Key
+                    </Button>
+                )}
+                {activeTab === 'models' && (
+                    <Button onClick={handleAddModelClick}>
+                        <Plus className="h-4 w-4" />
+                        Add Model
+                    </Button>
+                )}
             </div>
 
             {/* Tab Content */}
