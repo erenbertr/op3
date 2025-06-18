@@ -124,7 +124,7 @@ export function ChatInput({
 
     // Derived state for AI provider selection - now only uses model configs
     const derivedProvider = useMemo(() => {
-        // Try to find a matching model config if sessionAIProviderId is a model config ID
+        // If we have a sessionAIProviderId, try to find a matching model config
         if (sessionAIProviderId && openaiModelConfigs.length > 0) {
             const sessionModelConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
             if (sessionModelConfig) {
@@ -133,13 +133,20 @@ export function ChatInput({
             }
         }
 
-        // Fall back to active model config or first available
-        if (openaiModelConfigs.length > 0) {
+        // Only fall back to active/first model config if there's no sessionAIProviderId
+        // This preserves the session's AI provider selection even if it's not found in current configs
+        if (!sessionAIProviderId && openaiModelConfigs.length > 0) {
             const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
             if (activeModelConfig) {
                 setSelectedModelConfig(activeModelConfig.id);
                 return 'openai';
             }
+        }
+
+        // If sessionAIProviderId exists but no matching config found, preserve it
+        if (sessionAIProviderId) {
+            setSelectedModelConfig(sessionAIProviderId);
+            return 'openai'; // Assume it's an OpenAI model config
         }
 
         return '';

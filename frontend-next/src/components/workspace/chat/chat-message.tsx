@@ -233,13 +233,13 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                         <GitBranch className="h-3 w-3" />
                     </Button>
 
-                    {showBranchDropdown && position === 'top' && (
+                    {showBranchDropdown && (
                         <div
                             className={cn(
                                 "absolute right-0 z-50 w-64",
-                                dropdownPosition === 'above'
-                                    ? "bottom-full mb-1"
-                                    : "top-full mt-1"
+                                position === 'top'
+                                    ? (dropdownPosition === 'above' ? "bottom-full mb-1" : "top-full mt-1")
+                                    : "bottom-full mb-1" // For bottom position, always show above
                             )}
                         >
                             <AIProviderSelector
@@ -250,7 +250,7 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
                                 className="w-full"
                                 placeholder="Select AI Provider for Branch"
                                 size="sm"
-                                dropdownPosition={dropdownPosition}
+                                dropdownPosition={position === 'top' ? dropdownPosition : 'above'}
                                 workspaceId={workspaceId}
                                 showFavoriteButtons={true}
                             />
