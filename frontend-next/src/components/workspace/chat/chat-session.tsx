@@ -148,6 +148,9 @@ export function ChatSessionComponent({
             // Clear search enabled state
             setCurrentSearchEnabled(false);
 
+            // Reset scroll tracking for new session
+            setUserHasScrolledUp(false);
+
             console.log('🔄 Session changed to:', currentSessionId);
         }
     }, [session?.id]);
@@ -186,10 +189,17 @@ export function ChatSessionComponent({
     const [lastMessageCount, setLastMessageCount] = useState(0);
     const [isUserScrolling, setIsUserScrolling] = useState(false);
     const [isMessagesVisible, setIsMessagesVisible] = useState(false);
+    const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
 
     // Function to calculate and update spacer height with proper timing
     const updateSpacerHeight = React.useCallback((isNewMessage = false, skipScroll = false) => {
         if (!scrollAreaRef.current || isUserScrolling) return;
+
+        // If user has scrolled up manually, only allow scrolling for new messages they initiated
+        if (userHasScrolledUp && !isNewMessage) {
+            console.log('📍 Skipping scroll - user has scrolled up and this is not a new message');
+            return;
+        }
 
         const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
         const spacerElement = scrollContainer?.querySelector('#chat-spacer');
@@ -322,7 +332,7 @@ export function ChatSessionComponent({
             }
         }); // End of requestAnimationFrame
 
-    }, [isStreaming, messages.length, isUserScrolling]);
+    }, [isStreaming, messages.length, isUserScrolling, userHasScrolledUp]);
 
     // Track when new messages are added or streaming state changes
     React.useEffect(() => {
@@ -383,10 +393,21 @@ export function ChatSessionComponent({
         const handleScroll = () => {
             setIsUserScrolling(true);
 
-            // Reset spacer when user manually scrolls up (not when auto-scrolling down)
-            const spacerElement = scrollContainer.querySelector('#chat-spacer');
+            // Check if user is scrolled away from bottom
             const isScrolledToBottom = scrollContainer.scrollTop >= scrollContainer.scrollHeight - scrollContainer.clientHeight - 50;
 
+            // Track if user has scrolled up from bottom
+            if (!isScrolledToBottom) {
+                setUserHasScrolledUp(true);
+                console.log('📍 User scrolled up - disabling auto-scroll');
+            } else if (userHasScrolledUp && isScrolledToBottom) {
+                // User scrolled back to bottom manually - re-enable auto-scroll for new messages
+                setUserHasScrolledUp(false);
+                console.log('📍 User scrolled back to bottom - re-enabling auto-scroll');
+            }
+
+            // Reset spacer when user manually scrolls up (not when auto-scrolling down)
+            const spacerElement = scrollContainer.querySelector('#chat-spacer');
             if (spacerElement && spacerElement.style.height !== '0px' && !isScrolledToBottom) {
                 spacerElement.style.height = '0px';
                 console.log('📍 Reset spacer due to manual scroll up');
@@ -400,10 +421,6 @@ export function ChatSessionComponent({
             // Reset user scrolling flag after scroll ends
             scrollTimeout = setTimeout(() => {
                 setIsUserScrolling(false);
-                // DO NOT re-apply spacer automatically when user scrolls back to bottom
-                // This was causing inappropriate auto-scroll behavior when users manually
-                // scrolled up to read previous messages and then scrolled back down
-                // The spacer will be properly managed by message updates and new message events
             }, 300);
         };
 
@@ -415,7 +432,7 @@ export function ChatSessionComponent({
                 clearTimeout(scrollTimeout);
             }
         };
-    }, []);
+    }, [userHasScrolledUp]);
 
 
 
@@ -516,6 +533,9 @@ export function ChatSessionComponent({
         // Immediately add user message to state
         setMessages(prev => [...prev, userMessage]);
         console.log('📝 Added user message to state');
+
+        // Reset scroll tracking when user sends a new message - they want to see the response
+        setUserHasScrolledUp(false);
 
         // Set search pending state if search is enabled
         if (searchEnabled) {
