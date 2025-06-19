@@ -51,7 +51,7 @@ export class StatisticsServiceNew {
                 select: ['id']
             });
 
-            if (!sessions.success || sessions.data.length === 0) {
+            if (sessions.data.length === 0) {
                 return {
                     success: true,
                     message: 'No sessions found for this workspace',
@@ -72,9 +72,7 @@ export class StatisticsServiceNew {
                 orderBy: [{ field: 'createdAt', direction: 'asc' }]
             });
 
-            if (!messages.success) {
-                throw new Error('Failed to fetch messages for statistics');
-            }
+            // Process the messages data
 
             const statistics = this.processStatisticsData(messages.data);
             return {

@@ -66,15 +66,16 @@ export class OpenAIModelConfigServiceNew {
             const modelConfig: OpenAIModelConfig = {
                 id: uuidv4(),
                 keyId: request.keyId,
-                keyName: keyInfo.name,
                 modelId: request.modelId,
                 modelName: request.modelName,
                 customName: request.customName,
-                capabilities: request.capabilities || {},
-                pricing: request.pricing || {},
+                capabilities: request.capabilities,
+                pricing: request.pricing,
+                contextWindow: request.contextWindow,
+                maxOutputTokens: request.maxOutputTokens,
                 isActive: true,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                createdAt: new Date(),
+                updatedAt: new Date()
             };
 
             // Insert model config - works with ANY database type!
@@ -138,12 +139,25 @@ export class OpenAIModelConfigServiceNew {
 
             // Prepare update data
             const updateData: Partial<OpenAIModelConfig> = {
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date()
             };
 
             if (request.customName !== undefined) updateData.customName = request.customName;
-            if (request.capabilities !== undefined) updateData.capabilities = request.capabilities;
-            if (request.pricing !== undefined) updateData.pricing = request.pricing;
+            if (request.capabilities !== undefined) {
+                updateData.capabilities = {
+                    supportsImages: request.capabilities.supportsImages ?? existingConfig.capabilities.supportsImages,
+                    supportsFiles: request.capabilities.supportsFiles ?? existingConfig.capabilities.supportsFiles,
+                    supportsWebSearch: request.capabilities.supportsWebSearch ?? existingConfig.capabilities.supportsWebSearch,
+                    supportsReasoning: request.capabilities.supportsReasoning ?? existingConfig.capabilities.supportsReasoning
+                };
+            }
+            if (request.pricing !== undefined) {
+                updateData.pricing = {
+                    inputTokens: request.pricing.inputTokens ?? existingConfig.pricing.inputTokens,
+                    outputTokens: request.pricing.outputTokens ?? existingConfig.pricing.outputTokens,
+                    currency: request.pricing.currency ?? existingConfig.pricing.currency
+                };
+            }
             if (request.isActive !== undefined) updateData.isActive = request.isActive;
 
             // Update model config - works with ANY database type!
@@ -315,7 +329,7 @@ export class OpenAIModelConfigServiceNew {
             const newStatus = !config.isActive;
             const result = await this.universalDb.update<OpenAIModelConfig>('openai_model_configs', id, {
                 isActive: newStatus,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date()
             });
 
             if (result.modifiedCount > 0) {
