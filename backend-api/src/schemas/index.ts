@@ -308,39 +308,104 @@ export const PersonalitySchema: SchemaDefinition = {
             primaryKey: true,
             required: true
         },
-        name: {
+        userId: {
+            type: 'uuid',
+            required: true
+        },
+        title: {
             type: 'string',
             required: true,
             maxLength: 255
         },
-        description: {
-            type: 'text'
-        },
-        systemPrompt: {
+        prompt: {
             type: 'text',
             required: true
+        }
+    },
+    indexes: [
+        ['userId'],
+        ['title']
+    ],
+    timestamps: true
+};
+
+export const OpenAIModelConfigSchema: SchemaDefinition = {
+    tableName: 'openai_model_configs',
+    collectionName: 'openaiModelConfigs',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        keyId: {
+            type: 'uuid',
+            required: true
+        },
+        keyName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        modelId: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        modelName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        customName: {
+            type: 'string',
+            maxLength: 255
+        },
+        capabilities: {
+            type: 'json'
+        },
+        pricing: {
+            type: 'json'
         },
         isActive: {
             type: 'boolean',
             defaultValue: true
-        },
-        isBuiltIn: {
-            type: 'boolean',
-            defaultValue: false
-        },
-        category: {
-            type: 'string',
-            maxLength: 100
-        },
-        tags: {
-            type: 'json'
         }
     },
     indexes: [
-        ['isActive'],
-        ['isBuiltIn'],
-        ['category'],
-        ['name']
+        ['keyId'],
+        ['modelId'],
+        ['keyId', 'modelId'],
+        ['isActive']
+    ],
+    timestamps: true
+};
+
+export const GlobalOpenRouterSettingsSchema: SchemaDefinition = {
+    tableName: 'global_openrouter_settings',
+    collectionName: 'globalOpenRouterSettings',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        apiKey: {
+            type: 'string',
+            required: true,
+            maxLength: 500
+        },
+        selectedModels: {
+            type: 'json',
+            required: true
+        },
+        isEnabled: {
+            type: 'boolean',
+            defaultValue: true
+        }
+    },
+    indexes: [
+        ['isEnabled']
     ],
     timestamps: true
 };
@@ -357,7 +422,11 @@ export const AllSchemas = {
     workspaceGroups: WorkspaceGroupSchema, // MongoDB collection name
     ai_provider_configs: AIProviderConfigSchema,
     aiProviderConfigs: AIProviderConfigSchema, // MongoDB collection name
-    personalities: PersonalitySchema
+    personalities: PersonalitySchema,
+    openai_model_configs: OpenAIModelConfigSchema,
+    openaiModelConfigs: OpenAIModelConfigSchema, // MongoDB collection name
+    global_openrouter_settings: GlobalOpenRouterSettingsSchema,
+    globalOpenRouterSettings: GlobalOpenRouterSettingsSchema // MongoDB collection name
 };
 
 /**
