@@ -6,6 +6,7 @@ import { WorkspaceTabBar } from '@/components/workspace/workspace-tab-bar';
 import { PinnedGroupTabs } from '@/components/workspace/pinned-group-tabs';
 import { ChatView } from '@/components/workspace/chat/chat-view';
 import { CreateChatView } from '@/components/workspace/chat/create-chat-view';
+import { WorkspaceSetup } from '@/components/workspace/workspace-setup';
 import { WorkspaceGroups } from '@/components/workspace/workspace-groups';
 import { PersonalityFavoritesModal } from '@/components/workspace/personality-favorites-modal';
 
@@ -435,18 +436,21 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     <div className="h-full overflow-y-auto">
                         <div className="container mx-auto px-4 py-6">
                             <div className="max-w-4xl mx-auto">
-                                <div className="text-center py-12">
-                                    <h1 className="text-2xl font-bold mb-4">Workspace Creation</h1>
-                                    <p className="text-muted-foreground mb-6">
-                                        Workspace creation is now handled through the workspace groups interface.
+                                <div className="mb-6">
+                                    <h1 className="text-2xl font-bold mb-2">Create New Workspace</h1>
+                                    <p className="text-muted-foreground">
+                                        {queryParams.groupId ? 'Create a workspace in the selected group' : 'Create a new workspace'}
                                     </p>
-                                    <button
-                                        onClick={() => navigateToWorkspaceSelection()}
-                                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                                    >
-                                        Go to Workspaces
-                                    </button>
                                 </div>
+                                <WorkspaceSetup
+                                    userId={currentUser.id}
+                                    groupId={queryParams.groupId || null}
+                                    onComplete={(workspace) => {
+                                        if (workspace) {
+                                            navigateToWorkspace(workspace.id);
+                                        }
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>
