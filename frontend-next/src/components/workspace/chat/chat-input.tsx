@@ -130,54 +130,61 @@ export function ChatInput({
 
     // Remove old provider logic - now using only OpenAI model configs
 
+    // Use refs to track previous values to prevent infinite loops
+    const prevSessionPersonalityId = useRef(sessionPersonalityId);
+    const prevSessionAIProviderId = useRef(sessionAIProviderId);
+
     // Initialize state from session props - avoid infinite loops by only updating when session props change
     React.useEffect(() => {
-        // Handle personality selection from session
-        if (sessionPersonalityId !== undefined && sessionPersonalityId !== selectedPersonality) {
-            setSelectedPersonality(sessionPersonalityId);
-        } else if (sessionPersonalityId === undefined && selectedPersonality !== '') {
-            setSelectedPersonality('');
+        // Handle personality selection from session - only update if session prop actually changed
+        if (prevSessionPersonalityId.current !== sessionPersonalityId) {
+            prevSessionPersonalityId.current = sessionPersonalityId;
+            if (sessionPersonalityId !== undefined) {
+                setSelectedPersonality(sessionPersonalityId);
+            } else {
+                setSelectedPersonality('');
+            }
         }
-    }, [sessionPersonalityId]); // Only depend on session prop, not state to avoid infinite loops
+    }, [sessionPersonalityId]);
 
 
     React.useEffect(() => {
-        // Handle provider/model config selection from session
-        if (sessionAIProviderId) {
-            // Check if sessionAIProviderId matches any OpenAI model config
-            const sessionOpenAIConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
-            if (sessionOpenAIConfig) {
-                if (selectedModelConfig !== sessionAIProviderId) {
+        // Handle provider/model config selection from session - only update if session prop actually changed
+        if (prevSessionAIProviderId.current !== sessionAIProviderId) {
+            prevSessionAIProviderId.current = sessionAIProviderId;
+
+            if (sessionAIProviderId) {
+                // Check if sessionAIProviderId matches any OpenAI model config
+                const sessionOpenAIConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
+                if (sessionOpenAIConfig) {
                     setSelectedModelConfig(sessionAIProviderId);
-                }
-                if (selectedProvider !== 'openai') {
                     setSelectedProvider('openai');
+                    return;
                 }
-                return;
-            }
 
-            // Check if sessionAIProviderId matches any Google model config
-            const sessionGoogleConfig = googleModelConfigs.find(config => config.id === sessionAIProviderId);
-            if (sessionGoogleConfig) {
-                if (selectedModelConfig !== sessionAIProviderId) {
+                // Check if sessionAIProviderId matches any Google model config
+                const sessionGoogleConfig = googleModelConfigs.find(config => config.id === sessionAIProviderId);
+                if (sessionGoogleConfig) {
                     setSelectedModelConfig(sessionAIProviderId);
-                }
-                if (selectedProvider !== 'google') {
                     setSelectedProvider('google');
+                    return;
                 }
-                return;
-            }
 
-            // If sessionAIProviderId exists but no matching config found, preserve it
-            if (selectedModelConfig !== sessionAIProviderId) {
+                // If sessionAIProviderId exists but no matching config found, preserve it
                 setSelectedModelConfig(sessionAIProviderId);
-            }
-            if (selectedProvider !== 'openai') {
                 setSelectedProvider('openai'); // Default to openai for backward compatibility
+            } else {
+                // Clear selection if no session provider
+                setSelectedProvider('');
+                setSelectedModelConfig('');
             }
-        } else if (!sessionAIProviderId) {
-            // Only set default if no session provider and configs are available
-            if (openaiModelConfigs.length > 0 && !selectedModelConfig) {
+        }
+    }, [sessionAIProviderId, openaiModelConfigs, googleModelConfigs]);
+
+    // Separate effect for setting default when no session provider but configs are available
+    React.useEffect(() => {
+        if (!sessionAIProviderId && !selectedModelConfig) {
+            if (openaiModelConfigs.length > 0) {
                 const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
                 if (activeModelConfig) {
                     setSelectedModelConfig(activeModelConfig.id);
@@ -186,7 +193,7 @@ export function ChatInput({
                 }
             }
 
-            if (googleModelConfigs.length > 0 && !selectedModelConfig && openaiModelConfigs.length === 0) {
+            if (googleModelConfigs.length > 0 && openaiModelConfigs.length === 0) {
                 const activeModelConfig = googleModelConfigs.find(config => config.isActive) || googleModelConfigs[0];
                 if (activeModelConfig) {
                     setSelectedModelConfig(activeModelConfig.id);
@@ -194,16 +201,8 @@ export function ChatInput({
                     return;
                 }
             }
-
-            // Clear selection if no session provider
-            if (selectedProvider !== '') {
-                setSelectedProvider('');
-            }
-            if (selectedModelConfig !== '') {
-                setSelectedModelConfig('');
-            }
         }
-    }, [sessionAIProviderId, openaiModelConfigs, googleModelConfigs]); // Only depend on props and configs, not state to avoid infinite loops
+    }, [sessionAIProviderId, openaiModelConfigs, googleModelConfigs, selectedModelConfig]);
 
 
     // Handle personality selection change
