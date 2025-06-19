@@ -188,15 +188,25 @@ router.post('/:id/test', asyncHandler(async (req: Request, res: Response) => {
 // Fetch OpenAI models
 router.post('/openai/models', asyncHandler(async (req: Request, res: Response) => {
     const { apiKey } = req.body;
+    console.log('🔄 POST /openai/models called with API key:', apiKey ? `${apiKey.substring(0, 7)}...` : 'null');
 
     if (!apiKey) {
+        console.log('❌ No API key provided');
         throw createError('API key is required', 400);
     }
 
     try {
+        console.log('📡 Calling aiProviderService.fetchOpenAIModels...');
         const result = await aiProviderService.fetchOpenAIModels(apiKey);
+        console.log('📊 Service result:', {
+            success: result.success,
+            modelsCount: result.models?.length || 0,
+            message: result.message,
+            error: result.error
+        });
         res.json(result);
     } catch (error) {
+        console.error('💥 Exception in /openai/models route:', error);
         throw createError('Failed to fetch OpenAI models', 500);
     }
 }));

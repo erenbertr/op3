@@ -30,11 +30,11 @@ router.get('/', async (req, res, next) => {
     try {
         await ensureTableInitialized();
         const result = await openaiProviderService.getProviders();
-        
+
         if (!result.success) {
             throw createError(result.message, 400);
         }
-        
+
         res.json({
             success: true,
             message: result.message,
@@ -50,18 +50,18 @@ router.get('/:id', async (req, res, next) => {
     try {
         await ensureTableInitialized();
         const { id } = req.params;
-        
+
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
-        
+
         const result = await openaiProviderService.getProvider(id);
-        
+
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
             throw createError(result.message, statusCode);
         }
-        
+
         res.json({
             success: true,
             message: result.message,
@@ -77,21 +77,21 @@ router.post('/', async (req, res, next) => {
     try {
         await ensureTableInitialized();
         const { name, apiKey, isActive } = req.body;
-        
+
         if (!name || !apiKey) {
             throw createError('Name and API key are required', 400);
         }
-        
+
         const result = await openaiProviderService.createProvider({
             name,
             apiKey,
             isActive
         });
-        
+
         if (!result.success) {
             throw createError(result.message, 400);
         }
-        
+
         res.status(201).json({
             success: true,
             message: result.message,
@@ -108,22 +108,22 @@ router.put('/:id', async (req, res, next) => {
         await ensureTableInitialized();
         const { id } = req.params;
         const { name, apiKey, isActive } = req.body;
-        
+
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
-        
+
         const result = await openaiProviderService.updateProvider(id, {
             name,
             apiKey,
             isActive
         });
-        
+
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
             throw createError(result.message, statusCode);
         }
-        
+
         res.json({
             success: true,
             message: result.message,
@@ -139,18 +139,18 @@ router.delete('/:id', async (req, res, next) => {
     try {
         await ensureTableInitialized();
         const { id } = req.params;
-        
+
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
-        
+
         const result = await openaiProviderService.deleteProvider(id);
-        
+
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
             throw createError(result.message, statusCode);
         }
-        
+
         res.json({
             success: true,
             message: result.message
@@ -165,18 +165,18 @@ router.post('/:id/test', async (req, res, next) => {
     try {
         await ensureTableInitialized();
         const { id } = req.params;
-        
+
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
-        
+
         const result = await openaiProviderService.testApiKey(id);
-        
+
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
             throw createError(result.message, statusCode);
         }
-        
+
         res.json({
             success: true,
             message: result.message
@@ -191,23 +191,29 @@ router.get('/:id/decrypted-key', async (req, res, next) => {
     try {
         await ensureTableInitialized();
         const { id } = req.params;
-        
+        console.log('🔑 GET /openai-providers/:id/decrypted-key called with id:', id);
+
         if (!id) {
+            console.log('❌ No provider ID provided');
             throw createError('Provider ID is required', 400);
         }
-        
+
+        console.log('🔓 Getting decrypted API key...');
         const apiKey = await openaiProviderService.getDecryptedApiKey(id);
-        
+        console.log('🔑 Decrypted API key retrieved:', apiKey ? `${apiKey.substring(0, 7)}...` : 'null');
+
         if (!apiKey) {
+            console.log('❌ No API key found for provider');
             throw createError('Provider not found or API key not available', 404);
         }
-        
+
         res.json({
             success: true,
             message: 'API key retrieved successfully',
             data: { apiKey }
         });
     } catch (error) {
+        console.error('💥 Exception in /openai-providers/:id/decrypted-key route:', error);
         next(error);
     }
 });

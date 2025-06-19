@@ -349,10 +349,26 @@ export function BaseAIProviderSettings({ config }: BaseAIProviderSettingsProps) 
         setSelectedKeyForModel(keyId);
 
         try {
+            console.log('🔑 Fetching decrypted API key for keyId:', keyId);
             const decryptedApiKey = await providerAPI.getDecryptedApiKey(keyId);
+            console.log('🔑 Decrypted API key received:', decryptedApiKey ? 'Yes' : 'No');
+
+            console.log('📡 Fetching models with API key...');
             const models = await modelsAPI.fetchModels(decryptedApiKey);
+            console.log('📊 Models fetched:', models?.length || 0, 'models');
+            console.log('🔍 First few models:', models?.slice(0, 3));
+
             setAvailableModels(models);
+
+            if (!models || models.length === 0) {
+                addToast({
+                    title: "No Models Found",
+                    description: "No models were returned from the API. Please check your API key permissions.",
+                    variant: "destructive"
+                });
+            }
         } catch (error) {
+            console.error('❌ Error in handleKeySelectForModel:', error);
             addToast({
                 title: "Error",
                 description: error instanceof Error ? error.message : "Failed to fetch models for this key",

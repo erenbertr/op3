@@ -669,8 +669,13 @@ export class AIProviderService {
     // Fetch available models from OpenAI
     public async fetchOpenAIModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
         try {
+            console.log('🔑 fetchOpenAIModels called with API key:', apiKey ? `${apiKey.substring(0, 7)}...` : 'null');
+
             const endpoint = DEFAULT_ENDPOINTS.openai;
+            console.log('🌐 Using endpoint:', endpoint);
+
             if (!endpoint) {
+                console.log('❌ No endpoint configured');
                 return {
                     success: false,
                     message: 'OpenAI endpoint not configured',
@@ -678,6 +683,7 @@ export class AIProviderService {
                 };
             }
 
+            console.log('📡 Making request to:', `${endpoint}/models`);
             const response = await fetch(`${endpoint}/models`, {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
@@ -685,11 +691,20 @@ export class AIProviderService {
                 }
             });
 
+            console.log('📊 Response status:', response.status, response.statusText);
+
             if (response.ok) {
                 const data = await response.json() as any;
+                console.log('📋 Response data structure:', {
+                    hasData: !!data,
+                    isDataArray: Array.isArray(data.data),
+                    dataLength: data.data?.length || 0
+                });
+
                 if (data && Array.isArray(data.data)) {
                     // Add basic enhancements using only the data from /v1/models endpoint
                     const enhancedModels = this.addBasicEnhancements(data.data);
+                    console.log('✅ Enhanced models count:', enhancedModels.length);
 
                     return {
                         success: true,
@@ -697,6 +712,7 @@ export class AIProviderService {
                         message: 'Models fetched successfully'
                     };
                 } else {
+                    console.log('❌ Invalid response format:', data);
                     return {
                         success: false,
                         message: 'Invalid response format from OpenAI API',
@@ -705,6 +721,7 @@ export class AIProviderService {
                 }
             } else {
                 const errorData = await response.json().catch(() => ({})) as any;
+                console.log('❌ API error:', errorData);
                 return {
                     success: false,
                     message: errorData.error?.message || `HTTP ${response.status}`,
@@ -712,6 +729,7 @@ export class AIProviderService {
                 };
             }
         } catch (error) {
+            console.error('💥 Exception in fetchOpenAIModels:', error);
             return {
                 success: false,
                 message: error instanceof Error ? error.message : 'Network error',

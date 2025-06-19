@@ -37,8 +37,20 @@ export class OpenAIModelConfigServiceNew {
      */
     async createModelConfig(request: CreateOpenAIModelConfigRequest): Promise<CreateOpenAIModelConfigResponse> {
         try {
+            console.log('🔄 createModelConfig called with:', {
+                keyId: request.keyId,
+                modelId: request.modelId,
+                modelName: request.modelName,
+                customName: request.customName
+            });
+
             // Validate required fields
             if (!request.keyId || !request.modelId || !request.modelName) {
+                console.log('❌ Validation failed:', {
+                    hasKeyId: !!request.keyId,
+                    hasModelId: !!request.modelId,
+                    hasModelName: !!request.modelName
+                });
                 return {
                     success: false,
                     message: 'Key ID, Model ID, and Model Name are required'
