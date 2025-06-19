@@ -1,7 +1,7 @@
 import { AIProviderConfig } from '../types/ai-provider';
 import { ChatMessage, ApiMetadata } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
-import { OpenAIModelConfigService } from './openaiModelConfigService';
+import { OpenAIModelConfigServiceNew } from './openaiModelConfigServiceNew';
 import { OpenAIProviderService } from './openaiProviderService';
 import { GoogleModelConfigService } from './googleModelConfigService';
 import { GoogleProviderService } from './googleProviderService';
@@ -47,7 +47,7 @@ export interface ConversationMessage {
 export class AIChatService {
     private static instance: AIChatService;
     private aiProviderService: AIProviderService;
-    private openaiModelConfigService: OpenAIModelConfigService;
+    private openaiModelConfigService: OpenAIModelConfigServiceNew;
     private openaiProviderService: OpenAIProviderService;
     private googleModelConfigService: GoogleModelConfigService;
     private googleProviderService: GoogleProviderService;
@@ -59,7 +59,7 @@ export class AIChatService {
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
-        this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
+        this.openaiModelConfigService = OpenAIModelConfigServiceNew.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
         this.googleModelConfigService = GoogleModelConfigService.getInstance();
         this.googleProviderService = GoogleProviderService.getInstance();
@@ -103,9 +103,9 @@ export class AIChatService {
                 }
             } else {
                 // Use first active provider as default (try OpenAI model configs first)
-                const openaiModelConfigs = await this.openaiModelConfigService.getAllModelConfigs();
-                if (openaiModelConfigs.success && openaiModelConfigs.data && Array.isArray(openaiModelConfigs.data) && openaiModelConfigs.data.length > 0) {
-                    const activeConfig = openaiModelConfigs.data.find((config: any) => config.isActive);
+                const openaiModelConfigs = await this.openaiModelConfigService.getModelConfigs();
+                if (openaiModelConfigs.success && openaiModelConfigs.modelConfigs && Array.isArray(openaiModelConfigs.modelConfigs) && openaiModelConfigs.modelConfigs.length > 0) {
+                    const activeConfig = openaiModelConfigs.modelConfigs.find((config: any) => config.isActive);
                     if (activeConfig) {
                         selectedProvider = await this.resolveOpenAIModelConfig(activeConfig.id);
                     }
@@ -178,12 +178,12 @@ export class AIChatService {
     private async resolveOpenAIModelConfig(modelConfigId: string): Promise<AIProviderConfig | undefined> {
         try {
             // Get all model configurations and find the one with matching ID
-            const allConfigsResult = await this.openaiModelConfigService.getAllModelConfigs();
-            if (!allConfigsResult.success || !allConfigsResult.data) {
+            const allConfigsResult = await this.openaiModelConfigService.getModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.modelConfigs) {
                 return undefined;
             }
 
-            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const allConfigs = Array.isArray(allConfigsResult.modelConfigs) ? allConfigsResult.modelConfigs : [allConfigsResult.modelConfigs];
             const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
 
             if (!modelConfig || !modelConfig.isActive) {

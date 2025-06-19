@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { AnthropicModelConfigService } from '../services/anthropicModelConfigService';
+import { AnthropicModelConfigServiceNew } from '../services/anthropicModelConfigServiceNew';
 import { authenticateToken } from '../middleware/auth';
 import { initAnthropicModelConfigsTable } from '../scripts/initAnthropicModelConfigs';
 
 const router = Router();
-const anthropicModelConfigService = AnthropicModelConfigService.getInstance();
+const anthropicModelConfigService = AnthropicModelConfigServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -33,7 +33,7 @@ function createError(message: string, statusCode: number = 400) {
 router.get('/', async (req: Request, res: Response, next) => {
     try {
         await ensureTableInitialized();
-        const result = await anthropicModelConfigService.getAllModelConfigs();
+        const result = await anthropicModelConfigService.getModelConfigs();
 
         if (!result.success) {
             throw createError(result.message, 400);
@@ -42,7 +42,7 @@ router.get('/', async (req: Request, res: Response, next) => {
         res.json({
             success: true,
             message: result.message,
-            data: result.data
+            data: result.modelConfigs
         });
     } catch (error) {
         next(error);
@@ -62,19 +62,20 @@ router.post('/', async (req: Request, res: Response, next) => {
         const result = await anthropicModelConfigService.createModelConfig({
             keyId,
             modelId,
+            modelName: modelId, // Use modelId as modelName for now
             customName
         });
 
         if (!result.success) {
-            const statusCode = result.error === 'DUPLICATE_ERROR' ? 409 :
-                result.error === 'INVALID_KEY' ? 404 : 400;
+            const statusCode = result.message.includes('already exists') ? 409 :
+                result.message.includes('Invalid key') ? 404 : 400;
             throw createError(result.message, statusCode);
         }
 
         res.status(201).json({
             success: true,
             message: result.message,
-            data: result.data
+            data: result.modelConfig
         });
     } catch (error) {
         next(error);
@@ -98,14 +99,14 @@ router.put('/:id', async (req: Request, res: Response, next) => {
         });
 
         if (!result.success) {
-            const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
+            const statusCode = result.message.includes('not found') ? 404 : 400;
             throw createError(result.message, statusCode);
         }
 
         res.json({
             success: true,
             message: result.message,
-            data: result.data
+            data: result.modelConfig
         });
     } catch (error) {
         next(error);
@@ -125,7 +126,7 @@ router.delete('/:id', async (req: Request, res: Response, next) => {
         const result = await anthropicModelConfigService.deleteModelConfig(id);
 
         if (!result.success) {
-            const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
+            const statusCode = result.message.includes('not found') ? 404 : 400;
             throw createError(result.message, statusCode);
         }
 

@@ -5,7 +5,7 @@ import { PersonalityService } from './personalityService';
 import { WorkspaceService } from './workspaceService';
 import { GoogleModelConfigService } from './googleModelConfigService';
 import { GoogleProviderService } from './googleProviderService';
-import { OpenAIModelConfigService } from './openaiModelConfigService';
+import { OpenAIModelConfigServiceNew } from './openaiModelConfigServiceNew';
 import { OpenAIProviderService } from './openaiProviderService';
 import { OpenAIFileService } from './openaiFileService';
 import { WebSearchService } from './webSearchService';
@@ -59,7 +59,7 @@ export class VercelAIChatService {
     private workspaceService: WorkspaceService;
     private googleModelConfigService: GoogleModelConfigService;
     private googleProviderService: GoogleProviderService;
-    private openaiModelConfigService: OpenAIModelConfigService;
+    private openaiModelConfigService: OpenAIModelConfigServiceNew;
     private openaiProviderService: OpenAIProviderService;
     private openaiFileService: OpenAIFileService;
     private webSearchService: WebSearchService;
@@ -71,7 +71,7 @@ export class VercelAIChatService {
         this.workspaceService = WorkspaceService.getInstance();
         this.googleModelConfigService = GoogleModelConfigService.getInstance();
         this.googleProviderService = GoogleProviderService.getInstance();
-        this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
+        this.openaiModelConfigService = OpenAIModelConfigServiceNew.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
         this.openaiFileService = OpenAIFileService.getInstance();
         this.webSearchService = WebSearchService.getInstance();
@@ -845,9 +845,9 @@ export class VercelAIChatService {
     private async getActiveProviderConfig(): Promise<AIProviderConfig | null> {
         try {
             // Try OpenAI model configs first
-            const openaiConfigs = await this.openaiModelConfigService.getAllModelConfigs();
-            if (openaiConfigs.success && openaiConfigs.data && Array.isArray(openaiConfigs.data)) {
-                const activeConfig = openaiConfigs.data.find((config: any) => config.isActive);
+            const openaiConfigs = await this.openaiModelConfigService.getModelConfigs();
+            if (openaiConfigs.success && openaiConfigs.modelConfigs && Array.isArray(openaiConfigs.modelConfigs)) {
+                const activeConfig = openaiConfigs.modelConfigs.find((config: any) => config.isActive);
                 if (activeConfig) {
                     return await this.resolveOpenAIModelConfig(activeConfig.id);
                 }
@@ -881,12 +881,12 @@ export class VercelAIChatService {
      */
     private async resolveOpenAIModelConfig(modelConfigId: string): Promise<AIProviderConfig | null> {
         try {
-            const allConfigsResult = await this.openaiModelConfigService.getAllModelConfigs();
-            if (!allConfigsResult.success || !allConfigsResult.data) {
+            const allConfigsResult = await this.openaiModelConfigService.getModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.modelConfigs) {
                 return null;
             }
 
-            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const allConfigs = Array.isArray(allConfigsResult.modelConfigs) ? allConfigsResult.modelConfigs : [allConfigsResult.modelConfigs];
             const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
 
             if (!modelConfig || !modelConfig.isActive) {

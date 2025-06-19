@@ -40,7 +40,7 @@ export function SearchIndicator({
         )}>
             <div className="flex-shrink-0 mt-0.5">
                 {isSearching ? (
-                    <Search className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <Search className="h-4 w-4 text-blue-600" />
                 ) : hasError ? (
                     <AlertCircle className="h-4 w-4 text-destructive" />
                 ) : searchResults?.length ? (

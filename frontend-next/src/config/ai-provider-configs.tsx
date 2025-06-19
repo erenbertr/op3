@@ -261,9 +261,10 @@ export const googleConfig: GoogleProviderConfig = {
         apiKeyFormatErrorMessage: 'Invalid Google API key format. Please check your API key.'
     },
     capabilities: {
-        availableCapabilities: ['reasoning', 'vision', 'image', 'pdf', 'functionCalling', 'codeInterpreter'],
+        availableCapabilities: ['reasoning', 'search', 'vision', 'image', 'pdf', 'functionCalling', 'codeInterpreter'],
         capabilityLabels: {
             reasoning: 'Reasoning',
+            search: 'Search',
             vision: 'Vision',
             image: 'Image',
             pdf: 'PDF',
@@ -272,6 +273,7 @@ export const googleConfig: GoogleProviderConfig = {
         },
         capabilityIcons: {
             reasoning: <Brain className="h-4 w-4" />,
+            search: <Search className="h-4 w-4" />,
             vision: <Eye className="h-4 w-4" />,
             image: <Image className="h-4 w-4" />,
             pdf: <FileText className="h-4 w-4" />,
@@ -280,7 +282,8 @@ export const googleConfig: GoogleProviderConfig = {
         },
         inferCapabilities: (modelId: string) => {
             const capabilities: Record<string, boolean> = {
-                reasoning: true
+                reasoning: true,
+                search: true // All Gemini models support web search through our implementation
             };
 
             if (modelId.includes('gemini-1.5') || modelId.includes('gemini-2.0')) {
