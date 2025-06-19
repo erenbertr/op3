@@ -112,7 +112,16 @@ router.get('/:workspaceId/:userId', asyncHandler(async (req: Request, res: Respo
         throw createError('User ID is required', 400);
     }
 
-    const result = await workspaceService.getWorkspace(workspaceId, userId);
+    const workspace = await workspaceService.getWorkspaceById(workspaceId, userId);
+
+    if (!workspace) {
+        throw createError('Workspace not found', 404);
+    }
+
+    const result = {
+        success: true,
+        workspace
+    };
 
     res.json(result);
 }));

@@ -4,7 +4,7 @@ import { initializeGrokProvidersTable } from '../scripts/initGrokProviders';
 import { createError } from '../utils/errorHandler';
 
 const router = express.Router();
-const grokProviderService = new GrokProviderService();
+const grokProviderService = GrokProviderService.getInstance();
 
 // Initialize the database table on first load
 let tableInitialized = false;

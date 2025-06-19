@@ -4,7 +4,7 @@ import { initializeAnthropicProvidersTable } from '../scripts/initAnthropicProvi
 import { createError } from '../utils/errorHandler';
 
 const router = express.Router();
-const anthropicProviderService = new AnthropicProviderService();
+const anthropicProviderService = AnthropicProviderService.getInstance();
 
 // Initialize the database table on first load
 let tableInitialized = false;

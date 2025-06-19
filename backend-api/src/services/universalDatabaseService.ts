@@ -43,6 +43,7 @@ export class UniversalDatabaseService extends UniversalDatabaseSupabase implemen
     private schemas: Map<string, SchemaDefinition> = new Map();
 
     private constructor() {
+        super(); // Call parent constructor
         this.dbManager = DatabaseManager.getInstance();
         // Initialize all schemas
         initializeSchemas(this);
@@ -686,7 +687,7 @@ export class UniversalDatabaseService extends UniversalDatabaseSupabase implemen
         }
 
         const results = await cursor.toArray();
-        const transformedResults = results.map(item => this.transformDataFromStorage(item, schema, 'mongodb'));
+        const transformedResults = results.map((item: any) => this.transformDataFromStorage(item, schema, 'mongodb'));
 
         return {
             data: transformedResults,

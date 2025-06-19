@@ -4,7 +4,7 @@ import { initializeGoogleProvidersTable } from '../scripts/initGoogleProviders';
 import { createError } from '../utils/errorHandler';
 
 const router = express.Router();
-const googleProviderService = new GoogleProviderService();
+const googleProviderService = GoogleProviderService.getInstance();
 
 // Initialize the database table on first load
 let tableInitialized = false;
