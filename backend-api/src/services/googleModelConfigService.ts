@@ -59,15 +59,25 @@ export class GoogleModelConfigService {
         // In the future, this could make API calls to get real capabilities
         const capabilities: ModelCapabilities = {};
 
-        // Basic fallback logic based on model name patterns
+        // All Gemini models have reasoning capabilities
         capabilities.reasoning = true;
 
+        // Gemini 1.5 and 2.0 models have advanced capabilities
         if (modelId.includes('gemini-1.5') || modelId.includes('gemini-2.0')) {
             capabilities.vision = true;
             capabilities.image = true;
             capabilities.pdf = true;
             capabilities.functionCalling = true;
             capabilities.codeInterpreter = true;
+            capabilities.fileUpload = true;
+            capabilities.search = true; // Gemini models support web search through Google Search
+        }
+
+        // Gemini Pro models also have file upload and search capabilities
+        if (modelId.includes('gemini-pro')) {
+            capabilities.fileUpload = true;
+            capabilities.search = true;
+            capabilities.functionCalling = true;
         }
 
         return capabilities;

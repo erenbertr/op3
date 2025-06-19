@@ -59,12 +59,20 @@ export class GrokModelConfigService {
         // In the future, this could make API calls to get real capabilities
         const capabilities: ModelCapabilities = {};
 
-        // Basic fallback logic based on model name patterns
+        // All Grok models have reasoning capabilities
+        capabilities.reasoning = true;
+
+        // Grok 2 and beta models have enhanced capabilities
         if (modelId.includes('grok-2') || modelId.includes('grok-beta')) {
             capabilities.reasoning = true;
-            capabilities.search = true;
-        } else {
-            capabilities.reasoning = true;
+            capabilities.search = true; // Grok has access to real-time X/Twitter data
+            capabilities.functionCalling = true;
+        }
+
+        // Grok Vision models support image processing
+        if (modelId.includes('vision')) {
+            capabilities.vision = true;
+            capabilities.image = true;
         }
 
         return capabilities;

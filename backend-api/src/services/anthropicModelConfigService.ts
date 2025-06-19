@@ -59,14 +59,27 @@ export class AnthropicModelConfigService {
         // In the future, this could make API calls to get real capabilities
         const capabilities: ModelCapabilities = {};
 
-        // Basic fallback logic based on model name patterns
+        // All Claude models have reasoning capabilities
         capabilities.reasoning = true;
 
+        // Claude 3 models have advanced capabilities
         if (modelId.includes('claude-3')) {
             capabilities.vision = true;
             capabilities.image = true;
             capabilities.pdf = true;
             capabilities.fileUpload = true;
+            capabilities.functionCalling = true;
+            // Note: Claude doesn't have native web search, but could be enhanced with tools
+        }
+
+        // Claude 3.5 models have enhanced capabilities
+        if (modelId.includes('claude-3.5')) {
+            capabilities.vision = true;
+            capabilities.image = true;
+            capabilities.pdf = true;
+            capabilities.fileUpload = true;
+            capabilities.functionCalling = true;
+            capabilities.codeInterpreter = true;
         }
 
         return capabilities;

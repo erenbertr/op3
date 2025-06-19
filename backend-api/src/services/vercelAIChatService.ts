@@ -8,6 +8,7 @@ import { GoogleProviderService } from './googleProviderService';
 import { OpenAIModelConfigService } from './openaiModelConfigService';
 import { OpenAIProviderService } from './openaiProviderService';
 import { OpenAIFileService } from './openaiFileService';
+import { WebSearchService } from './webSearchService';
 import { ChatMessage } from '../types/chat';
 import { AIProviderConfig } from '../types/ai-provider';
 import crypto from 'crypto';
@@ -36,7 +37,7 @@ export interface VercelStreamingChatRequest {
 }
 
 export interface VercelAIStreamChunk {
-    type: 'start' | 'chunk' | 'end' | 'error' | 'search_start' | 'search_results';
+    type: 'start' | 'chunk' | 'end' | 'error' | 'search_start' | 'search_results' | 'reasoning_step';
     content?: string;
     messageId?: string;
     error?: string;
@@ -61,6 +62,7 @@ export class VercelAIChatService {
     private openaiModelConfigService: OpenAIModelConfigService;
     private openaiProviderService: OpenAIProviderService;
     private openaiFileService: OpenAIFileService;
+    private webSearchService: WebSearchService;
 
     private constructor() {
         this.vercelAIService = VercelAIProviderService.getInstance();
@@ -72,6 +74,7 @@ export class VercelAIChatService {
         this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
         this.openaiFileService = OpenAIFileService.getInstance();
+        this.webSearchService = WebSearchService.getInstance();
     }
 
     public static getInstance(): VercelAIChatService {
@@ -141,11 +144,22 @@ export class VercelAIChatService {
                 content: msg.content
             }));
 
-            // Add the current user message
-            messages.push({
+            // Add the current user message with file attachments if present
+            const userMessage: CoreMessage = {
                 role: 'user',
                 content: request.content
-            });
+            };
+
+            // For non-OpenAI providers, we need to handle file attachments differently
+            if (request.fileAttachments && request.fileAttachments.length > 0 && providerConfig.type !== 'openai') {
+                // Add file information to the message content for providers that don't support native file handling
+                const fileInfo = await this.getFileAttachmentInfo(request.fileAttachments);
+                if (fileInfo.length > 0) {
+                    userMessage.content = `${request.content}\n\n[Files attached: ${fileInfo.map(f => f.name).join(', ')}]`;
+                }
+            }
+
+            messages.push(userMessage);
 
             const messageId = crypto.randomUUID();
             const startTime = Date.now();
@@ -175,12 +189,50 @@ export class VercelAIChatService {
                     type: 'search_start',
                     messageId
                 });
-                // Web search not supported for non-OpenAI providers
-                onChunk({
-                    type: 'chunk',
-                    messageId,
-                    content: '[Note: Web search is only supported for OpenAI models.]\n\n'
-                });
+
+                // Handle web search for different providers
+                if (providerConfig.type === 'google') {
+                    try {
+                        // Perform web search for Google models
+                        const searchQuery = request.content;
+                        const searchResult = await this.webSearchService.searchWeb(searchQuery, 5);
+
+                        if (searchResult.success && searchResult.results.length > 0) {
+                            onChunk({
+                                type: 'search_results',
+                                messageId,
+                                searchResults: searchResult.results
+                            });
+
+                            // Add search results to the conversation context
+                            const searchContext = this.webSearchService.formatSearchResults(searchResult.results, searchQuery);
+                            messages.push({
+                                role: 'system',
+                                content: `Here are current web search results for "${searchQuery}":\n\n${searchContext}\n\nPlease use this information to provide an accurate and up-to-date response.`
+                            });
+                        } else {
+                            onChunk({
+                                type: 'chunk',
+                                messageId,
+                                content: '[Web search failed or returned no results. Responding with training data.]\n\n'
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Web search error for Google model:', error);
+                        onChunk({
+                            type: 'chunk',
+                            messageId,
+                            content: '[Web search encountered an error. Responding with training data.]\n\n'
+                        });
+                    }
+                } else {
+                    // Other providers don't have native web search
+                    onChunk({
+                        type: 'chunk',
+                        messageId,
+                        content: '[Note: Web search is only supported for OpenAI and Google models.]\n\n'
+                    });
+                }
             }
 
             // Stream the response for non-OpenAI providers
@@ -206,6 +258,7 @@ export class VercelAIChatService {
 
                 let fullContent = '';
                 let chunkCount = 0;
+                let reasoningSteps: string[] = [];
 
                 // Use streaming for all providers now that Google is working
                 console.log('Using textStream for streaming');
@@ -213,6 +266,23 @@ export class VercelAIChatService {
                     chunkCount++;
                     console.log(`Received delta ${chunkCount}:`, JSON.stringify(delta));
                     fullContent += delta;
+
+                    // Extract reasoning steps if reasoning is enabled
+                    if (request.reasoningEnabled) {
+                        const extractedSteps = this.extractReasoningSteps(delta);
+                        if (extractedSteps.length > 0) {
+                            reasoningSteps.push(...extractedSteps);
+                            // Send reasoning steps to frontend
+                            for (const step of extractedSteps) {
+                                onChunk({
+                                    type: 'reasoning_step',
+                                    messageId,
+                                    content: step
+                                });
+                            }
+                        }
+                    }
+
                     onChunk({
                         type: 'chunk',
                         messageId,
@@ -658,6 +728,84 @@ export class VercelAIChatService {
             console.error('Error getting vector store for session:', error);
             return null;
         }
+    }
+
+    /**
+     * Get file attachment information for non-OpenAI providers
+     */
+    private async getFileAttachmentInfo(fileAttachmentIds: string[]): Promise<Array<{ name: string; type: string }>> {
+        try {
+            const fileInfo: Array<{ name: string; type: string }> = [];
+
+            for (const fileId of fileAttachmentIds) {
+                try {
+                    // Get file information from the file service
+                    const attachment = await this.openaiFileService.getFileAttachment(fileId);
+                    if (attachment) {
+                        fileInfo.push({
+                            name: attachment.originalName,
+                            type: attachment.mimeType
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error getting file info for ${fileId}:`, error);
+                }
+            }
+
+            return fileInfo;
+        } catch (error) {
+            console.error('Error getting file attachment info:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Extract reasoning steps from AI response content
+     */
+    private extractReasoningSteps(content: string): string[] {
+        const steps: string[] = [];
+
+        // Look for common reasoning patterns
+        const reasoningPatterns = [
+            // Step-by-step patterns
+            /(?:Step \d+:|^\d+\.|First,|Second,|Third,|Next,|Then,|Finally,)/gim,
+            // Thinking patterns
+            /(?:Let me think|I need to|Let's consider|To solve this|The approach is)/gim,
+            // Analysis patterns
+            /(?:Analysis:|Reasoning:|Approach:|Solution:)/gim
+        ];
+
+        // Split content into sentences for analysis
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
+
+        for (const sentence of sentences) {
+            const trimmed = sentence.trim();
+            if (trimmed.length < 10) continue;
+
+            // Check if sentence matches reasoning patterns
+            for (const pattern of reasoningPatterns) {
+                if (pattern.test(trimmed)) {
+                    steps.push(trimmed);
+                    break;
+                }
+            }
+
+            // Also look for sentences that start with reasoning keywords
+            const reasoningKeywords = [
+                'because', 'since', 'therefore', 'thus', 'hence', 'consequently',
+                'given that', 'considering', 'based on', 'due to', 'as a result'
+            ];
+
+            const lowerTrimmed = trimmed.toLowerCase();
+            for (const keyword of reasoningKeywords) {
+                if (lowerTrimmed.startsWith(keyword)) {
+                    steps.push(trimmed);
+                    break;
+                }
+            }
+        }
+
+        return steps;
     }
 
     /**
