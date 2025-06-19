@@ -2,8 +2,10 @@ import { UniversalDatabaseService } from './universalDatabaseService';
 import {
     WorkspaceGroup,
     CreateWorkspaceGroupRequest,
-    CreateWorkspaceGroupResponse,
     UpdateWorkspaceGroupRequest,
+    WorkspaceGroupResponse,
+    WorkspaceGroupsResponse,
+    CreateWorkspaceGroupResponse,
     UpdateWorkspaceGroupResponse,
     DeleteWorkspaceGroupResponse,
     WorkspaceGroupsListResponse
@@ -45,7 +47,7 @@ export class WorkspaceGroupService {
 
             // Get the next sort order
             const existingGroups = await this.getUserWorkspaceGroups(userId);
-            const maxSortOrder = existingGroups.groups.reduce((max: number, group: any) =>
+            const maxSortOrder = existingGroups.groups.reduce((max: number, group: { sortOrder: number }) =>
                 Math.max(max, group.sortOrder || 0), 0);
 
             const workspaceGroup: WorkspaceGroup = {
@@ -69,7 +71,7 @@ export class WorkspaceGroupService {
                         id: workspaceGroup.id,
                         name: workspaceGroup.name,
                         sortOrder: workspaceGroup.sortOrder,
-                        isPinned: workspaceGroup.isPinned || false,
+                        isPinned: workspaceGroup.isPinned ?? false,
                         createdAt: workspaceGroup.createdAt.toISOString()
                     }
                 };
@@ -102,7 +104,7 @@ export class WorkspaceGroupService {
                     id: group.id,
                     name: group.name,
                     sortOrder: group.sortOrder,
-                    isPinned: group.isPinned || false,
+                    isPinned: group.isPinned ?? false,
                     createdAt: group.createdAt.toISOString(),
                     workspaceCount: 0 // TODO: Calculate actual workspace count
                 }))
@@ -165,7 +167,7 @@ export class WorkspaceGroupService {
                         id: updatedGroup.id,
                         name: updatedGroup.name,
                         sortOrder: updatedGroup.sortOrder,
-                        isPinned: updatedGroup.isPinned || false,
+                        isPinned: updatedGroup.isPinned ?? false,
                         createdAt: updatedGroup.createdAt.toISOString()
                     } : undefined
                 };
@@ -415,8 +417,8 @@ export class WorkspaceGroupService {
 
             if (newSortOrder > oldSortOrder) {
                 // Moving down - decrease sort order of groups in between
-                where.push({ field: 'sortOrder', operator: 'gt', value: oldSortOrder });
-                where.push({ field: 'sortOrder', operator: 'lte', value: newSortOrder });
+                where.push({ field: 'sortOrder', operator: 'gt', value: oldSortOrder.toString() });
+                where.push({ field: 'sortOrder', operator: 'lte', value: newSortOrder.toString() });
                 where.push({ field: 'id', operator: 'ne', value: groupId });
 
                 const groupsToUpdate = await this.universalDb.findMany<WorkspaceGroup>('workspace_groups', { where });
@@ -429,8 +431,8 @@ export class WorkspaceGroupService {
                 }
             } else {
                 // Moving up - increase sort order of groups in between
-                where.push({ field: 'sortOrder', operator: 'gte', value: newSortOrder });
-                where.push({ field: 'sortOrder', operator: 'lt', value: oldSortOrder });
+                where.push({ field: 'sortOrder', operator: 'gte', value: newSortOrder.toString() });
+                where.push({ field: 'sortOrder', operator: 'lt', value: oldSortOrder.toString() });
                 where.push({ field: 'id', operator: 'ne', value: groupId });
 
                 const groupsToUpdate = await this.universalDb.findMany<WorkspaceGroup>('workspace_groups', { where });
