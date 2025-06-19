@@ -424,6 +424,165 @@ export const OpenAIModelConfigSchema: SchemaDefinition = {
     timestamps: true
 };
 
+export const GoogleModelConfigSchema: SchemaDefinition = {
+    tableName: 'google_model_configs',
+    collectionName: 'googleModelConfigs',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        keyId: {
+            type: 'uuid',
+            required: true
+        },
+        modelId: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        modelName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        customName: {
+            type: 'string',
+            maxLength: 255
+        },
+        capabilities: {
+            type: 'json'
+        },
+        pricing: {
+            type: 'json'
+        },
+        contextWindow: {
+            type: 'number'
+        },
+        maxOutputTokens: {
+            type: 'number'
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        }
+    },
+    indexes: [
+        ['keyId'],
+        ['modelId'],
+        ['keyId', 'modelId'],
+        ['isActive']
+    ],
+    timestamps: true
+};
+
+export const AnthropicModelConfigSchema: SchemaDefinition = {
+    tableName: 'anthropic_model_configs',
+    collectionName: 'anthropicModelConfigs',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        keyId: {
+            type: 'uuid',
+            required: true
+        },
+        modelId: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        modelName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        customName: {
+            type: 'string',
+            maxLength: 255
+        },
+        capabilities: {
+            type: 'json'
+        },
+        pricing: {
+            type: 'json'
+        },
+        contextWindow: {
+            type: 'number'
+        },
+        maxOutputTokens: {
+            type: 'number'
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        }
+    },
+    indexes: [
+        ['keyId'],
+        ['modelId'],
+        ['keyId', 'modelId'],
+        ['isActive']
+    ],
+    timestamps: true
+};
+
+export const GrokModelConfigSchema: SchemaDefinition = {
+    tableName: 'grok_model_configs',
+    collectionName: 'grokModelConfigs',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        keyId: {
+            type: 'uuid',
+            required: true
+        },
+        modelId: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        modelName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        customName: {
+            type: 'string',
+            maxLength: 255
+        },
+        capabilities: {
+            type: 'json'
+        },
+        pricing: {
+            type: 'json'
+        },
+        contextWindow: {
+            type: 'number'
+        },
+        maxOutputTokens: {
+            type: 'number'
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        }
+    },
+    indexes: [
+        ['keyId'],
+        ['modelId'],
+        ['keyId', 'modelId'],
+        ['isActive']
+    ],
+    timestamps: true
+};
+
 export const GlobalOpenRouterSettingsSchema: SchemaDefinition = {
     tableName: 'global_openrouter_settings',
     collectionName: 'globalOpenRouterSettings',
@@ -605,6 +764,12 @@ export const AllSchemas = {
     workspacePersonalityFavorites: WorkspacePersonalityFavoritesSchema, // MongoDB collection name
     openai_model_configs: OpenAIModelConfigSchema,
     openaiModelConfigs: OpenAIModelConfigSchema, // MongoDB collection name
+    google_model_configs: GoogleModelConfigSchema,
+    googleModelConfigs: GoogleModelConfigSchema, // MongoDB collection name
+    anthropic_model_configs: AnthropicModelConfigSchema,
+    anthropicModelConfigs: AnthropicModelConfigSchema, // MongoDB collection name
+    grok_model_configs: GrokModelConfigSchema,
+    grokModelConfigs: GrokModelConfigSchema, // MongoDB collection name
     global_openrouter_settings: GlobalOpenRouterSettingsSchema,
     globalOpenRouterSettings: GlobalOpenRouterSettingsSchema // MongoDB collection name
 };

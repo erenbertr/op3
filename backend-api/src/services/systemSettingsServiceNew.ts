@@ -37,7 +37,7 @@ export class SystemSettingsServiceNew {
         try {
             // Try to find existing settings
             const existingSettings = await this.universalDb.findOne<SystemSettings>('system_settings');
-            
+
             if (existingSettings) {
                 return existingSettings;
             }
@@ -110,9 +110,9 @@ export class SystemSettingsServiceNew {
         try {
             // Insert default settings using universal database service
             const result = await this.universalDb.insert<SystemSettings>('system_settings', defaultSettings);
-            
+
             if (!result.success) {
-                console.error('Failed to create default settings:', result.error);
+                console.error('Failed to create default settings');
                 // Return the settings object even if insertion failed
                 return defaultSettings;
             }
@@ -131,7 +131,7 @@ export class SystemSettingsServiceNew {
     public async resetToDefaults(updatedBy: string): Promise<SystemSettingsResponse> {
         try {
             const currentSettings = await this.getSystemSettings();
-            
+
             const resetSettings: SystemSettings = {
                 ...currentSettings,
                 ...DEFAULT_SYSTEM_SETTINGS,

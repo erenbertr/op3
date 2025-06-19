@@ -44,14 +44,14 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
         const systemSettings = await systemSettingsService.getSystemSettings();
         if (!systemSettings.loginEnabled) {
             // Allow admin login even when login is disabled
-            const user = await userService.getUserByEmailForAuth(email);
+            const user = await userService.getUserByEmail(email);
             if (!user || user.role !== 'admin') {
                 throw createError('Login is currently disabled', 403);
             }
         }
 
         // Get user by email
-        const user = await userService.getUserByEmailForAuth(email);
+        const user = await userService.getUserByEmail(email);
 
         if (!user) {
             throw createError('Invalid email or password', 401);
@@ -115,7 +115,7 @@ router.get('/verify', asyncHandler(async (req: Request, res: Response) => {
         const decoded = jwt.verify(token, JWT_SECRET) as any;
 
         // Get fresh user data
-        const user = await userService.getUserByEmailForAuth(decoded.email);
+        const user = await userService.getUserByEmail(decoded.email);
 
         if (!user) {
             throw createError('User not found', 401);
@@ -155,7 +155,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
         }
 
         // Check if user already exists
-        const existingUser = await userService.getUserByEmailForAuth(email);
+        const existingUser = await userService.getUserByEmail(email);
         if (existingUser) {
             throw createError('User with this email already exists', 409);
         }
@@ -167,7 +167,8 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
             password,
             role: systemSettings.defaultUserRole,
             firstName,
-            lastName
+            lastName,
+            isActive: true
         });
 
         if (!result.success) {

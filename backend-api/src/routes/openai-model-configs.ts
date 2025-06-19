@@ -33,7 +33,7 @@ function createError(message: string, statusCode: number = 400) {
 router.get('/', async (req: Request, res: Response, next) => {
     try {
         await ensureTableInitialized();
-        const result = await openaiModelConfigService.getAllModelConfigs();
+        const result = await openaiModelConfigService.getModelConfigs();
 
         if (!result.success) {
             throw createError(result.message, 400);
@@ -42,7 +42,7 @@ router.get('/', async (req: Request, res: Response, next) => {
         res.json({
             success: true,
             message: result.message,
-            data: result.data
+            modelConfigs: result.modelConfigs
         });
     } catch (error) {
         next(error);
@@ -62,19 +62,31 @@ router.post('/', async (req: Request, res: Response, next) => {
         const result = await openaiModelConfigService.createModelConfig({
             keyId,
             modelId,
-            customName
+            modelName: modelId, // Use modelId as modelName for now
+            customName,
+            capabilities: {
+                supportsImages: false,
+                supportsFiles: false,
+                supportsWebSearch: false,
+                supportsReasoning: false
+            },
+            pricing: {
+                inputTokens: 0,
+                outputTokens: 0,
+                currency: 'USD'
+            },
+            contextWindow: 4096,
+            maxOutputTokens: 4096
         });
 
         if (!result.success) {
-            const statusCode = result.error === 'DUPLICATE_ERROR' ? 409 :
-                result.error === 'INVALID_KEY' ? 404 : 400;
-            throw createError(result.message, statusCode);
+            throw createError(result.message, 400);
         }
 
         res.status(201).json({
             success: true,
             message: result.message,
-            data: result.data
+            modelConfig: result.modelConfig
         });
     } catch (error) {
         next(error);
@@ -98,14 +110,13 @@ router.put('/:id', async (req: Request, res: Response, next) => {
         });
 
         if (!result.success) {
-            const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
-            throw createError(result.message, statusCode);
+            throw createError(result.message, 400);
         }
 
         res.json({
             success: true,
             message: result.message,
-            data: result.data
+            modelConfig: result.modelConfig
         });
     } catch (error) {
         next(error);
@@ -125,8 +136,7 @@ router.delete('/:id', async (req: Request, res: Response, next) => {
         const result = await openaiModelConfigService.deleteModelConfig(id);
 
         if (!result.success) {
-            const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
-            throw createError(result.message, statusCode);
+            throw createError(result.message, 400);
         }
 
         res.json({

@@ -422,6 +422,138 @@ export class UserServiceNew {
     }
 
     /**
+     * Update user profile - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async updateUserProfile(userId: string, profileData: {
+        firstName?: string;
+        lastName?: string;
+        username?: string;
+        email?: string;
+    }): Promise<{ success: boolean; message: string; user?: Partial<User> }> {
+        try {
+            // Validate email if provided
+            if (profileData.email) {
+                const emailErrors = this.validateEmail(profileData.email);
+                if (emailErrors.length > 0) {
+                    return {
+                        success: false,
+                        message: emailErrors[0].message
+                    };
+                }
+
+                // Check if email is already taken by another user
+                const existingUser = await this.getUserByEmail(profileData.email);
+                if (existingUser && existingUser.id !== userId) {
+                    return {
+                        success: false,
+                        message: 'Email is already taken by another user'
+                    };
+                }
+            }
+
+            // Update user profile
+            const updateData: Partial<User> = {
+                ...profileData,
+                updatedAt: new Date()
+            };
+
+            const result = await this.universalDb.update<User>('users', userId, updateData);
+
+            if (result.modifiedCount > 0) {
+                // Get updated user data
+                const updatedUser = await this.getUserById(userId);
+                return {
+                    success: true,
+                    message: 'Profile updated successfully',
+                    user: updatedUser ? {
+                        id: updatedUser.id,
+                        email: updatedUser.email,
+                        username: updatedUser.username,
+                        firstName: updatedUser.firstName,
+                        lastName: updatedUser.lastName,
+                        role: updatedUser.role
+                    } : undefined
+                };
+            } else {
+                return {
+                    success: false,
+                    message: 'No changes made to profile'
+                };
+            }
+        } catch (error) {
+            console.error('Error updating user profile:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update profile'
+            };
+        }
+    }
+
+    /**
+     * Change user password - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async changePassword(userId: string, passwordData: {
+        currentPassword: string;
+        newPassword: string;
+    }): Promise<{ success: boolean; message: string }> {
+        try {
+            // Get current user
+            const user = await this.getUserById(userId);
+            if (!user) {
+                return {
+                    success: false,
+                    message: 'User not found'
+                };
+            }
+
+            // Verify current password
+            const isCurrentPasswordValid = await bcrypt.compare(passwordData.currentPassword, user.password);
+            if (!isCurrentPasswordValid) {
+                return {
+                    success: false,
+                    message: 'Invalid current password'
+                };
+            }
+
+            // Validate new password
+            const passwordErrors = this.validatePassword(passwordData.newPassword);
+            if (passwordErrors.length > 0) {
+                return {
+                    success: false,
+                    message: passwordErrors[0].message
+                };
+            }
+
+            // Hash new password
+            const hashedNewPassword = await bcrypt.hash(passwordData.newPassword, 10);
+
+            // Update password
+            const result = await this.universalDb.update<User>('users', userId, {
+                password: hashedNewPassword,
+                updatedAt: new Date()
+            });
+
+            if (result.modifiedCount > 0) {
+                return {
+                    success: true,
+                    message: 'Password changed successfully'
+                };
+            } else {
+                return {
+                    success: false,
+                    message: 'Failed to update password'
+                };
+            }
+        } catch (error) {
+            console.error('Error changing password:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to change password'
+            };
+        }
+    }
+
+    /**
      * Initialize user table/collection - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
     public async initializeUserSchema(): Promise<void> {

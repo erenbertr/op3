@@ -100,7 +100,8 @@ router.post('/users', asyncHandler(async (req: any, res: Response) => {
         password,
         role,
         firstName,
-        lastName
+        lastName,
+        isActive: true
     });
 
     if (result.success) {
