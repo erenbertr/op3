@@ -118,7 +118,7 @@ export class WorkspaceOpenRouterService {
             let result;
             if (existingSettings && existingSettings.id) {
                 // Update existing settings
-                result = await this.universalDb.update<WorkspaceOpenRouterSettings>('workspace_openrouter_settings', existingSettings.id, {
+                result = await this.universalDb.update<WorkspaceOpenRouterSettings>('workspace_openrouter_settings', existingSettings.id!, {
                     apiKey: encryptedApiKey,
                     selectedModels: request.selectedModels,
                     isEnabled: request.isEnabled,

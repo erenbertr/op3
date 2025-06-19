@@ -19,6 +19,7 @@ import {
     CreateShareResponse,
     GetSharedChatResponse
 } from '../types/chat';
+import { QueryCondition } from '../types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -95,7 +96,7 @@ export class ChatService {
      */
     public async getChatSessions(userId: string, workspaceId?: string): Promise<ChatSessionsListResponse> {
         try {
-            const where = [{ field: 'userId', operator: 'eq', value: userId }];
+            const where: QueryCondition[] = [{ field: 'userId', operator: 'eq', value: userId }];
             if (workspaceId) {
                 where.push({ field: 'workspaceId', operator: 'eq', value: workspaceId });
             }
@@ -222,7 +223,7 @@ export class ChatService {
                 return {
                     success: true,
                     message: 'Chat session updated successfully',
-                    session
+                    session: session || undefined
                 };
             } else {
                 return {
@@ -255,7 +256,7 @@ export class ChatService {
                 return {
                     success: true,
                     message: 'Chat session settings updated successfully',
-                    session
+                    session: session || undefined
                 };
             } else {
                 return {
@@ -470,14 +471,14 @@ export class ChatService {
      */
     public async getShareStatus(sessionId: string): Promise<{ success: boolean; isShared: boolean; shareId?: string }> {
         try {
-            const share = await this.universalDb.findOne<ChatShare>('chat_shares', {
-                where: [{ field: 'sessionId', operator: 'eq', value: sessionId }]
+            const share = await this.universalDb.findOne<SharedChat>('shared_chats', {
+                where: [{ field: 'originalChatId', operator: 'eq', value: sessionId }]
             });
 
             return {
                 success: true,
                 isShared: !!share,
-                shareId: share?.shareId
+                shareId: share?.id
             };
         } catch (error) {
             console.error('Error getting share status:', error);
@@ -511,8 +512,8 @@ export class ChatService {
      */
     public async removeShare(sessionId: string): Promise<{ success: boolean; message: string }> {
         try {
-            const result = await this.universalDb.deleteMany('chat_shares', {
-                where: [{ field: 'sessionId', operator: 'eq', value: sessionId }]
+            const result = await this.universalDb.deleteMany('shared_chats', {
+                where: [{ field: 'originalChatId', operator: 'eq', value: sessionId }]
             });
 
             return {

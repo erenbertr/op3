@@ -14,7 +14,7 @@ router.get('/:shareId', asyncHandler(async (req: Request, res: Response) => {
         throw createError('Share ID is required', 400);
     }
 
-    const result = await chatService.getSharedMessage(shareId);
+    const result = await chatService.getSharedChat(shareId);
     res.json(result);
 }));
 

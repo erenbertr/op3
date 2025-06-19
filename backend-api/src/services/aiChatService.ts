@@ -205,9 +205,9 @@ export class AIChatService {
             const chatSession = await this.chatService.getChatSession(sessionId);
             if (chatSession.success && chatSession.session) {
                 // Get workspace rules
-                const workspaceResult = await this.workspaceService.getWorkspace(chatSession.session.workspaceId, chatSession.session.userId);
-                if (workspaceResult.success && workspaceResult.workspace && workspaceResult.workspace.workspaceRules && workspaceResult.workspace.workspaceRules.trim()) {
-                    systemParts.push(`Workspace Context: ${workspaceResult.workspace.workspaceRules.trim()}`);
+                const workspace = await this.workspaceService.getWorkspaceById(chatSession.session.workspaceId, chatSession.session.userId);
+                if (workspace && workspace.workspaceRules && workspace.workspaceRules.trim()) {
+                    systemParts.push(`Workspace Context: ${workspace.workspaceRules.trim()}`);
                 }
             }
 

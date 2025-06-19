@@ -255,7 +255,10 @@ router.patch('/password', authenticateToken, asyncHandler(async (req: Request, r
     }
 
     try {
-        const result = await userService.changePassword(userId, currentPassword, newPassword);
+        const result = await userService.changePassword(userId, {
+            currentPassword,
+            newPassword
+        });
 
         res.json({
             success: true,
