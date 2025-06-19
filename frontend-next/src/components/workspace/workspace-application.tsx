@@ -15,7 +15,7 @@ import { StatisticsView } from '@/components/statistics/statistics-view';
 
 import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
 import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
-import { AnthropicSettingsView } from '@/components/workspace/anthropic-settings-view';
+import { ClaudeSettingsView } from '@/components/workspace/claude-settings-view';
 import { GoogleSettingsView } from '@/components/workspace/google-settings-view';
 import { GrokSettingsView } from '@/components/workspace/grok-settings-view';
 import { AccountSettings } from '@/components/account/account-settings';
@@ -397,7 +397,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
                 {currentView === 'ai-providers-claude' && (
                     <AIProvidersLayout currentView="claude">
-                        <AnthropicSettingsView />
+                        <ClaudeSettingsView />
                     </AIProvidersLayout>
                 )}
 
