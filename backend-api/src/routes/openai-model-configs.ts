@@ -42,7 +42,7 @@ router.get('/', async (req: Request, res: Response, next) => {
         res.json({
             success: true,
             message: result.message,
-            modelConfigs: result.modelConfigs
+            data: result.modelConfigs
         });
     } catch (error) {
         next(error);

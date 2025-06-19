@@ -205,9 +205,14 @@ export function BaseAIProviderSettings({ config }: BaseAIProviderSettingsProps) 
             setIsAddModelModalOpen(false);
         },
         onError: (error) => {
+            const errorMessage = error instanceof Error ? error.message : "Failed to add model configuration";
+            const isAlreadyExists = errorMessage.includes('already exists');
+
             addToast({
-                title: "Error",
-                description: error instanceof Error ? error.message : "Failed to add model configuration",
+                title: isAlreadyExists ? "Model Already Added" : "Error",
+                description: isAlreadyExists
+                    ? "This model is already configured for this API key. Try using a custom name to add another instance, or check the Models tab to see existing configurations."
+                    : errorMessage,
                 variant: "destructive"
             });
         }

@@ -57,13 +57,16 @@ export class OpenAIModelConfigServiceNew {
                 };
             }
 
-            // Check if model config already exists for this key and model
-            const existingConfig = await this.getModelConfigByKeyAndModel(request.keyId, request.modelId);
-            if (existingConfig) {
-                return {
-                    success: false,
-                    message: 'Model configuration already exists for this key and model combination'
-                };
+            // Check if model config already exists for this key and model (only if no custom name is provided)
+            // Allow duplicates if user provides a custom name to differentiate them
+            if (!request.customName) {
+                const existingConfig = await this.getModelConfigByKeyAndModel(request.keyId, request.modelId);
+                if (existingConfig) {
+                    return {
+                        success: false,
+                        message: 'Model configuration already exists for this key and model combination. Please provide a custom name to add another instance of this model.'
+                    };
+                }
             }
 
             // Get key information
