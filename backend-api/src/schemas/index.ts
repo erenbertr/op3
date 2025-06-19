@@ -225,6 +225,44 @@ export const ChatMessageSchema: SchemaDefinition = {
     timestamps: true
 };
 
+export const SharedChatSchema: SchemaDefinition = {
+    tableName: 'shared_chats',
+    collectionName: 'sharedChats',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        originalChatId: {
+            type: 'uuid',
+            required: true
+        },
+        title: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        messages: {
+            type: 'json',
+            required: true
+        },
+        messageCount: {
+            type: 'number',
+            required: true
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        }
+    },
+    indexes: [
+        ['originalChatId'],
+        ['isActive']
+    ],
+    timestamps: true
+};
+
 export const WorkspaceGroupSchema: SchemaDefinition = {
     tableName: 'workspace_groups',
     collectionName: 'workspaceGroups',
@@ -418,6 +456,8 @@ export const AllSchemas = {
     chatSessions: ChatSessionSchema, // MongoDB collection name
     chat_messages: ChatMessageSchema,
     chatMessages: ChatMessageSchema, // MongoDB collection name
+    shared_chats: SharedChatSchema,
+    sharedChats: SharedChatSchema, // MongoDB collection name
     workspace_groups: WorkspaceGroupSchema,
     workspaceGroups: WorkspaceGroupSchema, // MongoDB collection name
     ai_provider_configs: AIProviderConfigSchema,

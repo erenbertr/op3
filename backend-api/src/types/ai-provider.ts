@@ -1,4 +1,4 @@
-export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'openrouter' | 'custom';
+export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'openrouter' | 'grok' | 'custom';
 
 export interface AIProviderConfig {
     id?: string;
@@ -79,6 +79,7 @@ export const DEFAULT_ENDPOINTS: Record<AIProviderType, string | null> = {
     google: 'https://generativelanguage.googleapis.com',
     replicate: 'https://api.replicate.com',
     openrouter: 'https://openrouter.ai/api/v1',
+    grok: 'https://api.x.ai/v1',
     custom: null // Custom providers must specify their own endpoint
 };
 
@@ -89,6 +90,7 @@ export const FALLBACK_MODELS: Record<AIProviderType, string[]> = {
     google: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'],
     replicate: [], // Allow custom model input for Replicate
     openrouter: [], // OpenRouter models are fetched dynamically from API
+    grok: ['grok-beta', 'grok-2', 'grok-2-1212', 'grok-2-vision-1212'], // Grok models
     custom: [] // Custom providers can specify any model
 };
 
@@ -99,6 +101,7 @@ export const API_KEY_PATTERNS: Record<AIProviderType, RegExp | null> = {
     google: /^[a-zA-Z0-9_-]{20,}$/, // Google API keys are variable length, at least 20 chars
     replicate: /^r8_[a-zA-Z0-9]{40}$/, // Replicate keys start with 'r8_'
     openrouter: /^sk-or-v1-[a-zA-Z0-9-_]{64}$/, // OpenRouter keys start with 'sk-or-v1-'
+    grok: /^xai-[a-zA-Z0-9-_]{20,}$/, // Grok keys start with 'xai-'
     custom: null // Custom providers can have any format
 };
 

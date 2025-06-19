@@ -643,9 +643,11 @@ export class ChatService {
         try {
             const sessionSchema = this.universalDb.getSchemaByTableName('chat_sessions');
             const messageSchema = this.universalDb.getSchemaByTableName('chat_messages');
+            const sharedChatSchema = this.universalDb.getSchemaByTableName('shared_chats');
 
             if (sessionSchema) await this.universalDb.ensureSchema(sessionSchema);
             if (messageSchema) await this.universalDb.ensureSchema(messageSchema);
+            if (sharedChatSchema) await this.universalDb.ensureSchema(sharedChatSchema);
         } catch (error) {
             console.error('Error initializing chat schemas:', error);
         }

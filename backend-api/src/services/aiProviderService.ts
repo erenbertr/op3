@@ -568,7 +568,7 @@ export class AIProviderService {
     }> {
         try {
             // Try to use Vercel AI SDK for supported providers first
-            if (['openai', 'anthropic', 'google', 'openrouter'].includes(type)) {
+            if (['openai', 'anthropic', 'google', 'openrouter', 'grok'].includes(type)) {
                 const vercelAIService = VercelAIProviderService.getInstance();
                 const result = await vercelAIService.getAvailableModels(type, apiKey);
 
@@ -631,6 +631,18 @@ export class AIProviderService {
                             description: m.description
                         })),
                         error: openrouterResult.error
+                    };
+
+                case 'grok':
+                    const grokResult = await this.fetchGrokModels(apiKey);
+                    return {
+                        success: grokResult.success,
+                        models: grokResult.models?.map(m => ({
+                            id: m.id,
+                            name: m.name || m.id,
+                            description: m.description
+                        })),
+                        error: grokResult.error
                     };
 
                 default:
@@ -762,23 +774,61 @@ export class AIProviderService {
     // Fetch available models from Grok (xAI)
     public async fetchGrokModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
         try {
-            // For now, return fallback models since Grok API might not have a public models endpoint
-            // This can be updated when xAI provides a proper models API
+            // Try to fetch models from xAI API
+            const response = await fetch('https://api.x.ai/v1/models', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json() as any;
+
+                // Transform xAI API response to our format
+                const models = data.data?.map((model: any) => ({
+                    id: model.id,
+                    name: model.id.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+                    description: model.description || `${model.id} model`,
+                    capabilities: ['reasoning', 'search'] // All Grok models support reasoning and search
+                })) || [];
+
+                return {
+                    success: true,
+                    models,
+                    message: 'Models fetched successfully from xAI API'
+                };
+            } else {
+                // If API call fails, fall back to known models
+                console.warn('xAI API call failed, using fallback models');
+                const fallbackModels = [
+                    { id: 'grok-beta', name: 'Grok Beta', capabilities: ['reasoning', 'search'] },
+                    { id: 'grok-2', name: 'Grok 2', capabilities: ['reasoning', 'search'] },
+                    { id: 'grok-2-1212', name: 'Grok 2 1212', capabilities: ['reasoning', 'search'] },
+                    { id: 'grok-2-vision-1212', name: 'Grok 2 Vision 1212', capabilities: ['reasoning', 'search', 'vision'] }
+                ];
+
+                return {
+                    success: true,
+                    models: fallbackModels,
+                    message: 'Models fetched successfully (using fallback list - API call failed)'
+                };
+            }
+        } catch (error) {
+            // If there's an error, fall back to known models
+            console.warn('Error fetching Grok models, using fallback:', error);
             const fallbackModels = [
                 { id: 'grok-beta', name: 'Grok Beta', capabilities: ['reasoning', 'search'] },
-                { id: 'grok-2', name: 'Grok 2', capabilities: ['reasoning', 'search'] }
+                { id: 'grok-2', name: 'Grok 2', capabilities: ['reasoning', 'search'] },
+                { id: 'grok-2-1212', name: 'Grok 2 1212', capabilities: ['reasoning', 'search'] },
+                { id: 'grok-2-vision-1212', name: 'Grok 2 Vision 1212', capabilities: ['reasoning', 'search', 'vision'] }
             ];
 
             return {
                 success: true,
                 models: fallbackModels,
-                message: 'Models fetched successfully (using fallback list)'
-            };
-        } catch (error) {
-            return {
-                success: false,
-                message: error instanceof Error ? error.message : 'Network error',
-                error: 'NETWORK_ERROR'
+                message: 'Models fetched successfully (using fallback list - network error)'
             };
         }
     }
@@ -926,7 +976,7 @@ export class AIProviderService {
 
     // Infer Google model capabilities based on model name
     private inferGoogleModelCapabilities(modelName: string): string[] {
-        const capabilities: string[] = ['reasoning'];
+        const capabilities: string[] = ['reasoning', 'search']; // All Gemini models support web search
 
         if (modelName.includes('gemini-1.5') || modelName.includes('gemini-2.0')) {
             capabilities.push('vision', 'image', 'pdf', 'functionCalling', 'codeInterpreter');

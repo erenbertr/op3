@@ -304,6 +304,13 @@ export class VercelAIProviderService {
                     { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (via OpenRouter)', description: 'Anthropic Claude through OpenRouter' },
                     { id: 'google/gemini-pro', name: 'Gemini Pro (via OpenRouter)', description: 'Google Gemini through OpenRouter' }
                 ];
+            case 'grok':
+                return [
+                    { id: 'grok-beta', name: 'Grok Beta', description: 'Grok Beta model with reasoning and search' },
+                    { id: 'grok-2', name: 'Grok 2', description: 'Grok 2 model with enhanced capabilities' },
+                    { id: 'grok-2-1212', name: 'Grok 2 1212', description: 'Latest Grok 2 model with improved performance' },
+                    { id: 'grok-2-vision-1212', name: 'Grok 2 Vision 1212', description: 'Grok 2 model with vision capabilities' }
+                ];
             default:
                 return [];
         }
