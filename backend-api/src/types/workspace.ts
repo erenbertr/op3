@@ -60,6 +60,8 @@ export interface WorkspaceListResponse {
         templateType: WorkspaceTemplate;
         workspaceRules: string;
         isActive: boolean;
+        groupId?: string | null;
+        sortOrder?: number;
         createdAt: string;
     }[];
 }

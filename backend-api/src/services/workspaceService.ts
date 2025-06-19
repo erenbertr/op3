@@ -9,6 +9,7 @@ import {
     WorkspaceUpdateResponse,
     WorkspaceDeleteResponse
 } from '../types/workspace';
+import { QueryCondition } from '../types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -309,6 +310,54 @@ export class WorkspaceService {
     }
 
     /**
+     * Batch update workspaces - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async batchUpdateWorkspaces(
+        userId: string,
+        updates: Array<{ workspaceId: string; groupId: string | null; sortOrder: number }>
+    ): Promise<{ success: boolean; message: string }> {
+        try {
+            // Update each workspace
+            for (const update of updates) {
+                const { workspaceId, groupId, sortOrder } = update;
+
+                // Verify ownership first
+                const existingWorkspace = await this.getWorkspaceById(workspaceId, userId);
+                if (!existingWorkspace) {
+                    console.warn(`Workspace ${workspaceId} not found or access denied for user ${userId}`);
+                    continue; // Skip this update but continue with others
+                }
+
+                // Update the workspace
+                await this.universalDb.updateMany<Workspace>('workspaces',
+                    {
+                        groupId,
+                        sortOrder,
+                        updatedAt: new Date()
+                    },
+                    {
+                        where: [
+                            { field: 'id', operator: 'eq', value: workspaceId },
+                            { field: 'userId', operator: 'eq', value: userId }
+                        ]
+                    }
+                );
+            }
+
+            return {
+                success: true,
+                message: 'Workspaces updated successfully'
+            };
+        } catch (error) {
+            console.error('Error batch updating workspaces:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to batch update workspaces'
+            };
+        }
+    }
+
+    /**
      * Get workspace by ID - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
     public async getWorkspaceById(workspaceId: string, userId: string): Promise<Workspace | null> {
@@ -381,7 +430,7 @@ export class WorkspaceService {
                 }
             } else if (request.sortOrder !== undefined && request.sortOrder !== currentWorkspace.sortOrder) {
                 // Moving within the same group
-                await this.adjustSortOrdersInGroup(userId, currentWorkspace.groupId, request.sortOrder, 'increment');
+                await this.adjustSortOrdersInGroup(userId, currentWorkspace.groupId ?? null, request.sortOrder, 'increment');
             }
         } catch (error) {
             console.error('Error handling workspace reordering:', error);
@@ -393,7 +442,7 @@ export class WorkspaceService {
      */
     private async adjustSortOrdersInGroup(userId: string, groupId: string | null, newSortOrder: number, operation: 'increment' | 'decrement'): Promise<void> {
         try {
-            const where = [
+            const where: QueryCondition[] = [
                 { field: 'userId', operator: 'eq', value: userId },
                 { field: 'sortOrder', operator: 'gte', value: newSortOrder }
             ];
@@ -409,7 +458,8 @@ export class WorkspaceService {
 
             // Update each workspace's sort order
             for (const workspace of workspacesToUpdate.data) {
-                const newOrder = operation === 'increment' ? workspace.sortOrder + 1 : workspace.sortOrder - 1;
+                const currentSortOrder = workspace.sortOrder ?? 0;
+                const newOrder = operation === 'increment' ? currentSortOrder + 1 : currentSortOrder - 1;
                 await this.universalDb.update<Workspace>('workspaces', workspace.id, {
                     sortOrder: newOrder
                 });

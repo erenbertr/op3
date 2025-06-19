@@ -2,19 +2,22 @@ export interface WorkspaceGroup {
     id: string;
     userId: string;
     name: string;
+    color?: string;
     sortOrder: number;
-    isPinned: boolean;
+    isPinned?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
 export interface CreateWorkspaceGroupRequest {
     name: string;
+    color?: string;
     sortOrder?: number;
 }
 
 export interface UpdateWorkspaceGroupRequest {
     name?: string;
+    color?: string;
     sortOrder?: number;
     isPinned?: boolean;
 }
@@ -71,3 +74,12 @@ export interface PinGroupResponse {
         isPinned: boolean;
     };
 }
+
+// Additional type aliases for backward compatibility
+export type CreateWorkspaceGroupResponse = WorkspaceGroupResponse;
+export type UpdateWorkspaceGroupResponse = WorkspaceGroupResponse;
+export type DeleteWorkspaceGroupResponse = {
+    success: boolean;
+    message: string;
+};
+export type WorkspaceGroupsListResponse = WorkspaceGroupsResponse;

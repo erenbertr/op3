@@ -8,6 +8,7 @@ import {
     DeleteWorkspaceGroupResponse,
     WorkspaceGroupsListResponse
 } from '../types/workspace-group';
+import { QueryCondition } from '../types/database';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -44,7 +45,7 @@ export class WorkspaceGroupService {
 
             // Get the next sort order
             const existingGroups = await this.getUserWorkspaceGroups(userId);
-            const maxSortOrder = existingGroups.groups.reduce((max, group) =>
+            const maxSortOrder = existingGroups.groups.reduce((max: number, group: any) =>
                 Math.max(max, group.sortOrder || 0), 0);
 
             const workspaceGroup: WorkspaceGroup = {
@@ -64,7 +65,13 @@ export class WorkspaceGroupService {
                 return {
                     success: true,
                     message: 'Workspace group created successfully',
-                    group: workspaceGroup
+                    group: {
+                        id: workspaceGroup.id,
+                        name: workspaceGroup.name,
+                        sortOrder: workspaceGroup.sortOrder,
+                        isPinned: workspaceGroup.isPinned || false,
+                        createdAt: workspaceGroup.createdAt.toISOString()
+                    }
                 };
             } else {
                 throw new Error('Failed to create workspace group');
@@ -91,7 +98,14 @@ export class WorkspaceGroupService {
             return {
                 success: true,
                 message: 'Workspace groups retrieved successfully',
-                groups: result.data
+                groups: result.data.map(group => ({
+                    id: group.id,
+                    name: group.name,
+                    sortOrder: group.sortOrder,
+                    isPinned: group.isPinned || false,
+                    createdAt: group.createdAt.toISOString(),
+                    workspaceCount: 0 // TODO: Calculate actual workspace count
+                }))
             };
         } catch (error) {
             console.error('Error getting workspace groups:', error);
@@ -147,7 +161,13 @@ export class WorkspaceGroupService {
                 return {
                     success: true,
                     message: 'Workspace group updated successfully',
-                    group: updatedGroup!
+                    group: updatedGroup ? {
+                        id: updatedGroup.id,
+                        name: updatedGroup.name,
+                        sortOrder: updatedGroup.sortOrder,
+                        isPinned: updatedGroup.isPinned || false,
+                        createdAt: updatedGroup.createdAt.toISOString()
+                    } : undefined
                 };
             } else {
                 return {
@@ -257,6 +277,130 @@ export class WorkspaceGroupService {
         }
     }
 
+    // ==================== ALIAS METHODS FOR ROUTE COMPATIBILITY ====================
+
+    /**
+     * Alias for createWorkspaceGroup - for route compatibility
+     */
+    async createGroup(userId: string, request: CreateWorkspaceGroupRequest): Promise<CreateWorkspaceGroupResponse> {
+        return this.createWorkspaceGroup(userId, request);
+    }
+
+    /**
+     * Alias for getUserWorkspaceGroups - for route compatibility
+     */
+    async getUserGroups(userId: string): Promise<WorkspaceGroupsListResponse> {
+        return this.getUserWorkspaceGroups(userId);
+    }
+
+    /**
+     * Alias for reorderWorkspaceGroups - for route compatibility
+     */
+    async reorderGroups(userId: string, request: { groupOrders: { groupId: string; sortOrder: number }[] }): Promise<{ success: boolean; message: string }> {
+        return this.reorderWorkspaceGroups(userId, request.groupOrders);
+    }
+
+    /**
+     * Pin/unpin workspace group - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    async pinGroup(userId: string, groupId: string, isPinned: boolean): Promise<{ success: boolean; message: string; group?: WorkspaceGroup }> {
+        try {
+            // Verify ownership
+            const existingGroup = await this.getWorkspaceGroupById(groupId, userId);
+            if (!existingGroup) {
+                return {
+                    success: false,
+                    message: 'Workspace group not found or access denied'
+                };
+            }
+
+            // Update pin status
+            const result = await this.universalDb.updateMany<WorkspaceGroup>('workspace_groups',
+                { isPinned, updatedAt: new Date() },
+                {
+                    where: [
+                        { field: 'id', operator: 'eq', value: groupId },
+                        { field: 'userId', operator: 'eq', value: userId }
+                    ]
+                }
+            );
+
+            if (result.modifiedCount > 0) {
+                const updatedGroup = await this.getWorkspaceGroupById(groupId, userId);
+                return {
+                    success: true,
+                    message: `Workspace group ${isPinned ? 'pinned' : 'unpinned'} successfully`,
+                    group: updatedGroup!
+                };
+            } else {
+                return {
+                    success: false,
+                    message: 'Failed to update pin status'
+                };
+            }
+        } catch (error) {
+            console.error('Error pinning/unpinning workspace group:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update pin status'
+            };
+        }
+    }
+
+    /**
+     * Alias for updateWorkspaceGroup - for route compatibility
+     */
+    async updateGroup(userId: string, groupId: string, request: UpdateWorkspaceGroupRequest): Promise<UpdateWorkspaceGroupResponse> {
+        return this.updateWorkspaceGroup(groupId, userId, request);
+    }
+
+    /**
+     * Alias for deleteWorkspaceGroup - for route compatibility
+     */
+    async deleteGroup(userId: string, groupId: string): Promise<DeleteWorkspaceGroupResponse> {
+        return this.deleteWorkspaceGroup(groupId, userId);
+    }
+
+    /**
+     * Delete workspace group and all workspaces inside it - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    async deleteGroupWithWorkspaces(userId: string, groupId: string): Promise<DeleteWorkspaceGroupResponse> {
+        try {
+            // Verify ownership
+            const existingGroup = await this.getWorkspaceGroupById(groupId, userId);
+            if (!existingGroup) {
+                return {
+                    success: false,
+                    message: 'Workspace group not found or access denied'
+                };
+            }
+
+            // First, delete all workspaces in this group
+            const { WorkspaceService } = await import('./workspaceService');
+            const workspaceService = WorkspaceService.getInstance();
+
+            // Get all workspaces in this group
+            const workspacesResult = await workspaceService.getUserWorkspaces(userId);
+            if (workspacesResult.success) {
+                const workspacesInGroup = workspacesResult.workspaces.filter((w: any) => w.groupId === groupId);
+
+                // Delete each workspace
+                for (const workspace of workspacesInGroup) {
+                    await workspaceService.deleteWorkspace(workspace.id, userId);
+                }
+            }
+
+            // Then delete the group itself
+            return this.deleteWorkspaceGroup(groupId, userId);
+        } catch (error) {
+            console.error('Error deleting workspace group with workspaces:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to delete workspace group with workspaces'
+            };
+        }
+    }
+
     // ==================== HELPER METHODS ====================
 
     /**
@@ -267,7 +411,7 @@ export class WorkspaceGroupService {
             if (newSortOrder === oldSortOrder) return;
 
             // Get all groups that need reordering
-            const where = [{ field: 'userId', operator: 'eq', value: userId }];
+            const where: QueryCondition[] = [{ field: 'userId', operator: 'eq', value: userId }];
 
             if (newSortOrder > oldSortOrder) {
                 // Moving down - decrease sort order of groups in between

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { UniversalDatabaseService } from './universalDatabaseService';
-import { 
-    WorkspaceOpenRouterSettings, 
+import {
+    WorkspaceOpenRouterSettings,
     SaveWorkspaceOpenRouterSettingsRequest,
     SaveWorkspaceOpenRouterSettingsResponse,
     GetWorkspaceOpenRouterSettingsResponse,
@@ -71,7 +71,7 @@ export class WorkspaceOpenRouterService {
     public async validateApiKey(request: ValidateOpenRouterApiKeyRequest): Promise<ValidateOpenRouterApiKeyResponse> {
         try {
             const result = await this.aiProviderService.fetchOpenRouterModels(request.apiKey);
-            
+
             if (result.success) {
                 return {
                     success: true,
@@ -99,7 +99,7 @@ export class WorkspaceOpenRouterService {
         try {
             // Encrypt the API key
             const encryptedApiKey = this.encryptApiKey(request.apiKey);
-            
+
             const settings: WorkspaceOpenRouterSettings = {
                 id: crypto.randomUUID(),
                 workspaceId: request.workspaceId,
@@ -116,7 +116,7 @@ export class WorkspaceOpenRouterService {
             });
 
             let result;
-            if (existingSettings) {
+            if (existingSettings && existingSettings.id) {
                 // Update existing settings
                 result = await this.universalDb.update<WorkspaceOpenRouterSettings>('workspace_openrouter_settings', existingSettings.id, {
                     apiKey: encryptedApiKey,
