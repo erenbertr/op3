@@ -288,11 +288,16 @@ export const WorkspaceGroupSchema: SchemaDefinition = {
         sortOrder: {
             type: 'number',
             defaultValue: 0
+        },
+        isPinned: {
+            type: 'boolean',
+            defaultValue: false
         }
     },
     indexes: [
         ['userId'],
-        ['sortOrder']
+        ['sortOrder'],
+        ['isPinned']
     ],
     timestamps: true
 };

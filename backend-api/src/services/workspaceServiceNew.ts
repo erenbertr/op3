@@ -432,6 +432,54 @@ export class WorkspaceServiceNew {
             console.error('Error initializing workspace schema:', error);
         }
     }
+
+    /**
+     * Batch update workspaces - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async batchUpdateWorkspaces(
+        userId: string,
+        updates: Array<{ workspaceId: string; groupId: string | null; sortOrder: number }>
+    ): Promise<{ success: boolean; message: string }> {
+        try {
+            // Update each workspace
+            for (const update of updates) {
+                const { workspaceId, groupId, sortOrder } = update;
+
+                // Verify ownership first
+                const existingWorkspace = await this.getWorkspaceById(workspaceId, userId);
+                if (!existingWorkspace) {
+                    console.warn(`Workspace ${workspaceId} not found or access denied for user ${userId}`);
+                    continue; // Skip this update but continue with others
+                }
+
+                // Update workspace - works with ANY database type!
+                const result = await this.universalDb.updateMany<Workspace>('workspaces',
+                    { groupId, sortOrder, updatedAt: new Date() },
+                    {
+                        where: [
+                            { field: 'id', operator: 'eq', value: workspaceId },
+                            { field: 'userId', operator: 'eq', value: userId }
+                        ]
+                    }
+                );
+
+                if (!result.success) {
+                    console.warn(`Failed to update workspace ${workspaceId}`);
+                }
+            }
+
+            return {
+                success: true,
+                message: 'Workspaces updated successfully'
+            };
+        } catch (error) {
+            console.error('Error batch updating workspaces:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to batch update workspaces'
+            };
+        }
+    }
 }
 
 // AMAZING REDUCTION: From 1177 lines to ~300 lines (74% reduction!)

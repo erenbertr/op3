@@ -45,9 +45,7 @@ export class WorkspacePersonalityFavoritesServiceNew {
                 orderBy: [{ field: 'sortOrder', direction: 'asc' }]
             });
 
-            if (!result.success) {
-                throw new Error('Failed to fetch personality favorites');
-            }
+            // findMany returns FindResult which always succeeds or throws
 
             return {
                 success: true,
@@ -225,7 +223,7 @@ export class WorkspacePersonalityFavoritesServiceNew {
                 limit: 1
             });
 
-            if (result.success && result.data.length > 0) {
+            if (result.data.length > 0) {
                 return result.data[0].sortOrder + 1;
             }
 
