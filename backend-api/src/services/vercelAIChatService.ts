@@ -3,7 +3,12 @@ import { VercelAIProviderService } from './vercelAIProviderService';
 import { ChatService } from './chatService';
 import { PersonalityService } from './personalityService';
 import { WorkspaceService } from './workspaceService';
+import { GoogleModelConfigService } from './googleModelConfigService';
+import { GoogleProviderService } from './googleProviderService';
+import { OpenAIModelConfigService } from './openaiModelConfigService';
+import { OpenAIProviderService } from './openaiProviderService';
 import { ChatMessage } from '../types/chat';
+import { AIProviderConfig } from '../types/ai-provider';
 import crypto from 'crypto';
 
 // Define ApiMetadata interface locally since it doesn't exist
@@ -50,12 +55,20 @@ export class VercelAIChatService {
     private chatService: ChatService;
     private personalityService: PersonalityService;
     private workspaceService: WorkspaceService;
+    private googleModelConfigService: GoogleModelConfigService;
+    private googleProviderService: GoogleProviderService;
+    private openaiModelConfigService: OpenAIModelConfigService;
+    private openaiProviderService: OpenAIProviderService;
 
     private constructor() {
         this.vercelAIService = VercelAIProviderService.getInstance();
         this.chatService = ChatService.getInstance();
         this.personalityService = PersonalityService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
+        this.googleModelConfigService = GoogleModelConfigService.getInstance();
+        this.googleProviderService = GoogleProviderService.getInstance();
+        this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
+        this.openaiProviderService = OpenAIProviderService.getInstance();
     }
 
     public static getInstance(): VercelAIChatService {
@@ -73,12 +86,12 @@ export class VercelAIChatService {
         onChunk: (chunk: VercelAIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         try {
-            // Get the language model
-            const model = request.aiProviderId
-                ? this.vercelAIService.getLanguageModelById(request.aiProviderId)
-                : this.vercelAIService.getActiveLanguageModel();
+            // Resolve the provider configuration
+            const providerConfig = request.aiProviderId
+                ? await this.resolveProviderConfig(request.aiProviderId)
+                : await this.getActiveProviderConfig();
 
-            if (!model) {
+            if (!providerConfig) {
                 onChunk({
                     type: 'error',
                     error: 'No active AI provider found'
@@ -86,6 +99,20 @@ export class VercelAIChatService {
                 return {
                     success: false,
                     message: 'No active AI provider configured'
+                };
+            }
+
+            // Create the language model using the resolved provider config
+            const model = this.vercelAIService.createLanguageModel(providerConfig);
+
+            if (!model) {
+                onChunk({
+                    type: 'error',
+                    error: 'Failed to create language model'
+                });
+                return {
+                    success: false,
+                    message: 'Failed to create language model'
                 };
             }
 
@@ -184,6 +211,166 @@ export class VercelAIChatService {
     }
 
     /**
+     * Resolve provider configuration from aiProviderId
+     * This handles OpenAI model configs, Google model configs, and legacy AI providers
+     */
+    private async resolveProviderConfig(aiProviderId: string): Promise<AIProviderConfig | null> {
+        try {
+            // Try OpenAI model config first
+            const openaiConfig = await this.resolveOpenAIModelConfig(aiProviderId);
+            if (openaiConfig) {
+                return openaiConfig;
+            }
+
+            // Try Google model config
+            const googleConfig = await this.resolveGoogleModelConfig(aiProviderId);
+            if (googleConfig) {
+                return googleConfig;
+            }
+
+            // Try legacy AI provider system
+            const legacyConfig = await this.resolveLegacyProviderConfig(aiProviderId);
+            if (legacyConfig) {
+                return legacyConfig;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error resolving provider config:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get active provider configuration
+     */
+    private async getActiveProviderConfig(): Promise<AIProviderConfig | null> {
+        try {
+            // Try OpenAI model configs first
+            const openaiConfigs = await this.openaiModelConfigService.getAllModelConfigs();
+            if (openaiConfigs.success && openaiConfigs.data && Array.isArray(openaiConfigs.data)) {
+                const activeConfig = openaiConfigs.data.find((config: any) => config.isActive);
+                if (activeConfig) {
+                    return await this.resolveOpenAIModelConfig(activeConfig.id);
+                }
+            }
+
+            // Try Google model configs
+            const googleConfigs = await this.googleModelConfigService.getAllModelConfigs();
+            if (googleConfigs.success && googleConfigs.data && Array.isArray(googleConfigs.data)) {
+                const activeConfig = googleConfigs.data.find((config: any) => config.isActive);
+                if (activeConfig) {
+                    return await this.resolveGoogleModelConfig(activeConfig.id);
+                }
+            }
+
+            // Try legacy AI providers
+            const legacyProviders = this.vercelAIService.getActiveLanguageModel();
+            if (legacyProviders) {
+                // This would need to be implemented if we have legacy providers
+                return null;
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error getting active provider config:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Resolve OpenAI model configuration
+     */
+    private async resolveOpenAIModelConfig(modelConfigId: string): Promise<AIProviderConfig | null> {
+        try {
+            const allConfigsResult = await this.openaiModelConfigService.getAllModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.data) {
+                return null;
+            }
+
+            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
+
+            if (!modelConfig || !modelConfig.isActive) {
+                return null;
+            }
+
+            const decryptedApiKey = await this.openaiProviderService.getDecryptedApiKey(modelConfig.keyId);
+            if (!decryptedApiKey) {
+                return null;
+            }
+
+            return {
+                id: modelConfig.id,
+                type: 'openai',
+                name: modelConfig.customName || modelConfig.modelName,
+                apiKey: decryptedApiKey,
+                model: modelConfig.modelId,
+                endpoint: 'https://api.openai.com/v1',
+                isActive: modelConfig.isActive,
+                createdAt: modelConfig.createdAt,
+                updatedAt: modelConfig.updatedAt
+            };
+        } catch (error) {
+            console.error('Error resolving OpenAI model config:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Resolve Google model configuration
+     */
+    private async resolveGoogleModelConfig(modelConfigId: string): Promise<AIProviderConfig | null> {
+        try {
+            const allConfigsResult = await this.googleModelConfigService.getAllModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.data) {
+                return null;
+            }
+
+            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
+
+            if (!modelConfig || !modelConfig.isActive) {
+                return null;
+            }
+
+            const decryptedApiKey = await this.googleProviderService.getDecryptedApiKey(modelConfig.keyId);
+            if (!decryptedApiKey) {
+                return null;
+            }
+
+            return {
+                id: modelConfig.id,
+                type: 'google',
+                name: modelConfig.customName || modelConfig.modelName,
+                apiKey: decryptedApiKey,
+                model: modelConfig.modelId,
+                endpoint: 'https://generativelanguage.googleapis.com',
+                isActive: modelConfig.isActive,
+                createdAt: modelConfig.createdAt,
+                updatedAt: modelConfig.updatedAt
+            };
+        } catch (error) {
+            console.error('Error resolving Google model config:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Resolve legacy AI provider configuration
+     */
+    private async resolveLegacyProviderConfig(providerId: string): Promise<AIProviderConfig | null> {
+        try {
+            // This would use the old AIProviderService if needed
+            // For now, return null since we're focusing on the new provider systems
+            return null;
+        } catch (error) {
+            console.error('Error resolving legacy provider config:', error);
+            return null;
+        }
+    }
+
+    /**
      * Build system prompt from workspace rules and personality
      */
     private async buildSystemPrompt(sessionId: string, personalityId?: string, userId?: string): Promise<string> {
@@ -266,15 +453,25 @@ export class VercelAIChatService {
         request: VercelStreamingChatRequest
     ): Promise<{ success: boolean; message: string; content?: string; metadata?: ApiMetadata }> {
         try {
-            // Get the language model
-            const model = request.aiProviderId
-                ? this.vercelAIService.getLanguageModelById(request.aiProviderId)
-                : this.vercelAIService.getActiveLanguageModel();
+            // Resolve the provider configuration
+            const providerConfig = request.aiProviderId
+                ? await this.resolveProviderConfig(request.aiProviderId)
+                : await this.getActiveProviderConfig();
+
+            if (!providerConfig) {
+                return {
+                    success: false,
+                    message: 'No active AI provider configured'
+                };
+            }
+
+            // Create the language model using the resolved provider config
+            const model = this.vercelAIService.createLanguageModel(providerConfig);
 
             if (!model) {
                 return {
                     success: false,
-                    message: 'No active AI provider configured'
+                    message: 'Failed to create language model'
                 };
             }
 
