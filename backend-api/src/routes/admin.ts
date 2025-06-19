@@ -33,7 +33,7 @@ router.get('/system-settings', asyncHandler(async (req: Request, res: Response) 
 router.put('/system-settings', asyncHandler(async (req: any, res: Response) => {
     const updates = req.body;
     const result = await systemSettingsService.updateSystemSettings(updates, req.user.userId);
-    
+
     if (result.success) {
         res.json(result);
     } else {
@@ -63,23 +63,20 @@ router.get('/users', asyncHandler(async (req: Request, res: Response) => {
         sortOrder: sortOrder as 'asc' | 'desc'
     });
 
-    res.json({
-        success: true,
-        ...result
-    });
+    res.json(result);
 }));
 
 router.get('/users/:userId', asyncHandler(async (req: Request, res: Response) => {
     const { userId } = req.params;
     const user = await userService.getUserById(userId);
-    
+
     if (!user) {
         throw createError('User not found', 404);
     }
 
     // Remove password from response
     const { password, ...userWithoutPassword } = user;
-    
+
     res.json({
         success: true,
         user: userWithoutPassword
@@ -120,11 +117,12 @@ router.put('/users/:userId', asyncHandler(async (req: any, res: Response) => {
     // Remove password from updates - password changes should be handled separately
     const { password, ...allowedUpdates } = updates;
 
-    const result = await userService.updateUser(userId, allowedUpdates, req.user.userId);
+    const result = await userService.updateUser(userId, allowedUpdates);
 
     if (result.success) {
-        // Remove password from response
-        const userResponse = result.user ? { ...result.user, password: undefined } : undefined;
+        // Get updated user
+        const updatedUser = await userService.getUserById(userId);
+        const userResponse = updatedUser ? { ...updatedUser, password: undefined } : undefined;
         res.json({
             ...result,
             user: userResponse
@@ -136,8 +134,8 @@ router.put('/users/:userId', asyncHandler(async (req: any, res: Response) => {
 
 router.delete('/users/:userId', asyncHandler(async (req: any, res: Response) => {
     const { userId } = req.params;
-    
-    const result = await userService.deleteUser(userId, req.user.userId);
+
+    const result = await userService.deleteUser(userId);
 
     if (result.success) {
         res.json(result);
@@ -166,8 +164,8 @@ router.put('/users/:userId/password', asyncHandler(async (req: any, res: Respons
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 12);
-        
-        const result = await userService.updateUser(userId, { password: hashedPassword } as any, req.user.userId);
+
+        const result = await userService.updateUser(userId, { password: hashedPassword } as any);
 
         if (result.success) {
             res.json({
@@ -200,7 +198,7 @@ router.post('/users/bulk-update', asyncHandler(async (req: any, res: Response) =
 
     for (const userId of userIds) {
         try {
-            const result = await userService.updateUser(userId, updates, req.user.userId);
+            const result = await userService.updateUser(userId, updates);
             if (result.success) {
                 results.push({ userId, success: true });
             } else {
