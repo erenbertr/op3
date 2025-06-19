@@ -108,7 +108,7 @@ export const grokConfig: GrokProviderConfig = {
     providerId: 'grok',
     api: {
         providersEndpoint: '/grok-providers',
-        modelConfigsEndpoint: '', // Not implemented yet
+        modelConfigsEndpoint: '/grok-model-configs',
         fetchModelsEndpoint: '/ai-providers/grok/models',
         providersQueryKey: 'grok-keys',
         modelConfigsQueryKey: 'grok-model-configs'
@@ -122,9 +122,9 @@ export const grokConfig: GrokProviderConfig = {
         modelsTabDescription: 'Configure models for each API key',
         keysTabDescription: 'Manage your xAI API keys',
         noKeysTitle: 'No API Keys',
-        noKeysDescription: 'You haven\'t added any xAI API keys yet. Add your first key to get started with Grok models.',
+        noKeysDescription: 'Add an xAI API key first to configure models',
         noModelsTitle: 'No Models',
-        noModelsDescription: 'Add an xAI API key first to configure Grok models',
+        noModelsDescription: 'Add an xAI API key first to configure models',
         addKeyButtonLabel: 'Add Your First API Key',
         addModelButtonLabel: 'Add Model',
         addKeyModalTitle: 'Add New API Key',
@@ -162,7 +162,7 @@ export const claudeConfig: ClaudeProviderConfig = {
     providerId: 'claude',
     api: {
         providersEndpoint: '/anthropic-providers',
-        modelConfigsEndpoint: '', // Not implemented yet
+        modelConfigsEndpoint: '/anthropic-model-configs',
         fetchModelsEndpoint: '/ai-providers/anthropic/models',
         providersQueryKey: 'anthropic-keys',
         modelConfigsQueryKey: 'anthropic-model-configs'
@@ -176,9 +176,9 @@ export const claudeConfig: ClaudeProviderConfig = {
         modelsTabDescription: 'Configure models for each API key',
         keysTabDescription: 'Manage your Anthropic API keys',
         noKeysTitle: 'No API Keys',
-        noKeysDescription: 'You haven\'t added any Anthropic API keys yet. Add your first key to get started with Claude models.',
+        noKeysDescription: 'Add an Anthropic API key first to configure models',
         noModelsTitle: 'No Models',
-        noModelsDescription: 'Add an Anthropic API key first to configure Claude models',
+        noModelsDescription: 'Add an Anthropic API key first to configure models',
         addKeyButtonLabel: 'Add Your First API Key',
         addModelButtonLabel: 'Add Model',
         addKeyModalTitle: 'Add New API Key',
@@ -230,7 +230,7 @@ export const googleConfig: GoogleProviderConfig = {
     providerId: 'google',
     api: {
         providersEndpoint: '/google-providers',
-        modelConfigsEndpoint: '', // Not implemented yet
+        modelConfigsEndpoint: '/google-model-configs',
         fetchModelsEndpoint: '/ai-providers/google/models',
         providersQueryKey: 'google-keys',
         modelConfigsQueryKey: 'google-model-configs'
@@ -244,9 +244,9 @@ export const googleConfig: GoogleProviderConfig = {
         modelsTabDescription: 'Configure models for each API key',
         keysTabDescription: 'Manage your Google API keys',
         noKeysTitle: 'No API Keys',
-        noKeysDescription: 'You haven\'t added any Google API keys yet. Add your first key to get started with Gemini models.',
+        noKeysDescription: 'Add a Google API key first to configure models',
         noModelsTitle: 'No Models',
-        noModelsDescription: 'Add a Google API key first to configure Gemini models',
+        noModelsDescription: 'Add a Google API key first to configure models',
         addKeyButtonLabel: 'Add Your First API Key',
         addModelButtonLabel: 'Add Model',
         addKeyModalTitle: 'Add New API Key',
@@ -300,8 +300,8 @@ export const googleConfig: GoogleProviderConfig = {
 export const openrouterConfig: OpenRouterProviderConfig = {
     providerId: 'openrouter',
     api: {
-        providersEndpoint: '', // Not implemented yet - uses global config
-        modelConfigsEndpoint: '', // Not implemented yet - uses global config
+        providersEndpoint: '/openrouter-providers',
+        modelConfigsEndpoint: '/openrouter-model-configs',
         fetchModelsEndpoint: '/ai-providers/openrouter/models',
         providersQueryKey: 'openrouter-keys',
         modelConfigsQueryKey: 'openrouter-model-configs'
@@ -315,7 +315,7 @@ export const openrouterConfig: OpenRouterProviderConfig = {
         modelsTabDescription: 'Configure models for each API key',
         keysTabDescription: 'Manage your OpenRouter API keys',
         noKeysTitle: 'No API Keys',
-        noKeysDescription: 'You haven\'t added any OpenRouter API keys yet. Add your first key to get started with OpenRouter models.',
+        noKeysDescription: 'Add an OpenRouter API key first to configure models',
         noModelsTitle: 'No Models',
         noModelsDescription: 'Add an OpenRouter API key first to configure models',
         addKeyButtonLabel: 'Add Your First API Key',

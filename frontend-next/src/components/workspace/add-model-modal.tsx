@@ -9,19 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Brain, Search, FileUp, Image, FileText, Eye, Code, Calculator, Zap, Filter, X } from 'lucide-react';
 import { ModelCapabilities, ModelPricing } from '@/lib/api/openai-model-configs';
-
-interface OpenAIModel {
-    id: string;
-    object: string;
-    created: number;
-    owned_by: string;
-}
+import { BaseModel } from '@/types/ai-provider-config';
 
 interface AddModelModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAddModel: (modelId: string, customName?: string) => Promise<void>;
-    availableModels: OpenAIModel[];
+    availableModels: BaseModel[];
     isLoading?: boolean;
 }
 
@@ -32,7 +26,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
     availableModels,
     isLoading = false
 }) => {
-    const [selectedModel, setSelectedModel] = useState<OpenAIModel | null>(null);
+    const [selectedModel, setSelectedModel] = useState<BaseModel | null>(null);
     const [customName, setCustomName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -189,7 +183,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
 
     // Get unique owners for filter dropdown
     const uniqueOwners = useMemo(() => {
-        const owners = [...new Set(availableModels.map(model => model.owned_by))];
+        const owners = [...new Set(availableModels.map(model => model.owned_by).filter(Boolean))];
         return owners.sort();
     }, [availableModels]);
 
@@ -212,7 +206,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
             if (searchQuery.trim()) {
                 const query = searchQuery.toLowerCase();
                 const matchesSearch = model.id.toLowerCase().includes(query) ||
-                    model.owned_by.toLowerCase().includes(query);
+                    (model.owned_by && model.owned_by.toLowerCase().includes(query));
                 if (!matchesSearch) return false;
             }
 
@@ -296,7 +290,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                             <SelectContent>
                                                 <SelectItem value="all">All Owners</SelectItem>
                                                 {uniqueOwners.map(owner => (
-                                                    <SelectItem key={owner} value={owner}>
+                                                    <SelectItem key={owner} value={owner!}>
                                                         {owner}
                                                     </SelectItem>
                                                 ))}
@@ -376,7 +370,7 @@ const AddModelModal: React.FC<AddModelModalProps> = ({
                                                     <CardHeader className="pb-3">
                                                         <div className="flex items-center justify-between">
                                                             <CardTitle className="text-base">{model.id}</CardTitle>
-                                                            <Badge variant="outline">{model.owned_by}</Badge>
+                                                            {model.owned_by && <Badge variant="outline">{model.owned_by}</Badge>}
                                                         </div>
                                                     </CardHeader>
                                                     <CardContent className="pt-0">

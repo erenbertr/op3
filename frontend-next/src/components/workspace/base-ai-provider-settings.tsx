@@ -665,42 +665,6 @@ export function BaseAIProviderSettings({ config }: BaseAIProviderSettingsProps) 
     }
 
     function renderModelsTab() {
-        // Check if model configs are supported for this provider
-        const modelConfigsSupported = !!config.api.modelConfigsEndpoint;
-
-        if (!modelConfigsSupported) {
-            return (
-                <div className="space-y-6">
-                    <Card>
-                        <CardContent className="flex flex-col items-center justify-center py-12">
-                            <div className="mx-auto w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-4">
-                                <Bot className="h-12 w-12 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-lg font-semibold mb-2">Models Coming Soon</h3>
-                            <p className="text-muted-foreground mb-4 max-w-sm mx-auto text-center">
-                                {config.ui.displayName} model configuration will be available in a future update.
-                            </p>
-                            {keys.length === 0 ? (
-                                <div className="text-center">
-                                    <p className="text-sm text-muted-foreground mb-3">
-                                        No active API keys available. Please add an API key first.
-                                    </p>
-                                    <Button variant="outline" onClick={() => setActiveTab('keys')}>
-                                        Go to API Keys
-                                    </Button>
-                                </div>
-                            ) : (
-                                <Button disabled>
-                                    <Plus className="h-4 w-4" />
-                                    Add Your First Model
-                                </Button>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-            );
-        }
-
         return (
             <div className="space-y-6">
                 {keys.length === 0 ? (
