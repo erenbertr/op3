@@ -251,7 +251,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                                                     handleWorkspaceClick(workspace.id);
                                                 }
                                             }}
-                                            className={`h-10 px-3 rounded-t-md rounded-b-none border-b-2 transition-all select-none pointer-events-auto ${workspace.id === currentWorkspaceId && currentView === 'workspace'
+                                            className={`h-10 px-3 rounded-none transition-all select-none pointer-events-auto ${workspace.id === currentWorkspaceId && currentView === 'workspace'
                                                 ? 'bg-primary/10 border-primary text-primary'
                                                 : 'border-transparent hover:border-primary/50'
                                                 }`}
@@ -274,7 +274,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                                             handleAddWorkspace(group.id);
                                         }
                                     }}
-                                    className="h-10 px-2 rounded-t-md rounded-b-none border-b-2 border-transparent hover:border-primary/50"
+                                    className="h-10 px-2 rounded-none border-transparent hover:border-primary/50"
                                     title={`Add workspace to ${group.name}`}
                                 >
                                     <Plus className="h-4 w-4" />
