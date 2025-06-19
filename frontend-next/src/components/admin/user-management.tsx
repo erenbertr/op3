@@ -27,6 +27,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/toast';
 import { UserDialogs } from './user-dialogs';
+import { apiClient, SystemSettings } from '@/lib/api';
 import {
     Users,
     Plus,
@@ -52,12 +53,7 @@ interface User {
     lastLoginAt?: string;
 }
 
-interface SystemSettings {
-    registrationEnabled: boolean;
-    loginEnabled: boolean;
-    defaultUserRole: 'normal' | 'subscribed';
-    maxUsersAllowed?: number;
-}
+
 
 interface UserManagementProps {
     currentUser: {
@@ -85,26 +81,13 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     const { data: usersData, isLoading: usersLoading } = useQuery({
         queryKey: ['admin-users', page, searchTerm, roleFilter, statusFilter],
         queryFn: async () => {
-            const params = new URLSearchParams({
-                page: page.toString(),
-                limit: '20',
+            return await apiClient.getAdminUsers({
+                page,
+                limit: 20,
                 search: searchTerm,
                 ...(roleFilter !== 'all' && { role: roleFilter }),
-                ...(statusFilter !== 'all' && { isActive: statusFilter === 'active' ? 'true' : 'false' })
+                ...(statusFilter !== 'all' && { isActive: statusFilter === 'active' })
             });
-
-            const response = await fetch(`/api/v1/admin/users?${params}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('op3_auth_token')}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch users');
-            }
-
-            return response.json();
         },
     });
 
@@ -112,19 +95,8 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     const { data: systemSettings, isLoading: settingsLoading } = useQuery({
         queryKey: ['system-settings'],
         queryFn: async () => {
-            const response = await fetch('/api/v1/admin/system-settings', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('op3_auth_token')}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch system settings');
-            }
-
-            const data = await response.json();
-            return data.settings;
+            const response = await apiClient.getSystemSettings();
+            return response.settings;
         },
     });
 
@@ -132,39 +104,15 @@ export function UserManagement({ currentUser }: UserManagementProps) {
     const { data: userStats } = useQuery({
         queryKey: ['user-stats'],
         queryFn: async () => {
-            const response = await fetch('/api/v1/admin/users/stats', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('op3_auth_token')}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch user stats');
-            }
-
-            const data = await response.json();
-            return data.stats;
+            const response = await apiClient.getUserStats();
+            return response.stats;
         },
     });
 
     // Update system settings mutation
     const updateSystemSettingsMutation = useMutation({
         mutationFn: async (updates: Partial<SystemSettings>) => {
-            const response = await fetch('/api/v1/admin/system-settings', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('op3_auth_token')}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updates),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update system settings');
-            }
-
-            return response.json();
+            return await apiClient.updateSystemSettings(updates);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['system-settings'] });

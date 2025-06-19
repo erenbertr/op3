@@ -9,7 +9,7 @@ import { WorkspaceApplication } from '@/components/workspace/workspace-applicati
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserMenu } from '@/components/user-menu';
 import { apiClient } from '@/lib/api';
-import { useSession, signIn, signOut } from '@/lib/temp-auth';
+import { useSession, signIn, signUp, signOut } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -77,6 +77,30 @@ export function AppWrapper() {
             // The useEffect above will handle workspace setup check
         } catch (error) {
             // Login failed - error will be handled by the login form
+            throw error;
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
+
+    const handleRegister = async (credentials: { email: string; password: string; name?: string }) => {
+        setIsLoggingIn(true);
+
+        try {
+            const result = await signUp.email({
+                email: credentials.email,
+                password: credentials.password,
+                name: credentials.name,
+            });
+
+            if (result.error) {
+                throw new Error(result.error.message || 'Registration failed');
+            }
+
+            // Session will be updated automatically after successful registration
+            // The useEffect above will handle workspace setup check
+        } catch (error) {
+            // Registration failed - error will be handled by the login form
             throw error;
         } finally {
             setIsLoggingIn(false);
@@ -187,7 +211,7 @@ export function AppWrapper() {
                     </p>
                 </div>
                 <div className="max-w-md mx-auto">
-                    <LoginForm onLogin={handleLogin} isLoading={isLoggingIn} />
+                    <LoginForm onLogin={handleLogin} onRegister={handleRegister} isLoading={isLoggingIn} />
                 </div>
             </main>
         </div>

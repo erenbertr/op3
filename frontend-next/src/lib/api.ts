@@ -24,6 +24,55 @@ export interface AdminConfig {
     confirmPassword: string;
 }
 
+// Admin API types
+export interface SystemSettings {
+    id: string;
+    registrationEnabled: boolean;
+    loginEnabled: boolean;
+    maxUsersAllowed?: number;
+    defaultUserRole: 'normal' | 'subscribed';
+    requireEmailVerification: boolean;
+    allowUsernameChange: boolean;
+    passwordRequirements: {
+        minLength: number;
+        requireUppercase: boolean;
+        requireLowercase: boolean;
+        requireNumbers: boolean;
+        requireSpecialChars: boolean;
+    };
+    createdAt: string;
+    updatedAt: string;
+    updatedBy: string;
+}
+
+export interface AdminUser {
+    id: string;
+    email: string;
+    username?: string;
+    role: 'admin' | 'subscribed' | 'normal';
+    isActive: boolean;
+    firstName?: string;
+    lastName?: string;
+    createdAt: string;
+    lastLoginAt?: string;
+}
+
+export interface AdminUsersResponse {
+    success: boolean;
+    users: AdminUser[];
+    total: number;
+    totalPages: number;
+    currentPage: number;
+}
+
+export interface UserStats {
+    total: number;
+    active: number;
+    inactive: number;
+    admins: number;
+    normal: number;
+}
+
 export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | 'openrouter' | 'custom';
 
 export interface AIProviderConfig {
@@ -792,6 +841,44 @@ class ApiClient {
         const url = `${this.baseUrl.replace('/api/v1', '')}/health`;
         const response = await fetch(url);
         return response.json();
+    }
+
+    // Admin API methods
+    async getSystemSettings(): Promise<{ success: boolean; settings: SystemSettings }> {
+        return this.request<{ success: boolean; settings: SystemSettings }>('/admin/system-settings');
+    }
+
+    async updateSystemSettings(updates: Partial<SystemSettings>): Promise<{ success: boolean; message: string }> {
+        return this.request<{ success: boolean; message: string }>('/admin/system-settings', {
+            method: 'PUT',
+            body: JSON.stringify(updates),
+        });
+    }
+
+    async getAdminUsers(params: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        role?: string;
+        isActive?: boolean;
+    }): Promise<AdminUsersResponse> {
+        const searchParams = new URLSearchParams();
+        if (params.page) searchParams.set('page', params.page.toString());
+        if (params.limit) searchParams.set('limit', params.limit.toString());
+        if (params.search) searchParams.set('search', params.search);
+        if (params.role) searchParams.set('role', params.role);
+        if (params.isActive !== undefined) searchParams.set('isActive', params.isActive.toString());
+
+        return this.request<AdminUsersResponse>(`/admin/users?${searchParams.toString()}`);
+    }
+
+    async getUserStats(): Promise<{ success: boolean; stats: UserStats }> {
+        return this.request<{ success: boolean; stats: UserStats }>('/admin/users/stats');
+    }
+
+    // Public system settings (no authentication required)
+    async getPublicSystemSettings(): Promise<{ success: boolean; settings: { registrationEnabled: boolean; loginEnabled: boolean; requireEmailVerification: boolean } }> {
+        return this.request<{ success: boolean; settings: { registrationEnabled: boolean; loginEnabled: boolean; requireEmailVerification: boolean } }>('/system-settings/public');
     }
 
     // Test AI provider connection

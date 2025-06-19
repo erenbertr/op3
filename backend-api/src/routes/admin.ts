@@ -32,7 +32,7 @@ router.get('/system-settings', asyncHandler(async (req: Request, res: Response) 
 
 router.put('/system-settings', asyncHandler(async (req: any, res: Response) => {
     const updates = req.body;
-    const result = await systemSettingsService.updateSystemSettings(updates, req.user.userId);
+    const result = await systemSettingsService.updateSystemSettings(updates, req.user.id);
 
     if (result.success) {
         res.json(result);

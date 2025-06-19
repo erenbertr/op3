@@ -5,21 +5,36 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/lib/i18n';
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface LoginFormProps {
     onLogin?: (credentials: { email: string; password: string }) => Promise<void>;
+    onRegister?: (credentials: { email: string; password: string; name?: string }) => Promise<void>;
     isLoading?: boolean;
 }
 
-export function LoginForm({ onLogin, isLoading: externalLoading }: LoginFormProps) {
+export function LoginForm({ onLogin, onRegister, isLoading: externalLoading }: LoginFormProps) {
     const { t } = useI18n();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRegistering, setIsRegistering] = useState(false);
     const loading = externalLoading || isLoading;
     const [error, setError] = useState('');
+
+    // Fetch public system settings to check if registration is enabled
+    const { data: systemSettings } = useQuery({
+        queryKey: ['public-system-settings'],
+        queryFn: async () => {
+            return await apiClient.getPublicSystemSettings();
+        },
+    });
+
+    const registrationEnabled = systemSettings?.settings?.registrationEnabled || false;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,18 +42,35 @@ export function LoginForm({ onLogin, isLoading: externalLoading }: LoginFormProp
         setIsLoading(true);
 
         try {
-            if (onLogin) {
-                await onLogin({ email, password });
+            if (isRegistering) {
+                if (onRegister) {
+                    await onRegister({ email, password, name: name || undefined });
+                } else {
+                    console.log('Registration attempt:', { email, password: '***', name });
+                    alert('Registration functionality will be implemented in the next phase.');
+                }
             } else {
-                // Default login logic - for now just show a message
-                console.log('Login attempt:', { email, password: '***' });
-                alert('Login functionality will be implemented in the next phase.');
+                if (onLogin) {
+                    await onLogin({ email, password });
+                } else {
+                    // Default login logic - for now just show a message
+                    console.log('Login attempt:', { email, password: '***' });
+                    alert('Login functionality will be implemented in the next phase.');
+                }
             }
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Login failed');
+            setError(error instanceof Error ? error.message : (isRegistering ? 'Registration failed' : 'Login failed'));
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const toggleMode = () => {
+        setIsRegistering(!isRegistering);
+        setError('');
+        setEmail('');
+        setPassword('');
+        setName('');
     };
 
     return (
@@ -47,6 +79,20 @@ export function LoginForm({ onLogin, isLoading: externalLoading }: LoginFormProp
                 {error && (
                     <div className="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-md">
                         {error}
+                    </div>
+                )}
+
+                {isRegistering && (
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Name (Optional)</Label>
+                        <Input
+                            id="name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Enter your name"
+                            disabled={loading}
+                        />
                     </div>
                 )}
 
@@ -98,8 +144,28 @@ export function LoginForm({ onLogin, isLoading: externalLoading }: LoginFormProp
                     className="w-full"
                     disabled={loading || !email || !password}
                 >
-                    {loading ? t('login.button.loading') : t('login.button.submit')}
+                    {loading ?
+                        (isRegistering ? 'Creating Account...' : t('login.button.loading')) :
+                        (isRegistering ? 'Create Account' : t('login.button.submit'))
+                    }
                 </Button>
+
+                {registrationEnabled && (
+                    <div className="text-center">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={toggleMode}
+                            disabled={loading}
+                            className="text-sm"
+                        >
+                            {isRegistering ?
+                                'Already have an account? Sign in' :
+                                'Don\'t have an account? Create one'
+                            }
+                        </Button>
+                    </div>
+                )}
             </form>
         </div>
     );

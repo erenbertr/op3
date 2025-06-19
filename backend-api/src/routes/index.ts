@@ -23,6 +23,7 @@ import anthropicProvidersRouter from './anthropic-providers';
 import shareRouter from './share';
 import msgRouter from './msg';
 import adminRouter from './admin';
+import { SystemSettingsServiceNew } from '../services/systemSettingsServiceNew';
 
 export const setupRoutes = (app: Express): void => {
     // API prefix
@@ -30,6 +31,32 @@ export const setupRoutes = (app: Express): void => {
 
     // Setup routes
     app.use(`${API_PREFIX}/setup`, setupRouter);
+
+    // Public system settings route (no authentication required)
+    app.get(`${API_PREFIX}/system-settings/public`, async (req, res) => {
+        try {
+            const systemSettingsService = SystemSettingsServiceNew.getInstance();
+            const settings = await systemSettingsService.getSystemSettings();
+
+            // Only return public settings that are safe to expose
+            const publicSettings = {
+                registrationEnabled: settings?.registrationEnabled || false,
+                loginEnabled: settings?.loginEnabled !== false, // Default to true if not set
+                requireEmailVerification: settings?.requireEmailVerification || false,
+            };
+
+            res.json({
+                success: true,
+                settings: publicSettings
+            });
+        } catch (error) {
+            console.error('Error fetching public system settings:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to fetch system settings'
+            });
+        }
+    });
 
     // Auth routes
     app.use(`${API_PREFIX}/auth`, authRouter);
