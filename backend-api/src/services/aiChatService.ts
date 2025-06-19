@@ -57,7 +57,7 @@ export class AIChatService {
         this.aiProviderService = AIProviderService.getInstance();
         this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
-        this.personalityService = new PersonalityService();
+        this.personalityService = PersonalityService.getInstance();
         this.chatService = ChatService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
 

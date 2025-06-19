@@ -5,7 +5,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
-const personalityService = new PersonalityService();
+const personalityService = PersonalityService.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
