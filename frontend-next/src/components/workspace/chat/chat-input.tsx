@@ -130,75 +130,81 @@ export function ChatInput({
 
     // Remove old provider logic - now using only OpenAI model configs
 
-    // Derived state for personality selection
-    const derivedPersonality = useMemo(() => {
-        if (sessionPersonalityId !== undefined) {
-            return sessionPersonalityId;
+    // Initialize state from session props - avoid infinite loops by only updating when session props change
+    React.useEffect(() => {
+        // Handle personality selection from session
+        if (sessionPersonalityId !== undefined && sessionPersonalityId !== selectedPersonality) {
+            setSelectedPersonality(sessionPersonalityId);
+        } else if (sessionPersonalityId === undefined && selectedPersonality !== '') {
+            setSelectedPersonality('');
         }
-        return '';
-    }, [sessionPersonalityId]);
+    }, [sessionPersonalityId]); // Only depend on session prop, not state to avoid infinite loops
 
-    // Derived state for AI provider selection - now uses both OpenAI and Google model configs
-    const derivedProvider = useMemo(() => {
-        // If we have a sessionAIProviderId, try to find a matching model config
+
+    React.useEffect(() => {
+        // Handle provider/model config selection from session
         if (sessionAIProviderId) {
-            // Check OpenAI configs first
-            if (openaiModelConfigs.length > 0) {
-                const sessionOpenAIConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
-                if (sessionOpenAIConfig) {
+            // Check if sessionAIProviderId matches any OpenAI model config
+            const sessionOpenAIConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
+            if (sessionOpenAIConfig) {
+                if (selectedModelConfig !== sessionAIProviderId) {
                     setSelectedModelConfig(sessionAIProviderId);
-                    return 'openai';
                 }
+                if (selectedProvider !== 'openai') {
+                    setSelectedProvider('openai');
+                }
+                return;
             }
 
-            // Check Google configs
-            if (googleModelConfigs.length > 0) {
-                const sessionGoogleConfig = googleModelConfigs.find(config => config.id === sessionAIProviderId);
-                if (sessionGoogleConfig) {
+            // Check if sessionAIProviderId matches any Google model config
+            const sessionGoogleConfig = googleModelConfigs.find(config => config.id === sessionAIProviderId);
+            if (sessionGoogleConfig) {
+                if (selectedModelConfig !== sessionAIProviderId) {
                     setSelectedModelConfig(sessionAIProviderId);
-                    return 'google';
                 }
+                if (selectedProvider !== 'google') {
+                    setSelectedProvider('google');
+                }
+                return;
             }
-        }
 
-        // Only fall back to active/first model config if there's no sessionAIProviderId
-        if (!sessionAIProviderId) {
-            // Try OpenAI first
-            if (openaiModelConfigs.length > 0) {
+            // If sessionAIProviderId exists but no matching config found, preserve it
+            if (selectedModelConfig !== sessionAIProviderId) {
+                setSelectedModelConfig(sessionAIProviderId);
+            }
+            if (selectedProvider !== 'openai') {
+                setSelectedProvider('openai'); // Default to openai for backward compatibility
+            }
+        } else if (!sessionAIProviderId) {
+            // Only set default if no session provider and configs are available
+            if (openaiModelConfigs.length > 0 && !selectedModelConfig) {
                 const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
                 if (activeModelConfig) {
                     setSelectedModelConfig(activeModelConfig.id);
-                    return 'openai';
+                    setSelectedProvider('openai');
+                    return;
                 }
             }
 
-            // Try Google if no OpenAI configs
-            if (googleModelConfigs.length > 0) {
+            if (googleModelConfigs.length > 0 && !selectedModelConfig && openaiModelConfigs.length === 0) {
                 const activeModelConfig = googleModelConfigs.find(config => config.isActive) || googleModelConfigs[0];
                 if (activeModelConfig) {
                     setSelectedModelConfig(activeModelConfig.id);
-                    return 'google';
+                    setSelectedProvider('google');
+                    return;
                 }
             }
+
+            // Clear selection if no session provider
+            if (selectedProvider !== '') {
+                setSelectedProvider('');
+            }
+            if (selectedModelConfig !== '') {
+                setSelectedModelConfig('');
+            }
         }
+    }, [sessionAIProviderId, openaiModelConfigs, googleModelConfigs]); // Only depend on props and configs, not state to avoid infinite loops
 
-        // If sessionAIProviderId exists but no matching config found, preserve it
-        if (sessionAIProviderId) {
-            setSelectedModelConfig(sessionAIProviderId);
-            return 'openai'; // Default to openai for backward compatibility
-        }
-
-        return '';
-    }, [sessionAIProviderId, openaiModelConfigs, googleModelConfigs]);
-
-    // Update state when derived values change - use useEffect instead of useMemo for side effects
-    React.useEffect(() => {
-        setSelectedPersonality(derivedPersonality);
-    }, [derivedPersonality]); // Removed selectedPersonality from deps to avoid overriding manual selections
-
-    React.useEffect(() => {
-        setSelectedProvider(derivedProvider);
-    }, [derivedProvider]); // Removed selectedProvider from deps to avoid overriding manual selections
 
     // Handle personality selection change
     const handlePersonalityChange = async (personalityId: string) => {

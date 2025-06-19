@@ -479,7 +479,7 @@ export function ChatSessionComponent({
 
     // TanStack Query handles loading messages automatically
 
-    const handleRetryMessage = async (messageId: string) => {
+    const handleRetryMessage = React.useCallback(async (messageId: string) => {
         // Find the message to retry
         const messageToRetry = messages.find(msg => msg.id === messageId);
         if (!messageToRetry) {
@@ -508,9 +508,9 @@ export function ChatSessionComponent({
                 }
             }
         }
-    };
+    }, [messages, handleSendMessage]);
 
-    const handleSettingsChange = async (personalityId?: string, aiProviderId?: string) => {
+    const handleSettingsChange = React.useCallback(async (personalityId?: string, aiProviderId?: string) => {
         if (!session?.id) return;
 
         try {
@@ -531,9 +531,9 @@ export function ChatSessionComponent({
                 variant: "destructive"
             });
         }
-    };
+    }, [session?.id, onSessionUpdate, addToast]);
 
-    const handleSendMessage = async (
+    const handleSendMessage = React.useCallback(async (
         content: string,
         personalityId?: string,
         aiProviderId?: string,
@@ -817,10 +817,20 @@ export function ChatSessionComponent({
                 });
             }
         }, 500); // End of setTimeout - delay streaming start to allow positioning animation
-    };
+    }, [
+        session?.id,
+        session?.lastUsedPersonalityId,
+        session?.lastUsedAIProviderId,
+        session?.title,
+        messages.length,
+        userId,
+        addToast,
+        updateSpacerHeight,
+        onSessionUpdate
+    ]);
 
     // Interrupt streaming function (for new messages during streaming)
-    const handleInterruptStreaming = () => {
+    const handleInterruptStreaming = React.useCallback(() => {
         console.log('🔄 Interrupting streaming for new message...');
 
         if (abortController) {
@@ -868,7 +878,7 @@ export function ChatSessionComponent({
         setCurrentStreamingPersonalityId(undefined);
         setCurrentStreamingAIProviderId(undefined);
         setIsSearchPending(false);
-    };
+    }, [abortController, streamingMessage, session.id, currentStreamingPersonalityId, currentStreamingAIProviderId]);
 
     // Stop streaming function
     const handleStopStreaming = async () => {
@@ -1028,7 +1038,7 @@ export function ChatSessionComponent({
     };
 
     // Branch conversation from a specific message
-    const handleBranchMessage = async (messageId: string, aiProviderId: string) => {
+    const handleBranchMessage = React.useCallback(async (messageId: string, aiProviderId: string) => {
         console.log('🌿 Branching conversation from message:', messageId, 'with provider:', aiProviderId);
         console.log('🌿 Available messages:', messages.map(m => ({ id: m.id, content: m.content.substring(0, 20) + '...', role: m.role })));
 
@@ -1154,21 +1164,21 @@ export function ChatSessionComponent({
                 variant: "destructive"
             });
         }
-    };
+    }, [workspaceId, messages, session.id, addToast, createBranchedChatMutation, navigate, router, userId]);
 
     // Helper functions to get current streaming personality and AI provider
-    const getCurrentStreamingPersonality = () => {
+    const getCurrentStreamingPersonality = React.useCallback(() => {
         const personalityId = currentStreamingPersonalityId;
         return personalityId && personalities ? personalities.find(p => p?.id === personalityId) : undefined;
-    };
+    }, [currentStreamingPersonalityId, personalities]);
 
-    const getCurrentStreamingAIProvider = () => {
+    const getCurrentStreamingAIProvider = React.useCallback(() => {
         // Remove old provider lookup - now using model configs
         return undefined;
-    };
+    }, []);
 
     // Retry streaming function
-    const handleRetryStreaming = () => {
+    const handleRetryStreaming = React.useCallback(() => {
         if (streamingState.hasError && streamingState.partialContent) {
             // Find the last user message and retry it
             const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
@@ -1180,7 +1190,7 @@ export function ChatSessionComponent({
                 );
             }
         }
-    };
+    }, [streamingState.hasError, streamingState.partialContent, messages, handleSendMessage]);
 
     return (
         <div className={`flex flex-col h-full ${className || ''}`}>
