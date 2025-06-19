@@ -7,6 +7,7 @@ import { GoogleModelConfigService } from './googleModelConfigService';
 import { GoogleProviderService } from './googleProviderService';
 import { OpenAIModelConfigService } from './openaiModelConfigService';
 import { OpenAIProviderService } from './openaiProviderService';
+import { OpenAIFileService } from './openaiFileService';
 import { ChatMessage } from '../types/chat';
 import { AIProviderConfig } from '../types/ai-provider';
 import crypto from 'crypto';
@@ -59,6 +60,7 @@ export class VercelAIChatService {
     private googleProviderService: GoogleProviderService;
     private openaiModelConfigService: OpenAIModelConfigService;
     private openaiProviderService: OpenAIProviderService;
+    private openaiFileService: OpenAIFileService;
 
     private constructor() {
         this.vercelAIService = VercelAIProviderService.getInstance();
@@ -69,6 +71,7 @@ export class VercelAIChatService {
         this.googleProviderService = GoogleProviderService.getInstance();
         this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
+        this.openaiFileService = OpenAIFileService.getInstance();
     }
 
     public static getInstance(): VercelAIChatService {
@@ -140,17 +143,35 @@ export class VercelAIChatService {
                 messageId
             });
 
-            // Handle search if enabled
+            // Handle OpenAI-specific features
+            if (providerConfig.type === 'openai') {
+                return await this.handleOpenAIStreaming(
+                    providerConfig,
+                    messages,
+                    messageId,
+                    onChunk,
+                    request.searchEnabled,
+                    request.reasoningEnabled,
+                    request.fileAttachments,
+                    request.sessionId
+                );
+            }
+
+            // Handle search if enabled for non-OpenAI providers
             if (request.searchEnabled) {
                 onChunk({
                     type: 'search_start',
                     messageId
                 });
-                // TODO: Implement web search functionality
-                // For now, we'll skip search and proceed with generation
+                // Web search not supported for non-OpenAI providers
+                onChunk({
+                    type: 'chunk',
+                    messageId,
+                    content: '[Note: Web search is only supported for OpenAI models.]\n\n'
+                });
             }
 
-            // Stream the response
+            // Stream the response for non-OpenAI providers
             const result = await streamText({
                 model,
                 messages,
@@ -207,6 +228,389 @@ export class VercelAIChatService {
                 success: false,
                 message: error instanceof Error ? error.message : 'Unknown error'
             };
+        }
+    }
+
+    /**
+     * Handle OpenAI-specific streaming with web search, reasoning, and O1 model support
+     */
+    private async handleOpenAIStreaming(
+        providerConfig: AIProviderConfig,
+        messages: CoreMessage[],
+        messageId: string,
+        onChunk: (chunk: VercelAIStreamChunk) => void,
+        searchEnabled?: boolean,
+        reasoningEnabled?: boolean,
+        fileAttachments?: string[],
+        sessionId?: string
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
+        const startTime = Date.now();
+        const isO1Model = providerConfig.model.startsWith('o1');
+
+        // Handle O1 models separately (they don't support web search or streaming)
+        if (isO1Model) {
+            return await this.handleO1ModelGeneration(
+                providerConfig,
+                messages,
+                messageId,
+                onChunk,
+                reasoningEnabled
+            );
+        }
+
+        // Handle web search for supported models
+        if (searchEnabled && this.supportsOpenAIWebSearch(providerConfig)) {
+            onChunk({
+                type: 'search_start',
+                messageId,
+                searchQuery: messages[messages.length - 1].content as string
+            });
+
+            try {
+                return await this.handleOpenAIResponsesAPI(
+                    providerConfig,
+                    messages,
+                    messageId,
+                    onChunk,
+                    fileAttachments,
+                    sessionId,
+                    reasoningEnabled
+                );
+            } catch (error) {
+                console.error('OpenAI Responses API error:', error);
+                onChunk({
+                    type: 'chunk',
+                    messageId,
+                    content: '[Note: Web search failed. Responding with training data and general knowledge.]\n\n'
+                });
+            }
+        } else if (searchEnabled) {
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: '[Note: This model does not support web search. Please use gpt-4o, gpt-4o-mini, or gpt-4-turbo for web search capabilities.]\n\n'
+            });
+        }
+
+        // Standard OpenAI streaming using Vercel AI SDK
+        const model = this.vercelAIService.createLanguageModel(providerConfig);
+
+        // Prepare streaming options
+        const streamOptions: any = {
+            model,
+            messages,
+            maxTokens: 2000,
+            temperature: 0.7,
+        };
+
+        // Add file search tool if file attachments are present
+        if (fileAttachments && fileAttachments.length > 0) {
+            // Get userId from the session or request context
+            const session = await this.chatService.getChatSession(sessionId || '');
+            const userId = session.session?.userId;
+
+            if (userId) {
+                const vectorStoreId = await this.getVectorStoreForSession(sessionId, userId);
+                if (vectorStoreId) {
+                    streamOptions.tools = [{
+                        type: 'file_search',
+                        file_search: {
+                            vector_store_ids: [vectorStoreId]
+                        }
+                    }];
+                }
+            }
+        }
+
+        const result = await streamText(streamOptions);
+
+        let fullContent = '';
+        for await (const delta of result.textStream) {
+            fullContent += delta;
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: delta
+            });
+        }
+
+        const usage = await result.usage;
+        const finishReason = await result.finishReason;
+
+        const metadata: ApiMetadata = {
+            model: providerConfig.model,
+            usage: usage ? {
+                promptTokens: usage.promptTokens,
+                completionTokens: usage.completionTokens,
+                totalTokens: usage.totalTokens
+            } : undefined,
+            finishReason: finishReason || 'stop',
+            responseTime: Date.now() - startTime
+        };
+
+        onChunk({
+            type: 'end',
+            messageId,
+            metadata
+        });
+
+        return {
+            success: true,
+            message: 'Response generated successfully',
+            finalContent: fullContent,
+            metadata
+        };
+    }
+
+    /**
+     * Check if OpenAI model supports web search via Responses API
+     */
+    private supportsOpenAIWebSearch(providerConfig: AIProviderConfig): boolean {
+        const webSearchModels = [
+            'gpt-4o',
+            'gpt-4o-mini',
+            'gpt-4-turbo',
+            'gpt-4-turbo-preview'
+        ];
+        return webSearchModels.includes(providerConfig.model);
+    }
+
+    /**
+     * Handle O1 model generation with reasoning steps
+     */
+    private async handleO1ModelGeneration(
+        providerConfig: AIProviderConfig,
+        messages: CoreMessage[],
+        messageId: string,
+        onChunk: (chunk: VercelAIStreamChunk) => void,
+        reasoningEnabled?: boolean
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
+        const startTime = Date.now();
+
+        try {
+            // O1 models don't support streaming, so we use generateText
+            const model = this.vercelAIService.createLanguageModel(providerConfig);
+
+            // Prepare generation options
+            const generateOptions: any = {
+                model,
+                messages,
+                maxTokens: 2000,
+                temperature: 1.0, // O1 models use temperature 1.0
+            };
+
+            // Note: O1 models don't support file search tools yet
+            // This can be added when OpenAI adds support
+
+            const result = await generateText(generateOptions);
+
+            let content = result.text;
+            let reasoningSteps: string[] = [];
+
+            // Extract reasoning steps if enabled and present
+            if (reasoningEnabled && content.includes('<thinking>')) {
+                const thinkingMatch = content.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                if (thinkingMatch) {
+                    const thinkingContent = thinkingMatch[1].trim();
+                    reasoningSteps = thinkingContent.split('\n').filter(step => step.trim());
+                    content = content.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+                }
+            }
+
+            // Send reasoning steps if available
+            if (reasoningSteps.length > 0) {
+                for (const step of reasoningSteps) {
+                    onChunk({
+                        type: 'chunk',
+                        messageId,
+                        content: `[Reasoning] ${step}\n`
+                    });
+                }
+                onChunk({
+                    type: 'chunk',
+                    messageId,
+                    content: '\n---\n\n'
+                });
+            }
+
+            // Send the main content
+            onChunk({
+                type: 'chunk',
+                messageId,
+                content: content
+            });
+
+            const metadata: ApiMetadata = {
+                model: providerConfig.model,
+                usage: result.usage ? {
+                    promptTokens: result.usage.promptTokens,
+                    completionTokens: result.usage.completionTokens,
+                    totalTokens: result.usage.totalTokens
+                } : undefined,
+                finishReason: result.finishReason || 'stop',
+                responseTime: Date.now() - startTime
+            };
+
+            onChunk({
+                type: 'end',
+                messageId,
+                metadata
+            });
+
+            return {
+                success: true,
+                message: 'Response generated successfully',
+                finalContent: content,
+                metadata
+            };
+
+        } catch (error) {
+            console.error('Error in O1 model generation:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Handle OpenAI Responses API for web search
+     */
+    private async handleOpenAIResponsesAPI(
+        providerConfig: AIProviderConfig,
+        messages: CoreMessage[],
+        messageId: string,
+        onChunk: (chunk: VercelAIStreamChunk) => void,
+        fileAttachments?: string[],
+        sessionId?: string,
+        reasoningEnabled?: boolean
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
+        const startTime = Date.now();
+        const endpoint = providerConfig.endpoint || 'https://api.openai.com/v1';
+
+        // Get the last user message for search input
+        const lastUserMessage = messages[messages.length - 1];
+        let input = lastUserMessage.content as string;
+
+        // Add context from previous messages if available
+        if (messages.length > 1) {
+            const previousMessages = messages.slice(0, -1);
+            if (previousMessages.length > 0) {
+                const contextString = previousMessages.map(msg =>
+                    `${msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : 'System'}: ${msg.content}`
+                ).join('\n\n');
+                input = `Previous conversation:\n${contextString}\n\nCurrent question: ${lastUserMessage.content}`;
+            }
+        }
+
+        // Build tools array for web search
+        const tools: any[] = [{
+            type: "web_search_preview",
+            search_context_size: "medium"
+        }];
+
+        const requestBody: any = {
+            model: providerConfig.model,
+            input: input,
+            tools: tools
+        };
+
+        const response = await fetch(`${endpoint}/responses`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${providerConfig.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json() as any;
+        let finalContent = '';
+        let searchResults: any[] = [];
+
+        // Process the response output
+        if (data.output && Array.isArray(data.output)) {
+            for (const output of data.output) {
+                if (output.type === 'web_search_call') {
+                    console.log('Web search call completed:', output.id);
+                } else if (output.type === 'message' && output.content) {
+                    for (const content of output.content) {
+                        if (content.type === 'output_text') {
+                            finalContent = content.text;
+
+                            // Extract citations as search results
+                            if (content.annotations) {
+                                searchResults = content.annotations
+                                    .filter((ann: any) => ann.type === 'url_citation')
+                                    .map((ann: any) => ({
+                                        title: ann.title || 'Web Result',
+                                        url: ann.url,
+                                        snippet: ann.title || 'Citation from web search'
+                                    }));
+                            }
+
+                            // Send search results if available
+                            if (searchResults.length > 0) {
+                                onChunk({
+                                    type: 'search_results',
+                                    messageId,
+                                    searchResults
+                                });
+                            }
+
+                            // Send the content
+                            onChunk({
+                                type: 'chunk',
+                                messageId,
+                                content: finalContent
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        const metadata: ApiMetadata = {
+            model: providerConfig.model,
+            usage: data.usage ? {
+                promptTokens: data.usage.input_tokens || 0,
+                completionTokens: data.usage.output_tokens || 0,
+                totalTokens: (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0)
+            } : undefined,
+            finishReason: 'stop',
+            responseTime: Date.now() - startTime
+        };
+
+        onChunk({
+            type: 'end',
+            messageId,
+            metadata
+        });
+
+        return {
+            success: true,
+            message: 'Response generated successfully',
+            finalContent: finalContent,
+            metadata
+        };
+    }
+
+    /**
+     * Get vector store ID for a session (for file search)
+     */
+    private async getVectorStoreForSession(sessionId?: string, userId?: string): Promise<string | null> {
+        if (!sessionId || !userId) return null;
+
+        try {
+            const vectorStoreResult = await this.openaiFileService.getOrCreateVectorStore(sessionId, userId);
+            if (vectorStoreResult.success && vectorStoreResult.vectorStore) {
+                return vectorStoreResult.vectorStore.openaiVectorStoreId;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting vector store for session:', error);
+            return null;
         }
     }
 
