@@ -3,7 +3,7 @@ import { VercelAIProviderService } from './vercelAIProviderService';
 import { ChatService } from './chatService';
 import { PersonalityService } from './personalityService';
 import { WorkspaceService } from './workspaceService';
-import { GoogleModelConfigService } from './googleModelConfigService';
+import { GoogleModelConfigServiceNew } from './googleModelConfigServiceNew';
 import { GoogleProviderService } from './googleProviderService';
 import { OpenAIModelConfigServiceNew } from './openaiModelConfigServiceNew';
 import { OpenAIProviderService } from './openaiProviderService';
@@ -57,7 +57,7 @@ export class VercelAIChatService {
     private chatService: ChatService;
     private personalityService: PersonalityService;
     private workspaceService: WorkspaceService;
-    private googleModelConfigService: GoogleModelConfigService;
+    private googleModelConfigService: GoogleModelConfigServiceNew;
     private googleProviderService: GoogleProviderService;
     private openaiModelConfigService: OpenAIModelConfigServiceNew;
     private openaiProviderService: OpenAIProviderService;
@@ -69,7 +69,7 @@ export class VercelAIChatService {
         this.chatService = ChatService.getInstance();
         this.personalityService = PersonalityService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
-        this.googleModelConfigService = GoogleModelConfigService.getInstance();
+        this.googleModelConfigService = GoogleModelConfigServiceNew.getInstance();
         this.googleProviderService = GoogleProviderService.getInstance();
         this.openaiModelConfigService = OpenAIModelConfigServiceNew.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
@@ -854,9 +854,9 @@ export class VercelAIChatService {
             }
 
             // Try Google model configs
-            const googleConfigs = await this.googleModelConfigService.getAllModelConfigs();
-            if (googleConfigs.success && googleConfigs.data && Array.isArray(googleConfigs.data)) {
-                const activeConfig = googleConfigs.data.find((config: any) => config.isActive);
+            const googleConfigs = await this.googleModelConfigService.getModelConfigs();
+            if (googleConfigs.success && googleConfigs.modelConfigs && Array.isArray(googleConfigs.modelConfigs)) {
+                const activeConfig = googleConfigs.modelConfigs.find((config: any) => config.isActive);
                 if (activeConfig) {
                     return await this.resolveGoogleModelConfig(activeConfig.id);
                 }
@@ -924,15 +924,15 @@ export class VercelAIChatService {
         try {
             console.log('Resolving Google model config for ID:', modelConfigId);
 
-            const allConfigsResult = await this.googleModelConfigService.getAllModelConfigs();
+            const allConfigsResult = await this.googleModelConfigService.getModelConfigs();
             console.log('Google model configs result:', allConfigsResult);
 
-            if (!allConfigsResult.success || !allConfigsResult.data) {
+            if (!allConfigsResult.success || !allConfigsResult.modelConfigs) {
                 console.log('No Google model configs found or failed to fetch');
                 return null;
             }
 
-            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const allConfigs = Array.isArray(allConfigsResult.modelConfigs) ? allConfigsResult.modelConfigs : [allConfigsResult.modelConfigs];
             console.log('All Google configs:', allConfigs);
 
             const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
@@ -959,8 +959,8 @@ export class VercelAIChatService {
                 model: modelConfig.modelId,
                 endpoint: 'https://generativelanguage.googleapis.com',
                 isActive: modelConfig.isActive,
-                createdAt: modelConfig.createdAt,
-                updatedAt: modelConfig.updatedAt
+                createdAt: typeof modelConfig.createdAt === 'string' ? new Date(modelConfig.createdAt) : modelConfig.createdAt,
+                updatedAt: typeof modelConfig.updatedAt === 'string' ? new Date(modelConfig.updatedAt) : modelConfig.updatedAt
             };
 
             console.log('Resolved Google provider config:', { ...providerConfig, apiKey: '***' });

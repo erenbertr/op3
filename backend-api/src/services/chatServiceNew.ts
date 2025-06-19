@@ -1,4 +1,5 @@
 import { UniversalDatabaseService } from './universalDatabaseService';
+import { QueryCondition } from '../types/database';
 import {
     ChatSession,
     ChatMessage,
@@ -95,9 +96,9 @@ export class ChatServiceNew {
      */
     public async getChatSessions(userId: string, workspaceId?: string): Promise<ChatSessionsListResponse> {
         try {
-            const where = [{ field: 'userId', operator: 'eq', value: userId }];
+            const where: QueryCondition[] = [{ field: 'userId', operator: 'eq' as const, value: userId }];
             if (workspaceId) {
-                where.push({ field: 'workspaceId', operator: 'eq', value: workspaceId });
+                where.push({ field: 'workspaceId', operator: 'eq' as const, value: workspaceId });
             }
 
             const result = await this.universalDb.findMany<ChatSession>('chat_sessions', {
@@ -222,7 +223,7 @@ export class ChatServiceNew {
                 return {
                     success: true,
                     message: 'Chat session updated successfully',
-                    session
+                    session: session || undefined
                 };
             } else {
                 return {
@@ -255,7 +256,7 @@ export class ChatServiceNew {
                 return {
                     success: true,
                     message: 'Chat session settings updated successfully',
-                    session
+                    session: session || undefined
                 };
             } else {
                 return {
