@@ -1090,8 +1090,8 @@ export class AIChatService {
 
         console.log('Google API Request:', JSON.stringify(requestBody, null, 2));
 
-        // Use the streaming endpoint
-        const response = await fetch(`${endpoint}/v1beta/models/${provider.model}:streamGenerateContent?key=${apiKey}`, {
+        // Use the regular generateContent endpoint (Google's streaming is not reliable)
+        const response = await fetch(`${endpoint}/v1beta/models/${provider.model}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1112,132 +1112,76 @@ export class AIChatService {
             throw new Error(`Google AI API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        return await this.processGoogleStream(response, messageId, onChunk, provider.model, conversationHistory);
+        return await this.processGoogleResponse(response, messageId, onChunk, provider.model, conversationHistory);
     }
 
     /**
-     * Process Google streaming response
+     * Process Google response
      */
-    private async processGoogleStream(
+    private async processGoogleResponse(
         response: Response,
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void,
         model: string,
         conversationHistory: ConversationMessage[] = []
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
-        const reader = response.body?.getReader();
-        if (!reader) {
-            throw new Error('No response body reader available');
-        }
-
-        const decoder = new TextDecoder();
         let finalContent = '';
         let inputTokens = 0;
         let outputTokens = 0;
-        let buffer = '';
 
-        console.log('Starting Google stream processing...');
+        console.log('Processing Google response...');
 
         try {
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) {
-                    console.log('Google stream reading completed');
-                    break;
+            const responseText = await response.text();
+            console.log('Google Response Text:', responseText);
+
+            const parsed = JSON.parse(responseText);
+            console.log('Google Parsed Response:', JSON.stringify(parsed, null, 2));
+
+            // Check for errors
+            if (parsed.error) {
+                onChunk({
+                    type: 'error',
+                    error: `Google AI API error: ${parsed.error.message || 'Unknown error'}`
+                });
+                return {
+                    success: false,
+                    message: `Google AI API error: ${parsed.error.message || 'Unknown error'}`
+                };
+            }
+
+            // Extract content from candidates
+            const candidate = parsed.candidates?.[0];
+            if (candidate) {
+                // Check for safety blocks
+                if (candidate.finishReason === 'SAFETY') {
+                    onChunk({
+                        type: 'error',
+                        error: 'Content was blocked by Google AI safety filters'
+                    });
+                    return {
+                        success: false,
+                        message: 'Content was blocked by Google AI safety filters'
+                    };
                 }
 
-                const chunk = decoder.decode(value, { stream: true });
-                console.log('Raw Google stream chunk:', chunk);
-
-                buffer += chunk;
-                const lines = buffer.split('\n');
-
-                // Keep the last incomplete line in the buffer
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    const trimmedLine = line.trim();
-                    if (!trimmedLine) continue;
-
-                    console.log('Processing line:', trimmedLine);
-
-                    try {
-                        // Google streaming API returns JSON objects separated by newlines
-                        const parsed = JSON.parse(trimmedLine);
-                        console.log('Google Stream Chunk:', JSON.stringify(parsed, null, 2));
-
-                        // Check for errors
-                        if (parsed.error) {
-                            onChunk({
-                                type: 'error',
-                                error: `Google AI API error: ${parsed.error.message || 'Unknown error'}`
-                            });
-                            continue;
-                        }
-
-                        // Extract content from candidates
-                        const candidate = parsed.candidates?.[0];
-                        if (candidate) {
-                            // Check for safety blocks
-                            if (candidate.finishReason === 'SAFETY') {
-                                onChunk({
-                                    type: 'error',
-                                    error: 'Content was blocked by Google AI safety filters'
-                                });
-                                continue;
-                            }
-
-                            // Extract text content
-                            const content = candidate.content?.parts?.[0]?.text;
-                            if (content) {
-                                finalContent += content;
-                                onChunk({
-                                    type: 'chunk',
-                                    messageId,
-                                    content
-                                });
-                            }
-                        }
-
-                        // Extract usage metadata if available
-                        if (parsed.usageMetadata) {
-                            inputTokens = parsed.usageMetadata.promptTokenCount || 0;
-                            outputTokens = parsed.usageMetadata.candidatesTokenCount || 0;
-                        }
-                    } catch (parseError) {
-                        console.error('Error parsing Google stream chunk:', parseError, 'Raw line:', trimmedLine);
-                        // Skip invalid JSON chunks
-                        continue;
-                    }
+                // Extract text content
+                const content = candidate.content?.parts?.[0]?.text;
+                if (content) {
+                    finalContent = content;
+                    // Send the complete content as one chunk
+                    onChunk({
+                        type: 'chunk',
+                        messageId,
+                        content
+                    });
                 }
             }
 
-            // Process any remaining data in buffer
-            if (buffer.trim()) {
-                try {
-                    const parsed = JSON.parse(buffer.trim());
-                    console.log('Google Stream Final Chunk:', JSON.stringify(parsed, null, 2));
-
-                    const candidate = parsed.candidates?.[0];
-                    if (candidate) {
-                        const content = candidate.content?.parts?.[0]?.text;
-                        if (content) {
-                            finalContent += content;
-                            onChunk({
-                                type: 'chunk',
-                                messageId,
-                                content
-                            });
-                        }
-                    }
-
-                    if (parsed.usageMetadata) {
-                        inputTokens = parsed.usageMetadata.promptTokenCount || 0;
-                        outputTokens = parsed.usageMetadata.candidatesTokenCount || 0;
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing final Google stream chunk:', parseError);
-                }
+            // Extract usage metadata if available
+            if (parsed.usageMetadata) {
+                inputTokens = parsed.usageMetadata.promptTokenCount || 0;
+                outputTokens = parsed.usageMetadata.candidatesTokenCount || 0;
             }
 
             // Estimate tokens if not provided
@@ -1267,8 +1211,16 @@ export class AIChatService {
                 finalContent,
                 metadata
             };
-        } finally {
-            reader.releaseLock();
+        } catch (parseError) {
+            console.error('Error parsing Google response:', parseError);
+            onChunk({
+                type: 'error',
+                error: 'Failed to parse Google AI response'
+            });
+            return {
+                success: false,
+                message: 'Failed to parse Google AI response'
+            };
         }
     }
 

@@ -10,6 +10,7 @@ import {
     API_KEY_PATTERNS,
     FALLBACK_MODELS
 } from '../types/ai-provider';
+import { VercelAIProviderService } from './vercelAIProviderService';
 
 export class AIProviderService {
     private static instance: AIProviderService;
@@ -159,7 +160,40 @@ export class AIProviderService {
                 };
             }
 
-            // Test the connection based on provider type
+            // Try using Vercel AI SDK first for supported providers
+            if (['openai', 'anthropic', 'google', 'openrouter'].includes(request.type)) {
+                const vercelAIService = VercelAIProviderService.getInstance();
+                const providerConfig: AIProviderConfig = {
+                    id: 'test',
+                    type: request.type,
+                    name: 'Test Provider',
+                    apiKey: request.apiKey,
+                    model: request.model,
+                    endpoint: endpoint,
+                    isActive: false
+                };
+
+                const vercelResult = await vercelAIService.testProviderWithVercelAI(providerConfig);
+                const responseTime = Date.now() - startTime;
+
+                if (vercelResult.success) {
+                    return {
+                        success: true,
+                        message: `Successfully connected to ${request.type} using Vercel AI SDK`,
+                        providerInfo: {
+                            type: request.type,
+                            endpoint,
+                            responseTime,
+                            model: request.model
+                        }
+                    };
+                } else {
+                    // Fall back to legacy testing if Vercel AI SDK fails
+                    console.log(`Vercel AI SDK test failed for ${request.type}, falling back to legacy test:`, vercelResult.message);
+                }
+            }
+
+            // Test the connection using legacy method
             const result = await this.testProviderConnection(request.type, request.apiKey, request.model, endpoint);
             const responseTime = Date.now() - startTime;
 
@@ -524,6 +558,100 @@ export class AIProviderService {
     // Check if any providers are configured
     public hasProviders(): boolean {
         return this.providers.size > 0;
+    }
+
+    // Get available models for a provider (unified method)
+    public async getAvailableModels(type: AIProviderType, apiKey: string, endpoint?: string): Promise<{
+        success: boolean;
+        models?: Array<{ id: string; name: string; description?: string }>;
+        error?: string;
+    }> {
+        try {
+            // Try to use Vercel AI SDK for supported providers first
+            if (['openai', 'anthropic', 'google', 'openrouter'].includes(type)) {
+                const vercelAIService = VercelAIProviderService.getInstance();
+                const result = await vercelAIService.getAvailableModels(type, apiKey);
+
+                if (result.success && result.models) {
+                    return {
+                        success: true,
+                        models: result.models
+                    };
+                }
+
+                // Log the fallback but continue with existing methods
+                console.log(`Vercel AI SDK model fetching failed for ${type}, using existing methods:`, result.error);
+            }
+
+            // Use existing provider-specific methods as fallback
+            switch (type) {
+                case 'openai':
+                    const openaiResult = await this.fetchOpenAIModels(apiKey);
+                    return {
+                        success: openaiResult.success,
+                        models: openaiResult.models?.map(m => ({
+                            id: m.id,
+                            name: m.name || m.id,
+                            description: m.description
+                        })),
+                        error: openaiResult.error
+                    };
+
+                case 'anthropic':
+                    const anthropicResult = await this.fetchAnthropicModels(apiKey);
+                    return {
+                        success: anthropicResult.success,
+                        models: anthropicResult.models?.map(m => ({
+                            id: m.id,
+                            name: m.name || m.id,
+                            description: m.description
+                        })),
+                        error: anthropicResult.error
+                    };
+
+                case 'google':
+                    const googleResult = await this.fetchGoogleModels(apiKey);
+                    return {
+                        success: googleResult.success,
+                        models: googleResult.models?.map(m => ({
+                            id: m.id,
+                            name: m.name || m.id,
+                            description: m.description
+                        })),
+                        error: googleResult.error
+                    };
+
+                case 'openrouter':
+                    const openrouterResult = await this.fetchOpenRouterModels(apiKey);
+                    return {
+                        success: openrouterResult.success,
+                        models: openrouterResult.models?.map(m => ({
+                            id: m.id,
+                            name: m.name || m.id,
+                            description: m.description
+                        })),
+                        error: openrouterResult.error
+                    };
+
+                default:
+                    // Use fallback models for unsupported providers
+                    const fallbackModelIds = FALLBACK_MODELS[type] || [];
+                    const models = fallbackModelIds.map(id => ({
+                        id,
+                        name: id,
+                        description: `${type} model`
+                    }));
+                    return {
+                        success: true,
+                        models
+                    };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            };
+        }
     }
 
     // Fetch available models from OpenAI
