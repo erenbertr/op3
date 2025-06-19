@@ -58,11 +58,38 @@ export class VercelAIProviderService {
 
             case 'google':
                 // Create Google provider instance with API key
+                console.log('Creating Google provider with model:', providerConfig.model);
+                console.log('Google API key available:', !!apiKey);
+                console.log('Google endpoint:', providerConfig.endpoint || 'https://generativelanguage.googleapis.com');
+
+                // Google models in Vercel AI SDK might need the 'models/' prefix
+                let modelName = providerConfig.model;
+                if (!modelName.startsWith('models/')) {
+                    modelName = `models/${modelName}`;
+                }
+                console.log('Formatted Google model name:', modelName);
+
+                // Ensure we use the correct Google API endpoint with v1beta
+                let baseURL = 'https://generativelanguage.googleapis.com/v1beta';
+                if (providerConfig.endpoint && providerConfig.endpoint.includes('/v1beta')) {
+                    baseURL = providerConfig.endpoint;
+                } else if (providerConfig.endpoint && !providerConfig.endpoint.includes('/v1beta')) {
+                    // Fix old endpoints that don't have v1beta
+                    baseURL = providerConfig.endpoint + '/v1beta';
+                }
+
+                console.log('Google baseURL for Vercel AI SDK:', baseURL);
+                console.log('Google API key available:', !!apiKey);
+                console.log('Creating Google provider with config:', { baseURL, modelName });
+
                 const googleProvider = createGoogleGenerativeAI({
                     apiKey,
-                    baseURL: providerConfig.endpoint || 'https://generativelanguage.googleapis.com'
+                    baseURL
                 });
-                return googleProvider(providerConfig.model);
+
+                const model = googleProvider(modelName);
+                console.log('Google model created:', !!model);
+                return model;
 
             case 'openrouter':
                 const openrouter = createOpenRouter({

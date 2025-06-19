@@ -89,12 +89,21 @@ export class VercelAIChatService {
         onChunk: (chunk: VercelAIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         try {
+            console.log('Generating streaming response for request:', {
+                aiProviderId: request.aiProviderId,
+                sessionId: request.sessionId,
+                userId: request.userId
+            });
+
             // Resolve the provider configuration
             const providerConfig = request.aiProviderId
                 ? await this.resolveProviderConfig(request.aiProviderId)
                 : await this.getActiveProviderConfig();
 
+            console.log('Resolved provider config:', providerConfig ? { ...providerConfig, apiKey: '***' } : null);
+
             if (!providerConfig) {
+                console.log('No provider config found');
                 onChunk({
                     type: 'error',
                     error: 'No active AI provider found'
@@ -106,9 +115,12 @@ export class VercelAIChatService {
             }
 
             // Create the language model using the resolved provider config
+            console.log('Creating language model for provider:', providerConfig.type, providerConfig.model);
             const model = this.vercelAIService.createLanguageModel(providerConfig);
+            console.log('Language model created:', !!model);
 
             if (!model) {
+                console.log('Failed to create language model');
                 onChunk({
                     type: 'error',
                     error: 'Failed to create language model'
@@ -172,51 +184,85 @@ export class VercelAIChatService {
             }
 
             // Stream the response for non-OpenAI providers
-            const result = await streamText({
-                model,
-                messages,
-                maxTokens: 2000,
-                temperature: 0.7,
-            });
+            console.log('Starting streaming for provider:', providerConfig.type);
+            console.log('Messages to send:', messages.length);
 
-            let fullContent = '';
+            try {
+                console.log('Calling streamText with model:', model.modelId);
+                console.log('Messages for streaming:', messages.map(m => ({
+                    role: m.role,
+                    content: typeof m.content === 'string' ? m.content.substring(0, 50) + '...' : '[complex]'
+                })));
 
-            for await (const delta of result.textStream) {
-                fullContent += delta;
-                onChunk({
-                    type: 'chunk',
-                    messageId,
-                    content: delta
+                const result = await streamText({
+                    model,
+                    messages,
+                    maxTokens: 2000,
+                    temperature: 0.7,
                 });
+
+                console.log('Stream result obtained:', !!result);
+                console.log('Stream result properties:', Object.keys(result));
+
+                let fullContent = '';
+                let chunkCount = 0;
+
+                // Use streaming for all providers now that Google is working
+                console.log('Using textStream for streaming');
+                for await (const delta of result.textStream) {
+                    chunkCount++;
+                    console.log(`Received delta ${chunkCount}:`, JSON.stringify(delta));
+                    fullContent += delta;
+                    onChunk({
+                        type: 'chunk',
+                        messageId,
+                        content: delta
+                    });
+                }
+
+                console.log('Streaming completed, full content length:', fullContent.length);
+                console.log('Total chunks received:', chunkCount);
+
+                // Get final metadata
+                const usage = await result.usage;
+                const finishReason = await result.finishReason;
+
+                const metadata: ApiMetadata = {
+                    model: model.modelId || 'unknown',
+                    usage: usage ? {
+                        promptTokens: usage.promptTokens,
+                        completionTokens: usage.completionTokens,
+                        totalTokens: usage.totalTokens
+                    } : undefined,
+                    finishReason: finishReason || 'stop',
+                    responseTime: Date.now() - startTime
+                };
+
+                onChunk({
+                    type: 'end',
+                    messageId,
+                    metadata
+                });
+
+                return {
+                    success: true,
+                    message: 'Response generated successfully',
+                    finalContent: fullContent,
+                    metadata
+                };
+            } catch (streamError) {
+                console.error('Error during streaming:', streamError);
+                if (streamError instanceof Error) {
+                    console.error('Stream error details:', {
+                        name: streamError.name,
+                        message: streamError.message,
+                        stack: streamError.stack
+                    });
+                }
+                throw streamError;
             }
 
-            // Get final metadata
-            const usage = await result.usage;
-            const finishReason = await result.finishReason;
 
-            const metadata: ApiMetadata = {
-                model: model.modelId || 'unknown',
-                usage: usage ? {
-                    promptTokens: usage.promptTokens,
-                    completionTokens: usage.completionTokens,
-                    totalTokens: usage.totalTokens
-                } : undefined,
-                finishReason: finishReason || 'stop',
-                responseTime: Date.now() - startTime
-            };
-
-            onChunk({
-                type: 'end',
-                messageId,
-                metadata
-            });
-
-            return {
-                success: true,
-                message: 'Response generated successfully',
-                finalContent: fullContent,
-                metadata
-            };
 
         } catch (error) {
             console.error('Error in Vercel AI streaming:', error);
@@ -721,31 +767,45 @@ export class VercelAIChatService {
         }
     }
 
+
+
     /**
      * Resolve Google model configuration
      */
     private async resolveGoogleModelConfig(modelConfigId: string): Promise<AIProviderConfig | null> {
         try {
+            console.log('Resolving Google model config for ID:', modelConfigId);
+
             const allConfigsResult = await this.googleModelConfigService.getAllModelConfigs();
+            console.log('Google model configs result:', allConfigsResult);
+
             if (!allConfigsResult.success || !allConfigsResult.data) {
+                console.log('No Google model configs found or failed to fetch');
                 return null;
             }
 
             const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            console.log('All Google configs:', allConfigs);
+
             const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
+            console.log('Found model config:', modelConfig);
 
             if (!modelConfig || !modelConfig.isActive) {
+                console.log('Model config not found or not active');
                 return null;
             }
 
             const decryptedApiKey = await this.googleProviderService.getDecryptedApiKey(modelConfig.keyId);
+            console.log('Decrypted API key available:', !!decryptedApiKey);
+
             if (!decryptedApiKey) {
+                console.log('Failed to decrypt API key for keyId:', modelConfig.keyId);
                 return null;
             }
 
-            return {
+            const providerConfig = {
                 id: modelConfig.id,
-                type: 'google',
+                type: 'google' as const,
                 name: modelConfig.customName || modelConfig.modelName,
                 apiKey: decryptedApiKey,
                 model: modelConfig.modelId,
@@ -754,6 +814,9 @@ export class VercelAIChatService {
                 createdAt: modelConfig.createdAt,
                 updatedAt: modelConfig.updatedAt
             };
+
+            console.log('Resolved Google provider config:', { ...providerConfig, apiKey: '***' });
+            return providerConfig;
         } catch (error) {
             console.error('Error resolving Google model config:', error);
             return null;
