@@ -11,6 +11,9 @@ import { Search, Star, Brain, Paperclip, Plus, X, GripVertical } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { openaiModelConfigsAPI, type OpenAIModelConfig } from '@/lib/api/openai-model-configs';
+import { GoogleModelConfigsAPI, type GoogleModelConfig } from '@/lib/api/google-model-configs';
+import { grokModelConfigsAPI, type GrokModelConfig } from '@/lib/api/grok-model-configs';
+import { anthropicModelConfigsAPI, type AnthropicModelConfig } from '@/lib/api/anthropic-model-configs';
 import { useWorkspaceAIFavorites, useAddAIFavorite, useRemoveAIFavorite, useReorderAIFavorites } from '@/lib/hooks/use-workspace-ai-favorites';
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
@@ -131,6 +134,25 @@ export function AIPersonalityFavoritesModal({
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
+    const googleModelConfigsAPI = new GoogleModelConfigsAPI();
+    const { data: googleModelConfigs = [] } = useQuery({
+        queryKey: ['google-model-configs'],
+        queryFn: () => googleModelConfigsAPI.getModelConfigs(),
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    const { data: grokModelConfigs = [] } = useQuery({
+        queryKey: ['grok-model-configs'],
+        queryFn: () => grokModelConfigsAPI.getModelConfigs(),
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    const { data: anthropicModelConfigs = [] } = useQuery({
+        queryKey: ['anthropic-model-configs'],
+        queryFn: () => anthropicModelConfigsAPI.getModelConfigs(),
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
     // Mutations
     const createFavoriteMutation = useAddAIFavorite();
     const removeFavoriteMutation = useRemoveAIFavorite();
@@ -169,10 +191,56 @@ export function AIPersonalityFavoritesModal({
             });
         });
 
-        // TODO: Add other AI providers (OpenRouter, etc.) when available
+        // Add Google model configs
+        googleModelConfigs.forEach((config: GoogleModelConfig) => {
+            const isFavorite = favoriteIds.has(config.id);
+            const favorite = favorites.find(f => f.aiProviderId === config.id);
+
+            providers.push({
+                id: config.id,
+                name: config.customName || config.modelName,
+                type: 'model-config',
+                capabilities: config.capabilities,
+                modelName: config.modelName,
+                isFavorite,
+                favoriteId: favorite?.id
+            });
+        });
+
+        // Add Grok model configs
+        grokModelConfigs.forEach((config: GrokModelConfig) => {
+            const isFavorite = favoriteIds.has(config.id);
+            const favorite = favorites.find(f => f.aiProviderId === config.id);
+
+            providers.push({
+                id: config.id,
+                name: config.customName || config.modelName,
+                type: 'model-config',
+                capabilities: config.capabilities,
+                modelName: config.modelName,
+                isFavorite,
+                favoriteId: favorite?.id
+            });
+        });
+
+        // Add Anthropic model configs
+        anthropicModelConfigs.forEach((config: AnthropicModelConfig) => {
+            const isFavorite = favoriteIds.has(config.id);
+            const favorite = favorites.find(f => f.aiProviderId === config.id);
+
+            providers.push({
+                id: config.id,
+                name: config.customName || config.modelName,
+                type: 'model-config',
+                capabilities: config.capabilities,
+                modelName: config.modelName,
+                isFavorite,
+                favoriteId: favorite?.id
+            });
+        });
 
         return providers;
-    }, [openaiModelConfigs, favoriteIds, favorites]);
+    }, [openaiModelConfigs, googleModelConfigs, grokModelConfigs, anthropicModelConfigs, favoriteIds, favorites]);
 
     // Filter providers based on search
     const filteredProviders = useMemo(() => {

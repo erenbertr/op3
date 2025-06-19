@@ -3,6 +3,8 @@ import { apiClient, DatabaseConfig, AIProviderConfig } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import { openaiModelConfigsAPI } from '@/lib/api/openai-model-configs';
 import { GoogleModelConfigsAPI } from '@/lib/api/google-model-configs';
+import { grokModelConfigsAPI } from '@/lib/api/grok-model-configs';
+import { anthropicModelConfigsAPI } from '@/lib/api/anthropic-model-configs';
 
 // Database hooks
 export function useDatabaseConnectionTest() {
@@ -383,6 +385,34 @@ export function useGoogleModelConfigs() {
     return useQuery({
         queryKey: ['google-model-configs'],
         queryFn: () => googleModelConfigsAPI.getModelConfigs(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+}
+
+// Grok Model Configs hooks
+export function useGrokModelConfigs() {
+    return useQuery({
+        queryKey: ['grok-model-configs'],
+        queryFn: () => grokModelConfigsAPI.getModelConfigs(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+}
+
+// Anthropic (Claude) Model Configs hooks
+export function useAnthropicModelConfigs() {
+    return useQuery({
+        queryKey: ['anthropic-model-configs'],
+        queryFn: () => anthropicModelConfigsAPI.getModelConfigs(),
         staleTime: 5 * 60 * 1000, // 5 minutes
         retry: 3,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),

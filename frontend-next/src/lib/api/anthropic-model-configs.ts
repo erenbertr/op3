@@ -1,0 +1,109 @@
+import { apiClient } from '../api';
+
+export interface ModelCapabilities {
+    reasoning?: boolean;
+    search?: boolean;
+    fileUpload?: boolean;
+    image?: boolean;
+    pdf?: boolean;
+    vision?: boolean;
+    functionCalling?: boolean;
+    codeInterpreter?: boolean;
+}
+
+export interface ModelPricing {
+    inputTokens?: string; // Price per 1M input tokens
+    outputTokens?: string; // Price per 1M output tokens
+    contextLength?: number;
+}
+
+export interface AnthropicModelConfig {
+    id: string;
+    keyId: string;
+    keyName: string;
+    modelId: string;
+    modelName: string;
+    customName?: string;
+    capabilities?: ModelCapabilities;
+    pricing?: ModelPricing;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateAnthropicModelConfigRequest {
+    keyId: string;
+    modelId: string;
+    customName?: string;
+}
+
+export interface UpdateAnthropicModelConfigRequest {
+    customName?: string;
+    isActive?: boolean;
+}
+
+export interface AnthropicModelConfigResponse {
+    success: boolean;
+    message: string;
+    data?: AnthropicModelConfig | AnthropicModelConfig[];
+}
+
+export class AnthropicModelConfigsAPI {
+    private baseUrl = '/anthropic-model-configs';
+
+    // Get all model configurations
+    async getModelConfigs(): Promise<AnthropicModelConfig[]> {
+        const response = await apiClient.get<AnthropicModelConfigResponse>(this.baseUrl);
+        if (!response.success) {
+            throw new Error(response.message || 'Failed to get model configurations');
+        }
+        return Array.isArray(response.data) ? response.data : [];
+    }
+
+    // Get a specific model configuration
+    async getModelConfig(id: string): Promise<AnthropicModelConfig> {
+        const response = await apiClient.get<AnthropicModelConfigResponse>(`${this.baseUrl}/${id}`);
+        if (!response.success) {
+            throw new Error(response.message || 'Failed to get model configuration');
+        }
+        if (!response.data || Array.isArray(response.data)) {
+            throw new Error('Invalid response format');
+        }
+        return response.data;
+    }
+
+    // Create a new model configuration
+    async createModelConfig(data: CreateAnthropicModelConfigRequest): Promise<AnthropicModelConfig> {
+        const response = await apiClient.post<AnthropicModelConfigResponse>(this.baseUrl, data);
+        if (!response.success) {
+            throw new Error(response.message || 'Failed to create model configuration');
+        }
+        if (!response.data || Array.isArray(response.data)) {
+            throw new Error('Invalid response format');
+        }
+        return response.data;
+    }
+
+    // Update a model configuration
+    async updateModelConfig(id: string, data: UpdateAnthropicModelConfigRequest): Promise<AnthropicModelConfig> {
+        const response = await apiClient.put<AnthropicModelConfigResponse>(`${this.baseUrl}/${id}`, data);
+        if (!response.success) {
+            throw new Error(response.message || 'Failed to update model configuration');
+        }
+        if (!response.data || Array.isArray(response.data)) {
+            throw new Error('Invalid response format');
+        }
+        return response.data;
+    }
+
+    // Delete a model configuration
+    async deleteModelConfig(id: string): Promise<void> {
+        const response = await apiClient.delete<AnthropicModelConfigResponse>(`${this.baseUrl}/${id}`);
+        if (!response.success) {
+            throw new Error(response.message || 'Failed to delete model configuration');
+        }
+    }
+}
+
+// Export a singleton instance
+export const anthropicModelConfigsAPI = new AnthropicModelConfigsAPI();

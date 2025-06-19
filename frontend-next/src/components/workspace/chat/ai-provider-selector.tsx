@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Paperclip, Brain, ChevronDown, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useOpenAIModelConfigs, useGoogleModelConfigs } from '@/lib/hooks/use-query-hooks';
+import { useOpenAIModelConfigs, useGoogleModelConfigs, useGrokModelConfigs, useAnthropicModelConfigs } from '@/lib/hooks/use-query-hooks';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsAIProviderFavorited, useAddAIFavorite, useRemoveAIFavorite } from '@/lib/hooks/use-workspace-ai-favorites';
 
@@ -47,6 +47,8 @@ export function AIProviderSelector({
     // Fetch model configurations using hooks
     const { data: openaiModelConfigs = [] } = useOpenAIModelConfigs();
     const { data: googleModelConfigs = [] } = useGoogleModelConfigs();
+    const { data: grokModelConfigs = [] } = useGrokModelConfigs();
+    const { data: anthropicModelConfigs = [] } = useAnthropicModelConfigs();
 
     // Get selected model config object
     const selectedModelConfigObj = useMemo(() => {
@@ -61,9 +63,19 @@ export function AIProviderSelector({
                 const googleConfig = googleModelConfigs.find(config => config.id === selectedModelConfig);
                 if (googleConfig) return googleConfig;
             }
+            // Check Grok configs
+            if (grokModelConfigs.length > 0) {
+                const grokConfig = grokModelConfigs.find(config => config.id === selectedModelConfig);
+                if (grokConfig) return grokConfig;
+            }
+            // Check Anthropic configs
+            if (anthropicModelConfigs.length > 0) {
+                const anthropicConfig = anthropicModelConfigs.find(config => config.id === selectedModelConfig);
+                if (anthropicConfig) return anthropicConfig;
+            }
         }
         return null;
-    }, [selectedModelConfig, openaiModelConfigs, googleModelConfigs]);
+    }, [selectedModelConfig, openaiModelConfigs, googleModelConfigs, grokModelConfigs, anthropicModelConfigs]);
 
     // Calculate optimal dropdown position
     const calculateDropdownPosition = (): 'above' | 'below' => {
@@ -171,8 +183,17 @@ export function AIProviderSelector({
         (config.customName || config.modelName).toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const filteredGrokModelConfigs = grokModelConfigs.filter(config =>
+        (config.customName || config.modelName).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const filteredAnthropicModelConfigs = anthropicModelConfigs.filter(config =>
+        (config.customName || config.modelName).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     // Total filtered configs for empty state check
-    const totalFilteredConfigs = filteredOpenAIModelConfigs.length + filteredGoogleModelConfigs.length;
+    const totalFilteredConfigs = filteredOpenAIModelConfigs.length + filteredGoogleModelConfigs.length +
+        filteredGrokModelConfigs.length + filteredAnthropicModelConfigs.length;
 
     // Get button size classes
     const getSizeClasses = () => {
@@ -349,6 +370,74 @@ export function AIProviderSelector({
                             </div>
                         )}
 
+                        {/* Grok Models Section */}
+                        {filteredGrokModelConfigs.length > 0 && (
+                            <div>
+                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
+                                    xAI (Grok)
+                                </div>
+                                {filteredGrokModelConfigs.map((config) => (
+                                    <div
+                                        key={config.id}
+                                        className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
+                                        onClick={() => handleProviderSelect(config.id, true)}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <div className="font-medium truncate">
+                                                    {config.customName || config.modelName}
+                                                </div>
+                                                <FavoriteStarButton
+                                                    aiProviderId={config.id}
+                                                    isModelConfig={true}
+                                                    displayName={config.customName || config.modelName}
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                {config.capabilities?.search && <Search className="h-3 w-3" />}
+                                                {config.capabilities?.reasoning && <Brain className="h-3 w-3" />}
+                                                {config.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Claude (Anthropic) Models Section */}
+                        {filteredAnthropicModelConfigs.length > 0 && (
+                            <div>
+                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
+                                    Anthropic (Claude)
+                                </div>
+                                {filteredAnthropicModelConfigs.map((config) => (
+                                    <div
+                                        key={config.id}
+                                        className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
+                                        onClick={() => handleProviderSelect(config.id, true)}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <div className="font-medium truncate">
+                                                    {config.customName || config.modelName}
+                                                </div>
+                                                <FavoriteStarButton
+                                                    aiProviderId={config.id}
+                                                    isModelConfig={true}
+                                                    displayName={config.customName || config.modelName}
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                {config.capabilities?.search && <Search className="h-3 w-3" />}
+                                                {config.capabilities?.reasoning && <Brain className="h-3 w-3" />}
+                                                {config.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* No results message */}
                         {totalFilteredConfigs === 0 && searchQuery && (
                             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
@@ -357,11 +446,12 @@ export function AIProviderSelector({
                         )}
 
                         {/* No providers configured message */}
-                        {openaiModelConfigs.length === 0 && googleModelConfigs.length === 0 && !searchQuery && (
-                            <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                                No AI providers configured
-                            </div>
-                        )}
+                        {openaiModelConfigs.length === 0 && googleModelConfigs.length === 0 &&
+                            grokModelConfigs.length === 0 && anthropicModelConfigs.length === 0 && !searchQuery && (
+                                <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                                    No AI providers configured
+                                </div>
+                            )}
                     </div>
                 </div>
             )}

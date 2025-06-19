@@ -14,7 +14,7 @@ import { PersonalityFavoritesModal } from '@/components/workspace/personality-fa
 import { PersonalitiesManagement } from '@/components/personalities/personalities-management';
 import { StatisticsView } from '@/components/statistics/statistics-view';
 
-import { OpenRouterSettingsView } from '@/components/workspace/openrouter-settings-view';
+
 import { OpenAISettingsView } from '@/components/workspace/openai-settings-view';
 import { ClaudeSettingsView } from '@/components/workspace/claude-settings-view';
 import { GoogleSettingsView } from '@/components/workspace/google-settings-view';
@@ -99,9 +99,6 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 
             // Handle AI providers routes
             if (pathname.startsWith('/ai-providers')) {
-                if (pathname === '/ai-providers/openrouter') {
-                    return { view: 'ai-providers-openrouter', params: {}, queryParams };
-                }
                 if (pathname === '/ai-providers/openai') {
                     return { view: 'ai-providers-openai', params: {}, queryParams };
                 }
@@ -384,11 +381,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
                     </>
                 )}
 
-                {currentView === 'ai-providers-openrouter' && (
-                    <AIProvidersLayout currentView="openrouter">
-                        <OpenRouterSettingsView />
-                    </AIProvidersLayout>
-                )}
+
 
                 {currentView === 'ai-providers-openai' && (
                     <AIProvidersLayout currentView="openai">
@@ -513,7 +506,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
 // Internal AIProvidersLayout component for client-side routing
 interface AIProvidersLayoutProps {
     children: React.ReactNode;
-    currentView: 'openai' | 'openrouter' | 'claude' | 'google' | 'grok';
+    currentView: 'openai' | 'claude' | 'google' | 'grok';
 }
 
 function AIProvidersLayout({ children, currentView }: AIProvidersLayoutProps) {
@@ -525,13 +518,6 @@ function AIProvidersLayout({ children, currentView }: AIProvidersLayoutProps) {
             icon: <Bot className="h-4 w-4" />,
             description: 'Configure OpenAI API and models',
             path: '/ai-providers/openai'
-        },
-        {
-            id: 'openrouter',
-            label: 'OpenRouter',
-            icon: <Bot className="h-4 w-4" />,
-            description: 'Configure OpenRouter API and models',
-            path: '/ai-providers/openrouter'
         },
         {
             id: 'claude',

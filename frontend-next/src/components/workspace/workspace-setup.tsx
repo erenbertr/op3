@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 import { WorkspaceTemplate } from '@/lib/api';
 import { useCreateWorkspace } from '@/lib/hooks/use-query-hooks';
@@ -130,33 +131,48 @@ export function WorkspaceSetup({ onComplete, userId, groupId }: WorkspaceSetupPr
                 <div className="space-y-4">
                     <Label className="text-lg font-semibold">Choose a Template *</Label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {templateOptions.map((template) => (
-                            <Card
-                                key={template.id}
-                                className={`cursor-pointer transition-all duration-200 hover:shadow-md ${selectedTemplate === template.id
-                                    ? 'ring-2 ring-primary border-primary bg-primary/5'
-                                    : 'hover:border-primary/50'
-                                    }`}
-                                onClick={() => setSelectedTemplate(template.id)}
-                            >
-                                <CardHeader className="text-center pb-4">
-                                    <div className="flex justify-center mb-3">
-                                        <div className={`p-3 rounded-full ${selectedTemplate === template.id
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'bg-muted text-muted-foreground'
-                                            }`}>
-                                            {template.icon}
+                        {templateOptions.map((template) => {
+                            const isComingSoon = template.id === 'kanban-board' || template.id === 'node-graph';
+                            const isClickable = !isComingSoon;
+
+                            return (
+                                <Card
+                                    key={template.id}
+                                    className={`transition-all duration-200 ${isComingSoon
+                                            ? 'opacity-60 cursor-not-allowed'
+                                            : `cursor-pointer hover:shadow-md ${selectedTemplate === template.id
+                                                ? 'ring-2 ring-primary border-primary bg-primary/5'
+                                                : 'hover:border-primary/50'
+                                            }`
+                                        }`}
+                                    onClick={isClickable ? () => setSelectedTemplate(template.id) : undefined}
+                                >
+                                    <CardHeader className="text-center pb-4 relative">
+                                        {isComingSoon && (
+                                            <div className="absolute top-2 right-2">
+                                                <Badge variant="secondary" className="text-xs">
+                                                    Coming Soon
+                                                </Badge>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-center mb-3">
+                                            <div className={`p-3 rounded-full ${selectedTemplate === template.id
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'bg-muted text-muted-foreground'
+                                                }`}>
+                                                {template.icon}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <CardTitle className="text-lg">{template.title}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <CardDescription className="text-center text-sm leading-relaxed">
-                                        {template.description}
-                                    </CardDescription>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                        <CardTitle className="text-lg">{template.title}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="pt-0">
+                                        <CardDescription className="text-center text-sm leading-relaxed">
+                                            {template.description}
+                                        </CardDescription>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 </div>
 
