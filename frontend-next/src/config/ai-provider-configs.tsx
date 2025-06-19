@@ -32,7 +32,7 @@ export const openaiConfig: OpenAIProviderConfig = {
         modelsTabDescription: 'Configure models for each API key',
         keysTabDescription: 'Manage your OpenAI API keys',
         noKeysTitle: 'No API Keys',
-        noKeysDescription: 'You haven\'t added any OpenAI API keys yet. Add your first key to get started with OpenAI models.',
+        noKeysDescription: "You haven't added any OpenAI API keys yet. Add your first key to get started with OpenAI models.",
         noModelsTitle: 'No Models',
         noModelsDescription: 'Add an OpenAI API key first to configure models',
         addKeyButtonLabel: 'Add Your First API Key',

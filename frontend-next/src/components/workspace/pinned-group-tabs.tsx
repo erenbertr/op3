@@ -182,7 +182,7 @@ export function PinnedGroupTabs({ userId, currentWorkspaceId, currentView }: Pin
                     // Prepare API updates
                     const updates = updatedWorkspaces.map((workspace, index) => ({
                         workspaceId: workspace.id,
-                        groupId: groupId,
+                        groupId: groupId ?? null,
                         sortOrder: index
                     }));
 

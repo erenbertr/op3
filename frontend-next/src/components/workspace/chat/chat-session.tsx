@@ -7,7 +7,7 @@ import { ChatMessageList } from './chat-message';
 import { StreamingMessage } from './streaming-message';
 import { SearchIndicator } from './search-indicator';
 // Removed ChatMessagesSkeleton import - using simple spinner instead
-import { apiClient, ChatMessage, ChatSession, Personality, StreamingState, StreamingCallbacks } from '@/lib/api';
+import { apiClient, ChatMessage, ChatSession, Personality, StreamingState, StreamingCallbacks, FileAttachment } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { truncateText } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
@@ -270,16 +270,17 @@ export function ChatSessionComponent({
             // Update spacer height
             if (!isNewMessage) {
                 // For initial loads: disable transition for instant positioning
-                const originalTransition = spacerElement.style.transition;
-                spacerElement.style.transition = 'none';
-                spacerElement.style.height = `${spacerHeight}px`;
+                const htmlElement = spacerElement as HTMLElement;
+                const originalTransition = htmlElement.style.transition;
+                htmlElement.style.transition = 'none';
+                htmlElement.style.height = `${spacerHeight}px`;
                 // Force reflow to apply the change immediately
-                spacerElement.offsetHeight;
+                htmlElement.offsetHeight;
                 // Restore transition for future updates
-                spacerElement.style.transition = originalTransition;
+                htmlElement.style.transition = originalTransition;
             } else {
                 // For new messages: keep smooth transition
-                spacerElement.style.height = `${spacerHeight}px`;
+                (spacerElement as HTMLElement).style.height = `${spacerHeight}px`;
             }
 
             // Only scroll if not skipping scroll (for post-streaming spacer updates)
@@ -318,14 +319,15 @@ export function ChatSessionComponent({
                             const targetScrollTop = scrollContainer.scrollHeight - scrollContainer.clientHeight;
 
                             // Disable smooth scrolling temporarily
-                            const originalScrollBehavior = scrollContainer.style.scrollBehavior;
-                            scrollContainer.style.scrollBehavior = 'auto';
+                            const htmlScrollContainer = scrollContainer as HTMLElement;
+                            const originalScrollBehavior = htmlScrollContainer.style.scrollBehavior;
+                            htmlScrollContainer.style.scrollBehavior = 'auto';
 
                             // Set scroll position instantly
                             scrollContainer.scrollTop = Math.max(0, targetScrollTop);
 
                             // Restore original scroll behavior
-                            scrollContainer.style.scrollBehavior = originalScrollBehavior;
+                            htmlScrollContainer.style.scrollBehavior = originalScrollBehavior;
 
                             console.log('📍 Instant scroll for chat load (forced)');
 
@@ -438,8 +440,8 @@ export function ChatSessionComponent({
 
             // Reset spacer when user manually scrolls up (not when auto-scrolling down)
             const spacerElement = scrollContainer.querySelector('#chat-spacer');
-            if (spacerElement && spacerElement.style.height !== '0px' && !isScrolledToBottom) {
-                spacerElement.style.height = '0px';
+            if (spacerElement && (spacerElement as HTMLElement).style.height !== '0px' && !isScrolledToBottom) {
+                (spacerElement as HTMLElement).style.height = '0px';
                 console.log('📍 Reset spacer due to manual scroll up');
             }
 
@@ -626,7 +628,7 @@ export function ChatSessionComponent({
                     }
                     // Handle reasoning steps (if the backend sends them)
                     if (chunk.type === 'reasoning_step' && chunk.content) {
-                        setReasoningSteps(prev => [...prev, chunk.content]);
+                        setReasoningSteps(prev => [...prev, chunk.content as string]);
                     }
                 },
                 onSearchStart: (query) => {
@@ -965,8 +967,7 @@ export function ChatSessionComponent({
                     content: continuePrompt,
                     personalityId: partialMessage.personalityId,
                     aiProviderId: partialMessage.aiProviderId,
-                    userId,
-                    isContinuation: true // Add this flag to indicate it's a continuation
+                    userId
                 },
                 {
                     onChunk: (chunk) => {

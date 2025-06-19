@@ -10,6 +10,7 @@ interface AsyncDataActions<T> {
     execute: (...args: unknown[]) => Promise<void>;
     reset: () => void;
     setData: (data: T) => void;
+    cleanup: () => void;
 }
 
 /**

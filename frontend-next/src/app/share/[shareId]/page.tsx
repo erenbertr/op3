@@ -177,7 +177,7 @@ export default function SharePage() {
             {/* Messages */}
             <div className="max-w-4xl mx-auto px-4 py-6">
                 <div className="space-y-6">
-                    {sharedChat.messages.map((message, index) => (
+                    {sharedChat.messages.map((message) => (
                         <div key={message.id} className="flex flex-col space-y-2">
                             {/* Message header */}
                             <div className="flex items-center space-x-2">

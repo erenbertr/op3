@@ -57,10 +57,10 @@ export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
                         router.push('/workspaces');
                     }
                 } else {
-                    console.log('❌ Failed to load workspaces:', result.message);
+                    console.log('❌ Failed to load workspaces');
                     addToast({
                         title: "Error",
-                        description: result.message || "Failed to load workspaces",
+                        description: "Failed to load workspaces",
                         variant: "destructive"
                     });
                     router.push('/workspaces');

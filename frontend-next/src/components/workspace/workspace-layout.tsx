@@ -92,8 +92,8 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
             <div className="flex-shrink-0">
                 <WorkspaceTabBar
                     userId={session.user.id}
-                    currentView={currentView}
-                    currentWorkspaceId={currentWorkspaceId}
+                    currentView={currentView === 'settings' ? 'ai-providers' : currentView as 'workspace' | 'ai-providers' | 'create' | 'selection' | 'personalities' | 'statistics'}
+                    currentWorkspaceId={currentWorkspaceId ?? null}
                     onRefresh={setRefreshWorkspaces}
                     onOpenWorkspace={(fn) => { openWorkspaceRef.current = fn; }}
                 />
@@ -103,7 +103,7 @@ export function WorkspaceLayout({ children, currentWorkspaceId }: WorkspaceLayou
             <div className="flex-shrink-0">
                 <PinnedGroupTabs
                     userId={session.user.id}
-                    currentWorkspaceId={currentWorkspaceId}
+                    currentWorkspaceId={currentWorkspaceId ?? null}
                     currentView={currentView}
                 />
             </div>

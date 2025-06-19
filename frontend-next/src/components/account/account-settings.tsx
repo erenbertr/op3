@@ -58,7 +58,7 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                 username: profileData.username,
                 firstName: profileData.firstName,
                 lastName: profileData.lastName,
-            });
+            }) as { success?: boolean };
 
             if (response.success) {
                 addToast({
@@ -115,7 +115,7 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
             const response = await apiClient.patch(`/auth/password`, {
                 currentPassword: passwordData.currentPassword,
                 newPassword: passwordData.newPassword,
-            });
+            }) as { success?: boolean };
 
             if (response.success) {
                 addToast({
@@ -128,15 +128,19 @@ export function AccountSettings({ currentUser }: AccountSettingsProps) {
                     confirmPassword: '',
                 });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Password change error:', error);
 
             // Extract error message from API response
             let errorMessage = "Failed to change password. Please try again.";
-            if (error?.response?.data?.error?.message) {
-                errorMessage = error.response.data.error.message;
-            } else if (error?.message) {
-                errorMessage = error.message;
+            if (error && typeof error === 'object' && 'response' in error) {
+                const apiError = error as { response?: { data?: { error?: { message?: string } } } };
+                if (apiError.response?.data?.error?.message) {
+                    errorMessage = apiError.response.data.error.message;
+                }
+            } else if (error && typeof error === 'object' && 'message' in error) {
+                const simpleError = error as { message: string };
+                errorMessage = simpleError.message;
             }
 
             addToast({

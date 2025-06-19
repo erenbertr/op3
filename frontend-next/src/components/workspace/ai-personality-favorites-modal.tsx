@@ -160,7 +160,7 @@ export function AIPersonalityFavoritesModal({
 
             providers.push({
                 id: config.id,
-                name: config.displayName,
+                name: config.customName || config.modelName,
                 type: 'model-config',
                 capabilities: config.capabilities,
                 modelName: config.modelName,
@@ -203,8 +203,7 @@ export function AIPersonalityFavoritesModal({
                 workspaceId,
                 aiProviderId: provider.id,
                 displayName: provider.name,
-                isModelConfig: provider.type === 'model-config',
-                sortOrder: favorites.length
+                isModelConfig: provider.type === 'model-config'
             });
         } catch (error) {
             console.error('Failed to add favorite:', error);

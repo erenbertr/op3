@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/lib/i18n";
 import { ToastProvider } from "@/components/ui/toast";
 import { QueryProvider } from "@/components/query-provider";
-import { AuthProvider } from "@/components/providers/auth-provider";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",

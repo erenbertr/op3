@@ -15,14 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+
 import {
     Select,
     SelectContent,
@@ -43,7 +36,6 @@ import {
     Settings,
     Shield,
     UserCheck,
-    UserX,
     Eye,
     EyeOff
 } from 'lucide-react';

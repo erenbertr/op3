@@ -36,12 +36,6 @@ export function AppWrapper() {
         refetchInterval: false, // Disable automatic refetching
         refetchIntervalInBackground: false, // Disable background refetching
         retry: 1, // Limit retries to prevent infinite loops
-        onSuccess: () => {
-            stopSetupLoading();
-        },
-        onError: () => {
-            stopSetupLoading();
-        }
     });
 
 
