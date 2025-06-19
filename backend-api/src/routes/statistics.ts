@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
-import { StatisticsService } from '../services/statisticsService';
+import { StatisticsServiceNew } from '../services/statisticsServiceNew';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
-const statisticsService = StatisticsService.getInstance();
+const statisticsService = StatisticsServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);

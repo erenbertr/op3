@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { ChatService } from '../services/chatService';
+import { ChatServiceNew } from '../services/chatServiceNew';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
 
 const router = Router();
-const chatService = ChatService.getInstance();
+const chatService = ChatServiceNew.getInstance();
 
 // Get a shared chat by its share ID (public access - no authentication required)
 router.get('/:shareId', asyncHandler(async (req: Request, res: Response) => {

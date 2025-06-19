@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { UserService } from '../services/userService';
-import { SystemSettingsService } from '../services/systemSettingsService';
+import { UserServiceNew } from '../services/userServiceNew';
+import { SystemSettingsServiceNew } from '../services/systemSettingsServiceNew';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
-const userService = UserService.getInstance();
-const systemSettingsService = SystemSettingsService.getInstance();
+const userService = UserServiceNew.getInstance();
+const systemSettingsService = SystemSettingsServiceNew.getInstance();
 
 // JWT secret - in production, this should be in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';

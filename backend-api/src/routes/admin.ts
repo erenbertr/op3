@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { UserService } from '../services/userService';
-import { SystemSettingsService } from '../services/systemSettingsService';
+import { UserServiceNew } from '../services/userServiceNew';
+import { SystemSettingsServiceNew } from '../services/systemSettingsServiceNew';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import bcrypt from 'bcrypt';
 
 const router = Router();
-const userService = UserService.getInstance();
-const systemSettingsService = SystemSettingsService.getInstance();
+const userService = UserServiceNew.getInstance();
+const systemSettingsService = SystemSettingsServiceNew.getInstance();
 
 // Middleware to ensure admin access
 const requireAdmin = (req: any, res: Response, next: any) => {

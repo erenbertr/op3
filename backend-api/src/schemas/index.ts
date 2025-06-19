@@ -448,6 +448,135 @@ export const GlobalOpenRouterSettingsSchema: SchemaDefinition = {
     timestamps: true
 };
 
+// System Settings Schema
+export const SystemSettingsSchema: SchemaDefinition = {
+    tableName: 'system_settings',
+    collectionName: 'systemSettings',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        registrationEnabled: {
+            type: 'boolean',
+            required: true,
+            defaultValue: true
+        },
+        loginEnabled: {
+            type: 'boolean',
+            required: true,
+            defaultValue: true
+        },
+        maxUsersAllowed: {
+            type: 'number'
+        },
+        defaultUserRole: {
+            type: 'string',
+            required: true,
+            maxLength: 20,
+            defaultValue: 'normal'
+        },
+        requireEmailVerification: {
+            type: 'boolean',
+            required: true,
+            defaultValue: false
+        },
+        allowUsernameChange: {
+            type: 'boolean',
+            required: true,
+            defaultValue: true
+        },
+        passwordRequirements: {
+            type: 'json',
+            required: true
+        },
+        updatedBy: {
+            type: 'uuid',
+            required: true
+        }
+    },
+    indexes: [
+        ['id']
+    ],
+    timestamps: true
+};
+
+// Workspace AI Favorites Schema
+export const WorkspaceAIFavoritesSchema: SchemaDefinition = {
+    tableName: 'workspace_ai_favorites',
+    collectionName: 'workspaceAIFavorites',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        workspaceId: {
+            type: 'uuid',
+            required: true
+        },
+        aiProviderId: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        isModelConfig: {
+            type: 'boolean',
+            required: true,
+            defaultValue: false
+        },
+        displayName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        sortOrder: {
+            type: 'number',
+            required: true,
+            defaultValue: 0
+        }
+    },
+    indexes: [
+        ['workspaceId'],
+        ['workspaceId', 'aiProviderId'],
+        ['workspaceId', 'sortOrder']
+    ],
+    timestamps: true
+};
+
+// Workspace Personality Favorites Schema
+export const WorkspacePersonalityFavoritesSchema: SchemaDefinition = {
+    tableName: 'workspace_personality_favorites',
+    collectionName: 'workspacePersonalityFavorites',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        workspaceId: {
+            type: 'uuid',
+            required: true
+        },
+        personalityId: {
+            type: 'uuid',
+            required: true
+        },
+        sortOrder: {
+            type: 'number',
+            required: true,
+            defaultValue: 0
+        }
+    },
+    indexes: [
+        ['workspaceId'],
+        ['workspaceId', 'personalityId'],
+        ['workspaceId', 'sortOrder']
+    ],
+    timestamps: true
+};
+
 // Export all schemas as a map for easy access
 export const AllSchemas = {
     users: UserSchema,
@@ -463,6 +592,12 @@ export const AllSchemas = {
     ai_provider_configs: AIProviderConfigSchema,
     aiProviderConfigs: AIProviderConfigSchema, // MongoDB collection name
     personalities: PersonalitySchema,
+    system_settings: SystemSettingsSchema,
+    systemSettings: SystemSettingsSchema, // MongoDB collection name
+    workspace_ai_favorites: WorkspaceAIFavoritesSchema,
+    workspaceAIFavorites: WorkspaceAIFavoritesSchema, // MongoDB collection name
+    workspace_personality_favorites: WorkspacePersonalityFavoritesSchema,
+    workspacePersonalityFavorites: WorkspacePersonalityFavoritesSchema, // MongoDB collection name
     openai_model_configs: OpenAIModelConfigSchema,
     openaiModelConfigs: OpenAIModelConfigSchema, // MongoDB collection name
     global_openrouter_settings: GlobalOpenRouterSettingsSchema,

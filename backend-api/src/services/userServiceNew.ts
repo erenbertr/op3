@@ -1,5 +1,13 @@
 import { UniversalDatabaseService } from './universalDatabaseService';
-import { User } from '../types/user';
+import {
+    User,
+    CreateUserRequest,
+    CreateUserResponse,
+    UserValidationError,
+    PasswordRequirements,
+    DEFAULT_PASSWORD_REQUIREMENTS,
+    AdminConfig
+} from '../types/user';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
@@ -25,7 +33,7 @@ export class UserServiceNew {
     /**
      * Create a new user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    public async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<{ success: boolean; message: string; user?: Partial<User> }> {
+    public async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<CreateUserResponse> {
         try {
             // Hash password
             const hashedPassword = await bcrypt.hash(userData.password, 10);
@@ -51,7 +59,6 @@ export class UserServiceNew {
                         email: user.email,
                         username: user.username,
                         role: user.role,
-                        isActive: user.isActive,
                         createdAt: user.createdAt
                     }
                 };
@@ -171,26 +178,26 @@ export class UserServiceNew {
             const offset = (page - 1) * limit;
 
             // Build query conditions
-            const where = [];
-            
+            const where: any[] = [];
+
             if (search) {
                 // Search in email and username
                 where.push({ field: 'email', operator: 'like', value: search });
                 // Note: In a real implementation, you'd want OR conditions
                 // This is simplified for demonstration
             }
-            
+
             if (role) {
                 where.push({ field: 'role', operator: 'eq', value: role });
             }
-            
+
             if (isActive !== undefined) {
                 where.push({ field: 'isActive', operator: 'eq', value: isActive });
             }
 
             // Execute query - works with ANY database type!
             const result = await this.universalDb.findMany<User>('users', {
-                where: where.length > 0 ? where : undefined,
+                where: where.length > 0 ? where as any : undefined,
                 orderBy: [{ field: sortBy, direction: sortOrder }],
                 limit,
                 offset,
@@ -261,6 +268,157 @@ export class UserServiceNew {
             console.error('Error getting active users:', error);
             return [];
         }
+    }
+
+    /**
+     * Validate password against requirements
+     */
+    public validatePassword(password: string, requirements: PasswordRequirements = DEFAULT_PASSWORD_REQUIREMENTS): UserValidationError[] {
+        const errors: UserValidationError[] = [];
+
+        if (password.length < requirements.minLength) {
+            errors.push({
+                field: 'password',
+                message: `Password must be at least ${requirements.minLength} characters long`
+            });
+        }
+
+        if (requirements.requireUppercase && !/[A-Z]/.test(password)) {
+            errors.push({
+                field: 'password',
+                message: 'Password must contain at least one uppercase letter'
+            });
+        }
+
+        if (requirements.requireLowercase && !/[a-z]/.test(password)) {
+            errors.push({
+                field: 'password',
+                message: 'Password must contain at least one lowercase letter'
+            });
+        }
+
+        if (requirements.requireNumbers && !/\d/.test(password)) {
+            errors.push({
+                field: 'password',
+                message: 'Password must contain at least one number'
+            });
+        }
+
+        if (requirements.requireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            errors.push({
+                field: 'password',
+                message: 'Password must contain at least one special character'
+            });
+        }
+
+        return errors;
+    }
+
+    /**
+     * Validate email format
+     */
+    public validateEmail(email: string): UserValidationError[] {
+        const errors: UserValidationError[] = [];
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!email) {
+            errors.push({
+                field: 'email',
+                message: 'Email is required'
+            });
+        } else if (!emailRegex.test(email)) {
+            errors.push({
+                field: 'email',
+                message: 'Please enter a valid email address'
+            });
+        }
+
+        return errors;
+    }
+
+    /**
+     * Validate admin configuration
+     */
+    public validateAdminConfig(config: AdminConfig): UserValidationError[] {
+        const errors: UserValidationError[] = [];
+
+        // Validate email
+        errors.push(...this.validateEmail(config.email));
+
+        // Validate password
+        errors.push(...this.validatePassword(config.password));
+
+        // Validate password confirmation
+        if (config.password !== config.confirmPassword) {
+            errors.push({
+                field: 'confirmPassword',
+                message: 'Passwords do not match'
+            });
+        }
+
+        // Validate username if provided
+        if (config.username && config.username.length < 3) {
+            errors.push({
+                field: 'username',
+                message: 'Username must be at least 3 characters long'
+            });
+        }
+
+        return errors;
+    }
+
+    /**
+     * Check if admin exists - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async adminExists(): Promise<boolean> {
+        try {
+            const adminCount = await this.universalDb.count('users', {
+                where: [{ field: 'role', operator: 'eq', value: 'admin' }]
+            });
+            return adminCount > 0;
+        } catch (error) {
+            console.error('Error checking if admin exists:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Check if the application is in setup mode - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async isInSetupMode(): Promise<boolean> {
+        try {
+            const adminExists = await this.adminExists();
+            return !adminExists; // No admin = setup mode
+        } catch (error) {
+            console.error('Error checking setup mode:', error);
+            return true; // Default to setup mode on error
+        }
+    }
+
+    /**
+     * Create admin user from config
+     */
+    public async createAdminUser(config: AdminConfig): Promise<CreateUserResponse> {
+        // Validate admin config
+        const validationErrors = this.validateAdminConfig(config);
+        if (validationErrors.length > 0) {
+            return {
+                success: false,
+                message: validationErrors[0].message
+            };
+        }
+
+        // Create user data
+        const userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'> = {
+            email: config.email,
+            username: config.username,
+            password: config.password,
+            role: 'admin',
+            isActive: true,
+            hasCompletedWorkspaceSetup: true
+        };
+
+        return this.createUser(userData);
     }
 
     /**

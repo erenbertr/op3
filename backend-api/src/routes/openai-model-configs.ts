@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { OpenAIModelConfigService } from '../services/openaiModelConfigService';
+import { OpenAIModelConfigServiceNew } from '../services/openaiModelConfigServiceNew';
 import { authenticateToken } from '../middleware/auth';
 import { initOpenAIModelConfigsTable } from '../scripts/initOpenAIModelConfigs';
 
 const router = Router();
-const openaiModelConfigService = OpenAIModelConfigService.getInstance();
+const openaiModelConfigService = OpenAIModelConfigServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);

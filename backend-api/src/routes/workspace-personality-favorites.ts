@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
-import { WorkspacePersonalityFavoritesService } from '../services/workspacePersonalityFavoritesService';
+import { WorkspacePersonalityFavoritesServiceNew } from '../services/workspacePersonalityFavoritesServiceNew';
 import {
     CreatePersonalityFavoriteRequest,
     UpdatePersonalityFavoriteRequest,
@@ -10,7 +10,7 @@ import {
 } from '../types/personality';
 
 const router = Router();
-const workspacePersonalityFavoritesService = new WorkspacePersonalityFavoritesService();
+const workspacePersonalityFavoritesService = WorkspacePersonalityFavoritesServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -120,7 +120,7 @@ router.get('/:workspaceId/check/:personalityId', asyncHandler(async (req: Reques
 
     // Get all favorites for the workspace and check if the personality is in the list
     const result = await workspacePersonalityFavoritesService.getWorkspacePersonalityFavorites(workspaceId);
-    
+
     if (!result.success) {
         throw createError(result.message || 'Failed to check favorite status', 400);
     }

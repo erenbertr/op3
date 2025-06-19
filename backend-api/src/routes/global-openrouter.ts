@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { GlobalOpenRouterService } from '../services/globalOpenRouterService';
+import { GlobalOpenRouterServiceNew } from '../services/globalOpenRouterServiceNew';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import {
@@ -8,7 +8,7 @@ import {
 import { ValidateOpenRouterApiKeyRequest } from '../types/workspace-settings';
 
 const router = Router();
-const globalOpenRouterService = GlobalOpenRouterService.getInstance();
+const globalOpenRouterService = GlobalOpenRouterServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);

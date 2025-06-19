@@ -2,14 +2,14 @@ import { Router, Request, Response } from 'express';
 import { DatabaseManager } from '../config/database';
 import { DatabaseConfig, SetupData, SetupResponse } from '../types/database';
 import { AdminConfig } from '../types/user';
-import { UserService } from '../services/userService';
+import { UserServiceNew } from '../services/userServiceNew';
 import { AIProviderService } from '../services/aiProviderService';
 import { AIProviderTestRequest, AIProviderSaveRequest } from '../types/ai-provider';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 
 const router = Router();
 const dbManager = DatabaseManager.getInstance();
-const userService = UserService.getInstance();
+const userService = UserServiceNew.getInstance();
 const aiProviderService = AIProviderService.getInstance();
 
 // Test database connection

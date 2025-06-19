@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { WorkspaceGroupService } from '../services/workspaceGroupService';
+import { WorkspaceGroupServiceNew } from '../services/workspaceGroupServiceNew';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import {
@@ -11,7 +11,7 @@ import {
 } from '../types/workspace-group';
 
 const router = express.Router();
-const workspaceGroupService = WorkspaceGroupService.getInstance();
+const workspaceGroupService = WorkspaceGroupServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -93,8 +93,8 @@ router.put('/move-workspace', asyncHandler(async (req: Request, res: Response) =
     }
 
     // Import workspace service here to avoid circular dependency
-    const { WorkspaceService } = await import('../services/workspaceService');
-    const workspaceService = WorkspaceService.getInstance();
+    const { WorkspaceServiceNew } = await import('../services/workspaceServiceNew');
+    const workspaceService = WorkspaceServiceNew.getInstance();
 
     const result = await workspaceService.updateWorkspace(workspaceId, userId, {
         groupId,
@@ -124,8 +124,8 @@ router.put('/batch-update', asyncHandler(async (req: Request, res: Response) => 
     }
 
     // Import workspace service here to avoid circular dependency
-    const { WorkspaceService } = await import('../services/workspaceService');
-    const workspaceService = WorkspaceService.getInstance();
+    const { WorkspaceServiceNew } = await import('../services/workspaceServiceNew');
+    const workspaceService = WorkspaceServiceNew.getInstance();
 
     const result = await workspaceService.batchUpdateWorkspaces(userId, updates);
 

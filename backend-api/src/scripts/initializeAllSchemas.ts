@@ -7,10 +7,10 @@ import { UniversalDatabaseService } from '../services/universalDatabaseService';
 async function initializeAllSchemas() {
     try {
         console.log('🔧 Initializing all database schemas...');
-        
+
         const universalDb = UniversalDatabaseService.getInstance();
         await universalDb.initializeAllSchemas();
-        
+
         console.log('✅ All schemas initialized successfully!');
         console.log('📋 The following schemas were processed:');
         console.log('   - users');
@@ -21,9 +21,12 @@ async function initializeAllSchemas() {
         console.log('   - workspace_groups');
         console.log('   - ai_provider_configs');
         console.log('   - personalities');
+        console.log('   - system_settings');
+        console.log('   - workspace_ai_favorites');
+        console.log('   - workspace_personality_favorites');
         console.log('   - openai_model_configs');
         console.log('   - global_openrouter_settings');
-        
+
         process.exit(0);
     } catch (error) {
         console.error('❌ Error initializing schemas:', error);

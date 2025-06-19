@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { WorkspaceAIFavoritesService } from '../services/workspaceAIFavoritesService';
+import { WorkspaceAIFavoritesServiceNew } from '../services/workspaceAIFavoritesServiceNew';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
-import { 
-    CreateAIFavoriteRequest, 
-    UpdateAIFavoriteRequest 
+import {
+    CreateAIFavoriteRequest,
+    UpdateAIFavoriteRequest
 } from '../types/ai-provider';
 
 const router = Router();
-const workspaceAIFavoritesService = new WorkspaceAIFavoritesService();
+const workspaceAIFavoritesService = WorkspaceAIFavoritesServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
@@ -162,7 +162,7 @@ router.get('/:workspaceId/check/:aiProviderId', asyncHandler(async (req: Request
 
     // Get all favorites for the workspace and check if the provider is in the list
     const result = await workspaceAIFavoritesService.getWorkspaceAIFavorites(workspaceId);
-    
+
     if (!result.success) {
         throw createError(result.message || 'Failed to check favorite status', 400);
     }

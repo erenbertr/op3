@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { ChatService } from '../services/chatService';
+import { ChatServiceNew } from '../services/chatServiceNew';
 import { VercelAIChatService } from '../services/vercelAIChatService';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
@@ -14,7 +14,7 @@ import {
 } from '../types/chat';
 
 const router = Router();
-const chatService = ChatService.getInstance();
+const chatService = ChatServiceNew.getInstance();
 const vercelAIChatService = VercelAIChatService.getInstance();
 
 // Apply authentication middleware to all routes

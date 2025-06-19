@@ -269,8 +269,8 @@ export class WorkspaceServiceNew {
             await this.deactivateAllWorkspaces(userId);
 
             // Then activate the specified workspace
-            const result = await this.universalDb.updateMany<Workspace>('workspaces', 
-                { isActive: true }, 
+            const result = await this.universalDb.updateMany<Workspace>('workspaces',
+                { isActive: true },
                 {
                     where: [
                         { field: 'id', operator: 'eq', value: workspaceId },
@@ -330,8 +330,8 @@ export class WorkspaceServiceNew {
      */
     private async deactivateAllWorkspaces(userId: string): Promise<void> {
         try {
-            await this.universalDb.updateMany<Workspace>('workspaces', 
-                { isActive: false }, 
+            await this.universalDb.updateMany<Workspace>('workspaces',
+                { isActive: false },
                 {
                     where: [{ field: 'userId', operator: 'eq', value: userId }]
                 }
@@ -381,7 +381,7 @@ export class WorkspaceServiceNew {
                 }
             } else if (request.sortOrder !== undefined && request.sortOrder !== currentWorkspace.sortOrder) {
                 // Moving within the same group
-                await this.adjustSortOrdersInGroup(userId, currentWorkspace.groupId, request.sortOrder, 'increment');
+                await this.adjustSortOrdersInGroup(userId, currentWorkspace.groupId || null, request.sortOrder, 'increment');
             }
         } catch (error) {
             console.error('Error handling workspace reordering:', error);
@@ -401,15 +401,15 @@ export class WorkspaceServiceNew {
             if (groupId) {
                 where.push({ field: 'groupId', operator: 'eq', value: groupId });
             } else {
-                where.push({ field: 'groupId', operator: 'exists', value: false });
+                where.push({ field: 'groupId', operator: 'exists', value: 'false' });
             }
 
             // Get workspaces that need reordering
-            const workspacesToUpdate = await this.universalDb.findMany<Workspace>('workspaces', { where });
+            const workspacesToUpdate = await this.universalDb.findMany<Workspace>('workspaces', { where: where as any });
 
             // Update each workspace's sort order
             for (const workspace of workspacesToUpdate.data) {
-                const newOrder = operation === 'increment' ? workspace.sortOrder + 1 : workspace.sortOrder - 1;
+                const newOrder = operation === 'increment' ? (workspace.sortOrder || 0) + 1 : (workspace.sortOrder || 0) - 1;
                 await this.universalDb.update<Workspace>('workspaces', workspace.id, {
                     sortOrder: newOrder
                 });

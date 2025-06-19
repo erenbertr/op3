@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { WorkspaceService } from '../services/workspaceService';
-import { UserService } from '../services/userService';
+import { WorkspaceServiceNew } from '../services/workspaceServiceNew';
+import { UserServiceNew } from '../services/userServiceNew';
 import { CreateWorkspaceRequest, UpdateWorkspaceRequest } from '../types/workspace';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
-const workspaceService = WorkspaceService.getInstance();
-const userService = UserService.getInstance();
+const workspaceService = WorkspaceServiceNew.getInstance();
+const userService = UserServiceNew.getInstance();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);

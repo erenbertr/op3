@@ -279,7 +279,7 @@ export class ChatServiceNew {
         try {
             // Delete session
             const sessionResult = await this.universalDb.delete('chat_sessions', sessionId);
-            
+
             // Delete all messages for the session
             const messagesResult = await this.universalDb.deleteMany('chat_messages', {
                 where: [{ field: 'sessionId', operator: 'eq', value: sessionId }]
@@ -373,7 +373,7 @@ export class ChatServiceNew {
     public async getSharedChat(shareId: string): Promise<GetSharedChatResponse> {
         try {
             const sharedChat = await this.universalDb.findById<SharedChat>('shared_chats', shareId);
-            
+
             if (!sharedChat) {
                 return {
                     success: false,
@@ -466,13 +466,236 @@ export class ChatServiceNew {
     }
 
     /**
+     * Get share status for a chat session
+     */
+    public async getShareStatus(sessionId: string): Promise<{ success: boolean; isShared: boolean; shareId?: string; shareUrl?: string; message?: string }> {
+        try {
+            const session = await this.getChatSessionById(sessionId);
+            if (!session) {
+                return {
+                    success: false,
+                    isShared: false,
+                    message: 'Chat session not found'
+                };
+            }
+
+            if (session.isShared) {
+                // Find the shared chat
+                const sharedChat = await this.universalDb.findOne<SharedChat>('shared_chats', {
+                    where: [{ field: 'originalChatId', operator: 'eq', value: sessionId }]
+                });
+
+                if (sharedChat) {
+                    return {
+                        success: true,
+                        isShared: true,
+                        shareId: sharedChat.id,
+                        shareUrl: `/share/${sharedChat.id}`
+                    };
+                }
+            }
+
+            return {
+                success: true,
+                isShared: false
+            };
+        } catch (error) {
+            console.error('Error getting share status:', error);
+            return {
+                success: false,
+                isShared: false,
+                message: error instanceof Error ? error.message : 'Failed to get share status'
+            };
+        }
+    }
+
+    /**
+     * Update an existing share for a chat session
+     */
+    public async updateShare(sessionId: string): Promise<CreateShareResponse> {
+        try {
+            // For now, just recreate the share
+            return await this.createChatShare(sessionId);
+        } catch (error) {
+            console.error('Error updating share:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update share'
+            };
+        }
+    }
+
+    /**
+     * Remove a share for a chat session
+     */
+    public async removeShare(sessionId: string): Promise<{ success: boolean; message: string }> {
+        try {
+            // Find and delete the shared chat
+            const result = await this.universalDb.deleteMany('shared_chats', {
+                where: [{ field: 'originalChatId', operator: 'eq', value: sessionId }]
+            });
+
+            // Update the original session to mark it as not shared
+            await this.universalDb.update<ChatSession>('chat_sessions', sessionId, { isShared: false });
+
+            return {
+                success: true,
+                message: 'Share removed successfully'
+            };
+        } catch (error) {
+            console.error('Error removing share:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to remove share'
+            };
+        }
+    }
+
+    /**
+     * Create a public share for a message
+     */
+    public async createMessageShare(messageId: string): Promise<CreateShareResponse> {
+        try {
+            // Get the message
+            const message = await this.universalDb.findById<ChatMessage>('chat_messages', messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found'
+                };
+            }
+
+            // Create a share for the entire session containing this message
+            return await this.createChatShare(message.sessionId);
+        } catch (error) {
+            console.error('Error creating message share:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to create message share'
+            };
+        }
+    }
+
+    /**
+     * Get share status for a message
+     */
+    public async getMessageShareStatus(messageId: string): Promise<{ success: boolean; isShared: boolean; shareId?: string; shareUrl?: string; message?: string }> {
+        try {
+            const message = await this.universalDb.findById<ChatMessage>('chat_messages', messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    isShared: false,
+                    message: 'Message not found'
+                };
+            }
+
+            return await this.getShareStatus(message.sessionId);
+        } catch (error) {
+            console.error('Error getting message share status:', error);
+            return {
+                success: false,
+                isShared: false,
+                message: error instanceof Error ? error.message : 'Failed to get message share status'
+            };
+        }
+    }
+
+    /**
+     * Update an existing share for a message
+     */
+    public async updateMessageShare(messageId: string): Promise<CreateShareResponse> {
+        try {
+            const message = await this.universalDb.findById<ChatMessage>('chat_messages', messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found'
+                };
+            }
+
+            return await this.updateShare(message.sessionId);
+        } catch (error) {
+            console.error('Error updating message share:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update message share'
+            };
+        }
+    }
+
+    /**
+     * Remove a share for a message
+     */
+    public async removeMessageShare(messageId: string): Promise<{ success: boolean; message: string }> {
+        try {
+            const message = await this.universalDb.findById<ChatMessage>('chat_messages', messageId);
+            if (!message) {
+                return {
+                    success: false,
+                    message: 'Message not found'
+                };
+            }
+
+            return await this.removeShare(message.sessionId);
+        } catch (error) {
+            console.error('Error removing message share:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to remove message share'
+            };
+        }
+    }
+
+    /**
+     * Save a chat message directly (for partial messages)
+     */
+    public async saveChatMessage(messageData: ChatMessage): Promise<{ success: boolean; message: string; savedMessage?: ChatMessage }> {
+        try {
+            const result = await this.universalDb.insert<ChatMessage>('chat_messages', messageData);
+
+            if (result.success) {
+                // Update session timestamp
+                await this.updateSessionTimestamp(messageData.sessionId);
+
+                return {
+                    success: true,
+                    message: 'Message saved successfully',
+                    savedMessage: messageData
+                };
+            } else {
+                throw new Error('Failed to save message');
+            }
+        } catch (error) {
+            console.error('Error saving chat message:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to save message'
+            };
+        }
+    }
+
+    /**
+     * Save a chat message internally (used by streaming)
+     */
+    public async saveChatMessageInternal(messageData: ChatMessage): Promise<void> {
+        try {
+            await this.universalDb.insert<ChatMessage>('chat_messages', messageData);
+            await this.updateSessionTimestamp(messageData.sessionId);
+        } catch (error) {
+            console.error('Error saving chat message internally:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Initialize chat schemas - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
     public async initializeChatSchemas(): Promise<void> {
         try {
             const sessionSchema = this.universalDb.getSchemaByTableName('chat_sessions');
             const messageSchema = this.universalDb.getSchemaByTableName('chat_messages');
-            
+
             if (sessionSchema) await this.universalDb.ensureSchema(sessionSchema);
             if (messageSchema) await this.universalDb.ensureSchema(messageSchema);
         } catch (error) {
