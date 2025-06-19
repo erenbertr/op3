@@ -242,3 +242,102 @@ export interface OpenRouterValidationResponse {
     models?: OpenRouterModel[];
     error?: string;
 }
+
+// Grok Model Configuration types
+export interface GrokModelConfig {
+    id: string;
+    keyId: string;
+    keyName: string;
+    modelId: string;
+    modelName: string;
+    customName?: string;
+    capabilities?: ModelCapabilities;
+    pricing?: ModelPricing;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface CreateGrokModelConfigRequest {
+    keyId: string;
+    modelId: string;
+    customName?: string;
+}
+
+export interface UpdateGrokModelConfigRequest {
+    customName?: string;
+    isActive?: boolean;
+}
+
+export interface GrokModelConfigResponse {
+    success: boolean;
+    message: string;
+    data?: GrokModelConfig | GrokModelConfig[];
+    error?: string;
+}
+
+// Anthropic Model Configuration types
+export interface AnthropicModelConfig {
+    id: string;
+    keyId: string;
+    keyName: string;
+    modelId: string;
+    modelName: string;
+    customName?: string;
+    capabilities?: ModelCapabilities;
+    pricing?: ModelPricing;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface CreateAnthropicModelConfigRequest {
+    keyId: string;
+    modelId: string;
+    customName?: string;
+}
+
+export interface UpdateAnthropicModelConfigRequest {
+    customName?: string;
+    isActive?: boolean;
+}
+
+export interface AnthropicModelConfigResponse {
+    success: boolean;
+    message: string;
+    data?: AnthropicModelConfig | AnthropicModelConfig[];
+    error?: string;
+}
+
+// Google Model Configuration types
+export interface GoogleModelConfig {
+    id: string;
+    keyId: string;
+    keyName: string;
+    modelId: string;
+    modelName: string;
+    customName?: string;
+    capabilities?: ModelCapabilities;
+    pricing?: ModelPricing;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface CreateGoogleModelConfigRequest {
+    keyId: string;
+    modelId: string;
+    customName?: string;
+}
+
+export interface UpdateGoogleModelConfigRequest {
+    customName?: string;
+    isActive?: boolean;
+}
+
+export interface GoogleModelConfigResponse {
+    success: boolean;
+    message: string;
+    data?: GoogleModelConfig | GoogleModelConfig[];
+    error?: string;
+}

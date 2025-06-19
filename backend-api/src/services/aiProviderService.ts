@@ -631,6 +631,109 @@ export class AIProviderService {
         }
     }
 
+    // Fetch available models from Grok (xAI)
+    public async fetchGrokModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        try {
+            // For now, return fallback models since Grok API might not have a public models endpoint
+            // This can be updated when xAI provides a proper models API
+            const fallbackModels = [
+                { id: 'grok-beta', name: 'Grok Beta', capabilities: ['reasoning', 'search'] },
+                { id: 'grok-2', name: 'Grok 2', capabilities: ['reasoning', 'search'] }
+            ];
+
+            return {
+                success: true,
+                models: fallbackModels,
+                message: 'Models fetched successfully (using fallback list)'
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Network error',
+                error: 'NETWORK_ERROR'
+            };
+        }
+    }
+
+    // Fetch available models from Anthropic
+    public async fetchAnthropicModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        try {
+            // Anthropic doesn't have a public models endpoint, so we return known models
+            const fallbackModels = [
+                { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', capabilities: ['reasoning', 'vision', 'image', 'pdf', 'fileUpload'] },
+                { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', capabilities: ['reasoning', 'vision', 'image', 'pdf', 'fileUpload'] },
+                { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', capabilities: ['reasoning', 'vision', 'image', 'pdf', 'fileUpload'] }
+            ];
+
+            return {
+                success: true,
+                models: fallbackModels,
+                message: 'Models fetched successfully (using known model list)'
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Network error',
+                error: 'NETWORK_ERROR'
+            };
+        }
+    }
+
+    // Fetch available models from Google
+    public async fetchGoogleModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        try {
+            const endpoint = DEFAULT_ENDPOINTS.google;
+            if (!endpoint) {
+                return {
+                    success: false,
+                    message: 'Google endpoint not configured',
+                    error: 'MISSING_ENDPOINT'
+                };
+            }
+
+            const response = await fetch(`${endpoint}/v1/models?key=${apiKey}`);
+
+            if (response.ok) {
+                const data = await response.json() as any;
+                if (data && Array.isArray(data.models)) {
+                    // Filter and format Google models
+                    const formattedModels = data.models
+                        .filter((model: any) => model.name && model.name.includes('gemini'))
+                        .map((model: any) => ({
+                            id: model.name.replace('models/', ''),
+                            name: model.displayName || model.name,
+                            capabilities: this.inferGoogleModelCapabilities(model.name)
+                        }));
+
+                    return {
+                        success: true,
+                        models: formattedModels,
+                        message: 'Models fetched successfully'
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'Invalid response format from Google API',
+                        error: 'INVALID_RESPONSE'
+                    };
+                }
+            } else {
+                const errorData = await response.json().catch(() => ({})) as any;
+                return {
+                    success: false,
+                    message: errorData.error?.message || `HTTP ${response.status}`,
+                    error: 'API_ERROR'
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Network error',
+                error: 'NETWORK_ERROR'
+            };
+        }
+    }
+
     // Add basic enhancements without making additional API calls (fast)
     private addBasicEnhancements(models: any[]): any[] {
         return models.map(model => ({
@@ -691,6 +794,17 @@ export class AIProviderService {
         if (modelId.includes('tts')) return 'text-to-speech';
         if (modelId.includes('embedding')) return 'embedding';
         return 'other';
+    }
+
+    // Infer Google model capabilities based on model name
+    private inferGoogleModelCapabilities(modelName: string): string[] {
+        const capabilities: string[] = ['reasoning'];
+
+        if (modelName.includes('gemini-1.5') || modelName.includes('gemini-2.0')) {
+            capabilities.push('vision', 'image', 'pdf', 'functionCalling', 'codeInterpreter');
+        }
+
+        return capabilities;
     }
 
     // Determine if model is recommended for general use

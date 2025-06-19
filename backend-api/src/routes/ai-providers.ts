@@ -217,6 +217,54 @@ router.post('/openrouter/models', asyncHandler(async (req: Request, res: Respons
     }
 }));
 
+// Fetch Grok models
+router.post('/grok/models', asyncHandler(async (req: Request, res: Response) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        throw createError('API key is required', 400);
+    }
+
+    try {
+        const result = await aiProviderService.fetchGrokModels(apiKey);
+        res.json(result);
+    } catch (error) {
+        throw createError('Failed to fetch Grok models', 500);
+    }
+}));
+
+// Fetch Anthropic models
+router.post('/anthropic/models', asyncHandler(async (req: Request, res: Response) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        throw createError('API key is required', 400);
+    }
+
+    try {
+        const result = await aiProviderService.fetchAnthropicModels(apiKey);
+        res.json(result);
+    } catch (error) {
+        throw createError('Failed to fetch Anthropic models', 500);
+    }
+}));
+
+// Fetch Google models
+router.post('/google/models', asyncHandler(async (req: Request, res: Response) => {
+    const { apiKey } = req.body;
+
+    if (!apiKey) {
+        throw createError('API key is required', 400);
+    }
+
+    try {
+        const result = await aiProviderService.fetchGoogleModels(apiKey);
+        res.json(result);
+    } catch (error) {
+        throw createError('Failed to fetch Google models', 500);
+    }
+}));
+
 // Refresh model metadata (capabilities and pricing) from APIs
 router.post('/refresh-metadata', asyncHandler(async (req: Request, res: Response) => {
     const { modelId, apiKey } = req.body;

@@ -14,6 +14,9 @@ import authRouter from './auth';
 import filesRouter from './files';
 import openaiProvidersRouter from './openai-providers';
 import openaiModelConfigsRouter from './openai-model-configs';
+import grokModelConfigsRouter from './grok-model-configs';
+import anthropicModelConfigsRouter from './anthropic-model-configs';
+import googleModelConfigsRouter from './google-model-configs';
 import googleProvidersRouter from './google-providers';
 import grokProvidersRouter from './grok-providers';
 import anthropicProvidersRouter from './anthropic-providers';
@@ -67,6 +70,15 @@ export const setupRoutes = (app: Express): void => {
     // OpenAI Model Configs routes
     app.use(`${API_PREFIX}/openai-model-configs`, openaiModelConfigsRouter);
 
+    // Grok Model Configs routes
+    app.use(`${API_PREFIX}/grok-model-configs`, grokModelConfigsRouter);
+
+    // Anthropic Model Configs routes
+    app.use(`${API_PREFIX}/anthropic-model-configs`, anthropicModelConfigsRouter);
+
+    // Google Model Configs routes
+    app.use(`${API_PREFIX}/google-model-configs`, googleModelConfigsRouter);
+
     // Google Providers routes
     app.use(`${API_PREFIX}/google-providers`, googleProvidersRouter);
 
@@ -108,6 +120,9 @@ export const setupRoutes = (app: Express): void => {
                 aiProviders: `${API_PREFIX}/ai-providers`,
                 openaiProviders: `${API_PREFIX}/openai-providers`,
                 openaiModelConfigs: `${API_PREFIX}/openai-model-configs`,
+                grokModelConfigs: `${API_PREFIX}/grok-model-configs`,
+                anthropicModelConfigs: `${API_PREFIX}/anthropic-model-configs`,
+                googleModelConfigs: `${API_PREFIX}/google-model-configs`,
                 googleProviders: `${API_PREFIX}/google-providers`,
                 grokProviders: `${API_PREFIX}/grok-providers`,
                 anthropicProviders: `${API_PREFIX}/anthropic-providers`,
