@@ -4,7 +4,12 @@ import {
     SaveGlobalOpenRouterSettingsRequest,
     SaveGlobalOpenRouterSettingsResponse,
     GetGlobalOpenRouterSettingsResponse
-} from '../types/global-openrouter';
+} from '../types/global-openrouter-settings';
+import {
+    ValidateOpenRouterApiKeyRequest,
+    ValidateOpenRouterApiKeyResponse
+} from '../types/workspace-settings';
+import { AIProviderService } from './aiProviderService';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 
@@ -15,10 +20,12 @@ import crypto from 'crypto';
 export class GlobalOpenRouterServiceNew {
     private static instance: GlobalOpenRouterServiceNew;
     private universalDb: UniversalDatabaseService;
+    private aiProviderService: AIProviderService;
     private encryptionKey: string;
 
     private constructor() {
         this.universalDb = UniversalDatabaseService.getInstance();
+        this.aiProviderService = AIProviderService.getInstance();
         this.encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
     }
 
@@ -53,16 +60,16 @@ export class GlobalOpenRouterServiceNew {
                 apiKey: encryptedApiKey,
                 selectedModels: request.selectedModels,
                 isEnabled: request.isEnabled !== undefined ? request.isEnabled : true,
-                createdAt: existingSettings?.createdAt || new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                createdAt: existingSettings?.createdAt || new Date(),
+                updatedAt: new Date()
             };
 
             let result;
-            if (existingSettings) {
+            if (existingSettings && existingSettings.id) {
                 // Update existing settings - works with ANY database type!
                 result = await this.universalDb.update<GlobalOpenRouterSettings>(
-                    'global_openrouter_settings', 
-                    existingSettings.id, 
+                    'global_openrouter_settings',
+                    existingSettings.id,
                     {
                         apiKey: settingsData.apiKey,
                         selectedModels: settingsData.selectedModels,
@@ -106,8 +113,7 @@ export class GlobalOpenRouterServiceNew {
             if (!settings) {
                 return {
                     success: true,
-                    message: 'No global OpenRouter settings found',
-                    hasSettings: false
+                    message: 'No global OpenRouter settings found'
                 };
             }
 
@@ -119,15 +125,13 @@ export class GlobalOpenRouterServiceNew {
                 console.error('Error decrypting API key:', error);
                 return {
                     success: false,
-                    message: 'Failed to decrypt API key',
-                    hasSettings: false
+                    message: 'Failed to decrypt API key'
                 };
             }
 
             return {
                 success: true,
                 message: 'Global OpenRouter settings retrieved successfully',
-                hasSettings: true,
                 settings: {
                     ...settings,
                     apiKey: decryptedApiKey
@@ -137,8 +141,7 @@ export class GlobalOpenRouterServiceNew {
             console.error('Error getting global OpenRouter settings:', error);
             return {
                 success: false,
-                message: error instanceof Error ? error.message : 'Failed to get settings',
-                hasSettings: false
+                message: error instanceof Error ? error.message : 'Failed to get settings'
             };
         }
     }
@@ -149,7 +152,7 @@ export class GlobalOpenRouterServiceNew {
     async deleteSettings(): Promise<{ success: boolean; message: string }> {
         try {
             const existingSettings = await this.getExistingSettings();
-            
+
             if (!existingSettings) {
                 return {
                     success: false,
@@ -158,6 +161,12 @@ export class GlobalOpenRouterServiceNew {
             }
 
             // Delete settings - works with ANY database type!
+            if (!existingSettings.id) {
+                return {
+                    success: false,
+                    message: 'Settings ID is missing'
+                };
+            }
             const result = await this.universalDb.delete('global_openrouter_settings', existingSettings.id);
 
             if (result.deletedCount > 0) {
@@ -186,7 +195,7 @@ export class GlobalOpenRouterServiceNew {
     async toggleEnabled(): Promise<{ success: boolean; message: string; isEnabled?: boolean }> {
         try {
             const existingSettings = await this.getExistingSettings();
-            
+
             if (!existingSettings) {
                 return {
                     success: false,
@@ -194,13 +203,20 @@ export class GlobalOpenRouterServiceNew {
                 };
             }
 
+            if (!existingSettings.id) {
+                return {
+                    success: false,
+                    message: 'Settings ID is missing'
+                };
+            }
+
             const newStatus = !existingSettings.isEnabled;
             const result = await this.universalDb.update<GlobalOpenRouterSettings>(
-                'global_openrouter_settings', 
-                existingSettings.id, 
+                'global_openrouter_settings',
+                existingSettings.id,
                 {
                     isEnabled: newStatus,
-                    updatedAt: new Date().toISOString()
+                    updatedAt: new Date()
                 }
             );
 
@@ -235,6 +251,135 @@ export class GlobalOpenRouterServiceNew {
         } catch (error) {
             console.error('Error checking if global OpenRouter is configured:', error);
             return false;
+        }
+    }
+
+    /**
+     * Validate OpenRouter API key and fetch models - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async validateApiKey(request: ValidateOpenRouterApiKeyRequest): Promise<ValidateOpenRouterApiKeyResponse> {
+        try {
+            const result = await this.aiProviderService.fetchOpenRouterModels(request.apiKey);
+
+            if (result.success) {
+                return {
+                    success: true,
+                    message: 'API key is valid',
+                    models: result.models
+                };
+            } else {
+                return {
+                    success: false,
+                    message: result.message || 'Invalid API key',
+                    error: result.error
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Validation failed',
+                error: 'VALIDATION_ERROR'
+            };
+        }
+    }
+
+    /**
+     * Get available models using saved API key - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async getAvailableModels(): Promise<ValidateOpenRouterApiKeyResponse> {
+        try {
+            const settings = await this.getExistingSettings();
+            if (!settings || !settings.apiKey) {
+                return {
+                    success: false,
+                    message: 'No API key configured',
+                    error: 'NO_API_KEY'
+                };
+            }
+
+            // Decrypt the API key
+            const decryptedApiKey = this.decryptApiKey(settings.apiKey);
+
+            const result = await this.aiProviderService.fetchOpenRouterModels(decryptedApiKey);
+
+            if (result.success) {
+                return {
+                    success: true,
+                    message: 'Models fetched successfully',
+                    models: result.models
+                };
+            } else {
+                return {
+                    success: false,
+                    message: result.message || 'Failed to fetch models',
+                    error: result.error
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to fetch models',
+                error: 'FETCH_ERROR'
+            };
+        }
+    }
+
+    /**
+     * Update only selected models (keeping existing API key) - ONE SIMPLE METHOD FOR ALL DATABASES!
+     */
+    public async updateSelectedModels(selectedModels: string[]): Promise<SaveGlobalOpenRouterSettingsResponse> {
+        try {
+            if (!Array.isArray(selectedModels) || selectedModels.length === 0) {
+                return {
+                    success: false,
+                    message: 'At least one model must be selected'
+                };
+            }
+
+            const existingSettings = await this.getExistingSettings();
+            if (!existingSettings) {
+                return {
+                    success: false,
+                    message: 'No existing settings found. Please configure API key first.'
+                };
+            }
+
+            if (!existingSettings.id) {
+                return {
+                    success: false,
+                    message: 'Settings ID is missing'
+                };
+            }
+
+            // Update only the selected models and updatedAt timestamp
+            const result = await this.universalDb.update<GlobalOpenRouterSettings>(
+                'global_openrouter_settings',
+                existingSettings.id,
+                {
+                    selectedModels: selectedModels,
+                    updatedAt: new Date()
+                }
+            );
+
+            if (result.success || (result as any).modifiedCount > 0) {
+                return {
+                    success: true,
+                    message: 'Selected models updated successfully',
+                    settings: {
+                        ...existingSettings,
+                        selectedModels: selectedModels,
+                        apiKey: '***' // Don't return the actual API key
+                    }
+                };
+            } else {
+                throw new Error('Failed to update selected models');
+            }
+        } catch (error) {
+            console.error('Error updating selected models:', error);
+            return {
+                success: false,
+                message: error instanceof Error ? error.message : 'Failed to update selected models'
+            };
         }
     }
 
