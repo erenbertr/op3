@@ -3,7 +3,7 @@ import { ChatMessage, ApiMetadata } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { OpenAIModelConfigServiceNew } from './openaiModelConfigServiceNew';
 import { OpenAIProviderService } from './openaiProviderService';
-import { GoogleModelConfigService } from './googleModelConfigService';
+import { GoogleModelConfigServiceNew } from './googleModelConfigServiceNew';
 import { GoogleProviderService } from './googleProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
@@ -49,7 +49,7 @@ export class AIChatService {
     private aiProviderService: AIProviderService;
     private openaiModelConfigService: OpenAIModelConfigServiceNew;
     private openaiProviderService: OpenAIProviderService;
-    private googleModelConfigService: GoogleModelConfigService;
+    private googleModelConfigService: GoogleModelConfigServiceNew;
     private googleProviderService: GoogleProviderService;
     private personalityService: PersonalityService;
     private chatService: ChatService;
@@ -61,7 +61,7 @@ export class AIChatService {
         this.aiProviderService = AIProviderService.getInstance();
         this.openaiModelConfigService = OpenAIModelConfigServiceNew.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
-        this.googleModelConfigService = GoogleModelConfigService.getInstance();
+        this.googleModelConfigService = GoogleModelConfigServiceNew.getInstance();
         this.googleProviderService = GoogleProviderService.getInstance();
         this.personalityService = PersonalityService.getInstance();
         this.chatService = ChatService.getInstance();
@@ -113,9 +113,9 @@ export class AIChatService {
 
                 // Try Google model configs if no OpenAI configs
                 if (!selectedProvider) {
-                    const googleModelConfigs = await this.googleModelConfigService.getAllModelConfigs();
-                    if (googleModelConfigs.success && googleModelConfigs.data && Array.isArray(googleModelConfigs.data) && googleModelConfigs.data.length > 0) {
-                        const activeConfig = googleModelConfigs.data.find((config: any) => config.isActive);
+                    const googleModelConfigs = await this.googleModelConfigService.getModelConfigs();
+                    if (googleModelConfigs.success && googleModelConfigs.modelConfigs && Array.isArray(googleModelConfigs.modelConfigs) && googleModelConfigs.modelConfigs.length > 0) {
+                        const activeConfig = googleModelConfigs.modelConfigs.find((config: any) => config.isActive);
                         if (activeConfig) {
                             selectedProvider = await this.resolveGoogleModelConfig(activeConfig.id);
                         }
@@ -205,8 +205,8 @@ export class AIChatService {
                 model: modelConfig.modelId,
                 endpoint: 'https://api.openai.com/v1',
                 isActive: modelConfig.isActive,
-                createdAt: modelConfig.createdAt,
-                updatedAt: modelConfig.updatedAt
+                createdAt: new Date(modelConfig.createdAt),
+                updatedAt: new Date(modelConfig.updatedAt)
             };
 
             return aiProviderConfig;
@@ -222,12 +222,12 @@ export class AIChatService {
     private async resolveGoogleModelConfig(modelConfigId: string): Promise<AIProviderConfig | undefined> {
         try {
             // Get all Google model configurations and find the one with matching ID
-            const allConfigsResult = await this.googleModelConfigService.getAllModelConfigs();
-            if (!allConfigsResult.success || !allConfigsResult.data) {
+            const allConfigsResult = await this.googleModelConfigService.getModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.modelConfigs) {
                 return undefined;
             }
 
-            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const allConfigs = Array.isArray(allConfigsResult.modelConfigs) ? allConfigsResult.modelConfigs : [allConfigsResult.modelConfigs];
             const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
 
             if (!modelConfig || !modelConfig.isActive) {
@@ -249,8 +249,8 @@ export class AIChatService {
                 model: modelConfig.modelId,
                 endpoint: 'https://generativelanguage.googleapis.com',
                 isActive: modelConfig.isActive,
-                createdAt: modelConfig.createdAt,
-                updatedAt: modelConfig.updatedAt
+                createdAt: new Date(modelConfig.createdAt),
+                updatedAt: new Date(modelConfig.updatedAt)
             };
 
             return aiProviderConfig;
