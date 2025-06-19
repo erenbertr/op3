@@ -479,37 +479,6 @@ export function ChatSessionComponent({
 
     // TanStack Query handles loading messages automatically
 
-    const handleRetryMessage = React.useCallback(async (messageId: string) => {
-        // Find the message to retry
-        const messageToRetry = messages.find(msg => msg.id === messageId);
-        if (!messageToRetry) {
-            console.warn('Message not found for retry:', messageId);
-            return;
-        }
-
-        // If it's a user message, resend it
-        if (messageToRetry.role === 'user') {
-            await handleSendMessage(
-                messageToRetry.content,
-                messageToRetry.personalityId,
-                messageToRetry.aiProviderId
-            );
-        } else {
-            // For AI messages, find the previous user message and resend it
-            const messageIndex = messages.findIndex(msg => msg.id === messageId);
-            if (messageIndex > 0) {
-                const previousUserMessage = messages[messageIndex - 1];
-                if (previousUserMessage.role === 'user') {
-                    await handleSendMessage(
-                        previousUserMessage.content,
-                        previousUserMessage.personalityId,
-                        previousUserMessage.aiProviderId
-                    );
-                }
-            }
-        }
-    }, [messages, handleSendMessage]);
-
     const handleSettingsChange = React.useCallback(async (personalityId?: string, aiProviderId?: string) => {
         if (!session?.id) return;
 
@@ -828,6 +797,37 @@ export function ChatSessionComponent({
         updateSpacerHeight,
         onSessionUpdate
     ]);
+
+    const handleRetryMessage = React.useCallback(async (messageId: string) => {
+        // Find the message to retry
+        const messageToRetry = messages.find(msg => msg.id === messageId);
+        if (!messageToRetry) {
+            console.warn('Message not found for retry:', messageId);
+            return;
+        }
+
+        // If it's a user message, resend it
+        if (messageToRetry.role === 'user') {
+            await handleSendMessage(
+                messageToRetry.content,
+                messageToRetry.personalityId,
+                messageToRetry.aiProviderId
+            );
+        } else {
+            // For AI messages, find the previous user message and resend it
+            const messageIndex = messages.findIndex(msg => msg.id === messageId);
+            if (messageIndex > 0) {
+                const previousUserMessage = messages[messageIndex - 1];
+                if (previousUserMessage.role === 'user') {
+                    await handleSendMessage(
+                        previousUserMessage.content,
+                        previousUserMessage.personalityId,
+                        previousUserMessage.aiProviderId
+                    );
+                }
+            }
+        }
+    }, [messages, handleSendMessage]);
 
     // Interrupt streaming function (for new messages during streaming)
     const handleInterruptStreaming = React.useCallback(() => {
