@@ -761,43 +761,69 @@ export function BaseAIProviderSettings({ config }: BaseAIProviderSettingsProps) 
                             </Card>
                         ) : (
                             <div className="space-y-4">
-                                {modelConfigs.map((modelConfig) => (
-                                    <Card key={modelConfig.id}>
-                                        <CardHeader>
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <Bot className="h-5 w-5 text-muted-foreground" />
-                                                    <div>
-                                                        <CardTitle className="text-base">
-                                                            {modelConfig.customName || modelConfig.modelName}
-                                                        </CardTitle>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {modelConfig.keyName} • {modelConfig.modelId}
-                                                        </p>
+                                {modelConfigs.map((modelConfig) => {
+                                    // Infer capabilities for this model
+                                    const inferredCapabilities = config.capabilities?.inferCapabilities?.(modelConfig.modelId) || {};
+                                    const modelCapabilities = modelConfig.capabilities || inferredCapabilities;
+
+                                    return (
+                                        <Card key={modelConfig.id}>
+                                            <CardHeader>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <Bot className="h-5 w-5 text-muted-foreground" />
+                                                        <div className="flex-1">
+                                                            <CardTitle className="text-base">
+                                                                {modelConfig.customName || modelConfig.modelName}
+                                                            </CardTitle>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {modelConfig.keyName} • {modelConfig.modelId}
+                                                            </p>
+
+                                                            {/* Capabilities */}
+                                                            {config.capabilities && Object.keys(modelCapabilities).length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-2">
+                                                                    {Object.entries(modelCapabilities).map(([capability, enabled]) => {
+                                                                        if (!enabled || !config.capabilities?.capabilityIcons[capability]) return null;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={capability}
+                                                                                className="flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs"
+                                                                                title={config.capabilities.capabilityLabels[capability]}
+                                                                            >
+                                                                                {config.capabilities.capabilityIcons[capability]}
+                                                                                <span>{config.capabilities.capabilityLabels[capability]}</span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Switch
+                                                            checked={modelConfig.isActive}
+                                                            onCheckedChange={() => handleModelToggleActive(modelConfig)}
+                                                        />
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleModelDelete(modelConfig)}
+                                                            disabled={deleteModelConfigMutation.isPending}
+                                                        >
+                                                            {deleteModelConfigMutation.isPending ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-4 w-4" />
+                                                            )}
+                                                        </Button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Switch
-                                                        checked={modelConfig.isActive}
-                                                        onCheckedChange={() => handleModelToggleActive(modelConfig)}
-                                                    />
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleModelDelete(modelConfig)}
-                                                        disabled={deleteModelConfigMutation.isPending}
-                                                    >
-                                                        {deleteModelConfigMutation.isPending ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                        ) : (
-                                                            <Trash2 className="h-4 w-4" />
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </CardHeader>
-                                    </Card>
-                                ))}
+                                            </CardHeader>
+                                        </Card>
+                                    );
+                                })}
                             </div>
                         )}
 

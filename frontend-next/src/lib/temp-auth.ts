@@ -24,7 +24,7 @@ export function useSession() {
 
     useEffect(() => {
         // Check for existing session in localStorage
-        const timer = setTimeout(() => {
+        const checkSession = () => {
             try {
                 const token = localStorage.getItem('op3_auth_token');
                 const userStr = localStorage.getItem('op3_auth_user');
@@ -47,9 +47,32 @@ export function useSession() {
                     isPending: false
                 });
             }
-        }, 100);
+        };
 
-        return () => clearTimeout(timer);
+        // Initial check with a small delay to ensure localStorage is ready
+        const timer = setTimeout(checkSession, 100);
+
+        // Listen for storage changes (for cross-tab synchronization)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'op3_auth_token' || e.key === 'op3_auth_user') {
+                checkSession();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        // Listen for custom auth events (for same-tab updates)
+        const handleAuthChange = () => {
+            checkSession();
+        };
+
+        window.addEventListener('auth-change', handleAuthChange);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('auth-change', handleAuthChange);
+        };
     }, []);
 
     return session;
@@ -84,8 +107,8 @@ export const signIn = {
                 localStorage.setItem('op3_auth_token', data.token);
                 localStorage.setItem('op3_auth_user', JSON.stringify(data.user));
 
-                // Trigger a page reload to update the session
-                window.location.reload();
+                // Trigger a custom event to update the session without page reload
+                window.dispatchEvent(new CustomEvent('auth-change'));
 
                 return {
                     data: {
@@ -142,8 +165,8 @@ export const signUp = {
                 localStorage.setItem('op3_auth_token', data.token);
                 localStorage.setItem('op3_auth_user', JSON.stringify(data.user));
 
-                // Trigger a page reload to update the session
-                window.location.reload();
+                // Trigger a custom event to update the session without page reload
+                window.dispatchEvent(new CustomEvent('auth-change'));
 
                 return {
                     data: {
@@ -174,8 +197,8 @@ export async function signOut() {
         localStorage.removeItem('op3_auth_token');
         localStorage.removeItem('op3_auth_user');
 
-        // Reload the page to update the session
-        window.location.reload();
+        // Trigger a custom event to update the session without page reload
+        window.dispatchEvent(new CustomEvent('auth-change'));
 
         return { success: true };
     } catch (error) {
