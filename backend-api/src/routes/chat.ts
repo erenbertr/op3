@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatService } from '../services/chatService';
-import { AIChatService } from '../services/aiChatService';
 import { VercelAIChatService } from '../services/vercelAIChatService';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { createError } from '../utils/errorHandler';
@@ -16,7 +15,6 @@ import {
 
 const router = Router();
 const chatService = ChatService.getInstance();
-const aiChatService = AIChatService.getInstance();
 const vercelAIChatService = VercelAIChatService.getInstance();
 
 // Apply authentication middleware to all routes
@@ -331,51 +329,30 @@ router.post('/sessions/:sessionId/ai-stream', asyncHandler(async (req: Request, 
 
         let fullAiResponse = '';
 
-        // Try Vercel AI SDK first, fall back to legacy service
+        // Use Vercel AI SDK for streaming
         let streamResult;
-        try {
-            // Use Vercel AI SDK for streaming
-            streamResult = await vercelAIChatService.generateStreamingResponse({
-                sessionId,
-                content: content.trim(),
-                personalityId,
-                aiProviderId,
-                userId,
-                searchEnabled,
-                reasoningEnabled,
-                fileAttachments
-            }, (chunk) => {
-                if (chunk.type === 'chunk' && chunk.content) {
-                    fullAiResponse += chunk.content;
-                    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-                } else if (chunk.type === 'error') {
-                    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-                } else {
-                    // Forward other chunk types (start, end, search, etc.)
-                    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-                }
-            });
-        } catch (vercelError) {
-            console.log('Vercel AI SDK failed, falling back to legacy service:', vercelError);
-            // Fall back to legacy AI chat service
-            streamResult = await aiChatService.generateStreamingResponse({
-                sessionId,
-                content: content.trim(),
-                personalityId,
-                aiProviderId,
-                userId,
-                searchEnabled,
-                reasoningEnabled,
-                fileAttachments
-            }, (chunk) => {
-                if (chunk.type === 'chunk' && chunk.content) {
-                    fullAiResponse += chunk.content;
-                    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-                } else if (chunk.type === 'error') {
-                    res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-                }
-            });
-        }
+        console.log('Using Vercel AI SDK for chat streaming');
+
+        streamResult = await vercelAIChatService.generateStreamingResponse({
+            sessionId,
+            content: content.trim(),
+            personalityId,
+            aiProviderId,
+            userId,
+            searchEnabled,
+            reasoningEnabled,
+            fileAttachments
+        }, (chunk: any) => {
+            if (chunk.type === 'chunk' && chunk.content) {
+                fullAiResponse += chunk.content;
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            } else if (chunk.type === 'error') {
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            } else {
+                // Forward other chunk types (start, end, search, etc.)
+                res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            }
+        });
 
         if (streamResult.success && fullAiResponse.trim()) {
             // Save the complete AI response to database

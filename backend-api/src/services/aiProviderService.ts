@@ -635,8 +635,8 @@ export class AIProviderService {
 
                 default:
                     // Use fallback models for unsupported providers
-                    const fallbackModelIds = FALLBACK_MODELS[type] || [];
-                    const models = fallbackModelIds.map(id => ({
+                    const fallbackModelIds = FALLBACK_MODELS[type as keyof typeof FALLBACK_MODELS] || [];
+                    const models: Array<{ id: string; name: string; description?: string }> = fallbackModelIds.map(id => ({
                         id,
                         name: id,
                         description: `${type} model`

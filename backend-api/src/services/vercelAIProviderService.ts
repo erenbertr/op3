@@ -5,6 +5,8 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateText, streamText, LanguageModel } from 'ai';
 import { AIProviderConfig, AIProviderType } from '../types/ai-provider';
 import { AIProviderService } from './aiProviderService';
+import { GoogleProviderService } from './googleProviderService';
+import { OpenAIProviderService } from './openaiProviderService';
 
 /**
  * Service that bridges our existing AI provider configuration system
@@ -13,9 +15,13 @@ import { AIProviderService } from './aiProviderService';
 export class VercelAIProviderService {
     private static instance: VercelAIProviderService;
     private aiProviderService: AIProviderService;
+    private googleProviderService: GoogleProviderService;
+    private openaiProviderService: OpenAIProviderService;
 
     private constructor() {
         this.aiProviderService = AIProviderService.getInstance();
+        this.googleProviderService = GoogleProviderService.getInstance();
+        this.openaiProviderService = OpenAIProviderService.getInstance();
     }
 
     public static getInstance(): VercelAIProviderService {
@@ -29,7 +35,9 @@ export class VercelAIProviderService {
      * Create a Vercel AI SDK language model instance from our provider configuration
      */
     public createLanguageModel(providerConfig: AIProviderConfig): LanguageModel {
-        const apiKey = this.aiProviderService.decryptApiKey(providerConfig.apiKey);
+        // The API key should already be decrypted when passed to this method
+        // from the provider resolution methods in VercelAIChatService
+        const apiKey = providerConfig.apiKey;
 
         switch (providerConfig.type) {
             case 'openai':
@@ -75,6 +83,8 @@ export class VercelAIProviderService {
                 throw new Error(`Unsupported provider type: ${providerConfig.type}`);
         }
     }
+
+
 
     /**
      * Get the active provider configuration and create a language model
