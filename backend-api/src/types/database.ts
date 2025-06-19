@@ -118,3 +118,61 @@ export interface DatabaseConnectionResult {
         connected: boolean;
     };
 }
+
+// Universal Database Abstraction Types
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'json' | 'text' | 'uuid';
+
+export interface FieldDefinition {
+    type: FieldType;
+    required?: boolean;
+    unique?: boolean;
+    primaryKey?: boolean;
+    autoIncrement?: boolean;
+    defaultValue?: any;
+    maxLength?: number;
+    index?: boolean;
+}
+
+export interface SchemaDefinition {
+    tableName: string;
+    collectionName?: string; // For NoSQL databases
+    fields: Record<string, FieldDefinition>;
+    indexes?: string[][];
+    timestamps?: boolean; // Auto-add createdAt/updatedAt
+}
+
+export interface QueryCondition {
+    field: string;
+    operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'nin' | 'like' | 'exists';
+    value: any;
+}
+
+export interface QueryOptions {
+    where?: QueryCondition[];
+    orderBy?: { field: string; direction: 'asc' | 'desc' }[];
+    limit?: number;
+    offset?: number;
+    select?: string[];
+}
+
+export interface InsertResult {
+    success: boolean;
+    insertedId?: string;
+    insertedCount?: number;
+}
+
+export interface UpdateResult {
+    success: boolean;
+    modifiedCount: number;
+}
+
+export interface DeleteResult {
+    success: boolean;
+    deletedCount: number;
+}
+
+export interface FindResult<T = any> {
+    data: T[];
+    total?: number;
+    hasMore?: boolean;
+}

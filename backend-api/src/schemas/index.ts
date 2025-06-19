@@ -1,0 +1,370 @@
+import { SchemaDefinition } from '../types/database';
+
+/**
+ * Schema definitions for all database entities
+ * These schemas define the structure and constraints for each table/collection
+ */
+
+export const UserSchema: SchemaDefinition = {
+    tableName: 'users',
+    collectionName: 'users',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        email: {
+            type: 'string',
+            required: true,
+            unique: true,
+            maxLength: 255
+        },
+        username: {
+            type: 'string',
+            maxLength: 255
+        },
+        password: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        role: {
+            type: 'string',
+            required: true,
+            maxLength: 20
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        },
+        lastLoginAt: {
+            type: 'date'
+        },
+        hasCompletedWorkspaceSetup: {
+            type: 'boolean',
+            defaultValue: false
+        },
+        permissions: {
+            type: 'json'
+        },
+        subscriptionId: {
+            type: 'string',
+            maxLength: 255
+        },
+        subscriptionExpiry: {
+            type: 'date'
+        },
+        firstName: {
+            type: 'string',
+            maxLength: 255
+        },
+        lastName: {
+            type: 'string',
+            maxLength: 255
+        },
+        avatar: {
+            type: 'text'
+        }
+    },
+    indexes: [
+        ['email'],
+        ['role'],
+        ['isActive']
+    ],
+    timestamps: true
+};
+
+export const WorkspaceSchema: SchemaDefinition = {
+    tableName: 'workspaces',
+    collectionName: 'workspaces',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
+        name: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        templateType: {
+            type: 'string',
+            maxLength: 100
+        },
+        workspaceRules: {
+            type: 'text'
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: false
+        },
+        groupId: {
+            type: 'uuid'
+        },
+        sortOrder: {
+            type: 'number',
+            defaultValue: 0
+        }
+    },
+    indexes: [
+        ['userId'],
+        ['userId', 'isActive'],
+        ['groupId'],
+        ['sortOrder']
+    ],
+    timestamps: true
+};
+
+export const ChatSessionSchema: SchemaDefinition = {
+    tableName: 'chat_sessions',
+    collectionName: 'chatSessions',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
+        workspaceId: {
+            type: 'uuid',
+            required: true
+        },
+        title: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        lastUsedPersonalityId: {
+            type: 'uuid'
+        },
+        lastUsedAIProviderId: {
+            type: 'uuid'
+        },
+        isPinned: {
+            type: 'boolean',
+            defaultValue: false
+        },
+        isShared: {
+            type: 'boolean',
+            defaultValue: false
+        },
+        parentSessionId: {
+            type: 'uuid'
+        }
+    },
+    indexes: [
+        ['userId'],
+        ['workspaceId'],
+        ['userId', 'workspaceId'],
+        ['isPinned'],
+        ['isShared'],
+        ['parentSessionId']
+    ],
+    timestamps: true
+};
+
+export const ChatMessageSchema: SchemaDefinition = {
+    tableName: 'chat_messages',
+    collectionName: 'chatMessages',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        sessionId: {
+            type: 'uuid',
+            required: true
+        },
+        content: {
+            type: 'text',
+            required: true
+        },
+        role: {
+            type: 'string',
+            required: true,
+            maxLength: 20
+        },
+        personalityId: {
+            type: 'uuid'
+        },
+        aiProviderId: {
+            type: 'uuid'
+        },
+        apiMetadata: {
+            type: 'json'
+        },
+        isPartial: {
+            type: 'boolean',
+            defaultValue: false
+        },
+        fileAttachments: {
+            type: 'json'
+        },
+        isShared: {
+            type: 'boolean',
+            defaultValue: false
+        }
+    },
+    indexes: [
+        ['sessionId'],
+        ['role'],
+        ['personalityId'],
+        ['aiProviderId'],
+        ['isShared']
+    ],
+    timestamps: true
+};
+
+export const WorkspaceGroupSchema: SchemaDefinition = {
+    tableName: 'workspace_groups',
+    collectionName: 'workspaceGroups',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
+        name: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        color: {
+            type: 'string',
+            maxLength: 7
+        },
+        sortOrder: {
+            type: 'number',
+            defaultValue: 0
+        }
+    },
+    indexes: [
+        ['userId'],
+        ['sortOrder']
+    ],
+    timestamps: true
+};
+
+export const AIProviderConfigSchema: SchemaDefinition = {
+    tableName: 'ai_provider_configs',
+    collectionName: 'aiProviderConfigs',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        provider: {
+            type: 'string',
+            required: true,
+            maxLength: 50
+        },
+        keyName: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        apiKey: {
+            type: 'string',
+            required: true,
+            maxLength: 500
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        },
+        metadata: {
+            type: 'json'
+        }
+    },
+    indexes: [
+        ['provider'],
+        ['isActive'],
+        ['provider', 'isActive']
+    ],
+    timestamps: true
+};
+
+export const PersonalitySchema: SchemaDefinition = {
+    tableName: 'personalities',
+    collectionName: 'personalities',
+    fields: {
+        id: {
+            type: 'uuid',
+            primaryKey: true,
+            required: true
+        },
+        name: {
+            type: 'string',
+            required: true,
+            maxLength: 255
+        },
+        description: {
+            type: 'text'
+        },
+        systemPrompt: {
+            type: 'text',
+            required: true
+        },
+        isActive: {
+            type: 'boolean',
+            defaultValue: true
+        },
+        isBuiltIn: {
+            type: 'boolean',
+            defaultValue: false
+        },
+        category: {
+            type: 'string',
+            maxLength: 100
+        },
+        tags: {
+            type: 'json'
+        }
+    },
+    indexes: [
+        ['isActive'],
+        ['isBuiltIn'],
+        ['category'],
+        ['name']
+    ],
+    timestamps: true
+};
+
+// Export all schemas as a map for easy access
+export const AllSchemas = {
+    users: UserSchema,
+    workspaces: WorkspaceSchema,
+    chat_sessions: ChatSessionSchema,
+    chatSessions: ChatSessionSchema, // MongoDB collection name
+    chat_messages: ChatMessageSchema,
+    chatMessages: ChatMessageSchema, // MongoDB collection name
+    workspace_groups: WorkspaceGroupSchema,
+    workspaceGroups: WorkspaceGroupSchema, // MongoDB collection name
+    ai_provider_configs: AIProviderConfigSchema,
+    aiProviderConfigs: AIProviderConfigSchema, // MongoDB collection name
+    personalities: PersonalitySchema
+};
+
+/**
+ * Initialize all schemas in the universal database service
+ */
+export function initializeSchemas(universalDb: any): void {
+    Object.values(AllSchemas).forEach(schema => {
+        universalDb.registerSchema(schema);
+    });
+}

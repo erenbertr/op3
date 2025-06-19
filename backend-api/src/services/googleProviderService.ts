@@ -368,58 +368,118 @@ export class GoogleProviderService {
                 'INSERT INTO google_providers (id, name, api_key, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
                 [provider.id, provider.name, provider.apiKey, provider.isActive, provider.createdAt, provider.updatedAt]
             );
+        } else if (dbType === 'mongodb') {
+            await connection.collection('google_providers').insertOne({
+                id: provider.id,
+                name: provider.name,
+                apiKey: provider.apiKey,
+                isActive: provider.isActive,
+                createdAt: provider.createdAt,
+                updatedAt: provider.updatedAt
+            });
         }
     }
 
     private async getProvidersFromDatabase(connection: any, dbType: string): Promise<GoogleProvider[]> {
-        let rows: any[] = [];
-
         if (dbType === 'sqlite') {
             const stmt = connection.prepare('SELECT * FROM google_providers ORDER BY created_at DESC');
-            rows = stmt.all();
+            const rows = stmt.all();
+            return rows.map((row: any) => ({
+                id: row.id,
+                name: row.name,
+                apiKey: row.api_key,
+                isActive: Boolean(row.is_active),
+                createdAt: new Date(row.created_at),
+                updatedAt: new Date(row.updated_at)
+            }));
         } else if (dbType === 'mysql') {
             const [results] = await connection.execute('SELECT * FROM google_providers ORDER BY created_at DESC');
-            rows = results as any[];
+            const rows = results as any[];
+            return rows.map(row => ({
+                id: row.id,
+                name: row.name,
+                apiKey: row.api_key,
+                isActive: row.is_active,
+                createdAt: new Date(row.created_at),
+                updatedAt: new Date(row.updated_at)
+            }));
         } else if (dbType === 'postgresql') {
             const result = await connection.query('SELECT * FROM google_providers ORDER BY created_at DESC');
-            rows = result.rows;
+            return result.rows.map((row: any) => ({
+                id: row.id,
+                name: row.name,
+                apiKey: row.api_key,
+                isActive: row.is_active,
+                createdAt: new Date(row.created_at),
+                updatedAt: new Date(row.updated_at)
+            }));
+        } else if (dbType === 'mongodb') {
+            const docs = await connection.collection('google_providers').find({}).sort({ createdAt: -1 }).toArray();
+            return docs.map((doc: any) => ({
+                id: doc.id,
+                name: doc.name,
+                apiKey: doc.apiKey,
+                isActive: doc.isActive,
+                createdAt: new Date(doc.createdAt),
+                updatedAt: new Date(doc.updatedAt)
+            }));
         }
 
-        return rows.map(row => ({
-            id: row.id,
-            name: row.name,
-            apiKey: row.api_key,
-            isActive: dbType === 'sqlite' ? Boolean(row.is_active) : row.is_active,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at)
-        }));
+        return [];
     }
 
     private async getProviderFromDatabase(connection: any, dbType: string, id: string): Promise<GoogleProvider | null> {
-        let row: any = null;
-
         if (dbType === 'sqlite') {
             const stmt = connection.prepare('SELECT * FROM google_providers WHERE id = ?');
-            row = stmt.get(id);
+            const row = stmt.get(id);
+            if (!row) return null;
+            return {
+                id: row.id,
+                name: row.name,
+                apiKey: row.api_key,
+                isActive: Boolean(row.is_active),
+                createdAt: new Date(row.created_at),
+                updatedAt: new Date(row.updated_at)
+            };
         } else if (dbType === 'mysql') {
             const [results] = await connection.execute('SELECT * FROM google_providers WHERE id = ?', [id]);
             const rows = results as any[];
-            row = rows.length > 0 ? rows[0] : null;
+            const row = rows.length > 0 ? rows[0] : null;
+            if (!row) return null;
+            return {
+                id: row.id,
+                name: row.name,
+                apiKey: row.api_key,
+                isActive: row.is_active,
+                createdAt: new Date(row.created_at),
+                updatedAt: new Date(row.updated_at)
+            };
         } else if (dbType === 'postgresql') {
             const result = await connection.query('SELECT * FROM google_providers WHERE id = $1', [id]);
-            row = result.rows.length > 0 ? result.rows[0] : null;
+            const row = result.rows.length > 0 ? result.rows[0] : null;
+            if (!row) return null;
+            return {
+                id: row.id,
+                name: row.name,
+                apiKey: row.api_key,
+                isActive: row.is_active,
+                createdAt: new Date(row.created_at),
+                updatedAt: new Date(row.updated_at)
+            };
+        } else if (dbType === 'mongodb') {
+            const doc = await connection.collection('google_providers').findOne({ id });
+            if (!doc) return null;
+            return {
+                id: doc.id,
+                name: doc.name,
+                apiKey: doc.apiKey,
+                isActive: doc.isActive,
+                createdAt: new Date(doc.createdAt),
+                updatedAt: new Date(doc.updatedAt)
+            };
         }
 
-        if (!row) return null;
-
-        return {
-            id: row.id,
-            name: row.name,
-            apiKey: row.api_key,
-            isActive: dbType === 'sqlite' ? Boolean(row.is_active) : row.is_active,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at)
-        };
+        return null;
     }
 
     private async updateProviderInDatabase(connection: any, dbType: string, provider: GoogleProvider): Promise<void> {
@@ -446,6 +506,18 @@ export class GoogleProviderService {
                 'UPDATE google_providers SET name = $1, api_key = $2, is_active = $3, updated_at = $4 WHERE id = $5',
                 [provider.name, provider.apiKey, provider.isActive, provider.updatedAt, provider.id]
             );
+        } else if (dbType === 'mongodb') {
+            await connection.collection('google_providers').updateOne(
+                { id: provider.id },
+                {
+                    $set: {
+                        name: provider.name,
+                        apiKey: provider.apiKey,
+                        isActive: provider.isActive,
+                        updatedAt: provider.updatedAt
+                    }
+                }
+            );
         }
     }
 
@@ -457,6 +529,8 @@ export class GoogleProviderService {
             await connection.execute('DELETE FROM google_providers WHERE id = ?', [id]);
         } else if (dbType === 'postgresql') {
             await connection.query('DELETE FROM google_providers WHERE id = $1', [id]);
+        } else if (dbType === 'mongodb') {
+            await connection.collection('google_providers').deleteOne({ id });
         }
     }
 }

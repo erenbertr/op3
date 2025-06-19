@@ -381,6 +381,15 @@ export class AnthropicProviderService {
                 'INSERT INTO anthropic_providers (id, name, api_key, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
                 [provider.id, provider.name, provider.apiKey, provider.isActive, provider.createdAt, provider.updatedAt]
             );
+        } else if (dbType === 'mongodb') {
+            await connection.collection('anthropic_providers').insertOne({
+                id: provider.id,
+                name: provider.name,
+                apiKey: provider.apiKey,
+                isActive: provider.isActive,
+                createdAt: provider.createdAt,
+                updatedAt: provider.updatedAt
+            });
         }
     }
 
@@ -396,6 +405,16 @@ export class AnthropicProviderService {
         } else if (dbType === 'postgresql') {
             const result = await connection.query('SELECT * FROM anthropic_providers ORDER BY created_at DESC');
             rows = result.rows;
+        } else if (dbType === 'mongodb') {
+            const docs = await connection.collection('anthropic_providers').find({}).sort({ createdAt: -1 }).toArray();
+            return docs.map((doc: any) => ({
+                id: doc.id,
+                name: doc.name,
+                apiKey: doc.apiKey,
+                isActive: doc.isActive,
+                createdAt: new Date(doc.createdAt),
+                updatedAt: new Date(doc.updatedAt)
+            }));
         }
 
         return rows.map(row => ({
@@ -421,6 +440,17 @@ export class AnthropicProviderService {
         } else if (dbType === 'postgresql') {
             const result = await connection.query('SELECT * FROM anthropic_providers WHERE id = $1', [id]);
             row = result.rows.length > 0 ? result.rows[0] : null;
+        } else if (dbType === 'mongodb') {
+            const doc = await connection.collection('anthropic_providers').findOne({ id });
+            if (!doc) return null;
+            return {
+                id: doc.id,
+                name: doc.name,
+                apiKey: doc.apiKey,
+                isActive: doc.isActive,
+                createdAt: new Date(doc.createdAt),
+                updatedAt: new Date(doc.updatedAt)
+            };
         }
 
         if (!row) return null;
@@ -459,6 +489,18 @@ export class AnthropicProviderService {
                 'UPDATE anthropic_providers SET name = $1, api_key = $2, is_active = $3, updated_at = $4 WHERE id = $5',
                 [provider.name, provider.apiKey, provider.isActive, provider.updatedAt, provider.id]
             );
+        } else if (dbType === 'mongodb') {
+            await connection.collection('anthropic_providers').updateOne(
+                { id: provider.id },
+                {
+                    $set: {
+                        name: provider.name,
+                        apiKey: provider.apiKey,
+                        isActive: provider.isActive,
+                        updatedAt: provider.updatedAt
+                    }
+                }
+            );
         }
     }
 
@@ -470,6 +512,8 @@ export class AnthropicProviderService {
             await connection.execute('DELETE FROM anthropic_providers WHERE id = ?', [id]);
         } else if (dbType === 'postgresql') {
             await connection.query('DELETE FROM anthropic_providers WHERE id = $1', [id]);
+        } else if (dbType === 'mongodb') {
+            await connection.collection('anthropic_providers').deleteOne({ id });
         }
     }
 }
