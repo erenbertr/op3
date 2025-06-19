@@ -852,6 +852,13 @@ class ApiClient {
         });
     }
 
+    async fetchGoogleModels(apiKey: string): Promise<{ success: boolean; models?: any[]; message?: string; error?: string }> {
+        return this.request<{ success: boolean; models?: any[]; message?: string; error?: string }>('/ai-providers/google/models', {
+            method: 'POST',
+            body: JSON.stringify({ apiKey }),
+        });
+    }
+
     // Test an AI provider connection
     async testAIProvider(providerId: string): Promise<AIProviderTestResult> {
         return this.request<AIProviderTestResult>(`/ai-providers/${providerId}/test`, {

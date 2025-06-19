@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Personality, FileAttachment, apiClient } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
+import { googleModelConfigsAPI, type GoogleModelConfig } from '@/lib/api/google-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FavoritedPersonalities } from './favorited-personalities';
 
@@ -100,17 +101,32 @@ export function ChatInput({
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
+    // Fetch Google model configurations
+    const { data: googleModelConfigs = [] } = useQuery({
+        queryKey: ['google-model-configs'],
+        queryFn: () => googleModelConfigsAPI.getModelConfigs(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
     // Remove unused helper function
 
     // Helper function to check if a model has a specific capability
-    const hasCapability = (modelConfig: OpenAIModelConfig | undefined, capability: keyof ModelCapabilities): boolean => {
+    const hasCapability = (modelConfig: OpenAIModelConfig | GoogleModelConfig | undefined, capability: keyof ModelCapabilities): boolean => {
         return modelConfig?.capabilities?.[capability] === true;
     };
 
     // Get the currently selected model config
     const selectedModelConfigObj = useMemo(() => {
-        return openaiModelConfigs.find(config => config.id === selectedModelConfig);
-    }, [openaiModelConfigs, selectedModelConfig]);
+        // Check OpenAI configs first
+        const openaiConfig = openaiModelConfigs.find(config => config.id === selectedModelConfig);
+        if (openaiConfig) return openaiConfig;
+
+        // Check Google configs
+        const googleConfig = googleModelConfigs.find(config => config.id === selectedModelConfig);
+        if (googleConfig) return googleConfig;
+
+        return undefined;
+    }, [openaiModelConfigs, googleModelConfigs, selectedModelConfig]);
 
     // Remove old provider logic - now using only OpenAI model configs
 
@@ -122,35 +138,58 @@ export function ChatInput({
         return '';
     }, [sessionPersonalityId]);
 
-    // Derived state for AI provider selection - now only uses model configs
+    // Derived state for AI provider selection - now uses both OpenAI and Google model configs
     const derivedProvider = useMemo(() => {
         // If we have a sessionAIProviderId, try to find a matching model config
-        if (sessionAIProviderId && openaiModelConfigs.length > 0) {
-            const sessionModelConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
-            if (sessionModelConfig) {
-                setSelectedModelConfig(sessionAIProviderId);
-                return 'openai'; // Return the provider type
+        if (sessionAIProviderId) {
+            // Check OpenAI configs first
+            if (openaiModelConfigs.length > 0) {
+                const sessionOpenAIConfig = openaiModelConfigs.find(config => config.id === sessionAIProviderId);
+                if (sessionOpenAIConfig) {
+                    setSelectedModelConfig(sessionAIProviderId);
+                    return 'openai';
+                }
+            }
+
+            // Check Google configs
+            if (googleModelConfigs.length > 0) {
+                const sessionGoogleConfig = googleModelConfigs.find(config => config.id === sessionAIProviderId);
+                if (sessionGoogleConfig) {
+                    setSelectedModelConfig(sessionAIProviderId);
+                    return 'google';
+                }
             }
         }
 
         // Only fall back to active/first model config if there's no sessionAIProviderId
-        // This preserves the session's AI provider selection even if it's not found in current configs
-        if (!sessionAIProviderId && openaiModelConfigs.length > 0) {
-            const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
-            if (activeModelConfig) {
-                setSelectedModelConfig(activeModelConfig.id);
-                return 'openai';
+        if (!sessionAIProviderId) {
+            // Try OpenAI first
+            if (openaiModelConfigs.length > 0) {
+                const activeModelConfig = openaiModelConfigs.find(config => config.isActive) || openaiModelConfigs[0];
+                if (activeModelConfig) {
+                    setSelectedModelConfig(activeModelConfig.id);
+                    return 'openai';
+                }
+            }
+
+            // Try Google if no OpenAI configs
+            if (googleModelConfigs.length > 0) {
+                const activeModelConfig = googleModelConfigs.find(config => config.isActive) || googleModelConfigs[0];
+                if (activeModelConfig) {
+                    setSelectedModelConfig(activeModelConfig.id);
+                    return 'google';
+                }
             }
         }
 
         // If sessionAIProviderId exists but no matching config found, preserve it
         if (sessionAIProviderId) {
             setSelectedModelConfig(sessionAIProviderId);
-            return 'openai'; // Assume it's an OpenAI model config
+            return 'openai'; // Default to openai for backward compatibility
         }
 
         return '';
-    }, [sessionAIProviderId, openaiModelConfigs]);
+    }, [sessionAIProviderId, openaiModelConfigs, googleModelConfigs]);
 
     // Update state when derived values change - use useEffect instead of useMemo for side effects
     React.useEffect(() => {
@@ -172,9 +211,21 @@ export function ChatInput({
     // Handle AI provider selection change - now handles both model configs and regular providers
     const handleProviderChange = async (providerId: string, isModelConfig = false) => {
         if (isModelConfig) {
-            // This is a model config ID
+            // This is a model config ID - determine provider type
             setSelectedModelConfig(providerId);
-            setSelectedProvider('openai'); // Set provider type to openai
+
+            // Check if it's an OpenAI or Google model config
+            const isOpenAIConfig = openaiModelConfigs.find(config => config.id === providerId);
+            const isGoogleConfig = googleModelConfigs.find(config => config.id === providerId);
+
+            if (isOpenAIConfig) {
+                setSelectedProvider('openai');
+            } else if (isGoogleConfig) {
+                setSelectedProvider('google');
+            } else {
+                setSelectedProvider('openai'); // Default fallback
+            }
+
             if (onSettingsChange) {
                 await onSettingsChange(selectedPersonality || undefined, providerId || undefined);
             }
@@ -505,8 +556,43 @@ export function ChatInput({
                                         </div>
                                     )}
 
+                                    {/* Google Models Section */}
+                                    {googleModelConfigs.length > 0 && (
+                                        <div>
+                                            <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
+                                                Google (Gemini)
+                                            </div>
+                                            {googleModelConfigs
+                                                .filter(config =>
+                                                    (config.customName || config.modelName).toLowerCase().includes(providerSearch.toLowerCase())
+                                                )
+                                                .map((config) => (
+                                                    <div
+                                                        key={config.id}
+                                                        className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
+                                                        onClick={() => {
+                                                            handleProviderChange(config.id, true);
+                                                            setShowProviderDropdown(false);
+                                                            setProviderSearch('');
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="font-medium">
+                                                                {config.customName || config.modelName}
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                {config.capabilities?.search && <Search className="h-3 w-3" />}
+                                                                {config.capabilities?.reasoning && <Brain className="h-3 w-3" />}
+                                                                {config.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+
                                     {/* No results message */}
-                                    {openaiModelConfigs.filter(config =>
+                                    {[...openaiModelConfigs, ...googleModelConfigs].filter(config =>
                                         (config.customName || config.modelName).toLowerCase().includes(providerSearch.toLowerCase())
                                     ).length === 0 && providerSearch && (
                                             <div className="px-3 py-2 text-muted-foreground text-center">

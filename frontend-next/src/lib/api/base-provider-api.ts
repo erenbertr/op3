@@ -43,7 +43,7 @@ export interface UpdateModelConfigRequest {
  * Handles CRUD operations for provider keys/accounts
  */
 export class BaseProviderAPI<TProvider extends BaseProvider = BaseProvider> {
-    constructor(private config: ProviderAPIConfig) {}
+    constructor(private config: ProviderAPIConfig) { }
 
     // Get all providers
     async getProviders(): Promise<TProvider[]> {
@@ -121,7 +121,7 @@ export class BaseProviderAPI<TProvider extends BaseProvider = BaseProvider> {
  * Handles CRUD operations for model configurations
  */
 export class BaseModelConfigAPI<TModelConfig extends BaseModelConfig = BaseModelConfig> {
-    constructor(private config: ProviderAPIConfig) {}
+    constructor(private config: ProviderAPIConfig) { }
 
     // Get all model configurations
     async getModelConfigs(): Promise<TModelConfig[]> {
@@ -164,14 +164,16 @@ export class BaseModelConfigAPI<TModelConfig extends BaseModelConfig = BaseModel
  * Handles fetching available models from provider APIs
  */
 export class BaseModelsAPI<TModel extends BaseModel = BaseModel> {
-    constructor(private config: ProviderAPIConfig) {}
+    constructor(private config: ProviderAPIConfig) { }
 
     // Fetch models using an API key
     async fetchModels(apiKey: string): Promise<TModel[]> {
-        const response = await apiClient.post<ProviderResponse<TModel[]>>(this.config.fetchModelsEndpoint, { apiKey });
+        const response = await apiClient.post<any>(this.config.fetchModelsEndpoint, { apiKey });
         if (!response.success) {
             throw new Error(response.message || 'Failed to fetch models');
         }
-        return Array.isArray(response.data) ? response.data : [];
+        // Handle both 'data' and 'models' response formats for compatibility
+        const models = response.models || response.data || [];
+        return Array.isArray(models) ? models : [];
     }
 }

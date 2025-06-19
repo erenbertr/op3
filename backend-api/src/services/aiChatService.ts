@@ -3,6 +3,8 @@ import { ChatMessage, ApiMetadata } from '../types/chat';
 import { AIProviderService } from './aiProviderService';
 import { OpenAIModelConfigService } from './openaiModelConfigService';
 import { OpenAIProviderService } from './openaiProviderService';
+import { GoogleModelConfigService } from './googleModelConfigService';
+import { GoogleProviderService } from './googleProviderService';
 import { PersonalityService } from './personalityService';
 import { ChatService } from './chatService';
 import { WorkspaceService } from './workspaceService';
@@ -47,6 +49,8 @@ export class AIChatService {
     private aiProviderService: AIProviderService;
     private openaiModelConfigService: OpenAIModelConfigService;
     private openaiProviderService: OpenAIProviderService;
+    private googleModelConfigService: GoogleModelConfigService;
+    private googleProviderService: GoogleProviderService;
     private personalityService: PersonalityService;
     private chatService: ChatService;
     private workspaceService: WorkspaceService;
@@ -57,6 +61,8 @@ export class AIChatService {
         this.aiProviderService = AIProviderService.getInstance();
         this.openaiModelConfigService = OpenAIModelConfigService.getInstance();
         this.openaiProviderService = OpenAIProviderService.getInstance();
+        this.googleModelConfigService = GoogleModelConfigService.getInstance();
+        this.googleProviderService = GoogleProviderService.getInstance();
         this.personalityService = PersonalityService.getInstance();
         this.chatService = ChatService.getInstance();
         this.workspaceService = WorkspaceService.getInstance();
@@ -85,6 +91,11 @@ export class AIChatService {
                 // First try to resolve as OpenAI model configuration
                 selectedProvider = await this.resolveOpenAIModelConfig(request.aiProviderId);
 
+                // If not found, try Google model configuration
+                if (!selectedProvider) {
+                    selectedProvider = await this.resolveGoogleModelConfig(request.aiProviderId);
+                }
+
                 // If not found, try old AI provider system
                 if (!selectedProvider) {
                     const providers = this.aiProviderService.getProvidersWithEncryptedKeys();
@@ -92,11 +103,22 @@ export class AIChatService {
                 }
             } else {
                 // Use first active provider as default (try OpenAI model configs first)
-                const modelConfigs = await this.openaiModelConfigService.getAllModelConfigs();
-                if (modelConfigs.success && modelConfigs.data && Array.isArray(modelConfigs.data) && modelConfigs.data.length > 0) {
-                    const activeConfig = modelConfigs.data.find((config: any) => config.isActive);
+                const openaiModelConfigs = await this.openaiModelConfigService.getAllModelConfigs();
+                if (openaiModelConfigs.success && openaiModelConfigs.data && Array.isArray(openaiModelConfigs.data) && openaiModelConfigs.data.length > 0) {
+                    const activeConfig = openaiModelConfigs.data.find((config: any) => config.isActive);
                     if (activeConfig) {
                         selectedProvider = await this.resolveOpenAIModelConfig(activeConfig.id);
+                    }
+                }
+
+                // Try Google model configs if no OpenAI configs
+                if (!selectedProvider) {
+                    const googleModelConfigs = await this.googleModelConfigService.getAllModelConfigs();
+                    if (googleModelConfigs.success && googleModelConfigs.data && Array.isArray(googleModelConfigs.data) && googleModelConfigs.data.length > 0) {
+                        const activeConfig = googleModelConfigs.data.find((config: any) => config.isActive);
+                        if (activeConfig) {
+                            selectedProvider = await this.resolveGoogleModelConfig(activeConfig.id);
+                        }
                     }
                 }
 
@@ -190,6 +212,50 @@ export class AIChatService {
             return aiProviderConfig;
         } catch (error) {
             console.error('Error resolving OpenAI model config:', error);
+            return undefined;
+        }
+    }
+
+    /**
+     * Resolve Google model configuration to AIProviderConfig format
+     */
+    private async resolveGoogleModelConfig(modelConfigId: string): Promise<AIProviderConfig | undefined> {
+        try {
+            // Get all Google model configurations and find the one with matching ID
+            const allConfigsResult = await this.googleModelConfigService.getAllModelConfigs();
+            if (!allConfigsResult.success || !allConfigsResult.data) {
+                return undefined;
+            }
+
+            const allConfigs = Array.isArray(allConfigsResult.data) ? allConfigsResult.data : [allConfigsResult.data];
+            const modelConfig = allConfigs.find((config: any) => config.id === modelConfigId);
+
+            if (!modelConfig || !modelConfig.isActive) {
+                return undefined;
+            }
+
+            // Get the decrypted API key for this model config
+            const decryptedApiKey = await this.googleProviderService.getDecryptedApiKey(modelConfig.keyId);
+            if (!decryptedApiKey) {
+                return undefined;
+            }
+
+            // Convert to AIProviderConfig format
+            const aiProviderConfig: AIProviderConfig = {
+                id: modelConfig.id,
+                type: 'google',
+                name: modelConfig.customName || modelConfig.modelName,
+                apiKey: decryptedApiKey, // Use decrypted API key directly
+                model: modelConfig.modelId,
+                endpoint: 'https://generativelanguage.googleapis.com',
+                isActive: modelConfig.isActive,
+                createdAt: modelConfig.createdAt,
+                updatedAt: modelConfig.updatedAt
+            };
+
+            return aiProviderConfig;
+        } catch (error) {
+            console.error('Error resolving Google model config:', error);
             return undefined;
         }
     }
@@ -981,37 +1047,85 @@ export class AIChatService {
         messageId: string,
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
-        // For now, implement a simple non-streaming response for Google
-        // Google's Gemini API streaming implementation can be added later
         const endpoint = provider.endpoint || 'https://generativelanguage.googleapis.com';
         const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
 
-        // Build prompt from conversation history
-        const prompt = conversationHistory.map(msg => {
-            if (msg.role === 'system') return msg.content;
-            if (msg.role === 'user') return `User: ${msg.content}`;
-            if (msg.role === 'assistant') return `Assistant: ${msg.content}`;
-            return msg.content;
-        }).join('\n\n');
+        // Convert conversation history to Google's format
+        const contents = [];
+        let systemInstruction = '';
+
+        for (const msg of conversationHistory) {
+            if (msg.role === 'system') {
+                systemInstruction = msg.content;
+            } else if (msg.role === 'user') {
+                contents.push({
+                    role: 'user',
+                    parts: [{ text: msg.content }]
+                });
+            } else if (msg.role === 'assistant') {
+                contents.push({
+                    role: 'model',
+                    parts: [{ text: msg.content }]
+                });
+            }
+        }
+
+        const requestBody: any = {
+            contents: contents,
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2048,
+                topP: 0.8,
+                topK: 40
+            }
+        };
+
+        // Add system instruction if present
+        if (systemInstruction) {
+            requestBody.systemInstruction = {
+                parts: [{ text: systemInstruction }]
+            };
+        }
+
+        console.log('Google API Request:', JSON.stringify(requestBody, null, 2));
 
         const response = await fetch(`${endpoint}/v1beta/models/${provider.model}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }]
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
-            throw new Error(`Google AI API error: ${response.status} ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('Google AI API error:', {
+                status: response.status,
+                statusText: response.statusText,
+                body: errorText
+            });
+            throw new Error(`Google AI API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
         const data = await response.json() as any;
-        const content = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+        console.log('Google API Response:', JSON.stringify(data, null, 2));
+
+        // Check for API errors
+        if (data.error) {
+            throw new Error(`Google AI API error: ${data.error.message || 'Unknown error'}`);
+        }
+
+        // Extract content from response
+        const candidate = data.candidates?.[0];
+        if (!candidate) {
+            throw new Error('No candidates in Google AI response');
+        }
+
+        if (candidate.finishReason === 'SAFETY') {
+            throw new Error('Content was blocked by Google AI safety filters');
+        }
+
+        const content = candidate.content?.parts?.[0]?.text || 'No response generated';
 
         // Simulate streaming by sending the content in chunks
         const words = content.split(' ');
@@ -1026,14 +1140,15 @@ export class AIChatService {
             await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        const estimatedInputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
-        const estimatedOutputTokens = Math.ceil(content.length / 4);
+        // Calculate token usage (Google provides this in usageMetadata)
+        const inputTokens = data.usageMetadata?.promptTokenCount || Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+        const outputTokens = data.usageMetadata?.candidatesTokenCount || Math.ceil(content.length / 4);
 
         const metadata: ApiMetadata = {
             model: provider.model,
-            inputTokens: estimatedInputTokens,
-            outputTokens: estimatedOutputTokens,
-            totalTokens: estimatedInputTokens + estimatedOutputTokens
+            inputTokens,
+            outputTokens,
+            totalTokens: inputTokens + outputTokens
         };
 
         onChunk({

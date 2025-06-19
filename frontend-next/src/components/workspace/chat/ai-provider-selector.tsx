@@ -7,6 +7,7 @@ import { Search, Paperclip, Brain, ChevronDown, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { openaiModelConfigsAPI } from '@/lib/api/openai-model-configs';
+import { googleModelConfigsAPI } from '@/lib/api/google-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsAIProviderFavorited, useAddAIFavorite, useRemoveAIFavorite } from '@/lib/hooks/use-workspace-ai-favorites';
 
@@ -52,13 +53,29 @@ export function AIProviderSelector({
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
+    // Fetch Google model configurations
+    const { data: googleModelConfigs = [] } = useQuery({
+        queryKey: ['google-model-configs'],
+        queryFn: googleModelConfigsAPI.getModelConfigs,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
     // Get selected model config object
     const selectedModelConfigObj = useMemo(() => {
-        if (selectedModelConfig && openaiModelConfigs.length > 0) {
-            return openaiModelConfigs.find(config => config.id === selectedModelConfig);
+        if (selectedModelConfig) {
+            // Check OpenAI configs first
+            if (openaiModelConfigs.length > 0) {
+                const openaiConfig = openaiModelConfigs.find(config => config.id === selectedModelConfig);
+                if (openaiConfig) return openaiConfig;
+            }
+            // Check Google configs
+            if (googleModelConfigs.length > 0) {
+                const googleConfig = googleModelConfigs.find(config => config.id === selectedModelConfig);
+                if (googleConfig) return googleConfig;
+            }
         }
         return null;
-    }, [selectedModelConfig, openaiModelConfigs]);
+    }, [selectedModelConfig, openaiModelConfigs, googleModelConfigs]);
 
     // Calculate optimal dropdown position
     const calculateDropdownPosition = (): 'above' | 'below' => {
@@ -158,9 +175,16 @@ export function AIProviderSelector({
     };
 
     // Filter model configs based on search
-    const filteredModelConfigs = openaiModelConfigs.filter(config =>
+    const filteredOpenAIModelConfigs = openaiModelConfigs.filter(config =>
         (config.customName || config.modelName).toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const filteredGoogleModelConfigs = googleModelConfigs.filter(config =>
+        (config.customName || config.modelName).toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Total filtered configs for empty state check
+    const totalFilteredConfigs = filteredOpenAIModelConfigs.length + filteredGoogleModelConfigs.length;
 
     // Get button size classes
     const getSizeClasses = () => {
@@ -270,12 +294,46 @@ export function AIProviderSelector({
                     )}
                     <div className="max-h-40 overflow-y-auto">
                         {/* OpenAI Models Section */}
-                        {filteredModelConfigs.length > 0 && (
+                        {filteredOpenAIModelConfigs.length > 0 && (
                             <div>
                                 <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
                                     OpenAI
                                 </div>
-                                {filteredModelConfigs.map((config) => (
+                                {filteredOpenAIModelConfigs.map((config) => (
+                                    <div
+                                        key={config.id}
+                                        className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
+                                        onClick={() => handleProviderSelect(config.id, true)}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <div className="font-medium truncate">
+                                                    {config.customName || config.modelName}
+                                                </div>
+                                                <FavoriteStarButton
+                                                    aiProviderId={config.id}
+                                                    isModelConfig={true}
+                                                    displayName={config.customName || config.modelName}
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                {config.capabilities?.search && <Search className="h-3 w-3" />}
+                                                {config.capabilities?.reasoning && <Brain className="h-3 w-3" />}
+                                                {config.capabilities?.fileUpload && <Paperclip className="h-3 w-3" />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Google Models Section */}
+                        {filteredGoogleModelConfigs.length > 0 && (
+                            <div>
+                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50">
+                                    Google (Gemini)
+                                </div>
+                                {filteredGoogleModelConfigs.map((config) => (
                                     <div
                                         key={config.id}
                                         className="px-3 py-2 hover:bg-accent cursor-pointer select-none"
@@ -304,14 +362,14 @@ export function AIProviderSelector({
                         )}
 
                         {/* No results message */}
-                        {filteredModelConfigs.length === 0 && searchQuery && (
+                        {totalFilteredConfigs === 0 && searchQuery && (
                             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
                                 No providers found
                             </div>
                         )}
 
                         {/* No providers configured message */}
-                        {openaiModelConfigs.length === 0 && !searchQuery && (
+                        {openaiModelConfigs.length === 0 && googleModelConfigs.length === 0 && !searchQuery && (
                             <div className="px-3 py-4 text-center text-sm text-muted-foreground">
                                 No AI providers configured
                             </div>
