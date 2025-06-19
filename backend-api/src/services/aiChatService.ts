@@ -1048,7 +1048,8 @@ export class AIChatService {
         onChunk: (chunk: AIStreamChunk) => void
     ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
         const endpoint = provider.endpoint || 'https://generativelanguage.googleapis.com';
-        const apiKey = this.aiProviderService.decryptApiKey(provider.apiKey);
+        // Check if API key is already decrypted (from Google model config) or needs decryption (from old provider system)
+        const apiKey = provider.apiKey.includes(':') ? this.aiProviderService.decryptApiKey(provider.apiKey) : provider.apiKey;
 
         // Convert conversation history to Google's format
         const contents = [];
@@ -1089,13 +1090,17 @@ export class AIChatService {
 
         console.log('Google API Request:', JSON.stringify(requestBody, null, 2));
 
-        const response = await fetch(`${endpoint}/v1beta/models/${provider.model}:generateContent?key=${apiKey}`, {
+        // Use the streaming endpoint
+        const response = await fetch(`${endpoint}/v1beta/models/${provider.model}:streamGenerateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(requestBody)
         });
+
+        console.log('Google API Response Status:', response.status, response.statusText);
+        console.log('Google API Response Headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -1107,62 +1112,164 @@ export class AIChatService {
             throw new Error(`Google AI API error: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        const data = await response.json() as any;
-        console.log('Google API Response:', JSON.stringify(data, null, 2));
+        return await this.processGoogleStream(response, messageId, onChunk, provider.model, conversationHistory);
+    }
 
-        // Check for API errors
-        if (data.error) {
-            throw new Error(`Google AI API error: ${data.error.message || 'Unknown error'}`);
+    /**
+     * Process Google streaming response
+     */
+    private async processGoogleStream(
+        response: Response,
+        messageId: string,
+        onChunk: (chunk: AIStreamChunk) => void,
+        model: string,
+        conversationHistory: ConversationMessage[] = []
+    ): Promise<{ success: boolean; message: string; finalContent?: string; metadata?: ApiMetadata }> {
+        const reader = response.body?.getReader();
+        if (!reader) {
+            throw new Error('No response body reader available');
         }
 
-        // Extract content from response
-        const candidate = data.candidates?.[0];
-        if (!candidate) {
-            throw new Error('No candidates in Google AI response');
-        }
+        const decoder = new TextDecoder();
+        let finalContent = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let buffer = '';
 
-        if (candidate.finishReason === 'SAFETY') {
-            throw new Error('Content was blocked by Google AI safety filters');
-        }
+        console.log('Starting Google stream processing...');
 
-        const content = candidate.content?.parts?.[0]?.text || 'No response generated';
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    console.log('Google stream reading completed');
+                    break;
+                }
 
-        // Simulate streaming by sending the content in chunks
-        const words = content.split(' ');
-        for (let i = 0; i < words.length; i += 3) {
-            const chunk = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
+                const chunk = decoder.decode(value, { stream: true });
+                console.log('Raw Google stream chunk:', chunk);
+
+                buffer += chunk;
+                const lines = buffer.split('\n');
+
+                // Keep the last incomplete line in the buffer
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+
+                    console.log('Processing line:', trimmedLine);
+
+                    try {
+                        // Google streaming API returns JSON objects separated by newlines
+                        const parsed = JSON.parse(trimmedLine);
+                        console.log('Google Stream Chunk:', JSON.stringify(parsed, null, 2));
+
+                        // Check for errors
+                        if (parsed.error) {
+                            onChunk({
+                                type: 'error',
+                                error: `Google AI API error: ${parsed.error.message || 'Unknown error'}`
+                            });
+                            continue;
+                        }
+
+                        // Extract content from candidates
+                        const candidate = parsed.candidates?.[0];
+                        if (candidate) {
+                            // Check for safety blocks
+                            if (candidate.finishReason === 'SAFETY') {
+                                onChunk({
+                                    type: 'error',
+                                    error: 'Content was blocked by Google AI safety filters'
+                                });
+                                continue;
+                            }
+
+                            // Extract text content
+                            const content = candidate.content?.parts?.[0]?.text;
+                            if (content) {
+                                finalContent += content;
+                                onChunk({
+                                    type: 'chunk',
+                                    messageId,
+                                    content
+                                });
+                            }
+                        }
+
+                        // Extract usage metadata if available
+                        if (parsed.usageMetadata) {
+                            inputTokens = parsed.usageMetadata.promptTokenCount || 0;
+                            outputTokens = parsed.usageMetadata.candidatesTokenCount || 0;
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing Google stream chunk:', parseError, 'Raw line:', trimmedLine);
+                        // Skip invalid JSON chunks
+                        continue;
+                    }
+                }
+            }
+
+            // Process any remaining data in buffer
+            if (buffer.trim()) {
+                try {
+                    const parsed = JSON.parse(buffer.trim());
+                    console.log('Google Stream Final Chunk:', JSON.stringify(parsed, null, 2));
+
+                    const candidate = parsed.candidates?.[0];
+                    if (candidate) {
+                        const content = candidate.content?.parts?.[0]?.text;
+                        if (content) {
+                            finalContent += content;
+                            onChunk({
+                                type: 'chunk',
+                                messageId,
+                                content
+                            });
+                        }
+                    }
+
+                    if (parsed.usageMetadata) {
+                        inputTokens = parsed.usageMetadata.promptTokenCount || 0;
+                        outputTokens = parsed.usageMetadata.candidatesTokenCount || 0;
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing final Google stream chunk:', parseError);
+                }
+            }
+
+            // Estimate tokens if not provided
+            if (inputTokens === 0) {
+                inputTokens = Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
+            }
+            if (outputTokens === 0) {
+                outputTokens = Math.ceil(finalContent.length / 4);
+            }
+
+            const metadata: ApiMetadata = {
+                model,
+                inputTokens,
+                outputTokens,
+                totalTokens: inputTokens + outputTokens
+            };
+
             onChunk({
-                type: 'chunk',
+                type: 'end',
                 messageId,
-                content: chunk
+                metadata
             });
-            // Small delay to simulate streaming
-            await new Promise(resolve => setTimeout(resolve, 50));
+
+            return {
+                success: true,
+                message: 'Response generated successfully',
+                finalContent,
+                metadata
+            };
+        } finally {
+            reader.releaseLock();
         }
-
-        // Calculate token usage (Google provides this in usageMetadata)
-        const inputTokens = data.usageMetadata?.promptTokenCount || Math.ceil(conversationHistory.reduce((acc: number, msg: any) => acc + msg.content.length, 0) / 4);
-        const outputTokens = data.usageMetadata?.candidatesTokenCount || Math.ceil(content.length / 4);
-
-        const metadata: ApiMetadata = {
-            model: provider.model,
-            inputTokens,
-            outputTokens,
-            totalTokens: inputTokens + outputTokens
-        };
-
-        onChunk({
-            type: 'end',
-            messageId,
-            metadata
-        });
-
-        return {
-            success: true,
-            message: 'Response generated successfully',
-            finalContent: content,
-            metadata
-        };
     }
 
     /**

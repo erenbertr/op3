@@ -26,7 +26,7 @@ export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
     const { addToast } = useToast();
     const { data: session } = useSession();
 
-    React.useMemo(() => {
+    React.useEffect(() => {
         const loadWorkspace = async () => {
             if (!session?.user) {
                 router.push('/');
@@ -77,7 +77,7 @@ export function CreateChatView({ workspaceId, groupId }: CreateChatViewProps) {
         };
 
         loadWorkspace();
-    }, [workspaceId, router, addToast, session?.user]);
+    }, [workspaceId, session?.user?.id]);
 
     const handleCreateChat = async (e: React.FormEvent) => {
         e.preventDefault();
