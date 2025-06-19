@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Square, RotateCcw, AlertCircle, Brain, Loader2, Bot, ChevronDown, ChevronUp, Search, SquareUserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality } from '@/lib/api';
-import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
+import { useOpenAIModelConfigs, useGoogleModelConfigs } from '@/lib/hooks/use-query-hooks';
 import ReactMarkdown, { Components } from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -68,19 +68,35 @@ export function StreamingMessage({
     // Use delayed spinner for provider badge loading animation
     const { showSpinner: showProviderBadgeLoading, startLoading: startProviderBadgeLoading, stopLoading: stopProviderBadgeLoading } = useDelayedSpinner(300); // Shorter delay for provider badge
 
-    // Get OpenAI model configurations to resolve provider info
+    // Get model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
-    const modelConfigs = openaiModelConfigs || [];
+    const { data: googleModelConfigs } = useGoogleModelConfigs();
+    const openaiConfigs = openaiModelConfigs || [];
+    const googleConfigs = googleModelConfigs || [];
 
-    // Get provider info from OpenAI model config
+    // Get provider info from model configs (OpenAI or Google)
     const getProviderInfo = () => {
-        if (aiProviderId && modelConfigs.length > 0) {
-            const modelConfig = modelConfigs.find(config => config.id === aiProviderId);
-            if (modelConfig) {
-                return {
-                    name: modelConfig.customName || modelConfig.modelName,
-                    model: modelConfig.modelId
-                };
+        if (aiProviderId) {
+            // Check OpenAI model configs first
+            if (openaiConfigs.length > 0) {
+                const openaiConfig = openaiConfigs.find(config => config.id === aiProviderId);
+                if (openaiConfig) {
+                    return {
+                        name: openaiConfig.customName || openaiConfig.modelName,
+                        model: openaiConfig.modelId
+                    };
+                }
+            }
+
+            // Check Google model configs
+            if (googleConfigs.length > 0) {
+                const googleConfig = googleConfigs.find(config => config.id === aiProviderId);
+                if (googleConfig) {
+                    return {
+                        name: googleConfig.customName || googleConfig.modelName,
+                        model: googleConfig.modelId
+                    };
+                }
             }
         }
         return null;

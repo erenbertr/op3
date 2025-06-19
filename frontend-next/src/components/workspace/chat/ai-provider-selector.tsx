@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Paperclip, Brain, ChevronDown, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useQuery } from '@tanstack/react-query';
-import { openaiModelConfigsAPI } from '@/lib/api/openai-model-configs';
-import { googleModelConfigsAPI } from '@/lib/api/google-model-configs';
+import { useOpenAIModelConfigs, useGoogleModelConfigs } from '@/lib/hooks/use-query-hooks';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsAIProviderFavorited, useAddAIFavorite, useRemoveAIFavorite } from '@/lib/hooks/use-workspace-ai-favorites';
 
@@ -46,19 +44,9 @@ export function AIProviderSelector({
     const addAIFavoriteMutation = useAddAIFavorite();
     const removeAIFavoriteMutation = useRemoveAIFavorite();
 
-    // Fetch OpenAI model configurations
-    const { data: openaiModelConfigs = [] } = useQuery({
-        queryKey: ['openai-model-configs'],
-        queryFn: openaiModelConfigsAPI.getModelConfigs,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-    });
-
-    // Fetch Google model configurations
-    const { data: googleModelConfigs = [] } = useQuery({
-        queryKey: ['google-model-configs'],
-        queryFn: googleModelConfigsAPI.getModelConfigs,
-        staleTime: 5 * 60 * 1000, // 5 minutes
-    });
+    // Fetch model configurations using hooks
+    const { data: openaiModelConfigs = [] } = useOpenAIModelConfigs();
+    const { data: googleModelConfigs = [] } = useGoogleModelConfigs();
 
     // Get selected model config object
     const selectedModelConfigObj = useMemo(() => {

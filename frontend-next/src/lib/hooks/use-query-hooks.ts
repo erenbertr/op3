@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, DatabaseConfig, AIProviderConfig } from '@/lib/api';
 import { queryKeys } from '@/lib/query-client';
 import { openaiModelConfigsAPI } from '@/lib/api/openai-model-configs';
+import { GoogleModelConfigsAPI } from '@/lib/api/google-model-configs';
 
 // Database hooks
 export function useDatabaseConnectionTest() {
@@ -366,6 +367,22 @@ export function useOpenAIModelConfigs() {
     return useQuery({
         queryKey: ['openai-model-configs'],
         queryFn: () => openaiModelConfigsAPI.getModelConfigs(),
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        retry: 3,
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+}
+
+// Google Model Configs hooks
+const googleModelConfigsAPI = new GoogleModelConfigsAPI();
+
+export function useGoogleModelConfigs() {
+    return useQuery({
+        queryKey: ['google-model-configs'],
+        queryFn: () => googleModelConfigsAPI.getModelConfigs(),
         staleTime: 5 * 60 * 1000, // 5 minutes
         retry: 3,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),

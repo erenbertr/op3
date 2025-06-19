@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Brain, Copy, RotateCcw, Check, Play, Bot, GitBranch, Share2, SquareUserRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatMessage as ChatMessageType, Personality } from '@/lib/api';
-import { useOpenAIModelConfigs } from '@/lib/hooks/use-query-hooks';
+import { useOpenAIModelConfigs, useGoogleModelConfigs } from '@/lib/hooks/use-query-hooks';
 import { ApiMetadataTooltip } from './api-metadata-tooltip';
 import { FileAttachmentDisplay } from './file-attachment-display';
 import { AIProviderSelector } from './ai-provider-selector';
@@ -53,11 +53,13 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
     const wordCount = countWords(message.content);
     const isLongMessage = wordCount >= 500;
 
-    // Get OpenAI model configurations to resolve provider info
+    // Get model configurations to resolve provider info
     const { data: openaiModelConfigs } = useOpenAIModelConfigs();
-    const modelConfigs = openaiModelConfigs || [];
+    const { data: googleModelConfigs } = useGoogleModelConfigs();
+    const openaiConfigs = openaiModelConfigs || [];
+    const googleConfigs = googleModelConfigs || [];
 
-    // Get provider info from OpenAI model config or API metadata
+    // Get provider info from model configs (OpenAI or Google) or API metadata
     const getProviderInfo = () => {
         // First try to get from API metadata (most reliable)
         if (message.apiMetadata?.provider && message.apiMetadata?.model) {
@@ -67,14 +69,28 @@ export function ChatMessage({ message, personality, className, onRetry, onContin
             };
         }
 
-        // Fall back to OpenAI model config lookup
-        if (message.aiProviderId && modelConfigs.length > 0) {
-            const modelConfig = modelConfigs.find(config => config.id === message.aiProviderId);
-            if (modelConfig) {
-                return {
-                    name: modelConfig.customName || modelConfig.modelName,
-                    model: modelConfig.modelId
-                };
+        // Fall back to model config lookup
+        if (message.aiProviderId) {
+            // Check OpenAI model configs first
+            if (openaiConfigs.length > 0) {
+                const openaiConfig = openaiConfigs.find(config => config.id === message.aiProviderId);
+                if (openaiConfig) {
+                    return {
+                        name: openaiConfig.customName || openaiConfig.modelName,
+                        model: openaiConfig.modelId
+                    };
+                }
+            }
+
+            // Check Google model configs
+            if (googleConfigs.length > 0) {
+                const googleConfig = googleConfigs.find(config => config.id === message.aiProviderId);
+                if (googleConfig) {
+                    return {
+                        name: googleConfig.customName || googleConfig.modelName,
+                        model: googleConfig.modelId
+                    };
+                }
             }
         }
 

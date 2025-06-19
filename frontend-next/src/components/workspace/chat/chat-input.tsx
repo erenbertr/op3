@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Search, Paperclip, X, Upload, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Personality, FileAttachment, apiClient } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
-import { openaiModelConfigsAPI, type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
-import { googleModelConfigsAPI, type GoogleModelConfig } from '@/lib/api/google-model-configs';
+import { useOpenAIModelConfigs, useGoogleModelConfigs } from '@/lib/hooks/use-query-hooks';
+import { type OpenAIModelConfig, type ModelCapabilities } from '@/lib/api/openai-model-configs';
+import { type GoogleModelConfig } from '@/lib/api/google-model-configs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { FavoritedPersonalities } from './favorited-personalities';
 
@@ -94,19 +94,9 @@ export function ChatInput({
         }
     }, [autoFocus, disabled]);
 
-    // Fetch OpenAI model configurations
-    const { data: openaiModelConfigs = [] } = useQuery({
-        queryKey: ['openai-model-configs'],
-        queryFn: () => openaiModelConfigsAPI.getModelConfigs(),
-        staleTime: 5 * 60 * 1000, // 5 minutes
-    });
-
-    // Fetch Google model configurations
-    const { data: googleModelConfigs = [] } = useQuery({
-        queryKey: ['google-model-configs'],
-        queryFn: () => googleModelConfigsAPI.getModelConfigs(),
-        staleTime: 5 * 60 * 1000, // 5 minutes
-    });
+    // Fetch model configurations using hooks
+    const { data: openaiModelConfigs = [] } = useOpenAIModelConfigs();
+    const { data: googleModelConfigs = [] } = useGoogleModelConfigs();
 
     // Remove unused helper function
 
