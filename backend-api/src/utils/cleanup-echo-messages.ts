@@ -28,7 +28,7 @@ async function cleanupEchoMessages() {
         if (result.success) {
             console.log(`✅ Cleanup completed! Removed ${result.deletedCount || 0} Echo messages.`);
         } else {
-            throw new Error(result.error || 'Failed to delete Echo messages');
+            throw new Error('Failed to delete Echo messages');
         }
 
     } catch (error) {

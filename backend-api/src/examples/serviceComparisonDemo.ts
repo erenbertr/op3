@@ -62,7 +62,7 @@ async function demonstrateAllServices() {
         // Create a workspace
         const workspaceResult = await workspaceService.createWorkspace(userId, {
             name: 'Demo Workspace',
-            templateType: 'general',
+            templateType: 'standard-chat',
             workspaceRules: 'Demo workspace rules'
         });
 
@@ -244,8 +244,8 @@ async function demonstrateDirectUniversalDB() {
         console.log('✅ Batch insert completed:', batchData.length, 'items');
 
         // Update many
-        await universalDb.updateMany<CustomEntity>('custom_entities', 
-            { isActive: false }, 
+        await universalDb.updateMany<CustomEntity>('custom_entities',
+            { isActive: false },
             { where: [{ field: 'category', operator: 'eq', value: 'batch' }] }
         );
         console.log('✅ Batch update completed');
@@ -274,7 +274,7 @@ async function demonstrateDirectUniversalDB() {
 export async function runCompleteDemo() {
     await demonstrateAllServices();
     await demonstrateDirectUniversalDB();
-    
+
     console.log('\n🌟 UNIVERSAL DATABASE ABSTRACTION SUCCESS!');
     console.log('==========================================');
     console.log('You now have a single, unified way to work with ANY database!');
