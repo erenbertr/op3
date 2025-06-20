@@ -1,101 +1,147 @@
 # OP3 - AI-Powered Workspace Management Platform
 
-OP3 is a modern, full-stack application that provides AI-powered workspace management with intelligent chat functionality, multi-provider AI integration, and comprehensive workspace organization tools.
+🌐 **Live Demo**: [https://op3.chat](https://op3.chat)
+
+OP3 is a modern, full-stack application that provides AI-powered workspace management with intelligent chat functionality, multi-provider AI integration, and comprehensive workspace organization tools. Built with Next.js 15, TypeScript, and the latest AI technologies.
 
 ## 🚀 Features
 
-### Core Functionality
-- **Workspace Management**: Create, organize, and manage multiple workspaces with custom rules and templates
-- **AI Chat Integration**: Intelligent chat sessions with support for multiple AI providers (OpenAI, OpenRouter)
-- **Multi-Provider AI Support**: Seamless integration with various AI models and providers
-- **Real-time Communication**: WebSocket-powered real-time chat and updates
-- **File Upload & Processing**: Support for file attachments with AI-powered document analysis
-- **Drag & Drop Interface**: Intuitive workspace organization with @dnd-kit
-- **Advanced Search**: Web search integration for supported AI models
-- **Chat Branching**: Create conversation branches for exploring different discussion paths
-- **Personality System**: AI personality favorites and custom configurations per workspace
+### 🤖 Advanced AI Integration
+- **Multi-Provider Support**: OpenAI (GPT-4o, GPT-4o-mini, O1 models), Google Gemini, Anthropic Claude, Grok, and 100+ models via OpenRouter
+- **Vercel AI SDK Integration**: Unified streaming responses across all AI providers with consistent performance
+- **Intelligent Chat Sessions**: Real-time streaming responses with typing indicators and smooth animations
+- **AI Personality Favorites**: Create and manage custom AI personalities per workspace with drag-and-drop reordering
+- **Advanced Capabilities**: Web search, reasoning steps, file attachments, and O1 model support
+- **Chat Branching**: Create conversation branches from any message to explore different discussion paths
+- **Chat Sharing**: Share conversations publicly with clean, minimal public view pages
 
-### User Experience
-- **Modern UI**: Built with shadcn/ui components and Tailwind CSS
-- **Dark/Light Theme**: Automatic theme switching with system preference detection
-- **Responsive Design**: Mobile-first design that works across all devices
-- **Internationalization**: Multi-language support with localStorage persistence
-- **Real-time Updates**: Live updates across tabs and sessions
-- **Progressive Loading**: Skeleton states and delayed spinners for optimal UX
+### 🏢 Workspace Management
+- **Dynamic Workspaces**: Create, organize, and manage multiple workspaces with custom rules and templates
+- **Drag & Drop Organization**: Intuitive workspace organization with @dnd-kit and cross-group functionality
+- **Workspace Groups**: Organize workspaces into vertical groups with responsive horizontal layouts
+- **Scoped Chat Sessions**: Each workspace maintains its own separate chat history and AI configurations
+- **Workspace Settings**: Comprehensive settings with horizontal tab layouts and AI provider management
 
-### Enterprise Features
-- **Multi-Database Support**: MongoDB, MySQL, PostgreSQL, SQLite, and modern cloud databases
-- **Authentication**: Secure authentication with Better Auth
+### 📁 File Processing & Search
+- **File Upload Integration**: Support for file attachments with OpenAI's file search API and vector stores
+- **Document Retrieval**: AI-powered document analysis and retrieval during conversations
+- **Web Search Integration**: Real-time web search for supported AI models (GPT-4o, GPT-4o-mini, GPT-4-turbo)
+- **Multiple Search Providers**: DuckDuckGo, Bing, and Google Custom Search API support
+
+### 🎨 Modern User Experience
+- **shadcn/ui Components**: Beautiful, accessible UI components with consistent design language
+- **Dark/Light Theme**: Automatic theme switching with system preference detection and enhanced coding text design
+- **Responsive Design**: Mobile-first design that works seamlessly across all devices
+- **Progressive Loading**: Skeleton states, delayed spinners, and smooth loading animations
+- **Toast Notifications**: Center-top positioned notifications with solid backgrounds and high z-index
+- **Stacked Card UI**: Only active cards fully visible with completed/future cards showing minimal edges
+
+### 🔐 Enterprise-Grade Features
+- **Multi-Database Support**: MongoDB, MySQL, PostgreSQL, SQLite, Supabase, PlanetScale, Neon, Turso, Convex, Firebase
+- **Universal Database Layer**: Single global functions (add, update, delete, get) that automatically handle database type decisions
+- **Better Auth Integration**: Secure authentication with JWT and modern auth patterns
 - **Role-Based Access**: Admin and user roles with appropriate permissions
-- **Setup Wizard**: Guided initial setup for database and admin configuration
-- **Statistics & Analytics**: Comprehensive usage tracking and reporting
+- **Setup Wizard**: Guided initial setup for database selection and admin user creation
 
 ## 🏗️ Technology Stack
 
 ### Frontend
-- **Framework**: Next.js 15 with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
+- **Framework**: Next.js 15 with App Router and Turbopack
+- **Language**: TypeScript 5.8+
+- **Styling**: Tailwind CSS 4.0 with custom animations
 - **UI Components**: shadcn/ui (Radix UI primitives)
-- **State Management**: TanStack Query (React Query) for server state
-- **Drag & Drop**: @dnd-kit for workspace organization
+- **State Management**: TanStack Query (React Query) for server state management
+- **Drag & Drop**: @dnd-kit for workspace organization and AI favorites reordering
 - **Authentication**: Better Auth client integration
-- **Theme**: next-themes for dark/light mode
+- **Theme**: next-themes for dark/light mode with enhanced coding text design
 - **Icons**: Lucide React
+- **Markdown**: React Markdown with syntax highlighting and math support
+- **Forms**: React Hook Form with Zod validation
 
 ### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Language**: TypeScript
-- **Authentication**: Better Auth with JWT
-- **Real-time**: WebSocket (ws library)
-- **File Upload**: Multer
-- **Security**: Helmet, CORS, bcrypt
-- **Logging**: Morgan
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js with TypeScript
+- **AI Integration**: Vercel AI SDK for unified streaming across all providers
+- **Authentication**: Better Auth with JWT and secure session management
+- **Real-time**: WebSocket (ws library) for live chat updates
+- **File Upload**: Multer with OpenAI file processing
+- **Security**: Helmet, CORS, bcrypt for comprehensive security
+- **Logging**: Morgan for request logging
+- **Validation**: Zod for runtime type checking
 
-### Database Support
-- **Primary**: MongoDB (with Mongoose-like operations)
-- **Relational**: MySQL, PostgreSQL
-- **Local**: SQLite
-- **Cloud**: Supabase, PlanetScale, Neon, Turso
-- **Modern**: Convex, Firebase Firestore
+### Database Architecture
+- **Universal Database Layer**: Single abstraction supporting multiple database types
+- **Primary**: MongoDB with native driver
+- **Relational**: MySQL, PostgreSQL with connection pooling
+- **Local Development**: SQLite for quick setup
+- **Cloud Providers**: Supabase, PlanetScale, Neon, Turso
+- **Modern Platforms**: Convex, Firebase Firestore
+- **Automatic Type Handling**: Database-agnostic operations with automatic type conversion
 
-### AI Integrations
-- **OpenAI**: GPT models with function calling, file search, web search
-- **OpenRouter**: Access to multiple AI providers through unified API
-- **Streaming**: Real-time response streaming
-- **File Processing**: Vector stores for document retrieval
+### AI Provider Ecosystem
+- **Vercel AI SDK**: Unified interface for all AI providers with consistent streaming
+- **OpenAI**: GPT-4o, GPT-4o-mini, O1 models with function calling, file search, web search
+- **Google**: Gemini Pro and Flash models with proper API endpoint handling
+- **Anthropic**: Claude 3.5 Sonnet, Claude 3 Haiku, and Claude 3 Opus
+- **xAI**: Grok models with real-time capabilities
+- **OpenRouter**: 100+ models from various providers through unified API
+- **Real-time Features**: Streaming responses, reasoning steps, web search integration
 
 ## 📁 Project Structure
 
 ```
 OP3/
-├── frontend-next/              # Next.js frontend application
+├── frontend-next/              # Next.js 15 frontend application
 │   ├── src/
-│   │   ├── app/               # Next.js App Router pages
+│   │   ├── app/               # Next.js App Router pages and layouts
+│   │   │   ├── (auth)/       # Authentication pages
+│   │   │   ├── setup/        # Initial setup wizard
+│   │   │   ├── ws/           # Workspace-scoped pages (/ws/{workspaceId})
+│   │   │   ├── ai-providers/ # AI provider configuration pages
+│   │   │   └── share/        # Public chat sharing pages
 │   │   ├── components/        # React components
-│   │   │   ├── ui/           # shadcn/ui components
-│   │   │   ├── workspace/    # Workspace management components
-│   │   │   ├── chat/         # Chat interface components
-│   │   │   └── setup/        # Setup wizard components
+│   │   │   ├── ui/           # shadcn/ui base components
+│   │   │   ├── workspace/    # Workspace management and chat components
+│   │   │   │   ├── chat/     # Chat interface, streaming, and branching
+│   │   │   │   ├── ai-providers/ # AI provider setup and configuration
+│   │   │   │   └── settings/ # Workspace settings and favorites
+│   │   │   ├── setup/        # Setup wizard components
+│   │   │   └── shared/       # Shared utility components
 │   │   ├── lib/              # Utility functions and configurations
-│   │   │   ├── api.ts        # API client
-│   │   │   ├── hooks/        # Custom React hooks
-│   │   │   └── utils.ts      # Helper utilities
-│   │   └── types/            # TypeScript type definitions
+│   │   │   ├── api/          # API client functions for each service
+│   │   │   ├── hooks/        # Custom React hooks with TanStack Query
+│   │   │   ├── auth.ts       # Better Auth configuration
+│   │   │   └── utils.ts      # Helper utilities and constants
+│   │   ├── types/            # TypeScript type definitions
+│   │   └── styles/           # Global styles and Tailwind configuration
 │   ├── components.json       # shadcn/ui configuration
+│   ├── tailwind.config.js    # Tailwind CSS configuration
 │   └── package.json
 ├── backend-api/               # Express.js backend API
 │   ├── src/
-│   │   ├── routes/           # API route handlers
+│   │   ├── routes/           # API route handlers organized by feature
+│   │   │   ├── auth.ts       # Authentication routes
+│   │   │   ├── chat.ts       # Chat and streaming routes
+│   │   │   ├── workspace.ts  # Workspace management routes
+│   │   │   ├── ai-providers/ # AI provider configuration routes
+│   │   │   └── msg.ts        # Public message sharing routes
 │   │   ├── services/         # Business logic services
+│   │   │   ├── vercelAIChatService.ts    # Unified AI chat service
+│   │   │   ├── vercelAIProviderService.ts # AI provider management
+│   │   │   ├── universalDatabaseService.ts # Database abstraction layer
+│   │   │   ├── webSearchService.ts       # Web search integration
+│   │   │   ├── openaiFileService.ts      # File upload and processing
+│   │   │   └── chatServiceNew.ts         # Chat session management
 │   │   ├── middleware/       # Express middleware
 │   │   ├── types/           # TypeScript type definitions
 │   │   ├── config/          # Database and configuration
+│   │   ├── utils/           # Utility functions and error handling
 │   │   └── index.ts         # Application entry point
-│   ├── data/                # Local data storage
+│   ├── data/                # Local data storage and uploads
 │   └── package.json
-├── package.json              # Root workspace configuration
+├── package.json              # Root monorepo configuration with workspaces
+├── AGENT.md                  # Development and architecture documentation
+├── CHAT_SCROLL_ENHANCEMENT.md # Chat scroll behavior documentation
 └── README.md                # This file
 ```
 
@@ -103,15 +149,15 @@ OP3/
 
 ### Prerequisites
 
-- **Node.js**: >= 18.0.0
-- **npm**: >= 8.0.0
-- **Database**: MongoDB (recommended) or any supported database
+- **Node.js**: >= 18.0.0 (LTS recommended)
+- **npm**: >= 8.0.0 or **yarn**: >= 1.22.0
+- **Database**: MongoDB (recommended), PostgreSQL, MySQL, or SQLite for local development
 
-### Installation
+### Quick Start
 
 1. **Clone the repository**:
 ```bash
-git clone <repository-url>
+git clone https://github.com/erenbertr/op3.git
 cd OP3
 ```
 
@@ -119,18 +165,26 @@ cd OP3
 ```bash
 npm install
 ```
+This installs dependencies for both frontend and backend workspaces using npm workspaces.
 
-This will install dependencies for both frontend and backend workspaces.
+3. **Start development servers**:
+```bash
+npm run dev
+```
+This starts both frontend (http://localhost:3000) and backend (http://localhost:3006) concurrently.
+
+4. **Complete setup**:
+   - Open http://localhost:3000 in your browser
+   - Follow the setup wizard to configure your database
+   - Create an admin user account
+   - Configure AI providers at `/ai-providers`
 
 ### Environment Configuration
 
-1. **Backend Environment** (`.env` in `backend-api/`):
-```bash
-# Copy the example file
-cp backend-api/.env.example backend-api/.env
-```
+#### Backend Environment (`.env` in `backend-api/`)
 
-2. **Configure required variables**:
+Create a `.env` file in the `backend-api` directory:
+
 ```env
 # Server Configuration
 PORT=3006
@@ -138,12 +192,18 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
 
 # JWT Secret (generate a secure random string)
-JWT_SECRET=your-super-secret-jwt-key-here
+JWT_SECRET=your-super-secret-jwt-key-here-change-in-production
 
-# Database will be configured through setup wizard
+# Better Auth Configuration
+BETTER_AUTH_SECRET=your-auth-secret-key-change-in-production
+
+# Database Configuration (will be set through setup wizard)
+# MONGODB_URI=mongodb://localhost:27017/op3
+# DATABASE_URL=postgresql://user:password@localhost:5432/op3
 ```
 
-3. **Frontend Environment** (optional, `.env.local` in `frontend-next/`):
+#### Frontend Environment (optional, `.env.local` in `frontend-next/`)
+
 ```env
 # API URL (defaults to http://localhost:3006/api/v1)
 NEXT_PUBLIC_API_URL=http://localhost:3006/api/v1
@@ -153,361 +213,603 @@ BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_SECRET=your-secret-key-change-in-production
 ```
 
-### Database Setup
+### Database Setup Options
 
-OP3 supports multiple database options. Choose one based on your needs:
+OP3's universal database layer supports multiple database types. Choose based on your needs:
 
-#### Option 1: MongoDB (Recommended)
+#### Option 1: MongoDB (Recommended for Production)
 ```bash
 # Local MongoDB
 brew install mongodb/brew/mongodb-community  # macOS
-# or
 sudo apt-get install mongodb  # Ubuntu
 
 # Start MongoDB
 brew services start mongodb/brew/mongodb-community  # macOS
-# or
 sudo systemctl start mongod  # Ubuntu
 
-# MongoDB will be available at: mongodb://localhost:27017
+# Connection string: mongodb://localhost:27017/op3
 ```
 
-#### Option 2: PostgreSQL
+#### Option 2: PostgreSQL (Great for Relational Data)
 ```bash
 # Install PostgreSQL
 brew install postgresql  # macOS
-# or
 sudo apt-get install postgresql postgresql-contrib  # Ubuntu
 
 # Start PostgreSQL
 brew services start postgresql  # macOS
-# or
 sudo systemctl start postgresql  # Ubuntu
+
+# Connection string: postgresql://user:password@localhost:5432/op3
 ```
 
-#### Option 3: MySQL
-```bash
-# Install MySQL
-brew install mysql  # macOS
-# or
-sudo apt-get install mysql-server  # Ubuntu
-
-# Start MySQL
-brew services start mysql  # macOS
-# or
-sudo systemctl start mysql  # Ubuntu
+#### Option 3: SQLite (Perfect for Development)
+No installation required - just specify a file path during setup.
+```
+# Connection string: ./data/op3.db
 ```
 
-#### Option 4: SQLite (No setup required)
-SQLite requires no additional setup - just specify a file path during configuration.
+#### Option 4: Cloud Databases
+- **Supabase**: Full PostgreSQL with real-time features
+- **PlanetScale**: MySQL-compatible with branching
+- **Neon**: Serverless PostgreSQL
+- **MongoDB Atlas**: Managed MongoDB service
 
-### Running the Application
+### Development Commands
 
-1. **Start the development servers**:
 ```bash
+# Start both frontend and backend
 npm run dev
+
+# Build both applications
+npm run build
+
+# Run in production mode
+npm run start
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
 ```
 
-This starts both frontend (http://localhost:3000) and backend (http://localhost:3006) concurrently.
-
-2. **Access the application**:
-   - Open http://localhost:3000 in your browser
-   - Follow the setup wizard to configure your database and create an admin user
-   - Complete the workspace setup to start using the application
-
-### Alternative: Run Services Individually
+### Individual Service Commands
 
 ```bash
-# Frontend only (http://localhost:3000)
+# Frontend only (Next.js on port 3000)
 npm run dev:frontend
 
-# Backend only (http://localhost:3006)
+# Backend only (Express.js on port 3006)
 npm run dev:backend
+
+# Build specific services
+npm run build:frontend
+npm run build:backend
 ```
 
-## 🔧 Configuration
+## 🔧 Configuration & Setup
 
-### AI Provider Setup
+### AI Provider Configuration
 
-After initial setup, configure AI providers through the application:
+After completing the initial setup, configure AI providers at `/ai-providers`:
 
-1. **Navigate to AI Providers** (`/ai-providers`)
-2. **OpenAI Configuration**:
-   - Add your OpenAI API key
-   - Select desired models (GPT-4, GPT-3.5-turbo, etc.)
-   - Configure capabilities (search, reasoning, file attachments)
+#### OpenAI Setup
+1. **Navigate to** `/ai-providers/openai`
+2. **Add API Key**: Enter your OpenAI API key
+3. **Select Models**: Choose from GPT-4o, GPT-4o-mini, O1 models, etc.
+4. **Configure Capabilities**: Enable search, reasoning, file attachments
+5. **Custom Naming**: Give models custom names for easy identification
 
-3. **OpenRouter Configuration**:
-   - Add your OpenRouter API key
-   - Browse and select from 100+ available models
-   - Configure model-specific settings
+#### Google Gemini Setup
+1. **Navigate to** `/ai-providers/google`
+2. **Add API Key**: Enter your Google AI Studio API key
+3. **Select Models**: Choose from Gemini Pro, Gemini Flash models
+4. **Real-time Fetching**: Models are fetched directly from Google's API
 
-### Workspace Configuration
+#### Anthropic Claude Setup
+1. **Navigate to** `/ai-providers/anthropic`
+2. **Add API Key**: Enter your Anthropic API key
+3. **Select Models**: Choose from Claude 3.5 Sonnet, Claude 3 Haiku, Claude 3 Opus
+4. **Capability Icons**: Models show search, think, and attach capabilities
 
-1. **Create Workspaces**: Organize your work into separate contexts
-2. **Set Workspace Rules**: Define AI behavior and context for each workspace
-3. **Configure AI Favorites**: Set preferred AI personalities per workspace
-4. **Organize with Groups**: Use drag-and-drop to organize workspaces into groups
+#### Grok (xAI) Setup
+1. **Navigate to** `/ai-providers/grok`
+2. **Add API Key**: Enter your xAI API key
+3. **Select Models**: Choose from available Grok models including Grok-3
+4. **Real-time Integration**: Direct API integration for model fetching
+
+#### OpenRouter Setup
+1. **Navigate to** `/ai-providers/openrouter`
+2. **Add API Key**: Enter your OpenRouter API key
+3. **Browse 100+ Models**: Access models from multiple providers
+4. **Unified Interface**: Consistent experience across all models
+
+### Workspace Management
+
+#### Creating and Organizing Workspaces
+1. **Create Workspaces**: Click "New Workspace" to create separate contexts
+2. **Workspace Groups**: Organize workspaces into vertical groups
+3. **Drag & Drop**: Use @dnd-kit for intuitive organization with cross-group functionality
+4. **Workspace Settings**: Configure rules, AI preferences, and personality favorites
+
+#### AI Personality Favorites
+1. **Access via Workspace Menu**: Click the 3-dots menu → "Personality Favorites"
+2. **Search and Add**: Search through available AI personalities and add favorites
+3. **Drag to Reorder**: Use drag-and-drop to reorder favorites
+4. **Quick Selection**: Favorited personalities appear above chat input for quick selection
 
 ### Advanced Configuration
 
-#### Database Connection Strings
+#### Database Connection Examples
 
-**MongoDB**:
-```
+```bash
+# MongoDB
 mongodb://localhost:27017/op3
-mongodb://username:password@host:port/database
-```
+mongodb+srv://user:pass@cluster.mongodb.net/op3
 
-**PostgreSQL**:
-```
-postgresql://username:password@localhost:5432/op3
-```
+# PostgreSQL
+postgresql://user:password@localhost:5432/op3
+postgres://user:pass@host:5432/database
 
-**MySQL**:
-```
-mysql://username:password@localhost:3306/op3
-```
+# MySQL
+mysql://user:password@localhost:3306/op3
 
-**SQLite**:
-```
+# SQLite
 ./data/op3.db
+/absolute/path/to/database.db
+
+# Cloud Providers
+# Supabase: postgresql://postgres:[password]@[host]:5432/postgres
+# PlanetScale: mysql://[username]:[password]@[host]/[database]?ssl={"rejectUnauthorized":true}
+# Neon: postgresql://[user]:[password]@[endpoint]/[dbname]?sslmode=require
 ```
 
 #### Environment Variables Reference
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Backend server port | `3006` |
-| `NODE_ENV` | Environment mode | `development` |
-| `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:3000` |
-| `JWT_SECRET` | JWT signing secret | Required |
-| `MONGODB_URI` | MongoDB connection string | Set via setup |
-| `BETTER_AUTH_URL` | Auth service URL | `http://localhost:3000` |
-| `BETTER_AUTH_SECRET` | Auth encryption secret | Required |
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `PORT` | Backend server port | `3006` | No |
+| `NODE_ENV` | Environment mode | `development` | No |
+| `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:3000` | No |
+| `JWT_SECRET` | JWT signing secret | - | **Yes** |
+| `BETTER_AUTH_SECRET` | Auth encryption secret | - | **Yes** |
+| `MONGODB_URI` | MongoDB connection string | Set via setup | No |
+| `DATABASE_URL` | Generic database URL | Set via setup | No |
+| `NEXT_PUBLIC_API_URL` | Frontend API URL | `http://localhost:3006/api/v1` | No |
 
 ## 📜 Available Scripts
 
-### Root Level Commands
+### Root Level Commands (Monorepo)
 ```bash
-npm run dev          # Start both frontend and backend
-npm run build        # Build both applications
-npm run start        # Start both in production mode
-npm run lint         # Lint both applications
+npm run dev          # Start both frontend and backend concurrently
+npm run build        # Build both applications for production
+npm run start        # Start both applications in production mode
+npm run lint         # Lint both frontend and backend
+npm run type-check   # TypeScript type checking for both apps
+
+# Individual service commands
+npm run dev:frontend    # Start only Next.js frontend
+npm run dev:backend     # Start only Express.js backend
+npm run build:frontend  # Build only frontend
+npm run build:backend   # Build only backend
+```
+
+### Frontend Commands (frontend-next/)
+```bash
+npm run dev          # Next.js development server with Turbopack
+npm run build        # Production build with optimizations
+npm run start        # Start production server
+npm run lint         # ESLint with Next.js configuration
 npm run type-check   # TypeScript type checking
 ```
 
-### Frontend Commands
+### Backend Commands (backend-api/)
 ```bash
-cd frontend-next
-npm run dev          # Development server
-npm run build        # Production build
-npm run start        # Start production server
-npm run lint         # ESLint
-npm run type-check   # TypeScript checking
-```
-
-### Backend Commands
-```bash
-cd backend-api
-npm run dev          # Development server with nodemon
-npm run build        # Compile TypeScript
-npm run start        # Start compiled server
-npm run type-check   # TypeScript checking
+npm run dev          # Development server with nodemon and ts-node
+npm run build        # Compile TypeScript to JavaScript
+npm run start        # Start compiled production server
+npm run type-check   # TypeScript type checking without emit
 ```
 
 ## 🏛️ Architecture Overview
 
-### Frontend Architecture
+### Frontend Architecture (Next.js 15)
 
-**Next.js App Router**: Modern routing with server and client components
-- **Server Components**: For static content and initial data loading
-- **Client Components**: For interactive features and real-time updates
-- **API Routes**: Better Auth integration and client-side API calls
+**App Router with Modern Patterns**:
+- **Server Components**: Static content, initial data loading, and SEO optimization
+- **Client Components**: Interactive features, real-time updates, and user interactions
+- **Route Groups**: Organized routing with (auth), setup, ws/{workspaceId}, and ai-providers
+- **Parallel Routes**: Efficient loading and navigation between workspace contexts
 
-**State Management**:
-- **TanStack Query**: Server state management with caching and synchronization
-- **React Hooks**: Local component state with custom hooks
-- **URL State**: Navigation and workspace state via URL parameters
+**State Management Strategy**:
+- **TanStack Query**: Server state with intelligent caching, background updates, and optimistic updates
+- **React Hooks**: Local component state with custom hooks for complex logic
+- **URL-based State**: Workspace navigation and chat session state via URL parameters
+- **Context Providers**: Auth, theme, and global application state
 
-**Component Structure**:
-- **UI Components**: Reusable shadcn/ui components
-- **Feature Components**: Workspace, chat, and setup specific components
-- **Layout Components**: Application shell and navigation
-- **Provider Components**: Context providers for auth, theme, and queries
+**Component Architecture**:
+- **shadcn/ui Base**: Accessible, customizable UI primitives with consistent design tokens
+- **Feature Components**: Workspace management, chat interface, AI provider setup
+- **Layout Components**: Application shell, navigation, and responsive layouts
+- **Shared Components**: Reusable utilities, modals, and form components
 
-### Backend Architecture
+### Backend Architecture (Express.js + TypeScript)
 
-**Express.js API**: RESTful API with WebSocket support
-- **Route Handlers**: Organized by feature (workspace, chat, auth, etc.)
-- **Middleware**: Authentication, error handling, and request validation
-- **Services**: Business logic separated from route handlers
-- **Database Layer**: Abstracted database operations supporting multiple providers
+**Unified AI Integration**:
+- **Vercel AI SDK**: Single interface for all AI providers with consistent streaming
+- **Universal Database Service**: Database-agnostic operations supporting multiple providers
+- **Service Layer**: Clean separation of business logic from route handlers
+- **Middleware Stack**: Authentication, validation, error handling, and logging
 
-**Key Services**:
-- **AI Chat Service**: Handles streaming responses from multiple AI providers
-- **Workspace Service**: Manages workspace CRUD operations and organization
-- **Authentication Service**: JWT-based auth with Better Auth integration
-- **File Service**: Handles file uploads and AI document processing
+**Core Services**:
+- **VercelAIChatService**: Unified streaming chat with web search, reasoning, and file support
+- **VercelAIProviderService**: AI provider management with real-time model fetching
+- **UniversalDatabaseService**: Single API for MongoDB, PostgreSQL, MySQL, SQLite operations
+- **WebSearchService**: Multi-provider web search (DuckDuckGo, Bing, Google)
+- **OpenAIFileService**: File upload, processing, and vector store integration
+- **ChatServiceNew**: Session management, branching, and sharing functionality
 
-### Database Design
+**API Design**:
+- **RESTful Endpoints**: Organized by feature with consistent response patterns
+- **WebSocket Integration**: Real-time chat updates and streaming responses
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **Authentication**: JWT-based auth with Better Auth integration
 
-**Collections/Tables**:
-- **Users**: User accounts with roles and preferences
-- **Workspaces**: Workspace configurations and rules
-- **Workspace Groups**: Organization and sorting of workspaces
-- **Chat Sessions**: Chat conversations scoped to workspaces
-- **Chat Messages**: Individual messages with AI provider metadata
-- **AI Providers**: Configuration for OpenAI, OpenRouter, etc.
-- **Personalities**: AI personality templates and favorites
+### Database Architecture
+
+**Universal Database Layer**:
+- **Single Interface**: Unified CRUD operations across all database types
+- **Automatic Type Conversion**: Seamless data transformation between database formats
+- **Connection Management**: Efficient connection pooling and error handling
+- **Migration Support**: Schema management across different database systems
+
+**Data Models**:
+- **Users**: Authentication, roles, preferences, and AI provider configurations
+- **Workspaces**: Workspace settings, rules, AI favorites, and organization
+- **Workspace Groups**: Drag-and-drop organization with sort orders
+- **Chat Sessions**: Workspace-scoped conversations with branching support
+- **Chat Messages**: Messages with AI metadata, reasoning steps, and file attachments
+- **AI Provider Configs**: Model configurations, API keys, and capabilities
+- **Personality Favorites**: Workspace-specific AI personality preferences
+- **Shared Chats**: Public chat sharing with minimal data exposure
+- **File Attachments**: File metadata, OpenAI integration, and processing status
 
 ## 🔌 API Endpoints
 
-### Authentication
-- `POST /api/v1/auth/login` - User login
-- `POST /api/v1/auth/verify` - Token verification
-- `GET /api/v1/auth/user` - Get current user
+### Authentication & Setup
+```
+POST   /api/v1/auth/login              # User login with credentials
+POST   /api/v1/auth/verify             # JWT token verification
+GET    /api/v1/auth/user               # Get current authenticated user
+GET    /api/v1/setup/status            # Check if initial setup is complete
+POST   /api/v1/setup/database          # Configure database connection
+POST   /api/v1/setup/admin             # Create initial admin user
+```
 
-### Setup
-- `GET /api/v1/setup/status` - Check setup completion
-- `POST /api/v1/setup/database` - Configure database
-- `POST /api/v1/setup/admin` - Create admin user
+### Workspace Management
+```
+GET    /api/v1/workspace               # Get user's workspaces and groups
+POST   /api/v1/workspace               # Create new workspace
+PUT    /api/v1/workspace/:id           # Update workspace settings
+DELETE /api/v1/workspace/:id           # Delete workspace
+POST   /api/v1/workspace/groups        # Create workspace group
+PUT    /api/v1/workspace/groups/:id    # Update workspace group
+DELETE /api/v1/workspace/groups/:id    # Delete workspace group
+POST   /api/v1/workspace/reorder       # Reorder workspaces with drag-and-drop
+```
 
-### Workspaces
-- `GET /api/v1/workspace` - Get user workspaces
-- `POST /api/v1/workspace` - Create workspace
-- `PUT /api/v1/workspace/:id` - Update workspace
-- `DELETE /api/v1/workspace/:id` - Delete workspace
+### Chat & Messaging
+```
+GET    /api/v1/chat/sessions/:workspaceId    # Get chat sessions for workspace
+POST   /api/v1/chat/sessions                # Create new chat session
+PUT    /api/v1/chat/sessions/:id             # Update chat session
+DELETE /api/v1/chat/sessions/:id             # Delete chat session
+POST   /api/v1/chat/sessions/branch          # Create branched chat session
+GET    /api/v1/chat/messages/:sessionId      # Get messages for session
+POST   /api/v1/chat/stream                   # Stream AI responses (SSE)
+POST   /api/v1/chat/share/:sessionId         # Share chat session publicly
+GET    /api/v1/msg/:shareId                  # Get shared chat (public access)
+```
 
-### Chat
-- `GET /api/v1/chat/sessions/:workspaceId` - Get chat sessions
-- `POST /api/v1/chat/sessions` - Create chat session
-- `GET /api/v1/chat/messages/:sessionId` - Get chat messages
-- `POST /api/v1/chat/stream` - Stream AI responses
+### AI Provider Configuration
+```
+GET    /api/v1/ai-providers                  # Get all configured AI providers
+POST   /api/v1/openai-providers              # Configure OpenAI provider
+GET    /api/v1/openai-providers              # Get OpenAI configurations
+POST   /api/v1/google-providers              # Configure Google Gemini provider
+GET    /api/v1/google-providers              # Get Google configurations
+POST   /api/v1/anthropic-providers           # Configure Anthropic Claude provider
+GET    /api/v1/anthropic-providers           # Get Anthropic configurations
+POST   /api/v1/grok-providers                # Configure Grok (xAI) provider
+GET    /api/v1/grok-providers                # Get Grok configurations
+POST   /api/v1/openrouter-providers          # Configure OpenRouter provider
+GET    /api/v1/openrouter-providers          # Get OpenRouter configurations
+```
 
-### AI Providers
-- `GET /api/v1/ai-providers` - Get configured providers
-- `POST /api/v1/openai-providers` - Configure OpenAI
-- `POST /api/v1/openrouter` - Configure OpenRouter
+### AI Personality Favorites
+```
+GET    /api/v1/workspace-personality-favorites/:workspaceId    # Get workspace AI favorites
+POST   /api/v1/workspace-personality-favorites                # Add AI favorite
+DELETE /api/v1/workspace-personality-favorites/:favoriteId    # Remove AI favorite
+POST   /api/v1/workspace-personality-favorites/reorder        # Reorder AI favorites
+GET    /api/v1/workspace-personality-favorites/:workspaceId/check/:personalityId  # Check if favorited
+```
+
+### File Management
+```
+POST   /api/v1/files/upload               # Upload file for AI processing
+GET    /api/v1/files/:sessionId           # Get files for chat session
+DELETE /api/v1/files/:fileId              # Delete uploaded file
+GET    /api/v1/files/:fileId/status       # Get file processing status
+```
 
 ## 🧪 Development Guidelines
 
-### Code Organization
+### Code Organization & Best Practices
 
-**Frontend**:
-- Use TypeScript for all components and utilities
-- Follow React best practices (hooks, composition)
-- Implement proper error boundaries
-- Use TanStack Query for server state
-- Avoid useEffect for data fetching
+#### Frontend Development
+- **TypeScript First**: Use strict TypeScript for all components, hooks, and utilities
+- **React Patterns**: Prefer composition over inheritance, use custom hooks for logic reuse
+- **State Management**: Use TanStack Query for server state, avoid useEffect for data fetching
+- **Component Structure**: Keep components under 750 lines, separate into smaller files when needed
+- **Error Handling**: Implement proper error boundaries and user-friendly error messages
+- **Performance**: Use React.memo judiciously, implement proper loading states with skeletons
 
-**Backend**:
-- Separate business logic into services
-- Use proper TypeScript types for all APIs
-- Implement comprehensive error handling
-- Follow RESTful API conventions
-- Use middleware for cross-cutting concerns
+#### Backend Development
+- **Service Layer**: Separate business logic into services, keep route handlers thin
+- **Universal Database**: Use the universal database service for all data operations
+- **TypeScript Types**: Define proper interfaces for all API requests and responses
+- **Error Handling**: Use the error handling middleware for consistent error responses
+- **Streaming**: Use Vercel AI SDK for all AI provider integrations
+- **Security**: Implement proper authentication, validation, and sanitization
 
-### Performance Best Practices
+### Architecture Principles
 
-**Frontend**:
-- Use React.memo judiciously
-- Implement proper loading states
-- Optimize bundle size with dynamic imports
-- Use Next.js Image optimization
-- Implement skeleton loading states
+#### Frontend Architecture
+- **App Router**: Use Next.js App Router with proper server/client component separation
+- **URL-based Routing**: Implement workspace-scoped routing (/ws/{workspaceId})
+- **Component Hierarchy**: UI components → Feature components → Page components
+- **State Flow**: Props down, events up, with TanStack Query for server synchronization
 
-**Backend**:
-- Use database indexing appropriately
-- Implement proper caching strategies
-- Use streaming for large responses
-- Optimize database queries
-- Implement rate limiting
+#### Backend Architecture
+- **Layered Architecture**: Routes → Services → Database, with clear separation of concerns
+- **Dependency Injection**: Services should be injectable and testable
+- **Database Abstraction**: Use universal database service to support multiple database types
+- **API Design**: RESTful endpoints with consistent response patterns
+
+### Performance Optimization
+
+#### Frontend Performance
+- **Bundle Optimization**: Use dynamic imports for code splitting
+- **Image Optimization**: Use Next.js Image component for automatic optimization
+- **Loading States**: Implement skeleton loading states that match real content
+- **Caching**: Leverage TanStack Query's intelligent caching and background updates
+- **Streaming**: Use streaming for AI responses to improve perceived performance
+
+#### Backend Performance
+- **Database Optimization**: Use proper indexing and query optimization
+- **Connection Pooling**: Implement efficient database connection management
+- **Caching Strategies**: Cache frequently accessed data and AI provider responses
+- **Streaming Responses**: Use streaming for large responses and AI chat
+- **Rate Limiting**: Implement rate limiting to prevent abuse
 
 ### Testing Strategy
 
-**Unit Tests**: Test utility functions and business logic
-**Integration Tests**: Test API endpoints and database operations
-**Component Tests**: Test React components with React Testing Library
-**E2E Tests**: Test critical user flows
+#### Unit Testing
+- **Utility Functions**: Test all utility functions and helper methods
+- **Service Logic**: Test business logic in services with mocked dependencies
+- **Custom Hooks**: Test React hooks with React Testing Library
+- **Database Operations**: Test universal database service with different providers
+
+#### Integration Testing
+- **API Endpoints**: Test complete request/response cycles
+- **Database Integration**: Test with real database connections
+- **AI Provider Integration**: Test with mocked AI provider responses
+- **Authentication Flow**: Test complete auth workflows
+
+#### End-to-End Testing
+- **Critical User Flows**: Test workspace creation, chat sessions, AI interactions
+- **Cross-browser Testing**: Ensure compatibility across different browsers
+- **Mobile Responsiveness**: Test on various screen sizes and devices
 
 ## 🚀 Deployment
 
 ### Production Build
 
 ```bash
-# Build both applications
+# Build both applications for production
 npm run build
 
-# Start in production mode
+# Start both applications in production mode
 npm run start
+
+# Or build and start individually
+npm run build:frontend && npm run build:backend
+npm run start:frontend & npm run start:backend
 ```
 
 ### Environment Variables for Production
 
 ```env
+# Server Configuration
 NODE_ENV=production
 PORT=3006
 FRONTEND_URL=https://your-domain.com
-JWT_SECRET=your-production-jwt-secret
-BETTER_AUTH_SECRET=your-production-auth-secret
-MONGODB_URI=your-production-mongodb-uri
+
+# Security
+JWT_SECRET=your-super-secure-jwt-secret-change-this
+BETTER_AUTH_SECRET=your-super-secure-auth-secret-change-this
+
+# Database (choose one)
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/op3
+DATABASE_URL=postgresql://user:pass@host:5432/op3
+
+# Optional: AI Provider API Keys (can be configured via UI)
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+GOOGLE_AI_API_KEY=your-google-ai-api-key
 ```
 
-### Docker Deployment (Optional)
+### Deployment Platforms
 
-Create `Dockerfile` for containerized deployment:
+#### Vercel (Recommended for Frontend)
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy frontend
+cd frontend-next
+vercel --prod
+```
+
+#### Railway (Full-Stack)
+```bash
+# Connect your GitHub repo to Railway
+# Set environment variables in Railway dashboard
+# Deploy automatically on git push
+```
+
+#### Docker Deployment
+
+Create `Dockerfile` in project root:
 
 ```dockerfile
-FROM node:18-alpine
+FROM node:18-alpine AS base
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
-COPY . .
-RUN npm run build
+
+# Frontend build
+FROM base AS frontend-build
+COPY frontend-next/ ./frontend-next/
+WORKDIR /app/frontend-next
+RUN npm ci && npm run build
+
+# Backend build
+FROM base AS backend-build
+COPY backend-api/ ./backend-api/
+WORKDIR /app/backend-api
+RUN npm ci && npm run build
+
+# Production image
+FROM node:18-alpine AS production
+WORKDIR /app
+COPY --from=frontend-build /app/frontend-next/.next ./frontend-next/.next
+COPY --from=frontend-build /app/frontend-next/public ./frontend-next/public
+COPY --from=backend-build /app/backend-api/dist ./backend-api/dist
+COPY --from=base /app/node_modules ./node_modules
+COPY package*.json ./
+
 EXPOSE 3000 3006
 CMD ["npm", "start"]
 ```
 
+#### Docker Compose
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - MONGODB_URI=${MONGODB_URI}
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
+```
+
 ## 🤝 Contributing
 
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes**: Follow the development guidelines
-4. **Test your changes**: Ensure all tests pass
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to the branch**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request**
+We welcome contributions to OP3! Here's how to get started:
 
-### Development Setup for Contributors
+### Getting Started
+1. **Fork the repository** on GitHub
+2. **Clone your fork**: `git clone https://github.com/your-username/op3.git`
+3. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+4. **Follow the development setup** instructions above
 
-1. Follow the installation steps above
-2. Create a new branch for your feature
-3. Make changes following the code organization guidelines
-4. Test your changes thoroughly
-5. Update documentation as needed
+### Development Guidelines
+1. **Follow the code organization** guidelines outlined above
+2. **Keep files under 750 lines** - split into smaller files when needed
+3. **Use TypeScript** for all new code with proper type definitions
+4. **Test your changes** thoroughly before submitting
+5. **Update documentation** as needed for new features
+
+### Submitting Changes
+1. **Commit your changes**: `git commit -m 'feat: add amazing feature'`
+2. **Push to your branch**: `git push origin feature/amazing-feature`
+3. **Open a Pull Request** with a clear description of changes
+4. **Ensure CI passes** and address any review feedback
+
+### Commit Convention
+We use conventional commits for clear history:
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `docs:` - Documentation changes
+- `style:` - Code style changes
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🆘 Support & Community
 
-- **Documentation**: Check this README and inline code comments
-- **Issues**: Report bugs and request features via GitHub Issues
-- **Discussions**: Join community discussions for questions and ideas
+- **🌐 Live Demo**: [https://op3.chat](https://op3.chat)
+- **📖 Documentation**: This README and inline code comments
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/erenbertr/op3/issues)
+- **💡 Feature Requests**: [GitHub Discussions](https://github.com/erenbertr/op3/discussions)
+- **❓ Questions**: Join our community discussions
 
-## 🔄 Changelog
+## 🔄 Changelog & Roadmap
 
-### Version 1.0.0
+### Version 2.0.0 (Current)
+- **🤖 Vercel AI SDK Integration**: Unified streaming across all AI providers
+- **🎨 Enhanced UI/UX**: Improved chat interface with branching and sharing
+- **📁 File Processing**: OpenAI file search API integration with vector stores
+- **🔍 Web Search**: Multi-provider web search integration
+- **⭐ AI Personality Favorites**: Workspace-scoped AI personality management
+- **�️ Universal Database**: Single interface supporting multiple database types
+- **🎯 Advanced Features**: Chat branching, sharing, reasoning steps, O1 model support
+
+### Version 1.0.0 (Legacy)
 - Initial release with core workspace and chat functionality
-- Multi-database support
+- Multi-database support (MongoDB, PostgreSQL, MySQL, SQLite)
 - AI provider integrations (OpenAI, OpenRouter)
 - Real-time chat with streaming responses
 - Drag-and-drop workspace organization
 - Better Auth integration
 - Modern UI with dark/light theme support
 
+### Upcoming Features
+- **🔌 Plugin System**: Extensible plugin architecture for custom integrations
+- **📊 Analytics Dashboard**: Usage analytics and insights
+- **🌍 Internationalization**: Multi-language support
+- **📱 Mobile App**: React Native mobile application
+- **🔄 Real-time Collaboration**: Multi-user workspace collaboration
+- **🎨 Custom Themes**: User-customizable themes and layouts
+
 ---
 
-**Built with ❤️ using modern web technologies**
+**🚀 Built with ❤️ using modern web technologies**
+
+*OP3 - Empowering productivity through intelligent AI workspace management*
