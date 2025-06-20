@@ -11,6 +11,7 @@ import { UserMenu } from '@/components/user-menu';
 import { apiClient } from '@/lib/api';
 import { useSession, signIn, signUp, signOut } from '@/lib/temp-auth';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { useDynamicTitle } from '@/lib/hooks/use-dynamic-title';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
@@ -23,6 +24,9 @@ export function AppWrapper() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
+
+    // Use dynamic title hook
+    useDynamicTitle();
 
     // Use delayed spinner for setup loading
     const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);

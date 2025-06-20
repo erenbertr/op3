@@ -17,8 +17,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "OP3 Setup",
-    description: "OP3 Application Setup Wizard",
+    title: {
+        template: "%s | OP3",
+        default: "OP3"
+    },
+    description: "OP3 - AI-Powered Workspace Platform",
 };
 
 export default function RootLayout({

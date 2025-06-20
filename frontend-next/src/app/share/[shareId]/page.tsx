@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
+import { useDynamicTitle } from '@/lib/hooks/use-dynamic-title';
 import { useParams } from 'next/navigation';
 import { apiClient, SharedChat } from '@/lib/api';
 import { Loader2, MessageSquare, Copy, Check } from 'lucide-react';
@@ -107,6 +108,9 @@ export default function SharePage() {
     const [sharedChat, setSharedChat] = useState<SharedChat | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Use dynamic title hook
+    useDynamicTitle();
 
     useEffect(() => {
         const fetchSharedChat = async () => {

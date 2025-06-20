@@ -26,6 +26,7 @@ import { UserMenu } from '@/components/user-menu';
 import { usePathname as usePathnameHook, navigationUtils } from '@/lib/hooks/use-pathname';
 import { useWorkspaces } from '@/lib/hooks/use-query-hooks';
 import { useDelayedSpinner } from '@/lib/hooks/use-delayed-spinner';
+import { useDynamicTitle } from '@/lib/hooks/use-dynamic-title';
 import { apiClient } from '@/lib/api';
 import { Loader2, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -147,6 +148,9 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
             queryParams
         };
     }, [currentPathname, setupStatus]);
+
+    // Use dynamic title hook
+    useDynamicTitle(routeParams.workspaceId, routeParams.chatId);
 
     // Find current workspace separately to avoid workspacesResult dependency in main useMemo
     const currentWorkspace = useMemo(() => {
