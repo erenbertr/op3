@@ -1,5 +1,6 @@
 export interface OpenAIModelConfig {
     id: string;
+    userId: string;
     keyId: string;
     modelId: string;
     modelName: string;

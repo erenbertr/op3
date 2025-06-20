@@ -100,8 +100,8 @@ export class VercelAIChatService {
 
             // Resolve the provider configuration
             const providerConfig = request.aiProviderId
-                ? await this.resolveProviderConfig(request.aiProviderId)
-                : await this.getActiveProviderConfig();
+                ? await this.resolveProviderConfig(request.userId, request.aiProviderId)
+                : await this.getActiveProviderConfig(request.userId);
 
             console.log('Resolved provider config:', providerConfig ? { ...providerConfig, apiKey: '***' } : null);
 
@@ -812,16 +812,16 @@ export class VercelAIChatService {
      * Resolve provider configuration from aiProviderId
      * This handles OpenAI model configs, Google model configs, and legacy AI providers
      */
-    private async resolveProviderConfig(aiProviderId: string): Promise<AIProviderConfig | null> {
+    private async resolveProviderConfig(userId: string, aiProviderId: string): Promise<AIProviderConfig | null> {
         try {
             // Try OpenAI model config first
-            const openaiConfig = await this.resolveOpenAIModelConfig(aiProviderId);
+            const openaiConfig = await this.resolveOpenAIModelConfig(userId, aiProviderId);
             if (openaiConfig) {
                 return openaiConfig;
             }
 
             // Try Google model config
-            const googleConfig = await this.resolveGoogleModelConfig(aiProviderId);
+            const googleConfig = await this.resolveGoogleModelConfig(userId, aiProviderId);
             if (googleConfig) {
                 return googleConfig;
             }
@@ -842,14 +842,14 @@ export class VercelAIChatService {
     /**
      * Get active provider configuration
      */
-    private async getActiveProviderConfig(): Promise<AIProviderConfig | null> {
+    private async getActiveProviderConfig(userId: string): Promise<AIProviderConfig | null> {
         try {
             // Try OpenAI model configs first
-            const openaiConfigs = await this.openaiModelConfigService.getModelConfigs();
+            const openaiConfigs = await this.openaiModelConfigService.getModelConfigs(userId);
             if (openaiConfigs.success && openaiConfigs.modelConfigs && Array.isArray(openaiConfigs.modelConfigs)) {
                 const activeConfig = openaiConfigs.modelConfigs.find((config: any) => config.isActive);
                 if (activeConfig) {
-                    return await this.resolveOpenAIModelConfig(activeConfig.id);
+                    return await this.resolveOpenAIModelConfig(userId, activeConfig.id);
                 }
             }
 
@@ -858,7 +858,7 @@ export class VercelAIChatService {
             if (googleConfigs.success && googleConfigs.modelConfigs && Array.isArray(googleConfigs.modelConfigs)) {
                 const activeConfig = googleConfigs.modelConfigs.find((config: any) => config.isActive);
                 if (activeConfig) {
-                    return await this.resolveGoogleModelConfig(activeConfig.id);
+                    return await this.resolveGoogleModelConfig(userId, activeConfig.id);
                 }
             }
 
@@ -879,9 +879,9 @@ export class VercelAIChatService {
     /**
      * Resolve OpenAI model configuration
      */
-    private async resolveOpenAIModelConfig(modelConfigId: string): Promise<AIProviderConfig | null> {
+    private async resolveOpenAIModelConfig(userId: string, modelConfigId: string): Promise<AIProviderConfig | null> {
         try {
-            const allConfigsResult = await this.openaiModelConfigService.getModelConfigs();
+            const allConfigsResult = await this.openaiModelConfigService.getModelConfigs(userId);
             if (!allConfigsResult.success || !allConfigsResult.modelConfigs) {
                 return null;
             }
@@ -893,13 +893,14 @@ export class VercelAIChatService {
                 return null;
             }
 
-            const decryptedApiKey = await this.openaiProviderService.getDecryptedApiKey(modelConfig.keyId);
+            const decryptedApiKey = await this.openaiProviderService.getDecryptedApiKey(userId, modelConfig.keyId);
             if (!decryptedApiKey) {
                 return null;
             }
 
             return {
                 id: modelConfig.id,
+                userId,
                 type: 'openai',
                 name: modelConfig.customName || modelConfig.modelName,
                 apiKey: decryptedApiKey,
@@ -920,7 +921,7 @@ export class VercelAIChatService {
     /**
      * Resolve Google model configuration
      */
-    private async resolveGoogleModelConfig(modelConfigId: string): Promise<AIProviderConfig | null> {
+    private async resolveGoogleModelConfig(userId: string, modelConfigId: string): Promise<AIProviderConfig | null> {
         try {
             console.log('Resolving Google model config for ID:', modelConfigId);
 
@@ -953,6 +954,7 @@ export class VercelAIChatService {
 
             const providerConfig = {
                 id: modelConfig.id,
+                userId,
                 type: 'google' as const,
                 name: modelConfig.customName || modelConfig.modelName,
                 apiKey: decryptedApiKey,
@@ -1070,8 +1072,8 @@ export class VercelAIChatService {
         try {
             // Resolve the provider configuration
             const providerConfig = request.aiProviderId
-                ? await this.resolveProviderConfig(request.aiProviderId)
-                : await this.getActiveProviderConfig();
+                ? await this.resolveProviderConfig(request.userId, request.aiProviderId)
+                : await this.getActiveProviderConfig(request.userId);
 
             if (!providerConfig) {
                 return {

@@ -33,7 +33,11 @@ function createError(message: string, statusCode: number = 400) {
 router.get('/', async (req: Request, res: Response, next) => {
     try {
         await ensureTableInitialized();
-        const result = await openaiModelConfigService.getModelConfigs();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
+        const result = await openaiModelConfigService.getModelConfigs(userId);
 
         if (!result.success) {
             throw createError(result.message, 400);
@@ -53,8 +57,12 @@ router.get('/', async (req: Request, res: Response, next) => {
 router.post('/', async (req: Request, res: Response, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { keyId, modelId, customName } = req.body;
-        console.log('🔄 POST /openai-model-configs called with:', { keyId, modelId, customName });
+        console.log('🔄 POST /openai-model-configs called with:', { userId, keyId, modelId, customName });
 
         if (!keyId || !modelId) {
             console.log('❌ Missing required fields:', { keyId: !!keyId, modelId: !!modelId });
@@ -83,7 +91,7 @@ router.post('/', async (req: Request, res: Response, next) => {
         };
 
         console.log('📋 Calling createModelConfig with:', requestData);
-        const result = await openaiModelConfigService.createModelConfig(requestData);
+        const result = await openaiModelConfigService.createModelConfig(userId, requestData);
         console.log('📊 Service result:', { success: result.success, message: result.message });
 
         if (!result.success) {
@@ -106,6 +114,10 @@ router.post('/', async (req: Request, res: Response, next) => {
 router.put('/:id', async (req: Request, res: Response, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
         const { customName, isActive } = req.body;
 
@@ -113,7 +125,7 @@ router.put('/:id', async (req: Request, res: Response, next) => {
             throw createError('Model configuration ID is required', 400);
         }
 
-        const result = await openaiModelConfigService.updateModelConfig(id, {
+        const result = await openaiModelConfigService.updateModelConfig(userId, id, {
             customName,
             isActive
         });
@@ -136,13 +148,17 @@ router.put('/:id', async (req: Request, res: Response, next) => {
 router.delete('/:id', async (req: Request, res: Response, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
 
         if (!id) {
             throw createError('Model configuration ID is required', 400);
         }
 
-        const result = await openaiModelConfigService.deleteModelConfig(id);
+        const result = await openaiModelConfigService.deleteModelConfig(userId, id);
 
         if (!result.success) {
             throw createError(result.message, 400);

@@ -3,6 +3,7 @@ import { DatabaseManager } from '../config/database';
 
 export interface OpenAIProvider {
     id: string;
+    userId: string;
     name: string;
     apiKey: string; // This will be encrypted in the database
     isActive: boolean;
@@ -85,7 +86,7 @@ export class OpenAIProviderService {
     }
 
     // Create a new OpenAI provider
-    public async createProvider(request: CreateOpenAIProviderRequest): Promise<OpenAIProviderResponse> {
+    public async createProvider(userId: string, request: CreateOpenAIProviderRequest): Promise<OpenAIProviderResponse> {
         try {
             if (!request.name?.trim()) {
                 return {
@@ -121,6 +122,7 @@ export class OpenAIProviderService {
 
             const provider: OpenAIProvider = {
                 id: crypto.randomUUID(),
+                userId,
                 name: request.name.trim(),
                 apiKey: encryptedApiKey,
                 isActive: request.isActive ?? true,
@@ -147,8 +149,8 @@ export class OpenAIProviderService {
         }
     }
 
-    // Get all OpenAI providers
-    public async getProviders(): Promise<OpenAIProviderResponse> {
+    // Get all OpenAI providers for a user
+    public async getProviders(userId: string): Promise<OpenAIProviderResponse> {
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
@@ -156,7 +158,7 @@ export class OpenAIProviderService {
             }
 
             const connection = await this.dbManager.getConnection();
-            const providers = await this.getProvidersFromDatabase(connection, config.type);
+            const providers = await this.getProvidersFromDatabase(connection, config.type, userId);
 
             // Mask API keys for security
             const maskedProviders = providers.map(provider => ({
@@ -178,8 +180,8 @@ export class OpenAIProviderService {
         }
     }
 
-    // Get a single provider by ID
-    public async getProvider(id: string): Promise<OpenAIProviderResponse> {
+    // Get a single provider by ID for a user
+    public async getProvider(userId: string, id: string): Promise<OpenAIProviderResponse> {
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
@@ -187,7 +189,7 @@ export class OpenAIProviderService {
             }
 
             const connection = await this.dbManager.getConnection();
-            const provider = await this.getProviderFromDatabase(connection, config.type, id);
+            const provider = await this.getProviderFromDatabase(connection, config.type, userId, id);
 
             if (!provider) {
                 return {
@@ -215,7 +217,7 @@ export class OpenAIProviderService {
     }
 
     // Get decrypted API key for internal use
-    public async getDecryptedApiKey(id: string): Promise<string | null> {
+    public async getDecryptedApiKey(userId: string, id: string): Promise<string | null> {
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
@@ -223,7 +225,7 @@ export class OpenAIProviderService {
             }
 
             const connection = await this.dbManager.getConnection();
-            const provider = await this.getProviderFromDatabase(connection, config.type, id);
+            const provider = await this.getProviderFromDatabase(connection, config.type, userId, id);
 
             if (provider && provider.apiKey) {
                 return this.decryptApiKey(provider.apiKey);
@@ -237,7 +239,7 @@ export class OpenAIProviderService {
     }
 
     // Update an OpenAI provider
-    public async updateProvider(id: string, request: UpdateOpenAIProviderRequest): Promise<OpenAIProviderResponse> {
+    public async updateProvider(userId: string, id: string, request: UpdateOpenAIProviderRequest): Promise<OpenAIProviderResponse> {
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
@@ -245,7 +247,7 @@ export class OpenAIProviderService {
             }
 
             const connection = await this.dbManager.getConnection();
-            const existingProvider = await this.getProviderFromDatabase(connection, config.type, id);
+            const existingProvider = await this.getProviderFromDatabase(connection, config.type, userId, id);
 
             if (!existingProvider) {
                 return {
@@ -292,7 +294,7 @@ export class OpenAIProviderService {
     }
 
     // Delete an OpenAI provider
-    public async deleteProvider(id: string): Promise<OpenAIProviderResponse> {
+    public async deleteProvider(userId: string, id: string): Promise<OpenAIProviderResponse> {
         try {
             const config = this.dbManager.getCurrentConfig();
             if (!config) {
@@ -300,7 +302,7 @@ export class OpenAIProviderService {
             }
 
             const connection = await this.dbManager.getConnection();
-            const existingProvider = await this.getProviderFromDatabase(connection, config.type, id);
+            const existingProvider = await this.getProviderFromDatabase(connection, config.type, userId, id);
 
             if (!existingProvider) {
                 return {
@@ -310,7 +312,7 @@ export class OpenAIProviderService {
                 };
             }
 
-            await this.deleteProviderFromDatabase(connection, config.type, id);
+            await this.deleteProviderFromDatabase(connection, config.type, userId, id);
 
             return {
                 success: true,
@@ -338,10 +340,11 @@ export class OpenAIProviderService {
                 return new Promise<void>((resolve, reject) => {
                     connection.run(`
                         INSERT INTO openai_providers
-                        (id, name, apiKey, isActive, createdAt, updatedAt)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        (id, userId, name, apiKey, isActive, createdAt, updatedAt)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     `, [
                         provider.id,
+                        provider.userId,
                         provider.name,
                         provider.apiKey,
                         provider.isActive ? 1 : 0,
@@ -361,11 +364,12 @@ export class OpenAIProviderService {
             case 'postgresql':
                 const query = `
                     INSERT INTO openai_providers
-                    (id, name, apiKey, isActive, createdAt, updatedAt)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (id, userId, name, apiKey, isActive, createdAt, updatedAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 `;
                 await connection.execute(query, [
                     provider.id,
+                    provider.userId,
                     provider.name,
                     provider.apiKey,
                     provider.isActive,
@@ -379,19 +383,21 @@ export class OpenAIProviderService {
         }
     }
 
-    private async getProvidersFromDatabase(connection: any, dbType: string): Promise<OpenAIProvider[]> {
+    private async getProvidersFromDatabase(connection: any, dbType: string, userId: string): Promise<OpenAIProvider[]> {
         switch (dbType) {
             case 'localdb':
                 return new Promise<OpenAIProvider[]>((resolve, reject) => {
                     connection.all(`
                         SELECT * FROM openai_providers
+                        WHERE userId = ?
                         ORDER BY createdAt DESC
-                    `, [], (err: any, rows: any[]) => {
+                    `, [userId], (err: any, rows: any[]) => {
                         if (err) {
                             reject(err);
                         } else {
                             const providers = rows.map(row => ({
                                 id: row.id,
+                                userId: row.userId,
                                 name: row.name,
                                 apiKey: row.apiKey,
                                 isActive: Boolean(row.isActive),
@@ -404,9 +410,10 @@ export class OpenAIProviderService {
                 });
 
             case 'mongodb':
-                const docs = await connection.collection('openai_providers').find({}).sort({ createdAt: -1 }).toArray();
+                const docs = await connection.collection('openai_providers').find({ userId }).sort({ createdAt: -1 }).toArray();
                 return docs.map((doc: any) => ({
                     id: doc.id,
+                    userId: doc.userId,
                     name: doc.name,
                     apiKey: doc.apiKey,
                     isActive: doc.isActive,
@@ -418,10 +425,12 @@ export class OpenAIProviderService {
             case 'postgresql':
                 const [rows] = await connection.execute(`
                     SELECT * FROM openai_providers
+                    WHERE userId = ?
                     ORDER BY createdAt DESC
-                `);
+                `, [userId]);
                 return (rows as any[]).map(row => ({
                     id: row.id,
+                    userId: row.userId,
                     name: row.name,
                     apiKey: row.apiKey,
                     isActive: Boolean(row.isActive),
@@ -434,18 +443,19 @@ export class OpenAIProviderService {
         }
     }
 
-    private async getProviderFromDatabase(connection: any, dbType: string, id: string): Promise<OpenAIProvider | null> {
+    private async getProviderFromDatabase(connection: any, dbType: string, userId: string, id: string): Promise<OpenAIProvider | null> {
         switch (dbType) {
             case 'localdb':
                 return new Promise<OpenAIProvider | null>((resolve, reject) => {
                     connection.get(`
-                        SELECT * FROM openai_providers WHERE id = ?
-                    `, [id], (err: any, row: any) => {
+                        SELECT * FROM openai_providers WHERE id = ? AND userId = ?
+                    `, [id, userId], (err: any, row: any) => {
                         if (err) {
                             reject(err);
                         } else if (row) {
                             resolve({
                                 id: row.id,
+                                userId: row.userId,
                                 name: row.name,
                                 apiKey: row.apiKey,
                                 isActive: Boolean(row.isActive),
@@ -459,10 +469,11 @@ export class OpenAIProviderService {
                 });
 
             case 'mongodb':
-                const doc = await connection.collection('openai_providers').findOne({ id });
+                const doc = await connection.collection('openai_providers').findOne({ id, userId });
                 if (!doc) return null;
                 return {
                     id: doc.id,
+                    userId: doc.userId,
                     name: doc.name,
                     apiKey: doc.apiKey,
                     isActive: doc.isActive,
@@ -473,12 +484,13 @@ export class OpenAIProviderService {
             case 'mysql':
             case 'postgresql':
                 const [rows] = await connection.execute(`
-                    SELECT * FROM openai_providers WHERE id = ?
-                `, [id]);
+                    SELECT * FROM openai_providers WHERE id = ? AND userId = ?
+                `, [id, userId]);
                 const row = (rows as any[])[0];
                 if (!row) return null;
                 return {
                     id: row.id,
+                    userId: row.userId,
                     name: row.name,
                     apiKey: row.apiKey,
                     isActive: Boolean(row.isActive),
@@ -498,13 +510,14 @@ export class OpenAIProviderService {
                     connection.run(`
                         UPDATE openai_providers
                         SET name = ?, apiKey = ?, isActive = ?, updatedAt = ?
-                        WHERE id = ?
+                        WHERE id = ? AND userId = ?
                     `, [
                         provider.name,
                         provider.apiKey,
                         provider.isActive ? 1 : 0,
                         provider.updatedAt.toISOString(),
-                        provider.id
+                        provider.id,
+                        provider.userId
                     ], (err: any) => {
                         if (err) reject(err);
                         else resolve();
@@ -513,7 +526,7 @@ export class OpenAIProviderService {
 
             case 'mongodb':
                 await connection.collection('openai_providers').updateOne(
-                    { id: provider.id },
+                    { id: provider.id, userId: provider.userId },
                     { $set: provider }
                 );
                 break;
@@ -523,14 +536,15 @@ export class OpenAIProviderService {
                 const query = `
                     UPDATE openai_providers
                     SET name = ?, apiKey = ?, isActive = ?, updatedAt = ?
-                    WHERE id = ?
+                    WHERE id = ? AND userId = ?
                 `;
                 await connection.execute(query, [
                     provider.name,
                     provider.apiKey,
                     provider.isActive,
                     provider.updatedAt,
-                    provider.id
+                    provider.id,
+                    provider.userId
                 ]);
                 break;
 
@@ -539,27 +553,27 @@ export class OpenAIProviderService {
         }
     }
 
-    private async deleteProviderFromDatabase(connection: any, dbType: string, id: string): Promise<void> {
+    private async deleteProviderFromDatabase(connection: any, dbType: string, userId: string, id: string): Promise<void> {
         switch (dbType) {
             case 'localdb':
                 return new Promise<void>((resolve, reject) => {
                     connection.run(`
-                        DELETE FROM openai_providers WHERE id = ?
-                    `, [id], (err: any) => {
+                        DELETE FROM openai_providers WHERE id = ? AND userId = ?
+                    `, [id, userId], (err: any) => {
                         if (err) reject(err);
                         else resolve();
                     });
                 });
 
             case 'mongodb':
-                await connection.collection('openai_providers').deleteOne({ id });
+                await connection.collection('openai_providers').deleteOne({ id, userId });
                 break;
 
             case 'mysql':
             case 'postgresql':
                 await connection.execute(`
-                    DELETE FROM openai_providers WHERE id = ?
-                `, [id]);
+                    DELETE FROM openai_providers WHERE id = ? AND userId = ?
+                `, [id, userId]);
                 break;
 
             default:
@@ -568,9 +582,9 @@ export class OpenAIProviderService {
     }
 
     // Test API key by making a simple request to OpenAI
-    public async testApiKey(id: string): Promise<OpenAIProviderResponse> {
+    public async testApiKey(userId: string, id: string): Promise<OpenAIProviderResponse> {
         try {
-            const apiKey = await this.getDecryptedApiKey(id);
+            const apiKey = await this.getDecryptedApiKey(userId, id);
             if (!apiKey) {
                 return {
                     success: false,

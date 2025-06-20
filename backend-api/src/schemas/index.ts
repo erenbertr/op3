@@ -311,6 +311,10 @@ export const AIProviderConfigSchema: SchemaDefinition = {
             primaryKey: true,
             required: true
         },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
         provider: {
             type: 'string',
             required: true,
@@ -335,8 +339,11 @@ export const AIProviderConfigSchema: SchemaDefinition = {
         }
     },
     indexes: [
+        ['userId'],
         ['provider'],
         ['isActive'],
+        ['userId', 'provider'],
+        ['userId', 'isActive'],
         ['provider', 'isActive']
     ],
     timestamps: true
@@ -381,6 +388,10 @@ export const OpenAIModelConfigSchema: SchemaDefinition = {
             primaryKey: true,
             required: true
         },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
         keyId: {
             type: 'uuid',
             required: true
@@ -416,9 +427,12 @@ export const OpenAIModelConfigSchema: SchemaDefinition = {
         }
     },
     indexes: [
+        ['userId'],
         ['keyId'],
         ['modelId'],
+        ['userId', 'keyId'],
         ['keyId', 'modelId'],
+        ['userId', 'isActive'],
         ['isActive']
     ],
     timestamps: true
@@ -433,6 +447,10 @@ export const GoogleModelConfigSchema: SchemaDefinition = {
             primaryKey: true,
             required: true
         },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
         keyId: {
             type: 'uuid',
             required: true
@@ -469,9 +487,12 @@ export const GoogleModelConfigSchema: SchemaDefinition = {
         }
     },
     indexes: [
+        ['userId'],
         ['keyId'],
         ['modelId'],
+        ['userId', 'keyId'],
         ['keyId', 'modelId'],
+        ['userId', 'isActive'],
         ['isActive']
     ],
     timestamps: true
@@ -486,6 +507,10 @@ export const AnthropicModelConfigSchema: SchemaDefinition = {
             primaryKey: true,
             required: true
         },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
         keyId: {
             type: 'uuid',
             required: true
@@ -522,9 +547,12 @@ export const AnthropicModelConfigSchema: SchemaDefinition = {
         }
     },
     indexes: [
+        ['userId'],
         ['keyId'],
         ['modelId'],
+        ['userId', 'keyId'],
         ['keyId', 'modelId'],
+        ['userId', 'isActive'],
         ['isActive']
     ],
     timestamps: true
@@ -539,6 +567,10 @@ export const GrokModelConfigSchema: SchemaDefinition = {
             primaryKey: true,
             required: true
         },
+        userId: {
+            type: 'uuid',
+            required: true
+        },
         keyId: {
             type: 'uuid',
             required: true
@@ -575,9 +607,12 @@ export const GrokModelConfigSchema: SchemaDefinition = {
         }
     },
     indexes: [
+        ['userId'],
         ['keyId'],
         ['modelId'],
+        ['userId', 'keyId'],
         ['keyId', 'modelId'],
+        ['userId', 'isActive'],
         ['isActive']
     ],
     timestamps: true

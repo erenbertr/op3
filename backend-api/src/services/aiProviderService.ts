@@ -165,6 +165,7 @@ export class AIProviderService {
                 const vercelAIService = VercelAIProviderService.getInstance();
                 const providerConfig: AIProviderConfig = {
                     id: 'test',
+                    userId: 'test-user',
                     type: request.type,
                     name: 'Test Provider',
                     apiKey: request.apiKey,

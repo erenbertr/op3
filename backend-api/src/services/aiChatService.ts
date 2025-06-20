@@ -89,11 +89,11 @@ export class AIChatService {
 
             if (request.aiProviderId) {
                 // First try to resolve as OpenAI model configuration
-                selectedProvider = await this.resolveOpenAIModelConfig(request.aiProviderId);
+                selectedProvider = await this.resolveOpenAIModelConfig(request.userId, request.aiProviderId);
 
                 // If not found, try Google model configuration
                 if (!selectedProvider) {
-                    selectedProvider = await this.resolveGoogleModelConfig(request.aiProviderId);
+                    selectedProvider = await this.resolveGoogleModelConfig(request.userId, request.aiProviderId);
                 }
 
                 // If not found, try old AI provider system
@@ -103,11 +103,11 @@ export class AIChatService {
                 }
             } else {
                 // Use first active provider as default (try OpenAI model configs first)
-                const openaiModelConfigs = await this.openaiModelConfigService.getModelConfigs();
+                const openaiModelConfigs = await this.openaiModelConfigService.getModelConfigs(request.userId);
                 if (openaiModelConfigs.success && openaiModelConfigs.modelConfigs && Array.isArray(openaiModelConfigs.modelConfigs) && openaiModelConfigs.modelConfigs.length > 0) {
                     const activeConfig = openaiModelConfigs.modelConfigs.find((config: any) => config.isActive);
                     if (activeConfig) {
-                        selectedProvider = await this.resolveOpenAIModelConfig(activeConfig.id);
+                        selectedProvider = await this.resolveOpenAIModelConfig(request.userId, activeConfig.id);
                     }
                 }
 
@@ -117,7 +117,7 @@ export class AIChatService {
                     if (googleModelConfigs.success && googleModelConfigs.modelConfigs && Array.isArray(googleModelConfigs.modelConfigs) && googleModelConfigs.modelConfigs.length > 0) {
                         const activeConfig = googleModelConfigs.modelConfigs.find((config: any) => config.isActive);
                         if (activeConfig) {
-                            selectedProvider = await this.resolveGoogleModelConfig(activeConfig.id);
+                            selectedProvider = await this.resolveGoogleModelConfig(request.userId, activeConfig.id);
                         }
                     }
                 }
@@ -175,10 +175,10 @@ export class AIChatService {
     /**
      * Resolve OpenAI model configuration to AIProviderConfig format
      */
-    private async resolveOpenAIModelConfig(modelConfigId: string): Promise<AIProviderConfig | undefined> {
+    private async resolveOpenAIModelConfig(userId: string, modelConfigId: string): Promise<AIProviderConfig | undefined> {
         try {
             // Get all model configurations and find the one with matching ID
-            const allConfigsResult = await this.openaiModelConfigService.getModelConfigs();
+            const allConfigsResult = await this.openaiModelConfigService.getModelConfigs(userId);
             if (!allConfigsResult.success || !allConfigsResult.modelConfigs) {
                 return undefined;
             }
@@ -191,7 +191,7 @@ export class AIChatService {
             }
 
             // Get the decrypted API key for this model config
-            const decryptedApiKey = await this.openaiProviderService.getDecryptedApiKey(modelConfig.keyId);
+            const decryptedApiKey = await this.openaiProviderService.getDecryptedApiKey(userId, modelConfig.keyId);
             if (!decryptedApiKey) {
                 return undefined;
             }
@@ -199,6 +199,7 @@ export class AIChatService {
             // Convert to AIProviderConfig format
             const aiProviderConfig: AIProviderConfig = {
                 id: modelConfig.id,
+                userId,
                 type: 'openai',
                 name: modelConfig.customName || modelConfig.modelName,
                 apiKey: decryptedApiKey, // Use decrypted API key directly
@@ -219,7 +220,7 @@ export class AIChatService {
     /**
      * Resolve Google model configuration to AIProviderConfig format
      */
-    private async resolveGoogleModelConfig(modelConfigId: string): Promise<AIProviderConfig | undefined> {
+    private async resolveGoogleModelConfig(userId: string, modelConfigId: string): Promise<AIProviderConfig | undefined> {
         try {
             // Get all Google model configurations and find the one with matching ID
             const allConfigsResult = await this.googleModelConfigService.getModelConfigs();
@@ -243,6 +244,7 @@ export class AIChatService {
             // Convert to AIProviderConfig format
             const aiProviderConfig: AIProviderConfig = {
                 id: modelConfig.id,
+                userId,
                 type: 'google',
                 name: modelConfig.customName || modelConfig.modelName,
                 apiKey: decryptedApiKey, // Use decrypted API key directly

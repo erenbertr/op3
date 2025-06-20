@@ -2,6 +2,7 @@ export type AIProviderType = 'openai' | 'anthropic' | 'google' | 'replicate' | '
 
 export interface AIProviderConfig {
     id?: string;
+    userId: string;
     type: AIProviderType;
     name: string; // Custom name/label for the provider
     apiKey: string;
@@ -188,6 +189,7 @@ export interface DeleteAIFavoriteResponse {
 // OpenAI Model Configuration types
 export interface OpenAIModelConfig {
     id: string;
+    userId: string;
     keyId: string;
     keyName: string;
     modelId: string;
@@ -282,6 +284,7 @@ export interface GrokModelConfigResponse {
 // Anthropic Model Configuration types
 export interface AnthropicModelConfig {
     id: string;
+    userId: string;
     keyId: string;
     keyName: string;
     modelId: string;

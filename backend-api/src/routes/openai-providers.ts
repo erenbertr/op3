@@ -1,9 +1,13 @@
 import express from 'express';
 import { OpenAIProviderService } from '../services/openaiProviderService';
 import { initializeOpenAIProvidersTable } from '../scripts/initOpenAIProviders';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 const openaiProviderService = OpenAIProviderService.getInstance();
+
+// Apply authentication middleware to all routes
+router.use(authenticateToken);
 
 // Initialize the database table on first load
 let tableInitialized = false;
@@ -29,7 +33,11 @@ function createError(message: string, statusCode: number = 400) {
 router.get('/', async (req, res, next) => {
     try {
         await ensureTableInitialized();
-        const result = await openaiProviderService.getProviders();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
+        const result = await openaiProviderService.getProviders(userId);
 
         if (!result.success) {
             throw createError(result.message, 400);
@@ -49,13 +57,17 @@ router.get('/', async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
 
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
 
-        const result = await openaiProviderService.getProvider(id);
+        const result = await openaiProviderService.getProvider(userId, id);
 
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
@@ -76,13 +88,17 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { name, apiKey, isActive } = req.body;
 
         if (!name || !apiKey) {
             throw createError('Name and API key are required', 400);
         }
 
-        const result = await openaiProviderService.createProvider({
+        const result = await openaiProviderService.createProvider(userId, {
             name,
             apiKey,
             isActive
@@ -106,6 +122,10 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
         const { name, apiKey, isActive } = req.body;
 
@@ -113,7 +133,7 @@ router.put('/:id', async (req, res, next) => {
             throw createError('Provider ID is required', 400);
         }
 
-        const result = await openaiProviderService.updateProvider(id, {
+        const result = await openaiProviderService.updateProvider(userId, id, {
             name,
             apiKey,
             isActive
@@ -138,13 +158,17 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
 
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
 
-        const result = await openaiProviderService.deleteProvider(id);
+        const result = await openaiProviderService.deleteProvider(userId, id);
 
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
@@ -164,13 +188,17 @@ router.delete('/:id', async (req, res, next) => {
 router.post('/:id/test', async (req, res, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
 
         if (!id) {
             throw createError('Provider ID is required', 400);
         }
 
-        const result = await openaiProviderService.testApiKey(id);
+        const result = await openaiProviderService.testApiKey(userId, id);
 
         if (!result.success) {
             const statusCode = result.error === 'NOT_FOUND' ? 404 : 400;
@@ -190,6 +218,10 @@ router.post('/:id/test', async (req, res, next) => {
 router.get('/:id/decrypted-key', async (req, res, next) => {
     try {
         await ensureTableInitialized();
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError('User not authenticated', 401);
+        }
         const { id } = req.params;
         console.log('🔑 GET /openai-providers/:id/decrypted-key called with id:', id);
 
@@ -199,7 +231,7 @@ router.get('/:id/decrypted-key', async (req, res, next) => {
         }
 
         console.log('🔓 Getting decrypted API key...');
-        const apiKey = await openaiProviderService.getDecryptedApiKey(id);
+        const apiKey = await openaiProviderService.getDecryptedApiKey(userId, id);
         console.log('🔑 Decrypted API key retrieved:', apiKey ? `${apiKey.substring(0, 7)}...` : 'null');
 
         if (!apiKey) {

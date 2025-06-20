@@ -35,7 +35,7 @@ export class OpenAIModelConfigServiceNew {
     /**
      * Create a new OpenAI model configuration - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async createModelConfig(request: CreateOpenAIModelConfigRequest): Promise<CreateOpenAIModelConfigResponse> {
+    async createModelConfig(userId: string, request: CreateOpenAIModelConfigRequest): Promise<CreateOpenAIModelConfigResponse> {
         try {
             console.log('🔄 createModelConfig called with:', {
                 keyId: request.keyId,
@@ -60,7 +60,7 @@ export class OpenAIModelConfigServiceNew {
             // Check if model config already exists for this key and model (only if no custom name is provided)
             // Allow duplicates if user provides a custom name to differentiate them
             if (!request.customName) {
-                const existingConfig = await this.getModelConfigByKeyAndModel(request.keyId, request.modelId);
+                const existingConfig = await this.getModelConfigByKeyAndModel(userId, request.keyId, request.modelId);
                 if (existingConfig) {
                     return {
                         success: false,
@@ -80,6 +80,7 @@ export class OpenAIModelConfigServiceNew {
 
             const modelConfig: OpenAIModelConfig = {
                 id: uuidv4(),
+                userId,
                 keyId: request.keyId,
                 modelId: request.modelId,
                 modelName: request.modelName,
@@ -115,11 +116,12 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Get all OpenAI model configurations - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Get all OpenAI model configurations for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async getModelConfigs(): Promise<GetOpenAIModelConfigsResponse> {
+    async getModelConfigs(userId: string): Promise<GetOpenAIModelConfigsResponse> {
         try {
             const result = await this.universalDb.findMany<OpenAIModelConfig>('openai_model_configs', {
+                where: [{ field: 'userId', operator: 'eq', value: userId }],
                 orderBy: [{ field: 'createdAt', direction: 'desc' }]
             });
 
@@ -141,10 +143,10 @@ export class OpenAIModelConfigServiceNew {
     /**
      * Update an OpenAI model configuration - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async updateModelConfig(id: string, request: UpdateOpenAIModelConfigRequest): Promise<UpdateOpenAIModelConfigResponse> {
+    async updateModelConfig(userId: string, id: string, request: UpdateOpenAIModelConfigRequest): Promise<UpdateOpenAIModelConfigResponse> {
         try {
-            // Check if model config exists
-            const existingConfig = await this.getModelConfigById(id);
+            // Check if model config exists and belongs to user
+            const existingConfig = await this.getModelConfigById(userId, id);
             if (!existingConfig) {
                 return {
                     success: false,
@@ -179,7 +181,7 @@ export class OpenAIModelConfigServiceNew {
             const result = await this.universalDb.update<OpenAIModelConfig>('openai_model_configs', id, updateData);
 
             if (result.modifiedCount > 0) {
-                const updatedConfig = await this.getModelConfigById(id);
+                const updatedConfig = await this.getModelConfigById(userId, id);
                 return {
                     success: true,
                     message: 'Model configuration updated successfully',
@@ -203,10 +205,10 @@ export class OpenAIModelConfigServiceNew {
     /**
      * Delete an OpenAI model configuration - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async deleteModelConfig(id: string): Promise<DeleteOpenAIModelConfigResponse> {
+    async deleteModelConfig(userId: string, id: string): Promise<DeleteOpenAIModelConfigResponse> {
         try {
-            // Check if model config exists
-            const existingConfig = await this.getModelConfigById(id);
+            // Check if model config exists and belongs to user
+            const existingConfig = await this.getModelConfigById(userId, id);
             if (!existingConfig) {
                 return {
                     success: false,
@@ -238,11 +240,16 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Get model configuration by ID - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Get model configuration by ID for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async getModelConfigById(id: string): Promise<OpenAIModelConfig | null> {
+    async getModelConfigById(userId: string, id: string): Promise<OpenAIModelConfig | null> {
         try {
-            return await this.universalDb.findById<OpenAIModelConfig>('openai_model_configs', id);
+            return await this.universalDb.findOne<OpenAIModelConfig>('openai_model_configs', {
+                where: [
+                    { field: 'id', operator: 'eq', value: id },
+                    { field: 'userId', operator: 'eq', value: userId }
+                ]
+            });
         } catch (error) {
             console.error('Error getting model config by ID:', error);
             return null;
@@ -250,12 +257,13 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Get model configuration by key and model - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Get model configuration by key and model for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async getModelConfigByKeyAndModel(keyId: string, modelId: string): Promise<OpenAIModelConfig | null> {
+    async getModelConfigByKeyAndModel(userId: string, keyId: string, modelId: string): Promise<OpenAIModelConfig | null> {
         try {
             return await this.universalDb.findOne<OpenAIModelConfig>('openai_model_configs', {
                 where: [
+                    { field: 'userId', operator: 'eq', value: userId },
                     { field: 'keyId', operator: 'eq', value: keyId },
                     { field: 'modelId', operator: 'eq', value: modelId }
                 ]
@@ -267,12 +275,15 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Get model configurations by key ID - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Get model configurations by key ID for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async getModelConfigsByKeyId(keyId: string): Promise<OpenAIModelConfig[]> {
+    async getModelConfigsByKeyId(userId: string, keyId: string): Promise<OpenAIModelConfig[]> {
         try {
             const result = await this.universalDb.findMany<OpenAIModelConfig>('openai_model_configs', {
-                where: [{ field: 'keyId', operator: 'eq', value: keyId }],
+                where: [
+                    { field: 'userId', operator: 'eq', value: userId },
+                    { field: 'keyId', operator: 'eq', value: keyId }
+                ],
                 orderBy: [{ field: 'modelName', direction: 'asc' }]
             });
             return result.data;
@@ -283,12 +294,15 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Get active model configurations - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Get active model configurations for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async getActiveModelConfigs(): Promise<OpenAIModelConfig[]> {
+    async getActiveModelConfigs(userId: string): Promise<OpenAIModelConfig[]> {
         try {
             const result = await this.universalDb.findMany<OpenAIModelConfig>('openai_model_configs', {
-                where: [{ field: 'isActive', operator: 'eq', value: true }],
+                where: [
+                    { field: 'userId', operator: 'eq', value: userId },
+                    { field: 'isActive', operator: 'eq', value: true }
+                ],
                 orderBy: [{ field: 'modelName', direction: 'asc' }]
             });
             return result.data;
@@ -299,12 +313,13 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Search model configurations - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Search model configurations for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async searchModelConfigs(searchTerm: string): Promise<OpenAIModelConfig[]> {
+    async searchModelConfigs(userId: string, searchTerm: string): Promise<OpenAIModelConfig[]> {
         try {
             const result = await this.universalDb.findMany<OpenAIModelConfig>('openai_model_configs', {
                 where: [
+                    { field: 'userId', operator: 'eq', value: userId },
                     { field: 'modelName', operator: 'like', value: searchTerm }
                 ],
                 orderBy: [{ field: 'modelName', direction: 'asc' }]
@@ -317,11 +332,13 @@ export class OpenAIModelConfigServiceNew {
     }
 
     /**
-     * Count model configurations - ONE SIMPLE METHOD FOR ALL DATABASES!
+     * Count model configurations for a user - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async countModelConfigs(): Promise<number> {
+    async countModelConfigs(userId: string): Promise<number> {
         try {
-            return await this.universalDb.count('openai_model_configs');
+            return await this.universalDb.count('openai_model_configs', {
+                where: [{ field: 'userId', operator: 'eq', value: userId }]
+            });
         } catch (error) {
             console.error('Error counting model configs:', error);
             return 0;
@@ -331,9 +348,9 @@ export class OpenAIModelConfigServiceNew {
     /**
      * Toggle model configuration active status - ONE SIMPLE METHOD FOR ALL DATABASES!
      */
-    async toggleModelConfigStatus(id: string): Promise<{ success: boolean; message: string; isActive?: boolean }> {
+    async toggleModelConfigStatus(userId: string, id: string): Promise<{ success: boolean; message: string; isActive?: boolean }> {
         try {
-            const config = await this.getModelConfigById(id);
+            const config = await this.getModelConfigById(userId, id);
             if (!config) {
                 return {
                     success: false,
