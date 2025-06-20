@@ -16,8 +16,20 @@ const PORT = process.env.PORT || 3006;
 
 // Middleware
 app.use(helmet());
+
+// Configure CORS origins
+const corsOrigins = process.env.FRONTEND_URL
+    ? [process.env.FRONTEND_URL]
+    : ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3006'];
+
+// Add additional origins from environment if specified
+if (process.env.ADDITIONAL_CORS_ORIGINS) {
+    const additionalOrigins = process.env.ADDITIONAL_CORS_ORIGINS.split(',').map(origin => origin.trim());
+    corsOrigins.push(...additionalOrigins);
+}
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3006'],
+    origin: corsOrigins,
     credentials: true
 }));
 app.use(morgan('combined'));
@@ -68,7 +80,7 @@ server.listen(PORT, () => {
     console.log(`🔗 API endpoints: http://localhost:${PORT}/api/v1`);
     console.log(`🔌 WebSocket server: ws://localhost:${PORT}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔧 CORS enabled for: http://localhost:3000, http://localhost:3002, http://localhost:3006`);
+    console.log(`🔧 CORS enabled for: ${corsOrigins.join(', ')}`);
 });
 
 export default app;
