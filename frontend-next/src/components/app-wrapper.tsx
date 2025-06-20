@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { SetupWizard } from '@/components/setup/setup-wizard';
 import { LoginForm } from '@/components/auth/login-form';
@@ -24,9 +24,6 @@ export function AppWrapper() {
     const [isLoggingIn, setIsLoggingIn] = useState(false);
     const pathname = usePathname();
     const router = useRouter();
-
-    // Use dynamic title hook
-    useDynamicTitle();
 
     // Use delayed spinner for setup loading
     const { showSpinner: showSetupSpinner, startLoading: startSetupLoading, stopLoading: stopSetupLoading } = useDelayedSpinner(3000);
@@ -56,11 +53,19 @@ export function AppWrapper() {
     // Derived state from query
     const setupStatus = setupResponse?.setup || null;
 
+    // Determine app state for title
+    const appState = useMemo(() => {
+        if (!isLoadingSetup && !setupStatus?.completed) {
+            return 'setup';
+        } else if (setupStatus?.completed && !session?.user) {
+            return 'login';
+        } else {
+            return 'workspace';
+        }
+    }, [isLoadingSetup, setupStatus?.completed, session?.user]);
 
-
-
-
-
+    // Use dynamic title hook
+    useDynamicTitle(undefined, undefined, appState);
 
     // Removed loadInitialWorkspace function - WorkspaceApplication handles its own navigation
 
@@ -211,7 +216,7 @@ export function AppWrapper() {
                 <div className="text-center mb-8">
                     <h2 className="text-2xl font-bold mb-2">Sign In</h2>
                     <p className="text-muted-foreground">
-                        Setup completed successfully! Please sign in to continue.
+                        Please sign in to continue.
                     </p>
                 </div>
                 <div className="max-w-md mx-auto">

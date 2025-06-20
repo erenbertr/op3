@@ -9,10 +9,16 @@ interface TitleConfig {
 }
 
 // Define title mappings for different routes
-const getTitleConfig = (pathname: string, workspaceId?: string, chatId?: string): TitleConfig => {
-    // Setup page
+const getTitleConfig = (pathname: string, workspaceId?: string, chatId?: string, appState?: 'setup' | 'login' | 'workspace'): TitleConfig => {
+    // Root path - depends on app state
     if (pathname === '/') {
-        return { title: 'Setup', description: 'Application Setup Wizard' };
+        if (appState === 'setup') {
+            return { title: 'Setup', description: 'Application Setup Wizard' };
+        } else if (appState === 'login') {
+            return { title: 'Sign In', description: 'Sign in to your account' };
+        }
+        // Default fallback for root
+        return { title: 'OP3', description: 'AI-Powered Workspace Platform' };
     }
 
     // Shared content pages
@@ -90,11 +96,11 @@ const getTitleConfig = (pathname: string, workspaceId?: string, chatId?: string)
     return { title: 'OP3', description: 'AI-Powered Workspace Platform' };
 };
 
-export function useDynamicTitle(workspaceId?: string, chatId?: string) {
+export function useDynamicTitle(workspaceId?: string, chatId?: string, appState?: 'setup' | 'login' | 'workspace') {
     const pathname = usePathname();
 
     useEffect(() => {
-        const config = getTitleConfig(pathname, workspaceId, chatId);
+        const config = getTitleConfig(pathname, workspaceId, chatId, appState);
 
         // Update document title
         const newTitle = config.title === 'OP3' ? 'OP3' : `${config.title} | OP3`;
@@ -112,5 +118,5 @@ export function useDynamicTitle(workspaceId?: string, chatId?: string) {
                 metaDescription.setAttribute('content', config.description);
             }
         }
-    }, [pathname, workspaceId, chatId]);
+    }, [pathname, workspaceId, chatId, appState]);
 }

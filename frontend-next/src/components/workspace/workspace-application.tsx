@@ -150,7 +150,7 @@ export function WorkspaceApplication({ currentUser, onLogout }: WorkspaceApplica
     }, [currentPathname, setupStatus]);
 
     // Use dynamic title hook
-    useDynamicTitle(routeParams.workspaceId, routeParams.chatId);
+    useDynamicTitle(routeParams.workspaceId, routeParams.chatId, 'workspace');
 
     // Find current workspace separately to avoid workspacesResult dependency in main useMemo
     const currentWorkspace = useMemo(() => {
